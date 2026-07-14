@@ -58,14 +58,14 @@ jest.mock('electron', () => {
     },
     session: {
       defaultSession: {
-        clearCache: jest.fn(),
-        clearStorageData: jest.fn(),
-        cookies: { get: jest.fn(), set: jest.fn(), remove: jest.fn() },
+        clearCache: jest.fn(() => Promise.resolve()),
+        clearStorageData: jest.fn(() => Promise.resolve()),
+        cookies: { get: jest.fn(() => Promise.resolve([])), set: jest.fn(() => Promise.resolve()), remove: jest.fn(() => Promise.resolve()) },
       },
       fromPartition: jest.fn(() => ({
-        clearCache: jest.fn(),
-        clearStorageData: jest.fn(),
-        cookies: { get: jest.fn(), set: jest.fn(), remove: jest.fn() },
+        clearCache: jest.fn(() => Promise.resolve()),
+        clearStorageData: jest.fn(() => Promise.resolve()),
+        cookies: { get: jest.fn(() => Promise.resolve([])), set: jest.fn(() => Promise.resolve()), remove: jest.fn(() => Promise.resolve()) },
       })),
     },
     webContents: { getAllWebContents: jest.fn(() => []) },
