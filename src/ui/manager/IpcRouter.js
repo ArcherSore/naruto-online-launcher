@@ -175,14 +175,32 @@ function registerIpcHandlers(handlers) {
   const apiLogin = require('../../network/api-login');
   const inspector = require('../../network/inspector');
 
-  ipcMain.handle('tempmail:create', async function () {
+  ipcMain.handle('tempmail:create', async function (_e, opts) {
     try {
-      const result = await tempmail.createNarutoAccount();
+      opts = opts || {};
+      const result = await tempmail.createNarutoAccount(opts);
+
+      // Fase 3g (pendência herdada): auto-criar Profile + guardar creds no vault.
+      // Antes o tempmail criava o JWT mas não o Profile — o usuário tinha que
+      // criar o perfil manualmente e colar as credenciais. Agora é automático.
+      const profile = store.create({
+        name: opts.name || ('Player ' + result.game.nickname),
+        server: opts.server || '',
+        region: opts.region || 'br',
+        language: opts.language || 'pt',
+        notificationsEnabled: opts.notificationsEnabled !== false,
+      });
+      let vaultStored = false;
+      if (profile) {
+        vaultStored = vault.setCredentials(profile.id, result.tempmail.address, result.tempmail.password);
+        _pushProfiles();
+      }
+
       _send('profile:toast', {
         type: 'success',
-        msg: 'Conta criada: ' + result.tempmail.address + ' (player ' + result.game.nickname + ')'
+        msg: 'Conta criada: ' + result.tempmail.address + ' (player ' + result.game.nickname + (profile ? ' + perfil auto-criado' : '') + ')'
       });
-      return { ok: true, data: result };
+      return { ok: true, data: result, profile: profile, vaultStored: vaultStored };
     } catch (e) {
       _send('profile:toast', { type: 'error', msg: 'Tempmail falhou: ' + e.message });
       return { ok: false, error: e.message };

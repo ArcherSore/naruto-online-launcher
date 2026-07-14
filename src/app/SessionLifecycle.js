@@ -231,6 +231,7 @@ function attach(win, ctx) {
 
   // ── KILL SWITCH GRACEFUL ──
   let _isForceClosing = false;
+  let _renewTimer = null;
   win.on('close', function (e) {
     e.preventDefault();
     if (_isForceClosing) return;
@@ -242,6 +243,8 @@ function attach(win, ctx) {
       if (entry.autoLoginTimer) clearTimeout(entry.autoLoginTimer);
       if (entry.failLoadTimer) clearTimeout(entry.failLoadTimer);
     }
+    // JWT auto-renewal interval cleanup
+    if (_renewTimer) { clearInterval(_renewTimer); _renewTimer = null; }
 
     try {
       if (!win.isDestroyed() && win.webContents) {
@@ -284,6 +287,34 @@ function attach(win, ctx) {
       win.loadURL(url);
     });
   });
+
+  // ── JWT auto-renewal (pendência herdada, Fase 3g) ──
+  // A cada 30 min, se o perfil tem credenciais no vault, checa se o JWT está
+  // próximo de expirar (threshold 5 min) e renova via api-login. O JWT do
+  // Naruto Online expira em 2h; sem renovação, a sessão cai e o auto-login
+  // via form injection reassume — mas renovar evita essa interrupção.
+  _renewTimer = setInterval(function () {
+    if (win.isDestroyed()) {
+      if (_renewTimer) { clearInterval(_renewTimer); _renewTimer = null; }
+      return;
+    }
+    if (!vault.hasCredentials(profileId)) return; // sem creds → não pode renovar
+    const creds = vault.getCredentials(profileId);
+    if (!creds || !creds.user || !creds.pass) return;
+    try {
+      const apiLogin = require('../network/api-login');
+      apiLogin.renewIfNeeded(ses, creds.user, creds.pass, 300).then(function (r) {
+        if (r.renewed) {
+          logger.info('JWT auto-renovado para "' + profile.name + '" (novo expira em ' + Math.round(r.expiresAt / 1000 - Date.now() / 1000) + 's)');
+        }
+      }).catch(function (e) {
+        logger.debug('JWT auto-renewal falhou para ' + profileId + ': ' + e.message);
+      });
+    } catch (e) {
+      logger.debug('JWT auto-renewal skip: ' + e.message);
+    }
+  }, 30 * 60 * 1000); // 30 min
+  if (_renewTimer.unref) _renewTimer.unref();
 }
 
 module.exports = {
