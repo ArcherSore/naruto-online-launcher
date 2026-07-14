@@ -180,20 +180,34 @@ function _readJson(stream, resolve, reject) {
 
 /**
  * Encontra o asset correto para a plataforma atual no release.
- * Linux: nome contém "linux" e termina .tar.xz
- * Windows: nome contém "windows" e termina .exe
+ *
+ * REALIDADE (verificada via GitHub API, v1.54+): o repositório
+ * darktohka/clean-flash-builds NÃO tem asset Linux — apenas Windows (.7z) e
+ * Mac (.zip). O prompt de migração assumia um clean-flash-linux.tar.xz que
+ * não existe. Ver worklog para o contexto.
+ *
+ *   Windows: ChineseFlash-Patched-Win-<ver>.7z  (contém pepflashplayer.dll PPAPI)
+ *   Mac:     ChineseFlash-PPAPI-PepperFlashPlayer.zip (não usado pelo launcher)
+ *   Linux:   nenhum asset → pickAsset retorna null → ensureLatest lança erro acionável.
+ *
  * @param {Object} release
- * @returns {Object} asset { name, browser_download_url, size }
+ * @param {string} [platform] - default process.platform
+ * @returns {Object|null} asset { name, browser_download_url, size }
  */
-function pickAsset(release) {
+function pickAsset(release, platform) {
+  const plat = platform || process.platform;
   const assets = (release && release.assets) || [];
   for (let i = 0; i < assets.length; i++) {
     const a = assets[i];
     const name = (a.name || '').toLowerCase();
-    if (process.platform === 'win32') {
-      if (name.indexOf('windows') !== -1 && name.endsWith('.exe')) return a;
-    } else {
-      if (name.indexOf('linux') !== -1 && name.endsWith('.tar.xz')) return a;
+    if (plat === 'win32') {
+      // .7z (formato atual darktohka) ou .exe (InnoSetup legacy) — ambos Windows.
+      if (name.indexOf('win') !== -1 && (name.endsWith('.7z') || name.endsWith('.exe'))) return a;
+    } else if (plat === 'darwin') {
+      if (name.indexOf('ppapi') !== -1 && name.endsWith('.zip')) return a;
+    } else if (plat === 'linux') {
+      // Reserva: se um dia houver asset linux (.tar.xz ou .zip), casa aqui.
+      if (name.indexOf('linux') !== -1 && (name.endsWith('.tar.xz') || name.endsWith('.zip'))) return a;
     }
   }
   return null;
@@ -266,26 +280,69 @@ function downloadAsset(url, destPath, onProgress) {
 
 /**
  * Extrai o asset baixado para o diretório de cache.
- * Linux: tar -xJf (tar.xz) → libpepflashplayer.so + manifest.json
- * Windows: innoextract | 7z x (InnoSetup .exe) → pepflashplayer.dll
+ *   .7z  (Windows, formato atual darktohka) → 7z x, depois acha pepflashplayer.dll recursivamente
+ *   .exe (InnoSetup legacy)                 → innoextract | 7z x
+ *   .tar.xz (reserva linux)                 → tar -xJf
+ *   .zip (Mac, reserva)                     → unzip
  * @param {string} archivePath
  * @param {string} destDir
  * @returns {Promise<void>}
  */
 function extractAsset(archivePath, destDir) {
   return new Promise(function (resolve, reject) {
-    if (process.platform === 'win32') {
-      // InnoSetup installer — try innoextract first, then 7z
+    const lower = archivePath.toLowerCase();
+    if (lower.endsWith('.7z')) {
+      // 7-zip archive (formato atual do darktohka Windows). Extrai e depois
+      // localiza pepflashplayer.dll recursivamente (a estrutura interna varia).
+      execFile('7z', ['x', '-o' + destDir, '-y', archivePath], { timeout: 60000 }, function (err) {
+        if (err) reject(new Error('7z extraction failed: ' + (err.message || err))); else resolve();
+      });
+    } else if (lower.endsWith('.exe')) {
+      // InnoSetup installer (legacy) — innoextract | 7z
       _tryExtractWin(archivePath, destDir, function (err) {
         if (err) reject(err); else resolve();
       });
-    } else {
-      // Linux: tar -xJf <archive> -C <dest>
+    } else if (lower.endsWith('.tar.xz')) {
       execFile('tar', ['-xJf', archivePath, '-C', destDir], { timeout: 60000 }, function (err) {
         if (err) reject(new Error('tar extraction failed: ' + (err.message || err))); else resolve();
       });
+    } else if (lower.endsWith('.zip')) {
+      execFile('unzip', ['-o', archivePath, '-d', destDir], { timeout: 60000 }, function (err) {
+        if (err) reject(new Error('unzip failed: ' + (err.message || err))); else resolve();
+      });
+    } else {
+      reject(new Error('Formato de archive não suportado: ' + archivePath));
     }
   });
+}
+
+/**
+ * Busca um arquivo pelo nome (case-insensitive) recursivamente num diretório.
+ * Usado para achar pepflashplayer.dll dentro do .7z extraído (estrutura varia).
+ * @param {string} dir
+ * @param {string} targetName
+ * @returns {string|null}
+ */
+function _findFileRecursive(dir, targetName) {
+  const target = targetName.toLowerCase();
+  let found = null;
+  function walk(d) {
+    if (found) return;
+    let entries;
+    try { entries = fs.readdirSync(d, { withFileTypes: true }); }
+    catch (_) { return; }
+    for (let i = 0; i < entries.length; i++) {
+      if (found) return;
+      const e = entries[i];
+      if (e.isFile() && e.name.toLowerCase() === target) {
+        found = path.join(d, e.name);
+      } else if (e.isDirectory()) {
+        walk(path.join(d, e.name));
+      }
+    }
+  }
+  walk(dir);
+  return found;
 }
 
 function _tryExtractWin(archivePath, destDir, cb) {
@@ -316,10 +373,22 @@ async function ensureLatest(platform, onProgress) {
   const cacheDir = getCacheDir();
   if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 
+  // Linux: o repositório darktohka/clean-flash-builds NÃO tem asset Linux
+  // (apenas Windows .7z e Mac .zip — verificado via GitHub API em v1.54+).
+  // Falhar cedo com mensagem acionável em vez de tentar download inútil.
+  if (plat === 'linux') {
+    throw new Error(
+      'Clean Flash PPAPI para Linux não está disponível no repositório ' +
+      'darktohka/clean-flash-builds (apenas Windows/Mac). Para usar o launcher ' +
+      'em Linux, obtenha libpepflashplayer.so manualmente (ex.: de um build ' +
+      'Chromium 87 ou do Clean Flash Linux) e coloque em: ' + cacheDir + '/'
+    );
+  }
+
   logger.info('FlashUpdater: buscando release mais recente do Clean Flash...');
 
   const release = await fetchLatestRelease();
-  const asset = pickAsset(release);
+  const asset = pickAsset(release, plat);
   if (!asset) {
     throw new Error('Nenhum asset Flash encontrado para plataforma "' + plat + '" no release ' + (release.tag_name || '?'));
   }
@@ -334,16 +403,30 @@ async function ensureLatest(platform, onProgress) {
 
   if (onProgress) onProgress(100, (asset.size / 1048576).toFixed(1), (asset.size / 1048576).toFixed(1), 'extract');
 
-  // Extrai para o cache dir (sobrescreve binário antigo)
-  await extractAsset(archivePath, cacheDir);
+  // Extrai para um subdiretório temporário (o .7z do Windows espalha muitos arquivos)
+  const extractDir = path.join(cacheDir, '_extract');
+  try { fs.rmSync(extractDir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+  fs.mkdirSync(extractDir, { recursive: true });
+  await extractAsset(archivePath, extractDir);
 
   // Limpa o archive temporário
   try { fs.unlinkSync(archivePath); } catch (_) { /* ignore */ }
 
-  // Verifica que o plugin foi extraído
-  const pluginPath = getCachedPluginPath();
+  // Localiza o plugin PPAPI extraído (estrutura interna do .7z varia) e move
+  // para a raiz do cache, onde getCachedPluginPath() espera encontrá-lo.
+  const pluginName = PLUGIN_NAMES[plat] || PLUGIN_NAMES.win32;
+  const found = _findFileRecursive(extractDir, pluginName);
+  if (!found) {
+    throw new Error('Extração concluída mas ' + pluginName + ' não encontrado dentro do archive ' + asset.name);
+  }
+  const pluginPath = path.join(cacheDir, pluginName);
+  try { fs.copyFileSync(found, pluginPath); } catch (_) { /* ignore */ }
+
+  // Limpa o subdiretório de extração (mantém só o plugin + manifest no cache)
+  try { fs.rmSync(extractDir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+
   if (!fs.existsSync(pluginPath)) {
-    throw new Error('Extração concluída mas plugin não encontrado em ' + pluginPath);
+    throw new Error('Falha ao mover ' + pluginName + ' para o cache (' + pluginPath + ')');
   }
 
   // Escreve cache-manifest.json
@@ -413,6 +496,7 @@ module.exports = {
   isCacheStale: isCacheStale,
   // pure helpers (expostos p/ testes unitários)
   pickAsset: pickAsset,
+  _findFileRecursive: _findFileRecursive,
   // constants (p/ testes)
   CACHE_SUBDIR: CACHE_SUBDIR,
   STALE_DAYS: STALE_DAYS,

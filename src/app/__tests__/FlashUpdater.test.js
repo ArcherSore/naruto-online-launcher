@@ -10,44 +10,56 @@ const FlashUpdater = require('../FlashUpdater');
 
 describe('FlashUpdater.js', () => {
   describe('pickAsset', () => {
+    // Assets reais do darktohka/clean-flash-builds (verificado via GitHub API, v1.54+)
     const release = {
-      tag_name: 'v34.0.0.137',
+      tag_name: 'v1.54',
       assets: [
-        { name: 'clean-flash-linux.tar.xz', browser_download_url: 'https://x/linux.tar.xz', size: 17000000 },
-        { name: 'clean-flash-windows.exe', browser_download_url: 'https://x/windows.exe', size: 16000000 },
-        { name: 'checksums.txt', browser_download_url: 'https://x/checksums.txt', size: 200 },
+        { name: 'ChineseFlash-Patched-Win-34.0.0.376.7z', browser_download_url: 'https://x/win.7z', size: 29689253 },
+        { name: 'ChineseFlash-PPAPI-PepperFlashPlayer.zip', browser_download_url: 'https://x/mac.zip', size: 9000000 },
+        { name: 'ChineseFlash-NPAPI-FlashPlayer-10.6.zip', browser_download_url: 'https://x/mac-npapi.zip', size: 8000000 },
       ],
     };
 
-    test('seleciona asset Linux (.tar.xz) quando platform=linux', () => {
-      const orig = process.platform;
-      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
-      const a = FlashUpdater.pickAsset(release);
+    test('seleciona asset Windows (.7z) quando platform=win32', () => {
+      const a = FlashUpdater.pickAsset(release, 'win32');
       expect(a).not.toBeNull();
-      expect(a.name).toBe('clean-flash-linux.tar.xz');
-      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
+      expect(a.name).toBe('ChineseFlash-Patched-Win-34.0.0.376.7z');
     });
 
-    test('seleciona asset Windows (.exe) quando platform=win32', () => {
+    test('seleciona asset Mac (.zip PPAPI) quando platform=darwin', () => {
+      const a = FlashUpdater.pickAsset(release, 'darwin');
+      expect(a).not.toBeNull();
+      expect(a.name).toBe('ChineseFlash-PPAPI-PepperFlashPlayer.zip');
+    });
+
+    test('retorna null para Linux (darktohka não tem asset Linux)', () => {
+      const a = FlashUpdater.pickAsset(release, 'linux');
+      expect(a).toBeNull();
+    });
+
+    test('retorna null quando nenhum asset casa com a plataforma', () => {
+      const a = FlashUpdater.pickAsset({ tag_name: 'v1', assets: [{ name: 'readme.md' }] }, 'win32');
+      expect(a).toBeNull();
+    });
+
+    test('retorna null quando release não tem assets', () => {
+      expect(FlashUpdater.pickAsset({}, 'win32')).toBeNull();
+      expect(FlashUpdater.pickAsset(null, 'win32')).toBeNull();
+    });
+
+    test('também casa asset .exe legacy (InnoSetup) para win32', () => {
+      const r = { tag_name: 'v1.0', assets: [{ name: 'clean-flash-windows.exe', browser_download_url: 'https://x.exe', size: 16000000 }] };
+      const a = FlashUpdater.pickAsset(r, 'win32');
+      expect(a).not.toBeNull();
+      expect(a.name).toBe('clean-flash-windows.exe');
+    });
+
+    test('default platform = process.platform', () => {
       const orig = process.platform;
       Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
       const a = FlashUpdater.pickAsset(release);
       expect(a).not.toBeNull();
-      expect(a.name).toBe('clean-flash-windows.exe');
       Object.defineProperty(process, 'platform', { value: orig, configurable: true });
-    });
-
-    test('retorna null quando nenhum asset casa com a plataforma', () => {
-      const orig = process.platform;
-      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
-      const a = FlashUpdater.pickAsset({ tag_name: 'v1', assets: [{ name: 'readme.md' }] });
-      expect(a).toBeNull();
-      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
-    });
-
-    test('retorna null quando release não tem assets', () => {
-      expect(FlashUpdater.pickAsset({})).toBeNull();
-      expect(FlashUpdater.pickAsset(null)).toBeNull();
     });
   });
 
@@ -155,6 +167,50 @@ describe('FlashUpdater.js', () => {
     });
     test('STALE_DAYS é 7', () => {
       expect(FlashUpdater.STALE_DAYS).toBe(7);
+    });
+  });
+
+  describe('ensureLatest — Linux não suportado', () => {
+    test('lança erro acionável para Linux (sem tentar download)', async () => {
+      // darktohka/clean-flash-builds não tem asset Linux — ensureLatest deve
+      // falhar cedo com mensagem explicando como obter o binary manualmente.
+      await expect(FlashUpdater.ensureLatest('linux')).rejects.toThrow(/não está disponível.*Linux/i);
+    });
+  });
+
+  describe('_findFileRecursive', () => {
+    const os = require('os');
+    const path = require('path');
+    test('encontra arquivo no root', () => {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-'));
+      fs.writeFileSync(path.join(tmp, 'pepflashplayer.dll'), 'fake');
+      const found = FlashUpdater._findFileRecursive(tmp, 'pepflashplayer.dll');
+      expect(found).toBe(path.join(tmp, 'pepflashplayer.dll'));
+      fs.rmSync(tmp, { recursive: true, force: true });
+    });
+
+    test('encontra arquivo aninhado em subdiretório', () => {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-'));
+      fs.mkdirSync(path.join(tmp, 'a', 'b'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'a', 'b', 'libpepflashplayer.so'), 'fake');
+      const found = FlashUpdater._findFileRecursive(tmp, 'libpepflashplayer.so');
+      expect(found).toBe(path.join(tmp, 'a', 'b', 'libpepflashplayer.so'));
+      fs.rmSync(tmp, { recursive: true, force: true });
+    });
+
+    test('é case-insensitive', () => {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-'));
+      fs.writeFileSync(path.join(tmp, 'PEPFLASHPLAYER.DLL'), 'fake');
+      const found = FlashUpdater._findFileRecursive(tmp, 'pepflashplayer.dll');
+      expect(found).toBe(path.join(tmp, 'PEPFLASHPLAYER.DLL'));
+      fs.rmSync(tmp, { recursive: true, force: true });
+    });
+
+    test('retorna null quando não encontra', () => {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-'));
+      const found = FlashUpdater._findFileRecursive(tmp, 'nope.dll');
+      expect(found).toBeNull();
+      fs.rmSync(tmp, { recursive: true, force: true });
     });
   });
 });
