@@ -1,0 +1,258 @@
+# Changelog
+
+## [4.8.0] - 2026-07-14
+
+### Added — Multi-conta simultânea
+- **Manager permanece visível ao abrir um jogo**: antes o manager era oculto quando um jogo abria (para liberar ~45MB de RAM), o que impedia dar Play em outra conta. Agora o manager fica visível por padrão → o usuário pode abrir N contas ao mesmo tempo, cada uma em janela/partition isolada (cookies/localStorage/cache 100% separados pelo Chromium — sem conflito de processos). Em Ramen Mode (PC <2GB RAM) o comportamento legado (ocultar) é mantido por necessidade de memória.
+
+### Changed — Launcher simplificado
+- **Atalhos de teclado removidos**: o módulo `window/shortcuts.js` (F5/F6/F7/F11, Ctrl+Shift+S/T, Ctrl+±/0) e os atalhos do manager (Ctrl+N/E/I, V, S, F5) foram removidos — o launcher é intencionalmente minimalista. Apenas `Esc` fecha modais. A referência de uso mora no site companheiro (dashboard → aba Guia). Guards de segurança (Alt+F4, bloqueio de DevTools) permanecem.
+- **Painel "Sistema" consolidado**: a sidebar flutuante (sidebar.js) foi removida — era redundante com o indicador de RAM da nav. O botão "Forçar Limpeza de RAM" + stats de memória + contadores de GC foram movidos para Configurações → nova seção "Desempenho".
+- **Overlay de carregamento reformulado**: removido o emoji 🍥 (quebrava via fontconfig em alguns hosts → glifo inválido/"caracteres" estragados), substituído por spinner CSS (zero dependência de fonte). Fundo #0f0f14 igual ao da janela → transição suave overlay→jogo sem flash preto.
+
+### Fixed — Runtime
+- **MESA_GLSL_CACHE_DISABLE deprecado**: migrado para `MESA_SHADER_CACHE_DISABLE` (preservando a intenção do usuário) no topo do main.js, silenciando o warning de depreciação do Mesa a cada boot.
+- **Fontconfig warnings** (`invalid attribute 'xsi:nil'`): documentados como ruído do SISTEMA HOSPEDEIRO (arquivo `/etc/fonts/conf.d/48-guessfamily.conf` com XML inválido em algumas distros). Inofensivos — o AppImage não pode corrigir `/etc/fonts`. Documentado em main.js + dashboard Guia.
+
+### Removed — Dead code
+- `src/window/shortcuts.js` (módulo de atalhos removido)
+- `src/ui-manager/sidebar.js` (painel Sistema flutuante — consolidado em Configurações)
+- 78 declarações i18n mortas (chaves `sidebar.*` e `settings.shortcuts*` do antigo Shinobi Suite, em 6 idiomas)
+- 4 regras CSS mortas (`.shortcuts-grid`, `.shortcut-key`, `.shortcut-desc`, `kbd`)
+- Funções mortas `_adjustZoom`/`_resetZoom` em game-launcher.js
+- Texto stale "Crashes tab of the sidebar" no setup (→ "Configurações") em 6 idiomas
+
+---
+
+## [4.7.0] - 2026-07-14
+
+### Changed — Unificação de Configurações + Limpeza Geral
+- **Sidebar "Sistema" enxuto**: removida a toggle de Telemetria (duplicada com Configurações → Preferências) e a contagem de crashes (agora só em Configurações → Avançado). Painel agora é PURAMENTE ação ao vivo: Forçar Limpeza de RAM + stats de memória + contadores de GC. Reduzido de 415 → 331 linhas.
+- **Nova seção "Avançado" nas Configurações**: agrega o que era útil do antigo Shinobi Suite em um único lugar honesto:
+  - Relatórios de crash (local-only): lista com type/reason/data/exit-code, descartar individualmente ou em massa, refresh manual. Badge "local-only" deixa claro que nada é enviado a servidores.
+  - Backup criptografado AES-256-GCM: botões Exportar/Importar que já existiam via IPC mas não tinham UI exposta.
+  - Sobre o launcher: versão + link direto para o GitHub.
+- **Crash reporter honesto (local-only)**: removido o no-op `_sendToVercel` (morto desde v4.1), `resendReport`, `_buildIssueContent`, e os campos `sent`/`sentAt`/`issueNumber`/`deduplicated` que nunca eram setados. O módulo agora deixa explícito que NADA é enviado — apenas registra localmente para inspeção do usuário. Crash schema simplificado.
+
+### Removed — Código morto / meta-files
+- `api/report-crash.js` (Vercel Serverless Function — endpoint nunca foi deployado, chamada removida em v4.1)
+- `api/` (pasta vazia após remoção do arquivo acima)
+- `scripts/ai-cron.js` (loop autônomo de auto-melhoria — experimento concluído)
+- `scripts/ai-cron.sh` (wrapper do loop acima)
+- `scripts/evolve-log.md` (log do AI cron — não é documentação)
+- `scripts/evolve-prompt.md` (prompt mestre do AI cron — não é documentação)
+- IPC handler `crash:resend` (chamava função morta)
+- API `window.api.resendCrashReport` (sem uso após remoção do botão "Reenviar")
+- `main.js` `resendCrashReport` (proxy morto para crashReporter.resendReport)
+
+### Kept (mantidos após auditoria)
+- `scripts/cron-reliability-30min.js` — auditoria standalone útil (listener leak, i18n completeness, faxina)
+- `scripts/debug-launcher.sh` — wrapper de debug para desenvolvedor
+- `scripts/publish-secure.sh` — script de publicação segura
+
+---
+
+## [4.6.0] - 2026-07-14
+
+### Added
+- Profile Sorting: 7 modos (favoritos, nome, último uso, lançamentos, tempo, região, criação), persistido em localStorage, atalho 'S' para ciclar
+- Profile Favorites: estrela amarela em cada card, prefixo no nome, borda de destaque, persistido no schema v4
+- Profile Duplication: clona metadata (sem credenciais — segurança), sufixo "(cópia)", atividade logada
+- i18n Migration: 80+ strings traduzidas para PT e EN no launcher UI (resolves dívida técnica do Sprint 3)
+- CSS Tooltip System via `[data-tip]` + `[data-tip-pos]` em todos os botões de ação
+- Loading Skeletons: `.skeleton-card`, `.skel-line`, `.skel-circle` prontos para estados async
+- Connection Health Badge CSS: 4 estados (good/medium/bad/unknown) prontos para feature de ping futuro
+- Account Toolbar redesign: search-wrap + toolbar-right (count + sort dropdown)
+
+### Changed
+- Sidebar e main.js: bump para v4.6
+- Botões: feedback de pressão `.btn:active { transform: scale(.96) }`
+- Versão: 4.6.0
+
+---
+
+## [4.5.0] - 2026-07-14
+
+### Added
+- Profile Statistics: schema v3 com `notes`, `launchCount`, `totalPlayMs` (backward-compatible migration)
+- Profile Notes: textarea no modal de edição com char counter (200 chars), exibido no card com tooltip
+- Quick Server Switcher: dropdown S1-S9999 no card, troca instantânea via IPC (sem modal)
+- Card View Modes: grid (default) + list (horizontal), persistido em localStorage, atalho 'V'
+- Auto-Login Status Indicator: badge em tempo real (idle/loading/success/error) via IPC push
+- Game Window Status Badge: "aberta" com pulse laranja, limpa ao fechar
+- Card Stats Display: launch count + total play time formatados (human-readable)
+
+### Changed
+- store.js: schema v3 com migration, validação, 3 novos métodos (incrementLaunch, addPlayTime, getStats)
+- controller.js: tracking de launch time, 4 novos IPC handlers
+- game-launcher.js: window status events + auto-login state completo (waiting/not-found)
+- Versão: 4.5.0
+
+---
+
+## [4.4.0] - 2026-07-13
+
+### Changed
+- UI Professional Overhaul: sidebar nav + views + cards estilo Heroic
+- Sidebar minimizado: removida suite shinobi pesada (3 tabs: Otimizar + Conversor de Moedas + Crashes, ~520 linhas)
+- Sidebar reescrita como painel minimalista "Sistema" (~260 linhas): Forçar GC + stats compactas + toggle de telemetria
+- Auto-login robustness: selectors verificados contra 8 capturas HTML reais das regiões
+- Animações cubic-bezier suaves + fade-in do conteúdo
+- GC button: shimmer hover, green flash success, pulse no "Limpando..."
+- Stats: micro-animação de transição numérica, RAM bar com cor dinâmica
+- Toggle: label Ativo/Desativado, transição mais suave
+
+---
+
+## [3.3.0] - 2026-07-11
+
+### Changed
+- **URL direta**: `naruto.oasgames.com/pt/` → `https://oasgames.com` (portal de login unificado, abre direto na autenticação)
+- **Tray removido**: app fecha quando todas as janelas fecham (close inteligente no controller.js)
+- **logintype=4 injetado direto**: antes dependia de rewrite do blocker.js; agora explícito em LAUNCHER_PARAMS (reconhecimento de launcher pelo servidor → habilita resgate de prêmios)
+- **Sidebar reescrito**: removido Team Builder (16 ninjas), sinergia elemental, 8 guias externos. Mantido apenas: botão Forçar Limpeza de RAM, conversor de moedas, dashboard de telemetria, crash reporter
+
+### Added
+- **Crash Reporter não-invasivo** (`src/telemetry/crash-reporter.js`): coleta local de crashes com sanitização obrigatória (remove paths, usernames, tokens, emails). Opt-out via toggle no sidebar. Report ao GitHub via issue pré-preenchida (shell.openExternal, usuário revisa antes de submeter)
+- **RAM counter com auto-refresh**: setInterval 5s atualiza RAM/uptime/telemetria enquanto sidebar aberto
+- **hasOpenWindows() helper** em game-launcher.js: controller decide hide vs close do manager
+- 5 handlers IPC novos: crash:get-pending, crash:report-github, crash:dismiss, crash:is-enabled, crash:set-enabled
+
+### Removed
+- `src/core/tray.js` (tray autônomo deletado — user request "nao quero ele na bandeja")
+- Comentários obsoletos referenciando tray em main.js, manager.js, controller.js, guard.js
+
+---
+
+## [3.2.0] - 2026-07-10
+
+### Changed
+- **Dados 2025 atualizados**: eventos (Daily Reset 0h→5h, adicionado Bond/Check-in, Arena de Guildas), moedas (1 Coupon = 10 Ingots CORRIGIDO para 1:1), guias (8 URLs verificadas)
+- **Team Builder**: 10 jutsus lore → 16 ninjas reais do meta 2025 (Naruto Sage, Sasuke MS, Itachi, Pain, etc.) com calculadora de sinergia elemental
+
+### Added
+- `src/config/urls.js` (migrado de window/dialogs.js deletado)
+- `src/config/__tests__/urls.test.js`
+
+---
+
+## [3.1.0] - 2026-07-10
+
+### Added
+- **ProfileManager facade** (`src/profiles/manager.js`): API pública única sobre store+partition+vault+game-launcher
+- **Camada 0 do MemoryGuard**: injeção de `window.gc(true)` em webviews ativas (daemon 10min normal / 5min batata)
+- **Painel lateral Akatsuki** (`src/ui-manager/sidebar.js`): Team Builder, Guias, Calc, Sistema
+- **Isolamento de crash**: handler `render-process-gone` + `unresponsive`/`responsive` por janela
+- **ensurePartitionDir()**: cria dir persist eager (fix bunshin em perfil novo)
+
+---
+
+## [3.0.0] - 2026-07-10
+
+### Changed
+- **Flags consolidadas** (`src/core/flags.js`): single source of truth para commandLine. Bug do `--expose-gc` perdido CORRIGIDO (merge único de js-flags)
+- **Shadow Partitions**: em Modo Batata, usa `partition:profile-<id>` ephemeral + snapshot de cookies de auth (economiza 30-80MB por perfil)
+- **Cofre de credenciais** (`src/profiles/vault.js`): AES-256-GCM machine-bound para auto-login real
+- **Tray autônomo**: manager some para bandeja quando jogo abre (deprecado em v3.3)
+
+### Added
+- **EventTimers com fusos dinâmicos** por região (BR/NA/EU/HK)
+- **Modo Batata auto-detect** (RAM <4GB): GC a cada 2min, threshold 450MB
+- **Ramen Mode** (RAM <2GB): manager UI suprimido
+
+---
+
+## [1.4.0] - 2026-05-23
+
+### Changed
+- **Always extract AppImage during installation** (#1)
+  - No FUSE dependency at runtime — works on every Linux
+  - Instant startup via extracted AppRun (no FUSE mount delay)
+  - `.AppImage` deleted after extraction to save disk space
+  - FUSE removed from distro dependency checks
+- **var → const/let** in shortcuts.js, create.js, and menu.js
+
+### Added
+- `--appimage-extract-and-run` fallback in run.sh for `.AppImage` files
+
+## [1.3.0] - 2026-05-22
+
+### Added
+- System tray support — close minimizes to tray, tray context menu
+- Screenshot capture (Ctrl+Shift+S) — saves PNG with timestamp
+- Zoom controls (Ctrl++/Ctrl+-/Ctrl+0) — adjust page zoom
+- Always-on-top toggle (Ctrl+Shift+T) — pin window above all others
+- Updated menu with new shortcuts and version display
+- Screenshot IPC handler and preload API
+
+## [1.2.0] - 2026-05-20
+
+### Added
+- Update notification dialog with download link
+- Connectivity check before loading (net.isOnline)
+- Keyboard shortcut debounce (1s)
+- Window bounds persistence (position + size saved/restored)
+- "Limpar Cache" menu option (separate from "Limpar Login")
+- Loading screen extracted to loading.html
+- Basic CSP via webRequest.onHeadersReceived
+- Preload script with contextBridge API
+- mms.cfg backup on every startup
+- Shell script safety (install.sh validates inputs, uninstall.sh validates HOME)
+
+### Changed
+- var → const/let across all 15 source files
+- DRY: flags.js shares applyGPUFlags() between profiles
+
+### Fixed
+- Regex bug in blocker.js: `logintype=3` now uses boundary-aware `logintype=3(?=&|$)`
+- Cancel button in dialogs.js with correct `cancelId`
+- URL validation in shell.openExternal (http/https only)
+
+## [1.1.0] - 2026-04-01
+
+### Changed
+- Remove ~200 lines of dead code, ineffective settings, and unused exports
+  - Removed 12 fake mms.cfg settings (AutoPlay, NetworkAccess, EnableSocketsTo, etc.)
+  - Removed dead hash verification system in plugin.js
+  - Removed ineffective ppapi-flash-args (clean-flash PPAPI ignores them)
+  - Removed no-op setupGPUOptimizations, redundant flags in flags.js
+  - Removed ineffective CORS headers in cookies.js
+  - Removed unused exports across 10 modules
+
+### Fixed
+- Add unhandledRejection handler (prevents silent async crashes)
+- Atomic config write (write to .tmp then rename, prevents corruption)
+- Add HOME env fallback in mms.cfg path (flatpak/snap compatibility)
+- Add 1MB response size limit in update checker (memory protection)
+- Add maxFiles=3 for log rotation (prevents unbounded disk growth)
+- Add window icon for Linux (BrowserWindow icon + StartupWMClass fix)
+- Fix StartupWMClass mismatch (naruto-online → Naruto Online)
+- Pass parent window to menu dialogs (appear above game)
+- Restore test suite to 100% pass (58/58 tests)
+
+## [1.0.0] - 2026-03-30
+
+First stable release.
+
+### Features
+- Native Flash PPAPI 34 integration (no Wine, no browser hacks)
+- Instant loading screen (data:URL, zero network dependency)
+- Built-in tracker/ad blocker (analytics, telemetry)
+- Mixed Content fix for Flash crossdomain.xml
+- Full viewport CSS (no borders, OAS bar hidden)
+- Simple fullscreen (ESC passes through to the game)
+- 6 game regions: PT-BR, EN, FR, DE, ES, PL
+- Persistent login with cookie partition
+- 3 hardware profiles: Modern (GPU), Legacy (older GPU), CPU (SwiftShader)
+- Wayland to XWayland auto-conversion
+
+### Linux
+- install.sh with auto-detection (Arch/CachyOS/Fedora/Debian)
+- Desktop entry with icon (hicolor theme)
+- AppImage packaging with auto-extraction
+
+### Shortcuts
+- F5 — Clear login
+- F6 — Switch region
+- F7 — Switch hardware profile
+- F11 — Fullscreen (ESC passes to game)

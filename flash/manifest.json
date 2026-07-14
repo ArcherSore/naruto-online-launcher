@@ -1,0 +1,20 @@
+{
+  "name": "Shockwave Flash",
+  "description": "Clean Flash PPAPI 34.0 (darktohka build)",
+  "version": "34.0.0.376",
+  "linux_version": "34.0.0.137",
+  "type": "ppapi",
+  "arch": "x64",
+  "mimeTypes": [
+    {
+      "description": "Shockwave Flash",
+      "suffixes": "swf",
+      "type": "application/x-shockwave-flash"
+    },
+    {
+      "description": "Shockwave Flash Movie",
+      "suffixes": "spl",
+      "type": "application/futuresplash"
+    }
+  ]
+}

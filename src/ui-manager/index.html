@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';">
+<title>Shinobi Launcher</title>
+<link rel="stylesheet" href="variables.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    /* v4.9.1: AMOLED puro (#000) + contrastes laranja vibrantes */
+    --bg:#000000; --bg-elev:#0a0a0a; --bg-elev-2:#141414; --surface:#0f0f0f; --surface-hover:#1a1a1a;
+    --border:#1f1f1f; --border-hover:#2a2a2a; --border-focus:#FF8C00;
+    --text:#f5f5f5; --text-dim:#a0a0a0; --text-faint:#606060;
+    --accent:#FF8C00; --accent-hover:#FFA833; --accent-2:#FF6B00; --ok:#10B981; --warn:#F59E0B; --danger:#DC2626;
+    --shadow-sm:0 2px 8px rgba(0,0,0,.6); --shadow:0 4px 24px rgba(0,0,0,.7); --shadow-lg:0 8px 32px rgba(0,0,0,.85);
+    --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem; --space-5:1.5rem; --space-6:2rem;
+    --font-xs:.6875rem; --font-sm:.75rem; --font-base:.8125rem; --font-md:.875rem; --font-lg:1rem; --font-xl:1.25rem; --font-2xl:1.5rem;
+    --weight-regular:400; --weight-medium:500; --weight-semibold:600; --weight-bold:700;
+    --radius-sm:.25rem; --radius:.5rem; --radius-lg:.625rem; --radius-full:9999px;
+    --transition:150ms ease; --transition-slow:300ms ease;
+    --focus-ring:0 0 0 2px var(--accent);
+    --z-base:1; --z-overlay:100; --z-toast:200; --z-modal:300;
+    --font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+  }
+  html,body{height:100%;font-family:var(--font-family);background:var(--bg);color:var(--text);overflow:hidden;font-size:14px}
+  .app{display:grid;grid-template-columns:clamp(220px,15vw,280px) 1fr;grid-template-rows:100vh}
+
+  /* ── v4.9.2: Responsive scale (DPI/resolution aware) ── */
+  /* Base font-size on <html> drives every rem unit → whole UI scales fluidly. */
+  @media (min-width:1366px){html{font-size:15px}}
+  @media (min-width:1920px){html{font-size:16px}}
+  @media (min-width:2560px){html{font-size:18px}}
+  /* Small/low-res screens keep the 14px default set above. */
+
+  /* ── Keyframe Animations ── */
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes cardIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+  @keyframes overlayIn{from{opacity:0}to{opacity:1}}
+  @keyframes vaultPulse{0%,100%{border-color:transparent rgba(16,185,129,.2) transparent transparent}50%{border-color:transparent rgba(16,185,129,.5) transparent transparent}}
+  @keyframes shurikenSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  @keyframes particleDrift{0%,100%{transform:translate(0,0);opacity:.12}25%{transform:translate(8px,-12px);opacity:.28}50%{transform:translate(-4px,-6px);opacity:.12}75%{transform:translate(12px,8px);opacity:.22}}
+  @keyframes flashPulse{0%,100%{box-shadow:0 0 4px rgba(16,185,129,.4)}50%{box-shadow:0 0 10px rgba(16,185,129,.7)}}
+  @keyframes bellSway{0%,100%{transform:rotate(0)}30%{transform:rotate(6deg)}60%{transform:rotate(-4deg)}80%{transform:rotate(2deg)}}
+  @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(16px) scale(.96)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+  @keyframes toastOut{from{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}to{opacity:0;transform:translateX(-50%) translateY(8px) scale(.96)}}
+  @keyframes toastProgress{from{width:100%}to{width:0%}}
+  @keyframes toastProgressOk{from{width:100%}to{width:0%}}
+  @keyframes glowPulse{0%,100%{box-shadow:0 0 6px rgba(255,140,0,.08)}50%{box-shadow:0 0 14px rgba(255,140,0,.2)}}
+
+  /* ── Sidebar Nav ── */
+  .sidebar{background:linear-gradient(180deg,var(--bg-elev) 0%,var(--bg) 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:var(--space-4) 0;overflow:hidden;position:relative}
+  .sidebar::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,140,0,.35),transparent)}
+
+  /* Sidebar ambient particles */
+  .sidebar-particles{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+  .particle{position:absolute;width:3px;height:3px;border-radius:50%;background:rgba(255,140,0,.12);box-shadow:0 0 8px rgba(255,140,0,.08);animation:particleDrift 10s ease-in-out infinite}
+
+  .sidebar-logo{display:flex;align-items:center;gap:var(--space-3);padding:0 var(--space-4) var(--space-5);border-bottom:1px solid var(--border);position:relative;z-index:1}
+  .sidebar-logo .mark{width:2.25rem;height:2.25rem;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;border:1px solid var(--border);background:var(--bg-elev-2);transition:var(--transition)}
+  .sidebar-logo .mark img{width:100%;height:100%;object-fit:cover;display:block}
+  .sidebar-logo .mark:hover{border-color:var(--accent);box-shadow:0 0 12px rgba(255,140,0,.25)}
+  .sidebar-logo .brand{display:flex;flex-direction:column}
+  .sidebar-logo .brand h1{font-size:var(--font-md);font-weight:var(--weight-semibold);line-height:1.2;letter-spacing:.3px}
+  .sidebar-logo .brand span{font-size:var(--font-xs);color:var(--text-faint);font-variant-numeric:tabular-nums}
+  .nav{flex:1;padding:var(--space-3) 0;display:flex;flex-direction:column;gap:2px;position:relative;z-index:1}
+  .nav-item{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) var(--space-4);color:var(--text-dim);font-size:var(--font-sm);font-weight:var(--weight-medium);cursor:pointer;transition:var(--transition);border-left:3px solid transparent;user-select:none}
+  .nav-item:hover{background:var(--surface);color:var(--text)}
+  .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(255,140,0,.06);text-shadow:0 0 10px rgba(255,140,0,.15)}
+  .nav-item svg{width:1.1rem;height:1.1rem;flex-shrink:0;stroke-width:1.8}
+  .nav-divider{height:1px;background:var(--border);margin:var(--space-3) var(--space-4)}
+  .nav-stat{padding:var(--space-2) var(--space-4);font-size:var(--font-xs);color:var(--text-faint);display:flex;align-items:center;gap:var(--space-2);position:relative;z-index:1}
+  .nav-stat .dot{width:.4rem;height:.4rem;border-radius:var(--radius-full);background:var(--ok);flex-shrink:0}
+  .sidebar-footer{padding:var(--space-3) var(--space-4);border-top:1px solid var(--border);display:flex;gap:var(--space-2);position:relative;z-index:1}
+  .sidebar-footer .btn{flex:1;justify-content:center;font-size:var(--font-xs)}
+
+  /* Flash PPAPI indicator with pulse */
+  .flash-indicator{padding:var(--space-2) var(--space-4);border-top:1px solid var(--border);font-size:var(--font-xs);color:var(--text-faint);display:flex;align-items:center;gap:.4rem;position:relative;z-index:1}
+  .flash-dot{width:.375rem;height:.375rem;border-radius:50%;background:var(--ok);animation:flashPulse 2.5s ease-in-out infinite;flex-shrink:0}
+
+  /* ── Main Content ── */
+  .main{display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+  /* Background enhancement: radial gradient + noise */
+  .main::before{
+    content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(ellipse at 50% 20%,rgba(20,18,28,.15) 0%,transparent 65%);
+  }
+  .main::after{
+    content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.025'/%3E%3C/svg%3E");
+    background-repeat:repeat;opacity:.6;
+  }
+
+  .topbar{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4) var(--space-6);background:var(--bg-elev);border-bottom:1px solid var(--border);flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.25);position:relative;z-index:1}
+  .topbar h2{font-size:var(--font-lg);font-weight:var(--weight-semibold);flex:1}
+  .topbar .actions{display:flex;gap:var(--space-2);align-items:center}
+
+  /* Notification bell sway when active */
+  #muteBtn:not(.on) svg{animation:bellSway 4s ease-in-out infinite;transform-origin:12px 2px}
+
+  /* ── Buttons ── */
+  .btn{display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-4);background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:var(--font-sm);cursor:pointer;transition:var(--transition);font-weight:var(--weight-medium);font-family:var(--font-family)}
+  .btn:hover{background:var(--surface);border-color:var(--border-hover)}
+  .btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#0a0a0f;font-weight:var(--weight-semibold);transition:background var(--transition),border-color var(--transition),box-shadow 200ms ease}
+  .btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover);box-shadow:0 0 16px rgba(255,140,0,.28)}
+  .btn.icon{padding:var(--space-2);width:2rem;height:2rem;justify-content:center}
+  .btn.icon svg{width:1rem;height:1rem}
+  .btn.sm{padding:var(--space-1) var(--space-2);font-size:var(--font-xs)}
+  .btn.on{border-color:var(--accent);color:var(--accent);background:rgba(255,140,0,.08)}
+  .btn-danger{color:var(--danger);border-color:rgba(220,38,38,.3);transition:var(--transition)}
+  .btn-danger:hover{background:rgba(220,38,38,.1);border-color:var(--danger)}
+
+  /* ── Content Area ── */
+  .content{flex:1;overflow-y:auto;padding:var(--space-6);position:relative;z-index:1}
+  /* v4.9.2: wider scrollbars for easier targeting on high-DPI displays */
+  ::-webkit-scrollbar{width:8px;height:8px}
+  .content::-webkit-scrollbar{width:8px}
+  .content::-webkit-scrollbar-thumb{background:var(--border-hover);border-radius:var(--radius-sm)}
+
+  /* ── Profile Cards Grid ── */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--space-5)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-5);cursor:pointer;transition:border-color 200ms ease,background 200ms ease,transform 200ms ease,box-shadow 200ms ease;position:relative;overflow:hidden;animation:cardIn 300ms ease both}
+  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);opacity:0;transition:opacity 200ms ease}
+  .card:hover{border-color:rgba(255,140,0,.35);background:var(--surface-hover);transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.35),0 0 0 1px rgba(255,140,0,.1),0 0 16px rgba(255,140,0,.04)}
+  .card:hover::before{opacity:1}
+  .card:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+  .card.has-vault::after{content:'';position:absolute;top:0;right:0;width:0;height:0;border-style:solid;border-width:0 16px 16px 0;border-color:transparent rgba(16,185,129,.2) transparent transparent;animation:vaultPulse 2.5s ease-in-out infinite}
+  .card-head .lock{display:inline-flex;align-items:center;width:.875rem;height:.875rem;color:var(--ok);margin-left:.25rem;vertical-align:middle}
+  .card-head .lock svg{width:.75rem;height:.75rem}
+  .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-2)}
+  .card-head .name{font-size:var(--font-md);font-weight:var(--weight-semibold);line-height:1.3}
+  .card-head .color-tag{width:.75rem;height:.75rem;border-radius:var(--radius-full);flex-shrink:0;margin-top:.2rem}
+  .card-body{margin-top:var(--space-2);display:flex;flex-direction:column;gap:var(--space-1)}
+  .card-body .server{font-size:var(--font-sm);color:var(--text-dim);font-variant-numeric:tabular-nums}
+  .card-body .region{font-size:var(--font-xs);color:var(--text-faint)}
+  .card-badges{display:flex;gap:var(--space-1);margin-top:var(--space-3);flex-wrap:wrap;align-items:center}
+  .badge{display:inline-flex;align-items:center;gap:.2rem;font-size:var(--font-xs);padding:.15rem var(--space-2);border-radius:var(--radius-sm);background:var(--bg-elev-2);color:var(--text-dim);font-weight:var(--weight-medium)}
+  .badge.ok{color:var(--ok);background:rgba(16,185,129,.1)}
+  .badge-dot{width:.35rem;height:.35rem;border-radius:50%;background:var(--accent);display:inline-block;flex-shrink:0}
+  .card-actions{display:flex;gap:var(--space-1);margin-top:var(--space-3);transition:var(--transition)}
+  .card-actions .btn-play{background:var(--accent);border-color:var(--accent);color:#0a0a0f;font-weight:var(--weight-semibold);flex:1;justify-content:center;display:flex;align-items:center;gap:.3rem;transition:background var(--transition),border-color var(--transition),box-shadow 200ms ease}
+  .card-actions .btn-play:hover{background:var(--accent-hover);border-color:var(--accent-hover);box-shadow:0 0 12px rgba(255,140,0,.2)}
+  .card-actions .btn-play svg{width:.7rem;height:.7rem;fill:#0a0a0f}
+  .card-actions .btn-icon-only{width:2rem;padding:0;justify-content:center}
+  .card-actions .secondary-actions{display:flex;gap:var(--space-1);margin-left:auto;opacity:0;transition:opacity 200ms ease}
+  .card:hover .secondary-actions{opacity:1}
+
+  /* ── Empty State ── */
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-6) var(--space-5);color:var(--text-faint);text-align:center;grid-column:1/-1}
+  .empty-shuriken{margin-bottom:var(--space-5);animation:shurikenSpin 20s linear infinite}
+  .empty-shuriken svg{width:4rem;height:4rem;color:var(--accent);opacity:.4}
+  .empty h3{font-size:var(--font-lg);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);color:var(--text-dim)}
+  .empty p{font-size:var(--font-sm);color:var(--text-faint);margin-bottom:var(--space-5)}
+  .empty .btn.primary{box-shadow:0 0 12px rgba(255,140,0,.15)}
+
+  /* ── Events Panel ── */
+  .event{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);border-radius:var(--radius);background:var(--surface);margin-bottom:var(--space-2);border:1px solid var(--border);transition:border-color var(--transition)}
+  .event:hover{border-color:var(--border-hover)}
+  .event .info{flex:1;min-width:0}
+  .event .info .n{font-size:var(--font-sm);font-weight:var(--weight-medium);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .event .info .t{font-size:var(--font-xs);color:var(--text-dim);margin-top:.1rem}
+  .event .cd{font-size:var(--font-sm);font-weight:var(--weight-semibold);color:var(--accent);font-variant-numeric:tabular-nums}
+
+  /* ── Settings Panel ── */
+  .settings-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:var(--space-4)}
+  .settings-section:last-child{margin-bottom:0}
+  .settings-header{font-size:var(--font-xs);color:var(--text-faint);text-transform:uppercase;letter-spacing:.8px;font-weight:var(--weight-semibold);padding:var(--space-3) var(--space-4);background:var(--bg-elev);border-bottom:1px solid var(--border)}
+  .settings-row{display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--border)}
+  .settings-row:last-child{border-bottom:none}
+  .settings-row .label{font-size:var(--font-md);font-weight:var(--weight-medium)}
+  .settings-row .desc{font-size:var(--font-sm);color:var(--text-faint);margin-top:.15rem;line-height:1.45}
+  .toggle{width:2.5rem;height:1.4rem;background:var(--border);border-radius:var(--radius-full);cursor:pointer;transition:background 250ms ease;position:relative;flex-shrink:0}
+  .toggle.on{background:var(--accent)}
+  .toggle::after{content:'';position:absolute;top:2px;left:2px;width:1rem;height:1rem;background:#fff;border-radius:var(--radius-full);transition:left 250ms cubic-bezier(.4,0,.2,1),box-shadow 250ms ease}
+  .toggle.on::after{left:calc(100% - 1.1rem);box-shadow:0 0 6px rgba(255,140,0,.3)}
+  .settings-select{padding:.4rem .6rem;background:var(--bg);border:1px solid var(--border-hover);border-radius:var(--radius-sm);color:var(--text);font-size:var(--font-sm);font-family:var(--font-family);transition:border-color var(--transition),box-shadow var(--transition);cursor:pointer}
+  .settings-select:hover{border-color:var(--border-focus)}
+  .settings-select:focus{outline:none;border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(255,140,0,.12)}
+
+  /* ── Search Bar ── */
+  .search-wrap{position:relative;margin-bottom:var(--space-4)}
+  .search-wrap .search-icon{position:absolute;left:.75rem;top:50%;transform:translateY(-50%);width:1rem;height:1rem;color:var(--text-faint);pointer-events:none}
+  .search-wrap input{width:100%;padding:var(--space-2) var(--space-3) var(--space-2) 2.1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:var(--font-sm);font-family:var(--font-family);transition:border-color var(--transition),box-shadow var(--transition)}
+  .search-wrap input:focus{outline:none;border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(255,140,0,.12)}
+  .search-wrap input::placeholder{color:var(--text-faint)}
+  .search-clear{position:absolute;right:.4rem;top:50%;transform:translateY(-50%);width:1.4rem;height:1.4rem;border:none;background:var(--surface-hover);color:var(--text-dim);border-radius:var(--radius-sm);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:var(--font-md);line-height:1;transition:var(--transition)}
+  .search-clear:hover{background:var(--border);color:var(--text)}
+  .no-results{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-6) var(--space-5);color:var(--text-faint);text-align:center;grid-column:1/-1}
+  .no-results svg{width:2.5rem;height:2.5rem;color:var(--text-faint);opacity:.5;margin-bottom:var(--space-3)}
+  .no-results p{font-size:var(--font-sm);color:var(--text-faint)}
+
+  /* ── Last Profile Button ── */
+  .last-profile-btn{display:none;align-items:center;gap:.3rem;border-color:rgba(255,140,0,.25);color:var(--accent);background:rgba(255,140,0,.06);max-width:10rem;font-size:var(--font-xs);padding:var(--space-1) var(--space-2)}
+  .last-profile-btn:hover{background:rgba(255,140,0,.12);border-color:rgba(255,140,0,.4)}
+  .last-profile-btn svg{width:.75rem;height:.75rem;flex-shrink:0}
+  .last-profile-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* ── Modal ── */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:var(--z-overlay);backdrop-filter:blur(8px)}
+  .overlay.show{display:flex;animation:overlayIn 200ms ease}
+  .modal{
+    background:linear-gradient(var(--surface),var(--surface)) padding-box,
+               linear-gradient(135deg,rgba(255,140,0,.3),var(--border-hover) 35%,var(--border-hover) 65%,rgba(255,140,0,.18)) border-box;
+    border:1px solid transparent;
+    border-radius:var(--radius-lg);
+    padding:var(--space-6);
+    width:32rem;
+    max-width:92vw;
+    box-shadow:0 8px 40px rgba(0,0,0,.5),0 0 24px rgba(255,140,0,.04);
+    animation:modalIn 250ms cubic-bezier(.2,.8,.3,1);
+  }
+  .modal h3{font-size:var(--font-lg);margin-bottom:var(--space-4);font-weight:var(--weight-semibold)}
+  .field{margin-bottom:var(--space-4)}
+  .field label{display:block;font-size:var(--font-xs);color:var(--text-dim);margin-bottom:var(--space-1);text-transform:uppercase;letter-spacing:.3px;font-weight:var(--weight-medium)}
+  .field input,.field select{width:100%;padding:var(--space-3) var(--space-4);background:var(--bg);border:1px solid var(--border-hover);border-radius:var(--radius-sm);color:var(--text);font-size:var(--font-md);font-family:var(--font-family);transition:border-color var(--transition),box-shadow var(--transition)}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(255,140,0,.12),0 0 10px rgba(255,140,0,.08)}
+  .field input::placeholder{color:var(--text-faint)}
+  .field-with-toggle{position:relative;display:flex;align-items:center}
+  .field-with-toggle input{flex:1;padding-right:2.2rem}
+  .toggle-pass{position:absolute;right:.35rem;top:50%;transform:translateY(-50%);width:1.6rem;height:1.6rem;padding:0;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--text-faint);cursor:pointer;border-radius:var(--radius-sm);transition:color var(--transition)}
+  .toggle-pass:hover{color:var(--text-dim)}
+  .toggle-pass:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+  .toggle-pass svg{width:.9rem;height:.9rem}
+  .color-row{display:flex;gap:var(--space-2);flex-wrap:wrap}
+  .color-dot{width:1.5rem;height:1.5rem;border-radius:var(--radius-full);cursor:pointer;border:2px solid transparent;transition:transform 200ms ease,border-color 200ms ease}
+  .color-dot.sel{border-color:#fff;transform:scale(1.15)}
+  .modal-actions{display:flex;gap:var(--space-2);justify-content:flex-end;margin-top:var(--space-5);align-items:center}
+  .hint{font-size:var(--font-xs);color:var(--text-faint);margin-top:var(--space-1);line-height:1.5}
+
+  /* ── Toast ── */
+  .toast{position:fixed;bottom:var(--space-5);left:50%;transform:translateX(-50%) translateY(16px) scale(.96);background:var(--surface);border:1px solid var(--border-hover);padding:var(--space-3) var(--space-4);border-radius:var(--radius);font-size:var(--font-sm);opacity:0;z-index:var(--z-toast);box-shadow:var(--shadow);display:flex;align-items:center;gap:var(--space-2);overflow:hidden;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1);pointer-events:auto;animation:toastIn 250ms ease forwards}
+  .toast.hiding{animation:toastOut 200ms ease forwards}
+  .toast.ok{border-color:rgba(16,185,129,.4)}
+  .toast.err{border-color:rgba(220,38,38,.4)}
+  .toast-icon{font-size:var(--font-md);font-weight:var(--weight-bold);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .toast-icon svg{width:1rem;height:1rem}
+  .toast.ok .toast-icon{color:var(--ok)}
+  .toast.err .toast-icon{color:var(--danger)}
+  .toast-progress{position:absolute;bottom:0;left:0;height:2px;border-radius:0 0 var(--radius) var(--radius);animation:toastProgress 2800ms linear forwards}
+  .toast.ok .toast-progress{background:var(--ok)}
+  .toast.err .toast-progress{background:var(--danger)}
+  .toast-msg{flex:1}
+
+  /* ── Region tabs ── */
+  .tabs{display:flex;gap:var(--space-1);margin-bottom:var(--space-4);flex-wrap:wrap}
+  .tab{padding:var(--space-1) var(--space-3);font-size:var(--font-xs);border-radius:var(--radius-full);cursor:pointer;background:var(--surface);border:1px solid var(--border);transition:all 200ms ease;color:var(--text-dim);font-weight:var(--weight-medium)}
+  .tab:hover{border-color:var(--border-hover)}
+  .tab.active{background:var(--accent);border-color:var(--accent);color:#0a0a0f;box-shadow:0 0 10px rgba(255,140,0,.2)}
+
+  /* ── Views ── */
+  .view{display:none}
+  .view.active{display:block;animation:fadeIn 200ms ease}
+
+  /* ── Reduced Motion ── */
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  }
+
+  /* ── v4.5: View Mode Toggle ── */
+  .view-toggle{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;flex-shrink:0}
+  .view-toggle button{padding:var(--space-1) var(--space-2);background:transparent;border:none;color:var(--text-dim);cursor:pointer;transition:var(--transition);display:flex;align-items:center;justify-content:center;width:2rem;height:2rem}
+  .view-toggle button:hover{color:var(--text);background:var(--surface)}
+  .view-toggle button.active{background:rgba(255,140,0,.12);color:var(--accent)}
+  .view-toggle button svg{width:.9rem;height:.9rem}
+  .view-toggle .divider{width:1px;background:var(--border);margin:0}
+
+  /* ── v4.5: List View Mode ── */
+  .grid.list-view{display:flex;flex-direction:column;gap:var(--space-2)}
+  .grid.list-view .card{display:grid;grid-template-columns:auto 1fr auto auto;gap:var(--space-4);align-items:center;padding:var(--space-3) var(--space-4);animation:none}
+  .grid.list-view .card:hover{transform:none}
+  .grid.list-view .card::before{width:4px;height:auto;min-height:100%;left:0;top:0;bottom:0}
+  .grid.list-view .card-head{flex-direction:row;align-items:center;gap:var(--space-2);min-width:8rem}
+  .grid.list-view .card-body{margin-top:0;flex-direction:row;gap:var(--space-3);align-items:center}
+  .grid.list-view .card-body .server{font-size:var(--font-sm)}
+  .grid.list-view .card-body .region{font-size:var(--font-xs)}
+  .grid.list-view .card-badges{margin-top:0;flex-wrap:nowrap}
+  .grid.list-view .card-stats{margin-top:0;flex-direction:row;gap:var(--space-3);font-size:var(--font-xs)}
+  .grid.list-view .card-actions{margin-top:0;min-width:8rem}
+  .grid.list-view .card-actions .btn-play{flex:0 0 auto;padding:var(--space-1) var(--space-3)}
+  .grid.list-view .card-actions .secondary-actions{opacity:1;margin-left:0}
+  .grid.list-view .card-notes{margin-top:0;max-width:14rem;font-size:var(--font-xs);color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* ── v4.5: Card Stats Display ── */
+  .card-stats{display:flex;flex-direction:column;gap:.15rem;margin-top:var(--space-2);font-size:var(--font-xs);color:var(--text-faint)}
+  .card-stats .stat-item{display:flex;align-items:center;gap:.3rem;white-space:nowrap}
+  .card-stats .stat-item svg{width:.7rem;height:.7rem;flex-shrink:0;opacity:.7}
+  .card-stats .stat-item .val{color:var(--text-dim);font-weight:var(--weight-medium);font-variant-numeric:tabular-nums}
+
+  /* ── v4.5: Status Badges (auto-login + window open) ── */
+  .status-badge{display:inline-flex;align-items:center;gap:.25rem;font-size:var(--font-xs);padding:.15rem var(--space-2);border-radius:var(--radius-sm);font-weight:var(--weight-medium);transition:all .3s ease}
+  .status-badge .dot{width:.4rem;height:.4rem;border-radius:50%;flex-shrink:0}
+  .status-badge.idle{background:var(--bg-elev-2);color:var(--text-faint)}
+  .status-badge.idle .dot{background:var(--text-faint)}
+  .status-badge.loading{background:rgba(245,158,11,.12);color:var(--warn)}
+  .status-badge.loading .dot{background:var(--warn);animation:status-pulse 1s ease-in-out infinite}
+  .status-badge.success{background:rgba(16,185,129,.12);color:var(--ok)}
+  .status-badge.success .dot{background:var(--ok)}
+  .status-badge.error{background:rgba(220,38,38,.12);color:var(--danger)}
+  .status-badge.error .dot{background:var(--danger)}
+  .status-badge.open{background:rgba(255,140,0,.12);color:var(--accent)}
+  .status-badge.open .dot{background:var(--accent);animation:status-pulse 1.5s ease-in-out infinite}
+  @keyframes status-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+
+  /* ── v4.5: Server Quick Switcher ── */
+  .server-switch{position:relative;display:inline-flex;align-items:center}
+  .server-switch select{appearance:none;-webkit-appearance:none;background:transparent;border:1px solid transparent;color:var(--text-dim);font-size:var(--font-sm);font-family:var(--font-family);cursor:pointer;padding:.15rem 1.4rem .15rem .35rem;border-radius:var(--radius-sm);transition:var(--transition);font-variant-numeric:tabular-nums;max-width:6rem}
+  .server-switch select:hover{background:var(--bg-elev-2);border-color:var(--border-hover);color:var(--text)}
+  .server-switch select:focus{outline:none;border-color:var(--accent);background:var(--bg-elev-2)}
+  .server-switch::after{content:'';position:absolute;right:.35rem;top:50%;transform:translateY(-25%);width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:4px solid currentColor;pointer-events:none;opacity:.6}
+
+  /* ── v4.5: Notes field in modal ── */
+  .field textarea{width:100%;padding:var(--space-3) var(--space-4);background:var(--bg);border:1px solid var(--border-hover);border-radius:var(--radius-sm);color:var(--text);font-size:var(--font-md);font-family:var(--font-family);transition:border-color var(--transition),box-shadow var(--transition);resize:vertical;min-height:3rem}
+  .field textarea:focus{outline:none;border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(255,140,0,.12),0 0 10px rgba(255,140,0,.08)}
+  .field textarea::placeholder{color:var(--text-faint)}
+  .char-counter{font-size:var(--font-xs);color:var(--text-faint);text-align:right;margin-top:.25rem;font-variant-numeric:tabular-nums}
+  .char-counter.warn{color:var(--warn)}
+
+  /* ── v4.5: Card Notes display ── */
+  .card-notes{margin-top:.3rem;font-size:var(--font-xs);color:var(--text-faint);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;opacity:.85}
+  .card-notes svg{width:.65rem;height:.65rem;vertical-align:middle;margin-right:.2rem;opacity:.7}
+
+  /* ── v4.6: Sort Dropdown ── */
+  .sort-wrap{position:relative;display:inline-flex;align-items:center}
+  .sort-wrap select{appearance:none;-webkit-appearance:none;background:var(--bg);border:1px solid var(--border);color:var(--text-dim);font-size:var(--font-sm);font-family:var(--font-family);cursor:pointer;padding:.35rem 1.6rem .35rem .6rem;border-radius:var(--radius);transition:var(--transition);font-weight:var(--weight-medium)}
+  .sort-wrap select:hover{border-color:var(--border-hover);color:var(--text)}
+  .sort-wrap select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,140,0,.12)}
+  .sort-wrap::after{content:'';position:absolute;right:.5rem;top:50%;transform:translateY(-25%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;pointer-events:none;opacity:.6}
+  .sort-wrap .sort-icon{position:absolute;left:.45rem;top:50%;transform:translateY(-50%);width:.85rem;height:.85rem;color:var(--text-faint);pointer-events:none}
+  .sort-wrap select{padding-left:1.7rem}
+
+  /* ── v4.6: Favorite Star ── */
+  .fav-btn{background:transparent;border:none;color:var(--text-faint);cursor:pointer;padding:.15rem;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);transition:var(--transition);width:1.5rem;height:1.5rem}
+  .fav-btn:hover{color:var(--warn);background:rgba(245,158,11,.1)}
+  .fav-btn svg{width:.85rem;height:.85rem;transition:var(--transition)}
+  .fav-btn.fav{color:var(--warn)}
+  .fav-btn.fav svg{fill:var(--warn);filter:drop-shadow(0 0 4px rgba(245,158,11,.4))}
+  .fav-btn:active svg{transform:scale(.85)}
+  .card.fav-card{border-color:rgba(245,158,11,.25)}
+  .card.fav-card::before{background:var(--warn);opacity:1}
+  .card.fav-card .card-head .name::before{content:'★';color:var(--warn);margin-right:.25rem;font-size:.7rem;opacity:.8}
+
+  /* ── v4.6: Tooltip System (CSS-only) ── */
+  [data-tip]{position:relative}
+  [data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%) translateY(4px);background:#1a1a24;color:#e8e8f0;padding:.3rem .55rem;border-radius:var(--radius-sm);font-size:var(--font-xs);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s ease,transform .15s ease;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,.4);border:1px solid var(--border);font-weight:var(--weight-medium);letter-spacing:.2px}
+  [data-tip]::before{content:'';position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%) translateY(4px);border:4px solid transparent;border-top-color:var(--border);pointer-events:none;opacity:0;transition:opacity .15s ease,transform .15s ease;z-index:1000}
+  [data-tip]:hover::after{opacity:1;transform:translateX(-50%) translateY(0)}
+  [data-tip]:hover::before{opacity:1;transform:translateX(-50%) translateY(0)}
+  [data-tip-pos="right"]::after{bottom:auto;top:50%;left:calc(100% + 6px);transform:translateY(-50%) translateX(-4px)}
+  [data-tip-pos="right"]:hover::after{transform:translateY(-50%) translateX(0)}
+  [data-tip-pos="right"]::before{bottom:auto;top:50%;left:calc(100% + 2px);transform:translateY(-50%) translateX(-4px);border:4px solid transparent;border-right-color:var(--border)}
+  [data-tip-pos="right"]:hover::before{transform:translateY(-50%) translateX(0)}
+
+  /* ── v4.6: Loading Skeletons ── */
+  .skeleton-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-4);position:relative;overflow:hidden}
+  .skeleton-card::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,140,0,.04) 50%,transparent 100%);animation:skel-shimmer 1.6s infinite}
+  @keyframes skel-shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+  .skel-line{height:.7rem;background:var(--bg-elev-2);border-radius:var(--radius-sm);margin-bottom:.5rem}
+  .skel-line.w-60{width:60%}
+  .skel-line.w-40{width:40%}
+  .skel-line.w-80{width:80%}
+  .skel-line.w-30{width:30%}
+  .skel-circle{width:2.25rem;height:2.25rem;background:var(--bg-elev-2);border-radius:var(--radius-sm);margin-bottom:.6rem}
+
+  /* ── v4.6: Connection Health Badge ── */
+  .health-badge{display:inline-flex;align-items:center;gap:.2rem;font-size:var(--font-xs);padding:.1rem .35rem;border-radius:var(--radius-sm);font-weight:var(--weight-medium);font-variant-numeric:tabular-nums}
+  .health-badge .dot{width:.3rem;height:.3rem;border-radius:50%}
+  .health-badge.good{color:var(--ok);background:rgba(16,185,129,.08)}
+  .health-badge.good .dot{background:var(--ok)}
+  .health-badge.medium{color:var(--warn);background:rgba(245,158,11,.08)}
+  .health-badge.medium .dot{background:var(--warn)}
+  .health-badge.bad{color:var(--danger);background:rgba(220,38,38,.08)}
+  .health-badge.bad .dot{background:var(--danger)}
+  .health-badge.unknown{color:var(--text-faint);background:var(--bg-elev-2)}
+  .health-badge.unknown .dot{background:var(--text-faint)}
+
+  /* ── v4.6: Account Toolbar (search + sort + count) ── */
+  .account-toolbar{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-4);flex-wrap:wrap}
+  .account-toolbar .search-wrap{flex:1;min-width:12rem;margin-bottom:0}
+  .account-toolbar .toolbar-right{display:flex;align-items:center;gap:var(--space-2);flex-shrink:0}
+  .account-count{font-size:var(--font-xs);color:var(--text-faint);font-variant-numeric:tabular-nums;padding:0 var(--space-2);white-space:nowrap}
+
+  /* ── v4.6: Secondary actions expanded ── */
+  .card-actions .btn-icon-only.fav-action{color:var(--text-faint)}
+  .card-actions .btn-icon-only.fav-action.fav{color:var(--warn)}
+  .card-actions .btn-icon-only.dup-action:hover{color:var(--accent)}
+
+  /* ── v4.6: Button press feedback ── */
+  .btn:active:not(:disabled){transform:scale(.96)}
+  .btn-primary-glow{box-shadow:0 0 0 0 rgba(255,140,0,.4);animation:btn-glow-pulse 2.5s ease-in-out infinite}
+  @keyframes btn-glow-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,140,0,0)}50%{box-shadow:0 0 0 4px rgba(255,140,0,.08)}}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ═══ SIDEBAR NAV ═══ -->
+  <nav class="sidebar">
+    <!-- Ambient particles -->
+    <div class="sidebar-particles">
+      <span class="particle" style="top:22%;left:12%;animation-delay:0s"></span>
+      <span class="particle" style="top:50%;left:72%;animation-delay:2.5s"></span>
+      <span class="particle" style="top:72%;left:30%;animation-delay:5s"></span>
+      <span class="particle" style="top:38%;left:82%;animation-delay:7.5s"></span>
+    </div>
+
+    <div class="sidebar-logo">
+      <div class="mark"><img src="logo.png" alt="Shinobi Launcher" /></div>
+      <div class="brand">
+        <h1>Shinobi</h1>
+        <span id="version">v4.9.2</span>
+      </div>
+    </div>
+
+    <div class="nav">
+      <div class="nav-item active" data-view="accounts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Contas
+      </div>
+      <div class="nav-item" data-view="events">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Eventos
+      </div>
+      <div class="nav-item" data-view="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Configurações
+      </div>
+    </div>
+
+    <div class="nav-stat">
+      <span class="dot" id="ramDot"></span>
+      <span id="memVal">— MB</span>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="btn sm" id="importBtn" title="Importar backup">Importar</button>
+      <button class="btn sm" id="exportBtn" title="Exportar backup">Exportar</button>
+    </div>
+    <div class="flash-indicator">
+      <span class="flash-dot"></span>
+      <span id="flashStatus">Flash PPAPI ✓</span>
+    </div>
+  </nav>
+
+  <!-- ═══ MAIN ═══ -->
+  <div class="main">
+    <div class="topbar">
+      <h2 id="viewTitle">Contas</h2>
+      <button class="btn sm last-profile-btn" id="lastProfileBtn" title="Relançar último perfil">
+        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span id="lastProfileName"></span>
+      </button>
+      <div class="actions">
+        <!-- v4.5: View Mode Toggle (grid/list) -->
+        <div class="view-toggle" id="viewToggle" title="Alternar visualização">
+          <button id="viewGrid" class="active" title="Grade" aria-label="Visualização em grade">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </button>
+          <div class="divider"></div>
+          <button id="viewList" title="Lista" aria-label="Visualização em lista">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+        </div>
+        <button class="btn icon" id="muteBtn" title="Notificações">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <button class="btn primary" id="newBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nova conta
+        </button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- ── View: Accounts ── -->
+      <div class="view active" id="view-accounts">
+        <div class="account-toolbar">
+          <div class="search-wrap">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="Buscar conta por nome, servidor ou região...">
+            <button class="search-clear" id="searchClear" type="button">&times;</button>
+          </div>
+          <div class="toolbar-right">
+            <span class="account-count" id="accountCount"></span>
+            <!-- v4.6: Sort dropdown -->
+            <div class="sort-wrap" data-tip="Ordenar contas" data-tip-pos="right">
+              <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+              <select id="sortSelect">
+                <option value="favorite">Favoritos primeiro</option>
+                <option value="name">Nome (A-Z)</option>
+                <option value="lastUsed">Último uso</option>
+                <option value="launchCount">Mais usado</option>
+                <option value="totalPlayMs">Tempo de jogo</option>
+                <option value="region">Região</option>
+                <option value="createdAt">Criação</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="grid" id="profileGrid"></div>
+      </div>
+
+      <!-- ── View: Events ── -->
+      <div class="view" id="view-events">
+        <div class="tabs" id="regionTabs"></div>
+        <div id="eventList"></div>
+      </div>
+
+      <!-- ── View: Settings ── -->
+      <div class="view" id="view-settings">
+        <div class="settings-section">
+          <div class="settings-header">Geral</div>
+          <div class="settings-row">
+            <div>
+              <div class="label">Idioma</div>
+              <div class="desc">Idioma da interface do launcher</div>
+            </div>
+            <select id="setLang" class="settings-select">
+              <option value="pt">Português</option>
+              <option value="en">English</option>
+              <option value="de">Deutsch</option>
+              <option value="es">Español</option>
+              <option value="pl">Polski</option>
+              <option value="fr">Français</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="label">Modo de desempenho</div>
+              <div class="desc" id="modeDesc">Padrão: máxima otimização segura</div>
+            </div>
+            <select id="setMode" class="settings-select">
+              <option value="default">Padrão Otimizado</option>
+              <option value="lowpc">PC Fraco</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-header">Preferências</div>
+          <div class="settings-row">
+            <div>
+              <div class="label">Notificações</div>
+              <div class="desc">Alertas de eventos do jogo — mesmo toggle do sino no topo</div>
+            </div>
+            <div class="toggle on" id="setNotifications"></div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-header">Desempenho</div>
+          <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.6rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+              <div>
+                <div class="label">Memória do launcher</div>
+                <div class="desc">GC automático do processo main (camada 2) — seguro, não afeta o renderer do Flash</div>
+              </div>
+              <span id="perfRam" style="font-size:var(--font-xs);color:var(--text-dim);font-variant-numeric:tabular-nums">— MB</span>
+            </div>
+            <div style="height:5px;background:var(--bg-elev);border-radius:3px;overflow:hidden"><i id="perfRamFill" style="display:block;height:100%;width:0%;background:linear-gradient(90deg,#10B981,#34D399);border-radius:3px;transition:width .6s,background .6s"></i></div>
+            <div style="display:flex;justify-content:space-between;gap:1rem;font-size:var(--font-xs);color:var(--text-faint)">
+              <span>Limite GC: <strong id="perfThreshold" style="color:var(--text-dim)">— MB</strong></span>
+              <span>GC manuais: <strong id="perfGcManual" style="color:var(--ok)">0</strong></span>
+              <span>GC auto: <strong id="perfGcAuto" style="color:var(--text-dim)">0</strong></span>
+            </div>
+            <button class="btn sm" id="perfForceGc" type="button" style="align-self:flex-start">Forçar limpeza de RAM</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-header">Avançado</div>
+          <div class="settings-row">
+            <div>
+              <div class="label">Backup criptografado</div>
+              <div class="desc">Exporta perfis + credenciais com AES-256-GCM (senha mestra)</div>
+            </div>
+            <div style="display:flex;gap:.4rem">
+              <button class="btn sm" id="advBackupExport" type="button">Exportar</button>
+              <button class="btn sm" id="advBackupImport" type="button">Importar</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="label">Exportar diagnóstico</div>
+              <div class="desc">Gera um .zip com logs, config e infos do sistema (sanitizado, sem senhas). Pra anexar em GitHub Issues — nada é enviado automaticamente.</div>
+            </div>
+            <button class="btn sm" id="advExportDiag" type="button">Exportar .zip</button>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="label">Sobre o launcher</div>
+              <div class="desc" id="advAboutVersion">Shinobi Launcher v4.9.2 • Electron 11 • Flash PPAPI 34</div>
+            </div>
+            <a class="btn sm" id="advAboutRepo" href="#" type="button" title="Abrir repositório no GitHub">GitHub</a>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-header">Dev Tools (v4.9) <span style="font-size:var(--font-xs);color:var(--text-faint);font-weight:var(--weight-regular);margin-left:.4rem">tempmail + API login + inspector</span></div>
+          <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
+            <div>
+              <div class="label">Criar conta tempmail</div>
+              <div class="desc">Cria email temporário (mail.tm) + registra no Naruto Online via API. Retorna JWT de 2h — sem Flash, sem CAPTCHA, sem verificação de email.</div>
+            </div>
+            <button class="btn sm" id="devTempmailCreate" type="button" style="align-self:flex-start">Criar conta tempmail</button>
+            <div id="devTempmailResult" style="font-size:var(--font-xs);color:var(--text-muted);font-family:monospace;background:var(--bg);padding:.6rem;border-radius:var(--radius);border:1px solid var(--border);display:none;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto"></div>
+          </div>
+          <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
+            <div>
+              <div class="label">Login via API</div>
+              <div class="desc">Autentica via passport.oasgames.com e injeta cookie oas_user na session do perfil selecionado (mais robusto que o form HTML).</div>
+            </div>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+              <select id="devApiLoginProfile" class="settings-select" style="min-width:160px"></select>
+              <input id="devApiLoginEmail" type="email" placeholder="email" style="flex:1;min-width:160px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .6rem;color:var(--text);font-size:var(--font-sm)">
+              <input id="devApiLoginPass" type="password" placeholder="senha" style="flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .6rem;color:var(--text);font-size:var(--font-sm)">
+              <button class="btn sm" id="devApiLoginBtn" type="button">Login API</button>
+            </div>
+            <button class="btn sm" id="devSessionCheck" type="button" style="align-self:flex-start">Verificar sessão JWT</button>
+            <div id="devApiLoginResult" style="font-size:var(--font-xs);color:var(--text-muted);font-family:monospace;background:var(--bg);padding:.6rem;border-radius:var(--radius);border:1px solid var(--border);display:none;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto"></div>
+          </div>
+          <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
+            <div>
+              <div class="label">Inspector de Rede</div>
+              <div class="desc">Captura requisições HTTP do jogo (passport, odp3, game backend) via webRequest. Alternativa ao DevTools (que é bloqueado por segurança). Mostra URLs, cookies oas_user capturados (JWT decodificado) e estatísticas.</div>
+            </div>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+              <select id="devInspectorProfile" class="settings-select" style="min-width:160px"></select>
+              <button class="btn sm" id="devInspectorEnable" type="button">Ativar captura</button>
+              <button class="btn sm" id="devInspectorDisable" type="button" disabled>Desativar</button>
+              <button class="btn sm" id="devInspectorRefresh" type="button">Atualizar</button>
+              <button class="btn sm" id="devInspectorClear" type="button">Limpar</button>
+            </div>
+            <div id="devInspectorStats" style="font-size:var(--font-xs);color:var(--text-muted);font-family:monospace;background:var(--bg);padding:.6rem;border-radius:var(--radius);border:1px solid var(--border);display:none;white-space:pre-wrap;margin-bottom:.4rem"></div>
+            <div id="devInspectorEntries" style="font-size:var(--font-xs);color:var(--text-muted);font-family:monospace;background:var(--bg);padding:.6rem;border-radius:var(--radius);border:1px solid var(--border);display:none;max-height:280px;overflow-y:auto"></div>
+          </div>
+          <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
+            <div>
+              <div class="label">Source Extractor + DevTools</div>
+              <div class="desc">Extrai o HTML da página onde o Flash carrega (pra implementar ocultar/tela cheia), lista cookies, recarrega a sessão Flash (F5) e abre DevTools (F12). O jogo precisa estar aberto no perfil selecionado.</div>
+            </div>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+              <select id="devSourceProfile" class="settings-select" style="min-width:160px"></select>
+              <button class="btn sm" id="devExtractSource" type="button">Extrair fonte</button>
+              <button class="btn sm" id="devListCookies" type="button">Listar cookies</button>
+              <button class="btn sm" id="devReloadGame" type="button">Recarregar (F5)</button>
+              <button class="btn sm" id="devToggleDt" type="button">DevTools (F12)</button>
+            </div>
+            <div id="devSourceResult" style="font-size:var(--font-xs);color:var(--text-muted);font-family:monospace;background:var(--bg);padding:.6rem;border-radius:var(--radius);border:1px solid var(--border);display:none;white-space:pre-wrap;word-break:break-all;max-height:320px;overflow-y:auto"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Create/Edit Profile ═══ -->
+<div class="overlay" id="profileModal">
+  <div class="modal">
+    <h3 id="modalTitle">Nova conta</h3>
+    <div class="field">
+      <label>Nome</label>
+      <input id="fName" placeholder="Identificação da conta" maxlength="40">
+    </div>
+    <div class="field">
+      <label>Região</label>
+      <select id="fRegion">
+        <option value="br">Brasil (PT)</option>
+        <option value="na">América do Norte (EN)</option>
+        <option value="eu">Europa (EN)</option>
+        <option value="de">Deutschland (DE)</option>
+        <option value="es">España (ES)</option>
+        <option value="pl">Polska (PL)</option>
+        <option value="fr">France (FR)</option>
+        <option value="hk">Hong Kong (ZH)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Servidor</label>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <input id="fServer" placeholder="S799" maxlength="20" style="flex:1">
+        <button class="btn" id="btnPickServer" type="button" style="white-space:nowrap">Buscar</button>
+      </div>
+      <div class="hint" id="serverHint">Digite o número do servidor ou clique em Buscar.</div>
+    </div>
+    <div class="field">
+      <label>Cor</label>
+      <div class="color-row" id="colorRow"></div>
+    </div>
+    <div class="field">
+      <label>Notas <span style="color:var(--text-faint);font-weight:var(--weight-regular);text-transform:none">(opcional)</span></label>
+      <textarea id="fNotes" placeholder="Ex: conta principal, alt para eventos, build, etc." maxlength="200" rows="2"></textarea>
+      <div class="char-counter" id="notesCounter">0 / 200</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelProfile">Cancelar</button>
+      <button class="btn primary" id="saveProfile">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Vault Credentials ═══ -->
+<div class="overlay" id="vaultModal">
+  <div class="modal">
+    <h3>Credenciais — <span id="vaultProfileName"></span></h3>
+    <div class="field">
+      <label>Usuário</label>
+      <input id="fVaultUser" placeholder="Login da conta" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <div class="field-with-toggle">
+        <input id="fVaultPass" type="password" placeholder="Senha" autocomplete="off">
+        <button class="toggle-pass" id="togglePass" type="button" tabindex="-1" title="Mostrar senha">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="eyeIcon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="hint">Criptografado com AES-256-GCM. Auto-login injeta no formulário quando os cookies expiram.</div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="removeVault">Remover</button>
+      <div style="flex:1"></div>
+      <button class="btn" id="cancelVault">Cancelar</button>
+      <button class="btn primary" id="saveVault">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// v4.9.2: Dynamic scale — set <html> font-size based on screen width so the
+// whole UI (built in rem) grows on larger/higher-DPI displays. Mirrors the
+// @media breakpoints in CSS as a JS fallback (window.screen.width is the
+// physical display width, more reliable than innerWidth for an Electron window).
+(function applyDynamicScale() {
+  var w = window.screen && window.screen.width ? window.screen.width : window.innerWidth;
+  var base = 14;
+  if (w >= 2560) base = 18;
+  else if (w >= 1920) base = 16;
+  else if (w >= 1366) base = 15;
+  document.documentElement.style.fontSize = base + 'px';
+})();
+
+const { ipcRenderer } = require('electron');
+const PALETTE = ['#FF8C00','#DC2626','#10B981','#F59E0B','#8B5CF6','#06B6D4','#EC4899','#84CC16','#F97316','#14B8A6','#A855F7','#EAB308'];
+const REGIONS = {br:'BR',na:'NA',eu:'EU',hk:'HK',de:'DE',es:'ES',pl:'PL',fr:'FR'};
+
+window.api = {
+  getMemoryStats: () => ipcRenderer.invoke('memory:stats'),
+  forceGC: () => ipcRenderer.invoke('memory:force-gc'),
+  getWebviewStats: () => ipcRenderer.invoke('memory:webview-stats'),
+  fetchServers: (r) => ipcRenderer.invoke('servers:fetch', r),
+  // v4.9: Tempmail + API Login + Network Inspector
+  createTempmail: () => ipcRenderer.invoke('tempmail:create'),
+  apiLogin: (pid, email, pwd) => ipcRenderer.invoke('tempmail:login', pid, email, pwd),
+  getServers: (uid, gc) => ipcRenderer.invoke('tempmail:servers', uid, gc),
+  checkSession: (pid) => ipcRenderer.invoke('session:check', pid),
+  inspectorEnable: (pid) => ipcRenderer.invoke('inspector:enable', pid),
+  inspectorDisable: (pid) => ipcRenderer.invoke('inspector:disable', pid),
+  inspectorEntries: (pid, filter) => ipcRenderer.invoke('inspector:entries', pid, filter),
+  inspectorClear: (pid) => ipcRenderer.invoke('inspector:clear', pid),
+  // v4.9.1: DevTools helpers
+  getPageSource: (pid) => ipcRenderer.invoke('dev:get-page-source', pid),
+  getCookies: (pid) => ipcRenderer.invoke('dev:get-cookies', pid),
+  reloadGame: (pid) => ipcRenderer.invoke('dev:reload-game', pid),
+  toggleDevTools: (pid) => ipcRenderer.invoke('dev:toggle-devtools', pid),
+  // v4.9.2: Export diagnostics zip (logs + config + system info, sanitized)
+  exportDiag: () => ipcRenderer.invoke('diagnostics:export'),
+};
+
+let profiles = [];
+let selectedRegion = 'br';
+let editingId = null;
+let vaultId = null;
+let selectedColor = PALETTE[0];
+let notificationsMuted = false;
+let searchQuery = '';
+// v4.5: View mode (grid/list), persisted in localStorage
+let viewMode = localStorage.getItem('shinobi-view-mode') || 'grid';
+// v4.5: Track open game windows and auto-login status per profile (real-time)
+let openWindows = {};      // { profileId: true }
+let autoLoginStatus = {};  // { profileId: 'idle'|'loading'|'success'|'error' }
+// v4.6: Sort mode, persisted in localStorage
+let sortMode = localStorage.getItem('shinobi-sort-mode') || 'favorite';
+// v4.6: i18n strings (loaded from main process on init)
+let i18nStrings = {};
+let currentLang = 'pt';
+
+// v4.6: i18n helper — t(key) returns translated string
+function t(key) {
+  return i18nStrings[key] || key;
+}
+
+// v4.6: Apply i18n to all elements with data-i18n attribute
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n-placeholder');
+    el.placeholder = t(key);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n-title');
+    el.title = t(key);
+  });
+}
+
+const LAST_PROFILE_KEY = 'shinobi-last-profile';
+
+// ── Last Profile (Quick Re-launch) ──
+function loadLastProfile() {
+  var id = localStorage.getItem(LAST_PROFILE_KEY);
+  if (!id) { document.getElementById('lastProfileBtn').style.display = 'none'; return; }
+  var p = profiles.find(function(x) { return x.id === id; });
+  if (!p) { document.getElementById('lastProfileBtn').style.display = 'none'; return; }
+  document.getElementById('lastProfileName').textContent = p.name;
+  document.getElementById('lastProfileBtn').style.display = 'inline-flex';
+}
+
+document.getElementById('lastProfileBtn').onclick = function() {
+  var id = localStorage.getItem(LAST_PROFILE_KEY);
+  if (id) launch(id);
+};
+
+// ── IPC ──
+ipcRenderer.on('profiles:updated', (_e, list) => { profiles = list; renderProfiles(); renderRegionTabs(); loadLastProfile(); populateDevProfileSelects(); });
+ipcRenderer.on('memory:update', (_e, s) => renderMemory(s));
+ipcRenderer.on('events:update', (_e, data) => renderEvents(data));
+ipcRenderer.on('profile:toast', (_e, t) => toast(t.msg, t.type));
+ipcRenderer.on('auto-login:result', (_e, data) => {
+  var p = profiles.find(function(x) { return x.id === data.profileId; });
+  var name = p ? p.name : data.profileId;
+  if (data.result === 'filled') {
+    toast('Auto-login: credenciais injetadas (' + name + ')', 'ok');
+  } else if (data.result === 'clicked') {
+    toast('Auto-login: botão clicado (' + name + ')', 'ok');
+  } else if (data.result === 'error') {
+    toast('Auto-login: erro (' + name + ')', 'err');
+  }
+});
+// v4.5: Real-time status updates for auto-login and window open state
+ipcRenderer.on('auto-login:status', (_e, data) => {
+  if (!data || !data.profileId) return;
+  autoLoginStatus[data.profileId] = data.status || 'idle';
+  // Update only the affected card's badge (no full re-render needed)
+  var badge = document.querySelector('[data-card-id="' + data.profileId + '"] .autologin-badge');
+  if (badge) updateStatusBadge(badge, data.status, getStatusLabel(data.status));
+});
+ipcRenderer.on('game-window:status', (_e, data) => {
+  if (!data || !data.profileId) return;
+  if (data.open) openWindows[data.profileId] = true;
+  else { delete openWindows[data.profileId]; delete autoLoginStatus[data.profileId]; }
+  // Update the affected card's window badge
+  var card = document.querySelector('[data-card-id="' + data.profileId + '"]');
+  if (card) {
+    var winBadge = card.querySelector('.window-badge');
+    if (winBadge) {
+      if (data.open) { winBadge.style.display = 'inline-flex'; winBadge.className = 'status-badge open window-badge'; winBadge.innerHTML = '<span class="dot"></span> aberta'; }
+      else { winBadge.style.display = 'none'; }
+    }
+  }
+});
+
+// ── Navigation ──
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    const view = item.dataset.view;
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + view).classList.add('active');
+    document.getElementById('viewTitle').textContent = item.textContent.trim();
+    if (view === 'settings') loadSettings();
+  });
+});
+
+// ── Search ──
+document.getElementById('searchInput').oninput = function() {
+  searchQuery = this.value.trim().toLowerCase();
+  document.getElementById('searchClear').style.display = searchQuery ? 'flex' : 'none';
+  renderProfiles();
+};
+
+document.getElementById('searchClear').onclick = function() {
+  document.getElementById('searchInput').value = '';
+  searchQuery = '';
+  this.style.display = 'none';
+  renderProfiles();
+};
+
+// v4.5: View mode toggle (grid/list) — persisted in localStorage
+document.getElementById('viewGrid').onclick = function() {
+  if (viewMode === 'grid') return;
+  viewMode = 'grid';
+  localStorage.setItem('shinobi-view-mode', 'grid');
+  this.classList.add('active');
+  document.getElementById('viewList').classList.remove('active');
+  renderProfiles();
+};
+document.getElementById('viewList').onclick = function() {
+  if (viewMode === 'list') return;
+  viewMode = 'list';
+  localStorage.setItem('shinobi-view-mode', 'list');
+  this.classList.add('active');
+  document.getElementById('viewGrid').classList.remove('active');
+  renderProfiles();
+};
+// Apply initial view mode on load
+(function initViewMode() {
+  if (viewMode === 'list') {
+    document.getElementById('viewList').classList.add('active');
+    document.getElementById('viewGrid').classList.remove('active');
+  }
+})();
+
+// ── Render: Profiles ──
+function renderProfiles() {
+  const grid = document.getElementById('profileGrid');
+  // v4.5: Apply view mode class
+  grid.className = 'grid' + (viewMode === 'list' ? ' list-view' : '');
+  let filtered = profiles;
+  if (searchQuery) {
+    filtered = profiles.filter(function(p) {
+      var name = (p.name || '').toLowerCase();
+      var server = (p.server || '').toLowerCase();
+      var regionCode = (REGIONS[p.region] || '').toLowerCase();
+      var regionKey = (p.region || '').toLowerCase();
+      var notes = (p.notes || '').toLowerCase();
+      return name.indexOf(searchQuery) !== -1
+        || server.indexOf(searchQuery) !== -1
+        || regionCode.indexOf(searchQuery) !== -1
+        || regionKey.indexOf(searchQuery) !== -1
+        || notes.indexOf(searchQuery) !== -1;
+    });
+  }
+  // v4.6: Apply sorting
+  filtered = applySorting(filtered);
+  // v4.6: Update account count
+  var countEl = document.getElementById('accountCount');
+  if (countEl) {
+    var total = profiles.length;
+    var shown = filtered.length;
+    countEl.textContent = searchQuery ? (shown + '/' + total) : (total + (total === 1 ? ' conta' : ' contas'));
+  }
+  if (!profiles.length) {
+    grid.innerHTML = '<div class="empty">'
+      + '<div class="empty-shuriken"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1"><path d="M24 2L27 18Q24 20 24 20Q24 20 21 18Z" fill="currentColor" opacity=".7"/><path d="M24 2L27 18Q24 20 24 20Q24 20 21 18Z" fill="currentColor" opacity=".7" transform="rotate(90 24 24)"/><path d="M24 2L27 18Q24 20 24 20Q24 20 21 18Z" fill="currentColor" opacity=".7" transform="rotate(180 24 24)"/><path d="M24 2L27 18Q24 20 24 20Q24 20 21 18Z" fill="currentColor" opacity=".7" transform="rotate(270 24 24)"/></svg></div>'
+      + '<h3>Nenhuma conta</h3>'
+      + '<p>Crie sua primeira conta para começar a jogar.</p>'
+      + '<button class="btn primary" id="emptyNewBtn">Nova conta</button>'
+      + '</div>';
+    var emptyBtn = document.getElementById('emptyNewBtn');
+    if (emptyBtn) emptyBtn.addEventListener('click', function() { document.getElementById('newBtn').click(); });
+    return;
+  }
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="no-results">'
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>'
+      + '<p>Nenhum resultado para "' + esc(searchQuery) + '"</p>'
+      + '</div>';
+    return;
+  }
+  grid.innerHTML = '';
+  filtered.forEach(function(p, idx) {
+    const card = document.createElement('div');
+    card.tabIndex = 0;
+    card.style.setProperty('--accent', p.color);
+    card.style.animationDelay = (idx * 60) + 'ms';
+    var favClass = p.favorite ? ' fav-card' : '';
+    card.className = 'card' + (p.hasVault ? ' has-vault' : '') + favClass;
+    card.setAttribute('data-card-id', p.id);
+    // v4.5: Build stats display (launch count, play time, last used)
+    var launchCount = p.launchCount || 0;
+    var playMs = p.totalPlayMs || 0;
+    var lastUsed = p.lastUsed || 0;
+    var statsHtml = '';
+    if (launchCount > 0 || playMs > 0) {
+      statsHtml = '<div class="card-stats">';
+      if (launchCount > 0) {
+        statsHtml += '<div class="stat-item" title="Número de vezes que esta conta foi lançada">'
+          + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
+          + '<span class="val">' + launchCount + 'x</span>'
+          + '</div>';
+      }
+      if (playMs > 0) {
+        statsHtml += '<div class="stat-item" title="Tempo total de jogo">'
+          + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+          + '<span class="val">' + formatPlayTime(playMs) + '</span>'
+          + '</div>';
+      }
+      statsHtml += '</div>';
+    }
+    // v4.5: Build server dropdown (quick switcher)
+    var serverOptionsHtml = buildServerOptions(p.server);
+    var serverHtml = '<div class="server-switch" title="Trocar servidor rapidamente">'
+      + '<select data-act="switch-server" onclick="event.stopPropagation()">' + serverOptionsHtml + '</select>'
+      + '</div>';
+    // v4.5: Build notes display (if exists)
+    var notesHtml = '';
+    if (p.notes) {
+      notesHtml = '<div class="card-notes" title="' + esc(p.notes) + '">'
+        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+        + esc(p.notes)
+        + '</div>';
+    }
+    // v4.5: Build auto-login status badge (only if vault enabled)
+    var autoLoginBadgeHtml = '';
+    if (p.hasVault) {
+      var currentStatus = autoLoginStatus[p.id] || 'idle';
+      var label = getStatusLabel(currentStatus);
+      autoLoginBadgeHtml = '<span class="status-badge ' + currentStatus + ' autologin-badge" title="Status do auto-login">'
+        + '<span class="dot"></span> ' + label
+        + '</span>';
+    }
+    // v4.5: Build window-open badge (only if window is open)
+    var windowBadgeHtml = '';
+    if (openWindows[p.id]) {
+      windowBadgeHtml = '<span class="status-badge open window-badge"><span class="dot"></span> aberta</span>';
+    } else {
+      windowBadgeHtml = '<span class="status-badge open window-badge" style="display:none"><span class="dot"></span> aberta</span>';
+    }
+    // v4.6: Favorite button (star)
+    var favBtnHtml = '<button class="btn sm btn-icon-only fav-action' + (p.favorite ? ' fav' : '') + '" data-act="fav" data-tip="' + (p.favorite ? 'Desfavoritar' : 'Favoritar') + '" title="' + (p.favorite ? 'Desfavoritar' : 'Favoritar') + '">'
+      + '<svg width="12" height="12" viewBox="0 0 24 24" fill="' + (p.favorite ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+      + '</button>';
+    // v4.6: Duplicate button
+    var dupBtnHtml = '<button class="btn sm btn-icon-only dup-action" data-act="dup" data-tip="Duplicar" title="Duplicar">'
+      + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+      + '</button>';
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="name">${esc(p.name)}${p.hasVault?'<span class="lock" title="Auto-login ativo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>':''}</div>
+        <div class="color-tag" style="background:${p.color}"></div>
+      </div>
+      <div class="card-body">
+        ${serverHtml}
+        <div class="region">${REGIONS[p.region]||'—'}</div>
+      </div>
+      ${notesHtml}
+      <div class="card-badges">
+        ${p.hasVault?'<span class="badge ok">auto-login</span>':''}
+        ${autoLoginBadgeHtml}
+        ${windowBadgeHtml}
+      </div>
+      ${statsHtml}
+      <div class="card-actions">
+        <button class="btn sm btn-play" data-act="launch"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play</button>
+        <div class="secondary-actions">
+          ${favBtnHtml}
+          ${dupBtnHtml}
+          <button class="btn sm btn-icon-only" data-act="edit" data-tip="Editar" title="Editar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          <button class="btn sm btn-icon-only" data-act="vault" data-tip="Credenciais" title="Credenciais"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+          <button class="btn sm btn-icon-only" data-act="del" data-tip="Excluir" title="Excluir"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+        </div>
+      </div>`;
+    card.addEventListener('click', () => launch(p.id));
+    card.querySelectorAll('[data-act]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const act = btn.dataset.act;
+        if (act === 'launch') launch(p.id);
+        else if (act === 'edit') edit(p.id);
+        else if (act === 'vault') openVault(p.id);
+        else if (act === 'del') del(p.id);
+        else if (act === 'fav') toggleFavorite(p.id);
+        else if (act === 'dup') duplicateProfile(p.id);
+        else if (act === 'switch-server') { /* handled by onchange */ }
+      });
+    });
+    // v4.5: Server switcher handler
+    var serverSelect = card.querySelector('select[data-act="switch-server"]');
+    if (serverSelect) {
+      serverSelect.addEventListener('change', function(e) {
+        e.stopPropagation();
+        var newServer = this.value;
+        ipcRenderer.send('profile:update', { id: p.id, server: newServer });
+        toast('Servidor trocado para ' + newServer, 'ok');
+      });
+      serverSelect.addEventListener('click', function(e) { e.stopPropagation(); });
+    }
+    grid.appendChild(card);
+  });
+}
+
+// v4.6: Apply sorting to filtered profiles list
+function applySorting(list) {
+  var sorted = list.slice(); // clone to avoid mutating original
+  switch (sortMode) {
+    case 'favorite':
+      sorted.sort(function(a, b) {
+        if (!!a.favorite !== !!b.favorite) return b.favorite ? 1 : -1;
+        // Favorites first, then by name as tiebreaker
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      break;
+    case 'name':
+      sorted.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+      break;
+    case 'lastUsed':
+      sorted.sort(function(a, b) { return (b.lastUsed || 0) - (a.lastUsed || 0); });
+      break;
+    case 'launchCount':
+      sorted.sort(function(a, b) { return (b.launchCount || 0) - (a.launchCount || 0); });
+      break;
+    case 'totalPlayMs':
+      sorted.sort(function(a, b) { return (b.totalPlayMs || 0) - (a.totalPlayMs || 0); });
+      break;
+    case 'region':
+      sorted.sort(function(a, b) {
+        var r = (a.region || '').localeCompare(b.region || '');
+        return r !== 0 ? r : (a.name || '').localeCompare(b.name || '');
+      });
+      break;
+    case 'createdAt':
+      sorted.sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      break;
+    default:
+      // No sort — keep original order
+      break;
+  }
+  return sorted;
+}
+
+// v4.6: Toggle favorite status of a profile
+async function toggleFavorite(id) {
+  var p = profiles.find(function(x) { return x.id === id; });
+  if (!p) return;
+  var newState = !p.favorite;
+  await ipcRenderer.invoke('profile:set-favorite', id, newState);
+  // Optimistic UI: update local state immediately
+  p.favorite = newState;
+  renderProfiles();
+  toast(newState ? 'Perfil favoritado' : 'Perfil desfavoritado', 'ok');
+}
+
+// v4.6: Duplicate a profile (without credentials)
+async function duplicateProfile(id) {
+  var p = profiles.find(function(x) { return x.id === id; });
+  var pName = p ? p.name : id;
+  var r = await ipcRenderer.invoke('profile:duplicate', id);
+  if (r.ok) {
+    toast('Perfil duplicado: ' + pName + ' (cópia)', 'ok');
+  } else {
+    toast('Erro ao duplicar: ' + (r.error || 'desconhecido'), 'err');
+  }
+}
+
+// v4.5: Helper — format play time (ms → human readable)
+function formatPlayTime(ms) {
+  if (!ms || ms < 1000) return '0s';
+  var seconds = Math.floor(ms / 1000);
+  var hours = Math.floor(seconds / 3600);
+  var minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) return hours + 'h ' + (minutes > 0 ? minutes + 'm' : '');
+  if (minutes > 0) return minutes + 'm';
+  return seconds + 's';
+}
+
+// v4.5: Helper — get human label for auto-login status
+function getStatusLabel(status) {
+  switch (status) {
+    case 'loading': return 'preenchendo';
+    case 'success': return 'logado';
+    case 'error': return 'falhou';
+    case 'idle':
+    default: return 'pronto';
+  }
+}
+
+// v4.5: Helper — update a status badge element in place (no re-render)
+function updateStatusBadge(el, status, label) {
+  if (!el) return;
+  el.className = 'status-badge ' + (status || 'idle') + ' autologin-badge';
+  el.innerHTML = '<span class="dot"></span> ' + (label || getStatusLabel(status));
+}
+
+// v4.5: Helper — build <option> list for server dropdown (S1-S50 + custom)
+function buildServerOptions(currentServer) {
+  var current = (currentServer || '').toUpperCase().replace(/^S/i, '');
+  var currentNum = parseInt(current, 10);
+  var html = '';
+  var common = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 100, 200, 500, 799, 999, 9999];
+  var seen = {};
+  // If current server is not in the common list, add it first
+  if (currentNum && common.indexOf(currentNum) === -1) {
+    html += '<option value="S' + currentNum + '">S' + currentNum + ' (atual)</option>';
+    seen[currentNum] = true;
+  }
+  common.forEach(function(n) {
+    var isCurrent = (n === currentNum);
+    html += '<option value="S' + n + '"' + (isCurrent ? ' selected' : '') + '>S' + n + (isCurrent ? ' (atual)' : '') + '</option>';
+    seen[n] = true;
+  });
+  // If no current server, show placeholder
+  if (!currentNum) {
+    html = '<option value="" selected>sem servidor</option>' + html;
+  }
+  return html;
+}
+
+function renderMemory(s) {
+  if (!s) return;
+  const el = document.getElementById('memVal');
+  const dot = document.getElementById('ramDot');
+  if (el) el.textContent = s.totalMB + ' MB';
+  if (dot) {
+    const r = s.thresholdMB > 0 ? s.totalMB / s.thresholdMB : 0;
+    dot.style.background = r > 1 ? 'var(--danger)' : (r > 0.8 ? 'var(--warn)' : 'var(--ok)');
+  }
+  renderPerf(s);
+}
+
+// v4.8: Painel de Desempenho (consolidado do antigo sidebar Sistema)
+function renderPerf(s) {
+  if (!s) return;
+  const ram = document.getElementById('perfRam');
+  if (ram) {
+    ram.textContent = s.totalMB + ' MB';
+    const r = s.thresholdMB > 0 ? s.totalMB / s.thresholdMB : 0;
+    ram.style.color = r > 1 ? 'var(--danger)' : (r > 0.8 ? 'var(--warn)' : 'var(--text-dim)');
+  }
+  const fill = document.getElementById('perfRamFill');
+  if (fill && s.thresholdMB > 0) {
+    const pct = Math.min(100, (s.totalMB / s.thresholdMB) * 100);
+    fill.style.width = pct + '%';
+    fill.style.background = pct < 50 ? 'linear-gradient(90deg,#10B981,#34D399)'
+      : pct < 75 ? 'linear-gradient(90deg,#F59E0B,#FBBF24)'
+      : pct < 90 ? 'linear-gradient(90deg,#F59E0B,#F97316)'
+      : 'linear-gradient(90deg,#EF4444,#DC2626)';
+  }
+  const th = document.getElementById('perfThreshold'); if (th) th.textContent = s.thresholdMB + ' MB';
+  const gm = document.getElementById('perfGcManual'); if (gm) gm.textContent = String(s.manualGCCount || 0);
+  const ga = document.getElementById('perfGcAuto'); if (ga) ga.textContent = String(s.autoGCCount || 0);
+}
+
+function initPerfPanel() {
+  const btn = document.getElementById('perfForceGc');
+  if (!btn || btn.dataset.bound) return;
+  btn.dataset.bound = '1';
+  btn.addEventListener('click', function () {
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = 'Limpando...';
+    window.api.forceGC().then(function () {
+      btn.textContent = 'Limpo!';
+      setTimeout(function () { btn.disabled = false; btn.textContent = orig; window.api.getMemoryStats().then(renderMemory); }, 700);
+    }).catch(function () { btn.disabled = false; btn.textContent = orig; });
+  });
+}
+
+// ── Render: Events ──
+function renderRegionTabs() {
+  const tabs = document.getElementById('regionTabs');
+  const active = [...new Set(profiles.map(p=>p.region))];
+  const regions = active.length ? active : ['br'];
+  if (!regions.includes(selectedRegion)) selectedRegion = regions[0];
+  tabs.innerHTML = '';
+  regions.forEach(r => {
+    const t = document.createElement('span');
+    t.className = 'tab' + (r === selectedRegion ? ' active' : '');
+    t.textContent = REGIONS[r] || r;
+    t.addEventListener('click', () => { selectedRegion = r; renderRegionTabs(); ipcRenderer.invoke('events:get', selectedRegion).then(renderEventsSingle); });
+    tabs.appendChild(t);
+  });
+}
+
+function renderEvents(data) {
+  if (!data || !data.byRegion) return;
+  renderEventsSingle(data.byRegion[selectedRegion] || data.byRegion['br'] || []);
+}
+
+function renderEventsSingle(list) {
+  const el = document.getElementById('eventList');
+  if (!list || !list.length) { el.innerHTML = '<div style="color:var(--text-faint);text-align:center;padding:3rem;font-size:var(--font-sm)">Nenhum evento.</div>'; return; }
+  el.innerHTML = '';
+  list.slice(0, 10).forEach(ev => {
+    const item = document.createElement('div');
+    item.className = 'event';
+    item.innerHTML = `<div class="info"><div class="n">${esc(ev.name)}</div><div class="t">${ev.userTimeLabel||''}</div></div><div class="cd">${ev.nextFireLabel||''}</div>`;
+    el.appendChild(item);
+  });
+}
+
+// ── Actions ──
+function launch(id) {
+  ipcRenderer.send('profile:launch', id);
+  var p = profiles.find(function(x) { return x.id === id; });
+  if (p) {
+    localStorage.setItem(LAST_PROFILE_KEY, id);
+    loadLastProfile();
+  }
+}
+function edit(id) {
+  const p = profiles.find(x => x.id === id); if (!p) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'Editar conta';
+  document.getElementById('fName').value = p.name;
+  document.getElementById('fServer').value = p.server;
+  document.getElementById('fRegion').value = p.region;
+  // v4.5: load notes
+  var notesEl = document.getElementById('fNotes');
+  notesEl.value = p.notes || '';
+  updateNotesCounter();
+  selectedColor = p.color;
+  renderColors();
+  document.getElementById('profileModal').classList.add('show');
+}
+async function del(id) {
+  var p = profiles.find(function(x) { return x.id === id; });
+  var pName = p ? p.name : id;
+  if (!confirm('Excluir esta conta? Cookies e credenciais serão apagados.')) return;
+  ipcRenderer.send('profile:delete', id);
+  // If last profile was this one, clear
+  if (localStorage.getItem(LAST_PROFILE_KEY) === id) {
+    localStorage.removeItem(LAST_PROFILE_KEY);
+    loadLastProfile();
+  }
+}
+async function openVault(id) {
+  const p = profiles.find(x => x.id === id); if (!p) return;
+  vaultId = id;
+  document.getElementById('vaultProfileName').textContent = p.name + (p.server ? ' • ' + p.server : '');
+  const creds = await ipcRenderer.invoke('vault:get', id);
+  document.getElementById('fVaultUser').value = creds ? creds.user : '';
+  document.getElementById('fVaultPass').value = creds ? creds.pass : '';
+  // Reset password visibility
+  document.getElementById('fVaultPass').type = 'password';
+  document.getElementById('eyeIcon').innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  document.getElementById('vaultModal').classList.add('show');
+}
+
+// ── Modal: Profile ──
+document.getElementById('newBtn').onclick = () => {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Nova conta';
+  document.getElementById('fName').value = '';
+  document.getElementById('fServer').value = '';
+  document.getElementById('fRegion').value = 'br';
+  // v4.5: clear notes
+  document.getElementById('fNotes').value = '';
+  updateNotesCounter();
+  selectedColor = PALETTE[profiles.length % PALETTE.length];
+  renderColors();
+  document.getElementById('profileModal').classList.add('show');
+};
+document.getElementById('cancelProfile').onclick = () => document.getElementById('profileModal').classList.remove('show');
+document.getElementById('saveProfile').onclick = () => {
+  const opts = {
+    name: document.getElementById('fName').value.trim(),
+    server: document.getElementById('fServer').value.trim(),
+    region: document.getElementById('fRegion').value,
+    color: selectedColor,
+    notes: document.getElementById('fNotes').value.trim(),  // v4.5: save notes
+  };
+  if (!opts.name) { toast('Informe um nome', 'err'); return; }
+  if (editingId) {
+    ipcRenderer.send('profile:update', Object.assign({id: editingId}, opts));
+  } else {
+    ipcRenderer.send('profile:create', opts);
+  }
+  document.getElementById('profileModal').classList.remove('show');
+};
+
+// v4.5: Notes char counter
+function updateNotesCounter() {
+  var el = document.getElementById('fNotes');
+  var counter = document.getElementById('notesCounter');
+  if (!el || !counter) return;
+  var len = el.value.length;
+  counter.textContent = len + ' / 200';
+  counter.classList.toggle('warn', len > 180);
+}
+document.getElementById('fNotes').oninput = updateNotesCounter;
+
+function renderColors() {
+  const row = document.getElementById('colorRow');
+  row.innerHTML = '';
+  PALETTE.forEach(c => {
+    const dot = document.createElement('span');
+    dot.className = 'color-dot' + (c === selectedColor ? ' sel' : '');
+    dot.style.background = c;
+    dot.addEventListener('click', () => { selectedColor = c; renderColors(); });
+    row.appendChild(dot);
+  });
+}
+
+// ── Modal: Vault ──
+document.getElementById('cancelVault').onclick = () => document.getElementById('vaultModal').classList.remove('show');
+document.getElementById('saveVault').onclick = async () => {
+  const u = document.getElementById('fVaultUser').value;
+  const p = document.getElementById('fVaultPass').value;
+  if (!u || !p) { toast('Usuário e senha obrigatórios', 'err'); return; }
+  await ipcRenderer.invoke('vault:set', vaultId, u, p);
+  toast('Credenciais salvas', 'ok');
+  document.getElementById('vaultModal').classList.remove('show');
+};
+document.getElementById('removeVault').onclick = async () => {
+  if (!confirm('Remover credenciais?')) return;
+  await ipcRenderer.invoke('vault:remove', vaultId);
+  toast('Credenciais removidas', 'ok');
+  document.getElementById('vaultModal').classList.remove('show');
+};
+
+// ── Password visibility toggle ──
+document.getElementById('togglePass').onclick = function() {
+  const inp = document.getElementById('fVaultPass');
+  const icon = document.getElementById('eyeIcon');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+  } else {
+    inp.type = 'password';
+    icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+};
+
+// ── Settings ──
+async function loadSettings() {
+  document.getElementById('setNotifications').classList.toggle('on', !notificationsMuted);
+}
+
+// v4.7: Encrypted backup (uses existing IPC handlers from controller.js)
+document.getElementById('advBackupExport').onclick = async function () {
+  var pwd = prompt('Digite uma senha para criptografar o backup (mín. 6 caracteres):');
+  if (!pwd) return;
+  if (pwd.length < 6) { toast('Senha muito curta', 'err'); return; }
+  this.disabled = true;
+  this.textContent = 'Exportando...';
+  try {
+    var res = await ipcRenderer.invoke('profiles:export-encrypted', pwd);
+    if (res && res.ok) {
+      toast('Backup salvo: ' + res.count + ' perfis', 'ok');
+    } else if (res && res.canceled) {
+      // user canceled save dialog
+    } else {
+      toast('Erro: ' + (res && res.error ? res.error : 'falha'), 'err');
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message, 'err');
+  }
+  this.disabled = false;
+  this.textContent = 'Exportar';
+};
+
+document.getElementById('advBackupImport').onclick = async function () {
+  var pwd = prompt('Digite a senha do backup:');
+  if (!pwd) return;
+  this.disabled = true;
+  this.textContent = 'Importando...';
+  try {
+    var res = await ipcRenderer.invoke('profiles:import-encrypted', pwd);
+    if (res && res.ok) {
+      toast('Importados: ' + res.imported + ' | Ignorados: ' + res.skipped, 'ok');
+    } else if (res && res.canceled) {
+      // user canceled open dialog
+    } else {
+      toast('Erro: ' + (res && res.error ? res.error : 'falha'), 'err');
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message, 'err');
+  }
+  this.disabled = false;
+  this.textContent = 'Importar';
+};
+
+// v4.9.2: Export diagnostics zip — controller handles save dialog + success/error toast
+// (emitted via profile:toast IPC). Here we only guard the button state + catch unexpected errors.
+document.getElementById('advExportDiag').onclick = async function () {
+  this.disabled = true; this.textContent = 'Gerando .zip...';
+  try {
+    await window.api.exportDiag();
+  } catch (e) {
+    toast('Erro ao exportar diagnóstico: ' + e.message, 'err');
+  }
+  this.disabled = false; this.textContent = 'Exportar .zip';
+};
+
+// v4.7: Open GitHub repo
+document.getElementById('advAboutRepo').onclick = function (e) {
+  e.preventDefault();
+  try {
+    require('electron').shell.openExternal('https://github.com/Chrispsz/naruto-online-launcher');
+  } catch (_) {
+    toast('Abra: github.com/Chrispsz/naruto-online-launcher', 'ok');
+  }
+};
+
+document.getElementById('setNotifications').onclick = function() {
+  notificationsMuted = !notificationsMuted;
+  this.classList.toggle('on', !notificationsMuted);
+  ipcRenderer.send('events:set-muted', notificationsMuted);
+  document.getElementById('muteBtn').classList.toggle('on', notificationsMuted);
+};
+
+document.getElementById('setMode').onchange = function() {
+  const desc = document.getElementById('modeDesc');
+  if (this.value === 'lowpc') {
+    desc.textContent = 'PC Fraco: reduz qualidade do Flash para ganhar FPS';
+    desc.style.color = 'var(--warn)';
+  } else {
+    desc.textContent = 'Padrão: máxima otimização segura';
+    desc.style.color = 'var(--text-faint)';
+  }
+};
+
+// ── Topbar buttons ──
+document.getElementById('muteBtn').onclick = function() {
+  notificationsMuted = !notificationsMuted;
+  this.classList.toggle('on', notificationsMuted);
+  document.getElementById('setNotifications').classList.toggle('on', !notificationsMuted);
+  ipcRenderer.send('events:set-muted', notificationsMuted);
+  toast(notificationsMuted ? 'Notificações mutadas' : 'Notificações ativas', 'ok');
+};
+
+document.getElementById('exportBtn').onclick = async () => {
+  const r = await ipcRenderer.invoke('profiles:export-file');
+  if (r.ok) toast('Exportado', 'ok');
+  else if (r.error) toast('Erro: ' + r.error, 'err');
+};
+
+document.getElementById('importBtn').onclick = async () => {
+  const r = await ipcRenderer.invoke('profiles:import-file');
+  if (r.ok) toast('Importados ' + r.imported + ' perfis', 'ok');
+  else if (r.error) toast('Erro: ' + r.error, 'err');
+};
+
+// ── Server Selector ──
+document.getElementById('btnPickServer').onclick = async () => {
+  const region = document.getElementById('fRegion').value;
+  const btn = document.getElementById('btnPickServer');
+  const hint = document.getElementById('serverHint');
+  btn.disabled = true;
+  btn.textContent = 'Buscando...';
+  hint.textContent = 'Carregando servidores...';
+  try {
+    const servers = await window.api.fetchServers(region);
+    if (!servers || !servers.length) {
+      hint.textContent = 'Nenhum servidor encontrado.';
+    } else {
+      const recent = servers.slice(0, 20).map(s => 'S' + s.number).join(' ');
+      hint.innerHTML = '<strong>Recentes:</strong> ' + esc(recent) + '<br><span style="color:var(--text-faint);font-size:var(--font-xs)">' + servers.length + ' servidores total</span>';
+    }
+  } catch (e) { hint.textContent = 'Erro: ' + e.message; }
+  btn.disabled = false;
+  btn.textContent = 'Buscar';
+};
+
+// ── Keyboard (v4.8: simplificado — apenas Esc para fechar modais) ──
+// Atalhos de ação (Ctrl+N/E/I, V, S, F5) foram removidos: o launcher é
+// simplificado. A referência de uso mora no site companheiro (dashboard).
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    document.getElementById('profileModal').classList.remove('show');
+    document.getElementById('vaultModal').classList.remove('show');
+  }
+});
+
+// ── Utils ──
+function esc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+let toastT;
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  const iconSvg = type === 'ok'
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+    : type === 'err'
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    : '';
+  t.innerHTML = (iconSvg ? '<span class="toast-icon">' + iconSvg + '</span>' : '') + '<span class="toast-msg">' + esc(msg) + '</span>' + '<div class="toast-progress"></div>';
+  t.className = 'toast show ' + (type || '');
+  clearTimeout(toastT);
+  toastT = setTimeout(function() {
+    t.classList.remove('show');
+    t.classList.add('hiding');
+    setTimeout(function() { t.classList.remove('hiding'); }, 200);
+  }, 2800);
+}
+
+// ── v4.6: Sort dropdown handler ──
+document.getElementById('sortSelect').onchange = function() {
+  sortMode = this.value;
+  localStorage.setItem('shinobi-sort-mode', sortMode);
+  renderProfiles();
+};
+// Apply initial sort mode on load
+(function initSortMode() {
+  var sel = document.getElementById('sortSelect');
+  if (sel) sel.value = sortMode;
+})();
+
+// ── v4.6: i18n initialization (load strings from main process) ──
+async function initI18n() {
+  try {
+    currentLang = await ipcRenderer.invoke('i18n:get-lang');
+    i18nStrings = await ipcRenderer.invoke('i18n:get-all') || {};
+    // Apply translations to elements with data-i18n attributes
+    applyI18n();
+    // Update language selector in settings
+    var setLang = document.getElementById('setLang');
+    if (setLang) setLang.value = currentLang;
+  } catch (e) {
+    // Fallback: use empty strings (keys will show as-is)
+    i18nStrings = {};
+  }
+}
+
+// v4.6: Language change handler in settings
+document.getElementById('setLang').onchange = async function() {
+  var newLang = this.value;
+  await ipcRenderer.invoke('i18n:set-lang', newLang);
+  currentLang = newLang;
+  i18nStrings = await ipcRenderer.invoke('i18n:get-all') || {};
+  applyI18n();
+  toast('Idioma: ' + (newLang === 'pt' ? 'Português' : newLang.toUpperCase()), 'ok');
+};
+
+// ── v4.9: Dev Tools (tempmail + API login + inspector) ──
+function populateDevProfileSelects() {
+  const opts = profiles.map(p => '<option value="' + p.id + '">' + p.name + ' (' + p.username + ')</option>').join('');
+  document.getElementById('devApiLoginProfile').innerHTML = opts || '<option>(nenhum perfil)</option>';
+  document.getElementById('devInspectorProfile').innerHTML = opts || '<option>(nenhum perfil)</option>';
+  document.getElementById('devSourceProfile').innerHTML = opts || '<option>(nenhum perfil)</option>';
+}
+
+function initDevTools() {
+  populateDevProfileSelects();
+
+  // Tempmail create
+  document.getElementById('devTempmailCreate').onclick = async function () {
+    const btn = this; btn.disabled = true; btn.textContent = 'Criando...';
+    const out = document.getElementById('devTempmailResult');
+    out.style.display = 'block'; out.textContent = 'Criando conta tempmail + registrando no Naruto Online...';
+    try {
+      const r = await window.api.createTempmail();
+      if (r.ok) {
+        const d = r.data;
+        out.textContent =
+          '✓ CONTA CRIADA\n' +
+          '═══════════════════════════════════\n' +
+          'Email:    ' + d.tempmail.address + '\n' +
+          'Senha:    ' + d.tempmail.password + '\n' +
+          'PlayerID: ' + d.game.playerId + '\n' +
+          'Nickname: ' + d.game.nickname + '\n' +
+          'JWT expira: ' + new Date(d.game.expiresAt).toLocaleString('pt-BR') + '\n' +
+          '═══════════════════════════════════\n' +
+          'LoginKey (JWT):\n' + d.game.loginKey;
+      } else {
+        out.textContent = '✗ ERRO: ' + r.error;
+      }
+    } catch (e) { out.textContent = '✗ ERRO: ' + e.message; }
+    btn.disabled = false; btn.textContent = 'Criar conta tempmail';
+  };
+
+  // API login
+  document.getElementById('devApiLoginBtn').onclick = async function () {
+    const pid = document.getElementById('devApiLoginProfile').value;
+    const email = document.getElementById('devApiLoginEmail').value.trim();
+    const pwd = document.getElementById('devApiLoginPass').value;
+    const out = document.getElementById('devApiLoginResult');
+    if (!pid) { toast('Selecione um perfil', 'error'); return; }
+    if (!email || !pwd) { toast('Email e senha obrigatórios', 'error'); return; }
+    out.style.display = 'block'; out.textContent = 'Autenticando via passport.oasgames.com...';
+    try {
+      const r = await window.api.apiLogin(pid, email, pwd);
+      if (r.ok) {
+        out.textContent =
+          '✓ LOGIN OK — cookie oas_user injetado\n' +
+          '═══════════════════════════════════\n' +
+          'PlayerID: ' + r.data.playerId + '\n' +
+          'Nickname: ' + r.data.nickname + '\n' +
+          'Expira em: ' + new Date(r.data.expiresAt).toLocaleString('pt-BR') + '\n' +
+          '═══════════════════════════════════\n' +
+          'Agora clique Play no perfil — a sessão já estará autenticada.';
+      } else { out.textContent = '✗ ERRO: ' + r.error; }
+    } catch (e) { out.textContent = '✗ ERRO: ' + e.message; }
+  };
+
+  // Session check
+  document.getElementById('devSessionCheck').onclick = async function () {
+    const pid = document.getElementById('devApiLoginProfile').value;
+    const out = document.getElementById('devApiLoginResult');
+    if (!pid) { toast('Selecione um perfil', 'error'); return; }
+    out.style.display = 'block'; out.textContent = 'Verificando cookie oas_user...';
+    try {
+      const r = await window.api.checkSession(pid);
+      if (r.ok && r.data.valid) {
+        const p = r.data.jwtDecoded.payload;
+        out.textContent =
+          '✓ SESSÃO VÁLIDA\n' +
+          'PlayerID: ' + p.playerId + '\n' +
+          'Nickname: ' + p.nickname + '\n' +
+          'Expira em: ' + r.data.expiresInSeconds + 's (' + Math.round(r.data.expiresInSeconds/60) + ' min)';
+      } else if (r.ok) {
+        out.textContent = '✗ Sem sessão válida (cookie ausente ou JWT expirado)';
+      } else { out.textContent = '✗ ERRO: ' + r.error; }
+    } catch (e) { out.textContent = '✗ ERRO: ' + e.message; }
+  };
+
+  // Inspector
+  let inspectorPoll = null;
+  async function refreshInspector() {
+    const pid = document.getElementById('devInspectorProfile').value;
+    if (!pid) return;
+    const r = await window.api.inspectorEntries(pid);
+    if (!r.ok) return;
+    const statsEl = document.getElementById('devInspectorStats');
+    const entriesEl = document.getElementById('devInspectorEntries');
+    if (r.data.stats) {
+      const s = r.data.stats;
+      statsEl.style.display = 'block';
+      statsEl.textContent =
+        'Requisições: ' + s.totalRequests + ' (' + s.requestsPerMin.toFixed(1) + '/min)\n' +
+        'Uptime: ' + s.uptime + 's\n' +
+        'JWTs capturados: ' + s.capturedJwts.length + '\n' +
+        'Por tipo: auth=' + s.byType.auth + ' api=' + s.byType.api + ' game=' + s.byType.game +
+        ' site=' + s.byType.site + ' other=' + s.byType.other;
+    }
+    if (r.data.entries.length) {
+      entriesEl.style.display = 'block';
+      entriesEl.innerHTML = r.data.entries.slice(-100).reverse().map(e =>
+        '<div style="padding:.2rem 0;border-bottom:1px solid var(--border)">' +
+        '<span style="color:' + (e.kind === 'request' ? 'var(--accent)' : 'var(--ok)') + '">[' + e.kind + ']</span> ' +
+        '<span style="color:var(--text-faint)">' + new Date(e.timestamp).toLocaleTimeString('pt-BR') + '</span> ' +
+        '<strong>' + e.method + '</strong> ' +
+        '<span style="color:var(--warn)">' + e.type + '</span> ' +
+        (e.statusCode ? '<span style="color:var(--text-faint)">' + e.statusCode + '</span> ' : '') +
+        '<div style="color:var(--text-muted);word-break:break-all">' + e.url + '</div>' +
+        (e.jwt ? '<div style="color:var(--ok);font-size:10px">JWT: ' + e.jwt.payload.nickname + ' (player ' + e.jwt.payload.playerId + ')</div>' : '') +
+        '</div>'
+      ).join('');
+    } else {
+      entriesEl.style.display = 'block';
+      entriesEl.textContent = '(nenhuma captura ainda — abra o jogo neste perfil)';
+    }
+  }
+
+  document.getElementById('devInspectorEnable').onclick = async function () {
+    const pid = document.getElementById('devInspectorProfile').value;
+    if (!pid) { toast('Selecione um perfil', 'error'); return; }
+    const r = await window.api.inspectorEnable(pid);
+    if (r.ok) {
+      toast('Inspector ativo — abra o jogo', 'info');
+      document.getElementById('devInspectorEnable').disabled = true;
+      document.getElementById('devInspectorDisable').disabled = false;
+      refreshInspector();
+      inspectorPoll = setInterval(refreshInspector, 2000);
+    } else { toast('Inspector falhou: ' + r.error, 'error'); }
+  };
+
+  document.getElementById('devInspectorDisable').onclick = async function () {
+    const pid = document.getElementById('devInspectorProfile').value;
+    await window.api.inspectorDisable(pid);
+    if (inspectorPoll) { clearInterval(inspectorPoll); inspectorPoll = null; }
+    document.getElementById('devInspectorEnable').disabled = false;
+    document.getElementById('devInspectorDisable').disabled = true;
+    toast('Inspector desativado', 'info');
+  };
+
+  document.getElementById('devInspectorRefresh').onclick = refreshInspector;
+  document.getElementById('devInspectorClear').onclick = async function () {
+    const pid = document.getElementById('devInspectorProfile').value;
+    await window.api.inspectorClear(pid);
+    refreshInspector();
+  };
+
+  // v4.9.1: Source Extractor + DevTools + Reload
+  const srcOut = document.getElementById('devSourceResult');
+  function showSrc(text) { srcOut.style.display = 'block'; srcOut.textContent = text; }
+
+  document.getElementById('devExtractSource').onclick = async function () {
+    const pid = document.getElementById('devSourceProfile').value;
+    if (!pid) { toast('Selecione um perfil', 'error'); return; }
+    showSrc('Extraindo fonte da página...');
+    try {
+      const r = await window.api.getPageSource(pid);
+      if (r.ok) {
+        showSrc('URL: ' + r.data.url + '\nTitle: ' + r.data.title + '\nTamanho: ' + r.data.size + ' chars\n═══════════════════════════════════\n' + r.data.source.slice(0, 8000) + (r.data.size > 8000 ? '\n... (truncado, ' + r.data.size + ' chars total)' : ''));
+      } else { showSrc('✗ ERRO: ' + r.error); }
+    } catch (e) { showSrc('✗ ERRO: ' + e.message); }
+  };
+
+  document.getElementById('devListCookies').onclick = async function () {
+    const pid = document.getElementById('devSourceProfile').value;
+    if (!pid) { toast('Selecione um perfil', 'error'); return; }
+    showSrc('Listando cookies...');
+    try {
+      const r = await window.api.getCookies(pid);
+      if (r.ok) {
+        showSrc('COOKIES (' + r.data.length + '):\n═══════════════════════════════════\n' + r.data.map(c =>
+          c.name + '=' + c.value + (c.value.length >= 80 ? '...' : '') + '\n  domain=' + c.domain + ' path=' + c.path + ' secure=' + c.secure + ' httpOnly=' + c.httpOnly
+        ).join('\n'));
+      } else { showSrc('✗ ERRO: ' + r.error); }
+    } catch (e) { showSrc('✗ ERRO: ' + e.message); }
+  };
+
+  document.getElementById('devReloadGame').onclick = async function () {
+    const pid = document.getElementById('devSourceProfile').value;
+    if (!pid) { toast('Selecione um perfil', 'error'); return; }
+    const r = await window.api.reloadGame(pid);
+    toast(r.ok ? 'Sessão Flash recarregada (F5)' : 'Erro: ' + r.error, r.ok ? 'ok' : 'error');
+  };
+
+  document.getElementById('devToggleDt').onclick = async function () {
+    const pid = document.getElementById('devSourceProfile').value;
+    if (!pid) { toast('Selecione um perfil', 'error'); return; }
+    const r = await window.api.toggleDevTools(pid);
+    if (!r.ok) toast('Erro: ' + r.error, 'error');
+  };
+}
+
+// ── Init ──
+ipcRenderer.send('manager:ready');
+loadLastProfile();
+initI18n();
+initPerfPanel();
+initDevTools();
+</script>
+</body>
+</html>

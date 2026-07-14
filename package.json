@@ -1,0 +1,114 @@
+{
+  "name": "naruto-online-launcher",
+  "version": "4.9.2",
+  "description": "Shinobi Launcher — Multi-account isolated Flash game launcher for Naruto Online. GC inteligente, multi-conta, cross-platform Linux+Windows.",
+  "main": "src/main.js",
+  "author": "Chrispsz",
+  "license": "MIT",
+  "homepage": "https://github.com/Chrispsz/naruto-online-launcher#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Chrispsz/naruto-online-launcher.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Chrispsz/naruto-online-launcher/issues"
+  },
+  "keywords": [
+    "naruto",
+    "naruto-online",
+    "flash",
+    "launcher",
+    "game",
+    "electron",
+    "ppapi",
+    "multi-account",
+    "shinobi-launcher"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --linux AppImage --win portable --publish never",
+    "build:linux": "electron-builder --linux AppImage --publish never",
+    "build:win": "electron-builder --win portable --publish never",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "electron": "11.5.0",
+    "electron-builder": "22.14.13",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.0"
+  },
+  "dependencies": {
+    "electron-log": "^4.4.8"
+  },
+  "build": {
+    "appId": "com.naruto.launcher",
+    "productName": "Naruto Online",
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*.js",
+      "src/**/*.html",
+      "src/**/*.css",
+      "src/**/*.png"
+    ],
+    "extraResources": [
+      {
+        "from": "flash",
+        "to": "flash",
+        "filter": [
+          "*.so",
+          "*.dll",
+          "manifest.json"
+        ]
+      },
+      {
+        "from": "assets/icon.png",
+        "to": "icon.png"
+      }
+    ],
+    "asar": true,
+    "compression": "maximum",
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Game",
+      "executableName": "naruto-online",
+      "icon": "assets/icon.png",
+      "desktop": {
+        "Name": "Naruto Online",
+        "Comment": "Play Naruto Online with Flash PPAPI — Native Linux Launcher",
+        "GenericName": "Game Launcher",
+        "Categories": "Game;RolePlaying;",
+        "Keywords": "game;naruto;flash;browser;mmo;anime;rpg;",
+        "StartupWMClass": "Naruto Online",
+        "StartupNotify": true
+      }
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "executableName": "NarutoOnline",
+      "icon": "assets/icon.ico"
+    },
+    "electronVersion": "11.5.0"
+  }
+}

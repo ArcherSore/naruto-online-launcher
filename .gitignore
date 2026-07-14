@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Electron
+*.asar
+
+# Other package managers (npm only)
+bun.lock
+bun.lockb
+yarn.lock
+pnpm-lock.yaml
+
+# Test coverage
+coverage/
+
+# Backup files
+*.bak
+*.tmp
