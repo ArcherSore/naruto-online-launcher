@@ -17,6 +17,13 @@
 'use strict';
 
 const { contextBridge, ipcRenderer } = require('electron');
+const { DEBUG } = require('./main/debug');
+
+// v5.0 (Fase 3, Decisão B): expõe a feature flag SHINOBI_DEBUG para o renderer.
+// UI de debug (aba Dev, DevTools, inspector, tempmail inbox, JWT decoder) só
+// renderiza quando isto é true (env var) OU quando o atalho Ctrl+Shift+D
+// (hold 2s) destrava o runtime no renderer (localStorage).
+contextBridge.exposeInMainWorld('__SHINOBI_DEBUG__', DEBUG);
 
 contextBridge.exposeInMainWorld('narutoLauncher', {
   /**
@@ -26,4 +33,9 @@ contextBridge.exposeInMainWorld('narutoLauncher', {
   getVersion: function() {
     return ipcRenderer.invoke('launcher:get-version');
   },
+  /**
+   * v5.0: Whether the launcher was booted with SHINOBI_DEBUG=1.
+   * @returns {boolean}
+   */
+  isDebug: function () { return DEBUG; },
 });

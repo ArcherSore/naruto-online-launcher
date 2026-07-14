@@ -8,8 +8,10 @@
 const log = require('electron-log');
 
 // Configure electron-log
+// v5.0 (Fase 3, Decisão B): quando SHINOBI_DEBUG=1, sobe console level pra debug.
+const __SHINOBI_DEBUG = process.env.SHINOBI_DEBUG === '1' || process.env.SHINOBI_DEBUG === 'true';
 log.transports.file.level = 'info';
-log.transports.console.level = (process.env.LOG_LEVEL || 'info').toLowerCase();
+log.transports.console.level = (process.env.LOG_LEVEL || (__SHINOBI_DEBUG ? 'debug' : 'info')).toLowerCase();
 log.transports.file.maxSize = 5 * 1024 * 1024; // 5MB rotation
 log.transports.file.maxFiles = 3;
 
