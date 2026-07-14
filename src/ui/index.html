@@ -596,8 +596,8 @@
           </div>
         </div>
 
-        <div class="settings-section">
-          <div class="settings-header">Dev Tools (v4.9) <span style="font-size:var(--font-xs);color:var(--text-faint);font-weight:var(--weight-regular);margin-left:.4rem">tempmail + API login + inspector</span></div>
+        <div class="settings-section" id="devToolsSection" style="display:none">
+          <div class="settings-header">Dev Tools (v5.0) <span style="font-size:var(--font-xs);color:var(--text-faint);font-weight:var(--weight-regular);margin-left:.4rem">SHINOBI_DEBUG · tempmail + API login + inspector + JWT</span></div>
           <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
             <div>
               <div class="label">Criar conta tempmail</div>
@@ -1811,12 +1811,51 @@ function initDevTools() {
   };
 }
 
+// ── SHINOBI_DEBUG feature flag (Decisão B / Fase 3b) ──
+// UI de Dev Tools fica escondida por padrão. Ativação:
+//   1. Env var SHINOBI_DEBUG=1 (boot-time) → window.__SHINOBI_DEBUG__ = true (via preload)
+//   2. Atalho secreto: segurar Ctrl+Shift+D por 2s na tela principal → toggle localStorage.
+// Quando ativo, mostra a seção Dev Tools em Configurações.
+function isDebugActive() {
+  return window.__SHINOBI_DEBUG__ === true || localStorage.getItem('shinobiDebugUnlocked') === '1';
+}
+function applyDebugVisibility() {
+  const sec = document.getElementById('devToolsSection');
+  if (!sec) return;
+  sec.style.display = isDebugActive() ? '' : 'none';
+}
+function initDebugFlag() {
+  applyDebugVisibility();
+  // Ctrl+Shift+D hold 2s → toggle localStorage flag
+  let holdTimer = null;
+  const startHold = function () {
+    if (holdTimer) clearTimeout(holdTimer);
+    holdTimer = setTimeout(function () {
+      const active = !isDebugActive();
+      if (active) localStorage.setItem('shinobiDebugUnlocked', '1');
+      else localStorage.removeItem('shinobiDebugUnlocked');
+      applyDebugVisibility();
+      toast(active ? '🔧 SHINOBI_DEBUG ativado (Dev Tools visível)' : 'SHINOBI_DEBUG desativado', active ? 'ok' : 'info');
+    }, 2000);
+  };
+  const cancelHold = function () { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+      e.preventDefault();
+      startHold();
+    }
+  });
+  document.addEventListener('keyup', cancelHold);
+  document.addEventListener('blur', cancelHold, true);
+}
+
 // ── Init ──
 ipcRenderer.send('manager:ready');
 loadLastProfile();
 initI18n();
 initPerfPanel();
 initDevTools();
+initDebugFlag();
 </script>
 </body>
 </html>

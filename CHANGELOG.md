@@ -1,5 +1,58 @@
 # Changelog
 
+## [5.0.0] - 2026-07-14
+
+### Changed — Refatoração SOLID + Clean Code (Fase 3, Decisão C)
+Mudança arquitetural MAJOR: os 4 God Objects foram splitados em módulos com
+Responsabilidade Única (SRP). Cada God Object virou uma facade fina que
+compõe os novos módulos — a API pública é preservada (callers não mudam).
+
+- **guard.js (436 linhas)** → `MemoryGuard.js` (monitor RSS + registry de
+  webviews) + `GcDaemon.js` (daemon periódico + collect).
+- **vault.js (571 linhas)** → `CryptoService.js` (AES-256-GCM + PBKDF2 puras)
+  + `PasswordManager.js` (chave de máquina + senha mestre) + `ProfileVault.js`
+  (CRUD + auto-login script).
+- **controller.js (648 linhas)** → `manager/ManagerWindow.js` (lifecycle da
+  BrowserWindow) + `manager/IpcRouter.js` (handlers IPC) + `manager/StateBroadcaster.js`
+  (push de estado pra UI).
+- **game-launcher.js (620 linhas)** → `app/Launcher.js` (orchestration +
+  registry) + `app/SessionLifecycle.js` (hooks de evento + auto-login) +
+  `ui/manager/KeyboardShortcuts.js` (F5/F12/Alt+F4).
+
+### Fixed — GC black screen (pendência herdada, Fase 3f)
+- **MemoryGuard causava tela preta no jogo**: `collect()` chamava
+  `clearCache()` + `clearStorageData({cachestorage,shadercache})` em TODAS as
+  partitions de perfil, incluindo as com jogo Flash ATIVO. Limpar
+  shadercache/cachestorage mid-session força recompilação de GPU shaders e
+  disrupta carregamento de recursos do Flash PPAPI → canvas preto.
+- **Correção**: GcDaemon agora pula partitions com jogo ativo (consulta
+  `MemoryGuard.getActiveProfileIds()`) e removeu `shadercache` do
+  clearStorageData. `process.gc(true)` no main continua (seguro).
+
+### Added — SHINOBI_DEBUG feature flag (Fase 3b, Decisão B)
+- `src/main/debug.js`: flag boot-time de `process.env.SHINOBI_DEBUG`.
+- preload expõe `window.__SHINOBI_DEBUG__` (boolean) + `narutoLauncher.isDebug()`.
+- logger sobe console level pra `debug` quando flag ativa.
+- UI: seção Dev Tools em Configurações fica **hidden por padrão**. Ativação:
+  env var `SHINOBI_DEBUG=1` OU segurar **Ctrl+Shift+D por 2s** (toggle localStorage).
+- Zero overhead quando desativado (código debug envolto em `if (DEBUG)`).
+
+### Added — Pendências herdadas resolvidas (Fase 3g)
+- **JWT auto-renewal**: `SessionLifecycle` inicia `setInterval(30min)` que
+  renova o JWT via `apiLogin.renewIfNeeded()` se o perfil tem creds no vault
+  (JWT do Naruto Online expira em 2h). Interval com `unref()` + cleanup no close.
+- **tempmail auto-create profile**: `tempmail:create` agora cria
+  automaticamente um Profile + guarda creds no vault após criar a conta
+  (antes o usuário tinha que criar o perfil manualmente).
+- **F5 reload + DevTools (F12)**: já existiam desde v4.9.1, preservados no
+  `KeyboardShortcuts` (extraídos do game-launcher, não adicionados).
+
+### Tests
+- 153 testes (era 81): +19 FlashUpdater, +17 GcDaemon/MemoryGuard/guard-facade,
+  +19 CryptoService, +12 KeyboardShortcuts, +5 debug.
+
+---
+
 ## [4.9.3] - 2026-07-14
 
 ### Added — Flash PPAPI on-demand (Fase 2 da migração v5.0 — Decisão A)

@@ -509,7 +509,7 @@ function _persistConfig() {
 
 function _logBanner() {
   logger.info('═══════════════════════════════════════════');
-  logger.info('  🍥 Shinobi Launcher v4.9.3');
+  logger.info('  🍥 Shinobi Launcher v5.0.0');
   logger.info('  🥷 Zero tracking + Exportador de diagnóstico + UI responsiva');
   logger.info('═══════════════════════════════════════════');
   logger.info('Flash PPAPI: ' + (flashPath ? '✅ ' + flashVersion : '❌'));
