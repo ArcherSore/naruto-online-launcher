@@ -7,7 +7,7 @@
  *   porque era marginal. MANTIDO: 2 camadas efetivas.
  *
  * NOVIDADES v3.0:
- *   - process.gc(true) AGORA funciona em TODOS os platforms (core/flags.js
+ *   - process.gc(true) AGORA funciona em TODOS os platforms (main/flags.js
  *     garante --expose-gc globalmente; antes era perdido por conflito de flags).
  *   - RAMEN MODE: RAM < 2GB → sinaliza UI para suprimir manager window
  *     (economiza ~45MB). isRamen() exportado.

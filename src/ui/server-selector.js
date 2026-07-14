@@ -1,5 +1,5 @@
 /**
- * ui-manager/server-selector.js — Seletor de Servidores Nativo
+ * ui/server-selector.js — Seletor de Servidores Nativo
  * v1.0.0 — v3.5.0
  *
  * Faz fetch da lista de servidores da página serverlist da Oasis Games

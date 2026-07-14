@@ -1,5 +1,25 @@
 # Changelog
 
+## [4.9.3] - 2026-07-14
+
+### Changed — Limpeza mecânica + consolidação de pastas (Fase 1 da migração v5.0)
+- **Consolidação de pastas** rumo à Clean Architecture (Seção 4 do MIGRATION_PROMPT):
+  - `src/utilities/event-timers.js` → `src/utils/EventTimers.js` (PascalCase, merge em `utils/`).
+  - `src/ui-manager/` → `src/ui/` (merge com `src/ui/`); `setup.html` agora em `src/ui/setup/setup.html`.
+  - `src/window/loading.html` → `src/ui/loading/loading.html`.
+  - `src/core/flags.js` → `src/main/flags.js` (single source of truth de command-line flags).
+- **Imports atualizados** em `main.js`, `ui/controller.js`, `profiles/manager.js` + comentários de cabeçalho.
+- `.gitignore` preparado para `flash/*.so` / `flash/*.dll` (download on-demand na Fase 2).
+
+### Removed — Artefatos órfãos
+- `scripts/cron-reliability-30min.js` (12 KB) — script standalone de auditoria, não referenciado pelo runtime do Electron nem pelo package.json. (Artefatos `login-page.*` e binários Flash já estavam ausentes do snapshot.)
+
+### Fixed — Tooling
+- `tests/setup.js` restaurado (mocks de `electron` + `electron-log`) — 8 suites / 81 testes voltam a passar.
+- `npm run lint` não herda mais o `eslint.config.mjs` flat-config do diretório pai (`ESLINT_USE_FLAT_CONFIG=false` pinado nos scripts lint/lint:fix).
+
+---
+
 ## [4.8.0] - 2026-07-14
 
 ### Added — Multi-conta simultânea

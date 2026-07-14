@@ -1,5 +1,5 @@
 /**
- * ui-manager/controller.js — Bridge IPC entre renderer (index.html) e main
+ * ui/controller.js — Bridge IPC entre renderer (index.html) e main
  * v3.0.0
  *
  * Cria a janela de gerenciamento (dashboard de contas) e faz o bridge IPC
@@ -22,7 +22,7 @@ const { BrowserWindow, ipcMain, dialog } = require('electron');
 const logger = require('../utils/logger');
 const store = require('../profiles/store');
 const mg = require('../memory/guard');
-const et = require('../utilities/event-timers');
+const et = require('../utils/EventTimers');
 const vault = require('../profiles/vault');
 const partition = require('../profiles/partition');
 

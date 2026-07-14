@@ -40,7 +40,7 @@ const logger = require('../utils/logger');
 const store = require('./store');
 const partition = require('./partition');
 const vault = require('./vault');
-const gameLauncher = require('../ui-manager/game-launcher');
+const gameLauncher = require('../ui/game-launcher');
 
 // ── Estado runtime ──
 // Map: profileId -> { openedAt, lastSeenMb, crashCount }

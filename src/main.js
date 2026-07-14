@@ -11,9 +11,9 @@
  *
  * ORDEM DE BOOT (CRÍTICA):
  *   1. [top-level, antes de ready] loadConfig (sync) + findFlashPlugin
- *   2. [top-level, antes de ready] core/flags.applyAll() ← ÚNICO lugar que toca commandLine
+ *   2. [top-level, antes de ready] main/flags.applyAll() ← ÚNICO lugar que toca commandLine
  *   3. [ready] subsystems: store.load, guard.start, eventTimers.startWithProfiles
- *   4. [ready] ui-manager.createManagerWindow()
+ *   4. [ready] ui/controller.createManagerWindow()
  *
  * RECURSOS v3.4:
  *   - Multi-região: URL regional por perfil (BR/NA/EU/HK) + idioma (pt/en)
@@ -63,7 +63,7 @@ const logger = require('./utils/logger');
 
 const { loadConfig } = require('./config/settings');
 const { findFlashPlugin, getFlashVersion } = require('./flash/plugin');
-const flags = require('./core/flags');
+const flags = require('./main/flags');
 
 // Config sync (app.getPath('userData') é válido antes de ready)
 let config = loadConfig();
@@ -73,7 +73,7 @@ const flashPath = findFlashPlugin();
 const flashVersion = flashPath ? getFlashVersion(path.dirname(flashPath)) : null;
 
 // ══ APLICAR TODAS AS FLAGS ANTES DE READY ══
-// (core/flags.js é a ÚNICA autoridade sobre commandLine.appendSwitch)
+// (main/flags.js é a ÚNICA autoridade sobre commandLine.appendSwitch)
 flags.applyAll({
   flashPath: flashPath,
   flashVersion: flashVersion,
@@ -92,7 +92,7 @@ if (!gotTheLock) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const memoryGuard = require('./memory/guard');
-const eventTimers = require('./utilities/event-timers');
+const eventTimers = require('./utils/EventTimers');
 const profileStore = require('./profiles/store');
 const profileManager = require('./profiles/manager');
 const partition = require('./profiles/partition');
@@ -139,7 +139,7 @@ if (config.mutedEvents) eventTimers.setMuted(true);
  */
 function launchGameForProfile(profileId) {
   if (!uiManager) {
-    uiManager = require('./ui-manager/controller');
+    uiManager = require('./ui/controller');
     if (!uiManager.getManagerWindow()) uiManager.createManagerWindow();
   }
   profileManager.launch(profileId, function onOpened() {
@@ -165,7 +165,7 @@ function launchGameForProfile(profileId) {
 
 function showManager() {
   if (!uiManager) {
-    uiManager = require('./ui-manager/controller');
+    uiManager = require('./ui/controller');
     if (!uiManager.getManagerWindow()) uiManager.createManagerWindow();
     return;
   }
@@ -219,8 +219,8 @@ function showSetupWindow(onDone) {
     },
   });
 
-  // Passa idioma atual via query string
-  const setupUrl = 'file://' + path.join(__dirname, 'ui', 'setup.html') + '?lang=' + (config.language || 'pt');
+  // Passa idioma atual via query string (setup.html agora em ui/setup/)
+  const setupUrl = 'file://' + path.join(__dirname, 'ui', 'setup', 'setup.html') + '?lang=' + (config.language || 'pt');
   setupWindow.loadURL(setupUrl);
 
   setupWindow.once('ready-to-show', function () {
@@ -313,7 +313,7 @@ function _initManagerAndLaunch() {
   } catch (_) { /* ignore */ }
 
   // UI Manager — skip em Ramen Mode (manager-only economiza 45MB em PCs <2GB)
-  uiManager = require('./ui-manager/controller');
+  uiManager = require('./ui/controller');
   uiManager.registerIpcHandlers({
     launchProfile: launchGameForProfile,
     getMemoryStats: function () { return memoryGuard.getStats(); },
@@ -415,7 +415,7 @@ function _persistConfig() {
 
 function _logBanner() {
   logger.info('═══════════════════════════════════════════');
-  logger.info('  🍥 Shinobi Launcher v4.9.2');
+  logger.info('  🍥 Shinobi Launcher v4.9.3');
   logger.info('  🥷 Zero tracking + Exportador de diagnóstico + UI responsiva');
   logger.info('═══════════════════════════════════════════');
   logger.info('Flash PPAPI: ' + (flashPath ? '✅ ' + flashVersion : '❌'));

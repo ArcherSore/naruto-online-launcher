@@ -1,5 +1,5 @@
 /**
- * ui-manager/game-launcher.js — Janela de jogo por perfil (isolada)
+ * ui/game-launcher.js — Janela de jogo por perfil (isolada)
  * v3.0.0
  *
  * Cada perfil recebe:

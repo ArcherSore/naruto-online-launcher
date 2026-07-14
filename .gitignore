@@ -27,6 +27,13 @@ Thumbs.db
 # Electron
 *.asar
 
+# Flash PPAPI binaries — downloaded on-demand by FlashUpdater (Decisão A / Fase 2)
+# Never version-control the 32MB binaries; cache lives in userData/flash-cache/.
+flash/*.so
+flash/*.dll
+flash/flash-cache/
+# manifest.json stays versioned (small, used as version fallback).
+
 # Other package managers (npm only)
 bun.lock
 bun.lockb

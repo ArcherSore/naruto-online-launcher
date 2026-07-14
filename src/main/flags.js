@@ -1,5 +1,5 @@
 /**
- * core/flags.js — Single source of truth: Chromium 87 command-line flags (v4.0.0)
+ * main/flags.js — Single source of truth: Chromium 87 command-line flags (v4.0.0)
  *
  * Consolidado e enxugado de v3.6.2.
  * Merge único de disable-features, enable-features e js-flags.
