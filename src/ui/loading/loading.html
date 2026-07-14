@@ -1,28 +1,82 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carregando</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-.wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#ccc}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#ccc}
+.wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px;text-align:center}
 .icon{width:80px;height:80px;border-radius:18px;margin-bottom:24px;
-background:linear-gradient(135deg,#c8a23d,#8b7230);display:flex;align-items:center;justify-content:center;
-box-shadow:0 0 40px rgba(200,162,61,0.15)}
+  background:linear-gradient(135deg,#c8a23d,#8b7230);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 40px rgba(200,162,61,0.15)}
 .icon svg{width:44px;height:44px;fill:#0a0a0f}
 .title{font-size:16px;font-weight:600;color:#f0ede6;letter-spacing:-0.3px;margin-bottom:6px}
 .sub{font-size:11px;color:#5c5c6f;margin-bottom:32px}
-.bar{width:200px;height:3px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden}
-.bar-fill{width:0%;height:100%;border-radius:4px;background:linear-gradient(90deg,#c8a23d,#e2c66d);animation:load 2.2s ease-in-out infinite}
-@keyframes load{0%{width:0%;margin-left:0}50%{width:60%}100%{width:0%;margin-left:100%}}
+.bar{width:220px;height:3px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden}
+.bar-fill{width:0%;height:100%;border-radius:4px;background:linear-gradient(90deg,#c8a23d,#e2c66d);transition:width .25s ease}
+.pct{font-size:11px;color:#8b7230;margin-top:10px;font-variant-numeric:tabular-nums;min-height:14px}
+/* Indeterminate shimmer (used before download % known) */
+.bar.indeterminate .bar-fill{width:40%;animation:shimmer 1.4s ease-in-out infinite}
+@keyframes shimmer{0%{margin-left:-40%}100%{margin-left:100%}}
+.err{color:#b34;max-width:320px;line-height:1.5}
 </style>
 </head>
 <body>
 <div class="wrap">
-<div class="icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
-<div class="title">Naruto Online</div>
-<div class="sub">Carregando servidor...</div>
-<div class="bar"><div class="bar-fill"></div></div>
+  <div class="icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+  <div class="title" id="title">Naruto Online</div>
+  <div class="sub" id="sub">Carregando servidor...</div>
+  <div class="bar" id="bar"><div class="bar-fill" id="barFill"></div></div>
+  <div class="pct" id="pct"></div>
 </div>
+<script>
+  // Called from main process via webContents.executeJavaScript during Flash download.
+  // phase: 'download' | 'extract' | 'done' | 'error'
+  window.setProgress = function (percent, phase, detail) {
+    var bar = document.getElementById('bar');
+    var fill = document.getElementById('barFill');
+    var pct = document.getElementById('pct');
+    var title = document.getElementById('title');
+    var sub = document.getElementById('sub');
+
+    if (phase === 'error') {
+      title.textContent = 'Erro no download';
+      sub.textContent = '';
+      pct.innerHTML = '<span class="err">' + (detail || 'Falha ao baixar Flash PPAPI') + '</span>';
+      bar.style.display = 'none';
+      return;
+    }
+
+    bar.classList.remove('indeterminate');
+    if (phase === 'download') {
+      title.textContent = 'Baixando Clean Flash PPAPI';
+      sub.textContent = 'Primeira execução — plugin Flash está sendo baixado';
+      if (percent > 0) {
+        fill.style.width = percent + '%';
+        pct.textContent = percent + '%  ·  ' + (detail || '');
+      } else {
+        bar.classList.add('indeterminate');
+        pct.textContent = 'Conectando...';
+      }
+    } else if (phase === 'extract') {
+      title.textContent = 'Extraindo Flash PPAPI';
+      sub.textContent = 'Instalando no cache local';
+      fill.style.width = '100%';
+      pct.textContent = 'Extraindo...';
+    } else if (phase === 'done') {
+      title.textContent = 'Flash pronto';
+      sub.textContent = 'Reiniciando launcher...';
+      fill.style.width = '100%';
+      pct.textContent = '✓';
+    } else {
+      title.textContent = 'Naruto Online';
+      sub.textContent = 'Carregando servidor...';
+      bar.classList.add('indeterminate');
+      pct.textContent = '';
+    }
+  };
+</script>
 </body>
 </html>

@@ -278,6 +278,14 @@ function showSetupWindow(onDone) {
 }
 
 app.on('ready', function () {
+  // v4.9.3 (Fase 2): FIRST-RUN FLASH PROVISIONING.
+  // Se não há binário Flash (nem bundled nem em cache), baixa on-demand e
+  // relança o app para que o segundo boot aplique ppapi-flash-path antes de ready.
+  if (!flashPath) {
+    _provisionFlashAndRelaunch();
+    return;
+  }
+
   // Subsystems
   profileStore.load();
   memoryGuard.start();
@@ -299,7 +307,97 @@ app.on('ready', function () {
   }
 
   _initManagerAndLaunch();
+
+  // v4.9.3 (Fase 2): refresh semanal do cache em background (non-blocking).
+  // Só refresca para o PRÓXIMO boot — não relança. Falha silenciosamente.
+  const flashUpdater = require('./app/FlashUpdater');
+  flashUpdater.refreshIfStale(process.platform).catch(function (e) {
+    logger.debug('FlashUpdater: refresh background pulado — ' + e.message);
+  });
 });
+
+/**
+ * v4.9.3 (Fase 2): FIRST-RUN FLASH PROVISIONING.
+ * Abre uma loading window, baixa o Clean Flash PPAPI mais recente via
+ * FlashUpdater, e relança o app. O segundo boot acha o binário em cache
+ * e aplica ppapi-flash-path ANTES de app.ready (requirement do Electron 11).
+ *
+ * Em caso de erro, mostra um dialog e encerra (o usuário precisa de rede
+ * na primeira execução para baixar o Flash).
+ */
+function _provisionFlashAndRelaunch() {
+  const { BrowserWindow } = require('electron');
+  const flashUpdater = require('./app/FlashUpdater');
+
+  logger.warn('Flash PPAPI ausente — iniciando download on-demand (first-run)');
+
+  const loadingWin = new BrowserWindow({
+    width: 440,
+    height: 280,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    backgroundColor: '#0a0a0f',
+    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
+    title: 'Shinobi Launcher — Flash',
+    show: true,
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      backgroundThrottling: false,
+    },
+  });
+  loadingWin.loadFile(path.join(__dirname, 'ui', 'loading', 'loading.html'));
+
+  // Bloqueia o fechamento durante o download (evita estado inconsistente).
+  loadingWin.on('close', function (e) {
+    if (!loadingWin.__flashDone) e.preventDefault();
+  });
+
+  function setProgress(percent, phase, detail) {
+    if (loadingWin.isDestroyed()) return;
+    var js = 'window.setProgress && window.setProgress(' + percent + ',' + JSON.stringify(phase) + ',' + JSON.stringify(detail || '') + ')';
+    loadingWin.webContents.executeJavaScript(js, true).catch(function () { /* page not ready yet */ });
+  }
+
+  // Aguarda a página carregar antes de iniciar o download (garante setProgress disponível).
+  loadingWin.webContents.once('did-finish-load', function () {
+    setProgress(0, 'download', 'Conectando...');
+
+    flashUpdater.ensureLatest(process.platform, function (percent, dl, tot, phase) {
+      if (phase === 'download') {
+        setProgress(percent, 'download', dl + ' / ' + tot + ' MB');
+      } else if (phase === 'extract') {
+        setProgress(100, 'extract');
+      } else if (phase === 'done') {
+        setProgress(100, 'done');
+      }
+    }).then(function (pluginPath) {
+      loadingWin.__flashDone = true;
+      setProgress(100, 'done');
+      logger.info('Flash baixado com sucesso em ' + pluginPath + ' — reiniciando launcher');
+      // Pequeno delay para o usuário ver o "✓" antes do relaunch.
+      setTimeout(function () {
+        app.relaunch();
+        app.exit(0);
+      }, 900);
+    }).catch(function (err) {
+      logger.error('FlashUpdater falhou: ' + err.message + '\n' + (err.stack || ''));
+      setProgress(0, 'error', err.message);
+      loadingWin.__flashDone = true;
+      dialog.showMessageBoxSync(loadingWin, {
+        type: 'error',
+        title: 'Falha no download do Flash',
+        message: 'Não foi possível baixar o Clean Flash PPAPI.',
+        detail: err.message + '\n\nVerifique sua conexão com a internet e tente novamente. O launcher precisa do Flash para rodar Naruto Online.',
+        buttons: ['Sair'],
+      });
+      app.exit(1);
+    });
+  });
+}
 
 /**
  * Inicializa UI Manager + banner (separado para chamar após setup).
@@ -344,13 +442,9 @@ function _initManagerAndLaunch() {
   uiManager.createManagerWindow(); // sempre cria (sem tray para fallback)
 
   _logBanner();
-  if (!flashPath) {
-    dialog.showMessageBox({
-      type: 'error',
-      title: 'Flash não encontrado',
-      message: 'O plugin Flash PPAPI não foi encontrado.\n\nO jogo não funcionará sem ele.',
-    });
-  }
+  // v4.9.3 (Fase 2): flashPath é garantido não-nulo aqui — o boot faria
+  // branch para _provisionFlashAndRelaunch() caso contrário. A UI ainda
+  // pode mostrar um aviso se a versão for inesperada, mas não bloqueia.
 }
 
 app.on('before-quit', function () { isQuitting = true; });

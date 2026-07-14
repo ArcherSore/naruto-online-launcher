@@ -2,6 +2,14 @@
 
 ## [4.9.3] - 2026-07-14
 
+### Added — Flash PPAPI on-demand (Fase 2 da migração v5.0 — Decisão A)
+- **`src/app/FlashUpdater.js`** — baixa sempre a versão MAIS RECENTE do Clean Flash PPAPI (darktohka/clean-flash-builds) via GitHub API, extrai e cacheia em `userData/flash-cache/`. Suporte Linux (`tar -xJf`) e Windows (`innoextract`|`7z`).
+- **Boot flow first-run**: se `findFlashPlugin()` não acha binário (nem bundled nem em cache), abre uma loading window, baixa o Flash com progresso %, e **relança o app** — o segundo boot acha o cache e aplica `ppapi-flash-path` antes de `app.ready` (requirement do Electron 11 PPAPI).
+- **Refresh semanal em background** (non-blocking): se o cache tem >7 dias, re-download para o PRÓXIMO boot (sem relaunch).
+- **`findFlashPlugin()`** agora procura também em `userData/flash-cache/` (além de resources/exe/appPath/cwd/dev).
+- **`loading.html`** reformulada com barra de progresso real (download %, fase extract, estado done/erro) via `window.setProgress()`.
+- 19 testes unitários para FlashUpdater (pickAsset, cache queries, isCacheStale).
+
 ### Changed — Limpeza mecânica + consolidação de pastas (Fase 1 da migração v5.0)
 - **Consolidação de pastas** rumo à Clean Architecture (Seção 4 do MIGRATION_PROMPT):
   - `src/utilities/event-timers.js` → `src/utils/EventTimers.js` (PascalCase, merge em `utils/`).
