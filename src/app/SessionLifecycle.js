@@ -17,6 +17,43 @@ const vault = require('../profiles/vault');
 const ManagerWindow = require('../ui/manager/ManagerWindow');
 
 /**
+ * Carrega a página do jogo com pré-autenticação via API quando possível.
+ * Se o perfil tem credenciais no vault, chama apiLogin.loginAndInject() ANTES
+ * de loadURL — assim o cookie oas_user já está setado e o servidor redireciona
+ * direto pro jogo, sem mostrar a tela de login do Naruto Online.
+ * Fallback: se API login falha, carrega a URL normalmente (form-injection auto-login
+ * via MutationObserver cuida do login depois).
+ */
+function _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl) {
+  var url = getGameUrl(profile);
+
+  if (vault.hasCredentials(profileId)) {
+    var creds = vault.getCredentials(profileId);
+    if (creds && creds.user && creds.pass) {
+      var apiLogin = require('../network/api-login');
+      logger.info('Login direto via API para "' + profile.name + '" (cookie pré-injetado)');
+      apiLogin
+        .loginAndInject(ses, creds.user, creds.pass)
+        .then(function () {
+          if (win.isDestroyed()) return;
+          win.loadURL(url);
+        })
+        .catch(function (e) {
+          if (win.isDestroyed()) return;
+          logger.warn(
+            'Login via API falhou para "' + profile.name + '" — fallback form-injection: ' + e.message
+          );
+          win.loadURL(url);
+        });
+      return;
+    }
+  }
+
+  logger.info('Carregando jogo para "' + profile.name + '": ' + url);
+  win.loadURL(url);
+}
+
+/**
  * Envia resultado do auto-login ao manager window (UI feedback).
  * @param {string} profileId
  * @param {string} result - 'filled'|'clicked'|'waiting'|'not-found'|'error'
@@ -110,7 +147,9 @@ function attach(win, ctx) {
   const getGameUrl = ctx.getGameUrl;
   const LAUNCHER_PARAMS = ctx.LAUNCHER_PARAMS;
 
-  // ── ISOLAMENTO DE CRASH ──
+  // ── ISOLAMENTO DE CRASH + AUTO-RECOVERY ──
+  // Backoff: max 3 auto-reloads em 10 min por perfil (evita crash loop).
+  var _crashTimestamps = [];
   win.webContents.on('render-process-gone', function (_e, details) {
     logger.error(
       'SessionLifecycle: render-process-gone em "' +
@@ -131,6 +170,34 @@ function attach(win, ctx) {
     } catch (_) {
       /* ignore */
     }
+
+    // Auto-recovery: reload se webContents ainda válido e dentro do backoff.
+    // Causas recuperáveis: oom, crashed, abnormal-exit (não recupera 'clean-exit').
+    if (win.isDestroyed()) return;
+    if (win.webContents.isDestroyed()) return;
+    var reason = details && details.reason;
+    if (reason === 'clean-exit' || reason === 'killed') return;
+
+    var now = Date.now();
+    _crashTimestamps = _crashTimestamps.filter(function (ts) {
+      return now - ts < 600000;
+    }); // janela de 10 min
+    if (_crashTimestamps.length >= 3) {
+      logger.error(
+        'SessionLifecycle: crash limit atingido para "' + profile.name + '" — não recarrega (loop)'
+      );
+      return;
+    }
+    _crashTimestamps.push(now);
+    logger.info('SessionLifecycle: auto-reload em 1.5s para "' + profile.name + '"');
+    setTimeout(function () {
+      if (win.isDestroyed() || win.webContents.isDestroyed()) return;
+      try {
+        win.webContents.reload();
+      } catch (e) {
+        logger.warn('SessionLifecycle: reload falhou para "' + profile.name + '": ' + e.message);
+      }
+    }, 1500);
   });
 
   win.on('unresponsive', function () {
@@ -358,9 +425,7 @@ function attach(win, ctx) {
     _sendWindowStatus(profileId, true);
     if (onOpened) onOpened();
     setImmediate(function () {
-      const url = getGameUrl(profile);
-      logger.info('Carregando jogo para "' + profile.name + '": ' + url);
-      win.loadURL(url);
+      _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl);
     });
   });
 

@@ -50,6 +50,8 @@ function makeMockWin() {
     executeJavaScript: jest.fn(() => Promise.resolve('not-found')),
     stop: jest.fn(),
     loadURL: jest.fn(),
+    reload: jest.fn(),
+    isDestroyed: jest.fn(() => false),
     session: {
       cookies: { flushStore: jest.fn(() => Promise.resolve()) }
     }
