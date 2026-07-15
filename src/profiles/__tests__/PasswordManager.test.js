@@ -116,9 +116,9 @@ describe('PasswordManager.js', () => {
 
       // Derivar manualmente para comparar
       let userDataPath = '';
-      try { userDataPath = electron.app.getPath('userData'); } catch (_) {}
+      try { userDataPath = electron.app.getPath('userData'); } catch (_) { /* expected */ }
       let username = '';
-      try { username = os.userInfo().username; } catch (_) {}
+      try { username = os.userInfo().username; } catch (_) { /* expected */ }
       const machineSeed = os.hostname() + '|' + username + '|' + userDataPath + '|shinobi-vault-v2';
 
       const expectedKey = crypto.pbkdf2Sync(machineSeed, salt, 100000, CryptoService.PBKDF2_KEYLEN, 'sha512');
@@ -133,7 +133,7 @@ describe('PasswordManager.js', () => {
 
       // Delete salt file and reset cache → new salt → new key
       const saltFile = path.join(tmpDir, PasswordManager.VAULT_SALT_FILE);
-      try { fs.unlinkSync(saltFile); } catch (_) {}
+      try { fs.unlinkSync(saltFile); } catch (_) { /* expected */ }
       PasswordManager._resetCache();
 
       const key2 = PasswordManager.getMachineKey();
@@ -148,9 +148,9 @@ describe('PasswordManager.js', () => {
       PasswordManager._resetCache();
 
       let userDataPath = '';
-      try { userDataPath = electron.app.getPath('userData'); } catch (_) {}
+      try { userDataPath = electron.app.getPath('userData'); } catch (_) { /* expected */ }
       let username = '';
-      try { username = os.userInfo().username; } catch (_) {}
+      try { username = os.userInfo().username; } catch (_) { /* expected */ }
       const machineSeed = os.hostname() + '|' + username + '|' + userDataPath + '|shinobi-vault-v2';
 
       // 100k iters (machine key)
@@ -216,7 +216,7 @@ describe('PasswordManager.js', () => {
 
       // Delete salt file and reset cache
       const saltFile = path.join(tmpDir, PasswordManager.VAULT_SALT_FILE);
-      try { fs.unlinkSync(saltFile); } catch (_) {}
+      try { fs.unlinkSync(saltFile); } catch (_) { /* expected */ }
       PasswordManager._resetCache();
 
       const salt2 = PasswordManager.getSalt();

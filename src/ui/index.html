@@ -49,6 +49,10 @@
   @keyframes toastProgress{from{width:100%}to{width:0%}}
   @keyframes toastProgressOk{from{width:100%}to{width:0%}}
   @keyframes glowPulse{0%,100%{box-shadow:0 0 6px rgba(255,140,0,.08)}50%{box-shadow:0 0 14px rgba(255,140,0,.2)}}
+  @keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes pulseRing{0%{transform:scale(.9);opacity:.6}50%{transform:scale(1.1);opacity:1}100%{transform:scale(.9);opacity:.6}}
+  @keyframes sessionGlow{0%,100%{box-shadow:0 0 4px rgba(255,140,0,.15)}50%{box-shadow:0 0 8px rgba(255,140,0,.3)}}
+  @keyframes tagPop{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
 
   /* ── Sidebar Nav ── */
   .sidebar{background:linear-gradient(180deg,var(--bg-elev) 0%,var(--bg) 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:var(--space-4) 0;overflow:hidden;position:relative}
@@ -596,6 +600,162 @@
   .badge{transition:all 200ms ease}
   .badge:hover{filter:brightness(1.1)}
 
+  /* ── v5.3: Animated Analytics Counters ── */
+  .ac-value.animating{animation:countUp 400ms ease}
+
+  /* ── v5.3: Connection Health Indicator ── */
+  .conn-indicator{display:inline-flex;align-items:center;gap:.3rem;font-size:var(--font-xs);color:var(--text-faint);padding:.15rem .5rem;border-radius:var(--radius-full);background:var(--surface);border:1px solid var(--border);margin-right:var(--space-2)}
+  .conn-dot{width:.35rem;height:.35rem;border-radius:50%;background:var(--ok);animation:pulseRing 2s ease-in-out infinite}
+  .conn-dot.disconnected{background:var(--danger);animation:none}
+  .conn-dot.checking{background:var(--warn);animation:pulseRing .8s ease-in-out infinite}
+
+  /* ── v5.3: Profile Tags System ── */
+  .tag-filter-bar{display:flex;gap:var(--space-2);margin-bottom:var(--space-3);flex-wrap:wrap;align-items:center}
+  .tag-filter-chip{display:inline-flex;align-items:center;gap:.2rem;padding:.2rem var(--space-2);border-radius:var(--radius-full);font-size:var(--font-xs);font-weight:var(--weight-medium);cursor:pointer;border:1px solid var(--border);background:var(--bg-elev);color:var(--text-dim);transition:all 200ms ease;user-select:none}
+  .tag-filter-chip:hover{border-color:var(--border-hover);background:var(--surface-hover)}
+  .tag-filter-chip.active{border-color:var(--accent);background:rgba(255,140,0,.1);color:var(--accent)}
+  .tag-filter-chip .tag-count{font-size:10px;background:var(--bg-elev-2);padding:0 .3rem;border-radius:var(--radius-full);margin-left:.15rem}
+  .tag-filter-chip.active .tag-count{background:rgba(255,140,0,.15)}
+  .profile-tag{display:inline-flex;align-items:center;gap:.15rem;padding:.1rem .4rem;border-radius:var(--radius-full);font-size:10px;font-weight:var(--weight-semibold);animation:tagPop 200ms ease;cursor:default;line-height:1.3}
+  .profile-tag .tag-remove{cursor:pointer;opacity:.5;transition:opacity 150ms ease;font-size:9px;line-height:1}
+  .profile-tag .tag-remove:hover{opacity:1}
+  .tags-input-wrap{display:flex;flex-wrap:wrap;gap:var(--space-1);padding:var(--space-2);background:var(--bg);border:1px solid var(--border-hover);border-radius:var(--radius-sm);min-height:2.2rem;align-items:center;transition:border-color var(--transition),box-shadow var(--transition)}
+  .tags-input-wrap:focus-within{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(255,140,0,.12)}
+  .tags-input-wrap .profile-tag{background:rgba(255,140,0,.12);color:var(--accent)}
+  .tags-input-wrap input{flex:1;min-width:60px;border:none;background:transparent;color:var(--text);font-size:var(--font-sm);font-family:var(--font-family);outline:none;padding:0}
+  .tags-input-wrap input::placeholder{color:var(--text-faint)}
+
+  /* ── v5.3: Session Overview Panel ── */
+  .session-overview{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:var(--space-4);animation:slideUp 300ms ease}
+  .session-overview-header{display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-4);background:var(--bg-elev);border-bottom:1px solid var(--border)}
+  .session-overview-header h4{font-size:var(--font-sm);font-weight:var(--weight-semibold);display:flex;align-items:center;gap:var(--space-2)}
+  .session-overview-header h4 svg{width:.9rem;height:.9rem;color:var(--accent)}
+  .session-overview-actions{display:flex;gap:var(--space-2)}
+  .session-list{max-height:200px;overflow-y:auto}
+  .session-item{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) var(--space-4);border-bottom:1px solid var(--border);transition:background 100ms ease}
+  .session-item:last-child{border-bottom:none}
+  .session-item:hover{background:var(--surface-hover)}
+  .session-dot{width:.4rem;height:.4rem;border-radius:50%;background:var(--ok);animation:pulseRing 2s ease-in-out infinite;flex-shrink:0}
+  .session-info{flex:1;min-width:0}
+  .session-name{font-size:var(--font-sm);font-weight:var(--weight-medium);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .session-uptime{font-size:var(--font-xs);color:var(--text-faint);font-variant-numeric:tabular-nums}
+  .session-close{background:transparent;border:none;color:var(--text-faint);cursor:pointer;padding:.2rem;border-radius:var(--radius-sm);transition:var(--transition);display:flex;align-items:center}
+  .session-close:hover{color:var(--danger);background:rgba(220,38,38,.08)}
+  .session-close svg{width:.8rem;height:.8rem}
+  .session-empty{text-align:center;padding:var(--space-4);color:var(--text-faint);font-size:var(--font-sm)}
+
+  /* ── v5.3: Sidebar Uptime Counter ── */
+  .sidebar-uptime{padding:var(--space-2) var(--space-4);border-top:1px solid var(--border);font-size:var(--font-xs);color:var(--text-faint);display:flex;align-items:center;gap:.4rem;position:relative;z-index:1}
+  .sidebar-uptime svg{width:.7rem;height:.7rem;color:var(--accent);opacity:.7}
+  .sidebar-uptime .uptime-val{color:var(--text-dim);font-weight:var(--weight-medium);font-variant-numeric:tabular-nums}
+
+  /* ── v5.3: Skeleton Loading for Analytics ── */
+  .analytics-bar.loading .analytics-card{opacity:.5;pointer-events:none}
+  .analytics-bar.loading .ac-value{color:var(--text-faint)}
+
+  /* ── v5.3: Enhanced Event Cards ── */
+  .event{position:relative;overflow:hidden}
+  .event::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:2px;opacity:0;transition:opacity 200ms ease}
+  .event:hover::before{opacity:1}
+  .event[data-type='daily']::before{background:var(--accent)}
+  .event[data-type='timed']::before{background:var(--warn)}
+  .event[data-type='special']::before{background:#8B5CF6}
+  .event[data-type='cycle']::before{background:var(--ok)}
+  .event-icon{width:1.6rem;height:1.6rem;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:var(--space-1)}
+  .event-icon svg{width:.9rem;height:.9rem}
+  .event-icon.daily{background:rgba(255,140,0,.1);color:var(--accent)}
+  .event-icon.timed{background:rgba(245,158,11,.1);color:var(--warn)}
+  .event-icon.special{background:rgba(139,92,246,.1);color:#8B5CF6}
+  .event-icon.cycle{background:rgba(16,185,129,.1);color:var(--ok)}
+
+  /* ── v5.3: Quick Relaunch Button ── */
+  .relaunch-btn{display:inline-flex;align-items:center;gap:.3rem;padding:var(--space-1) var(--space-2);font-size:var(--font-xs);font-weight:var(--weight-medium);border:1px solid rgba(255,140,0,.25);border-radius:var(--radius-sm);background:rgba(255,140,0,.06);color:var(--accent);cursor:pointer;transition:var(--transition);font-family:var(--font-family)}
+  .relaunch-btn:hover{background:rgba(255,140,0,.12);border-color:rgba(255,140,0,.4)}
+  .relaunch-btn svg{width:.7rem;height:.7rem}
+
+  /* ── v5.4: Dev Subsection Collapsible ── */
+  .dev-subsection{margin-top:var(--space-2)}
+  .dev-subsection-hint{margin-left:auto;font-size:var(--font-xs);color:var(--text-faint);font-weight:var(--weight-regular);font-family:'SF Mono',Monaco,Consolas,monospace}
+  .dev-subsection-body{padding:var(--space-3);animation:devSlideDown 200ms ease}
+  .dev-subsection-body.collapsed{display:none}
+  .dev-subsection-header.collapsed svg{transform:rotate(-90deg)}
+  @keyframes devSlideDown{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ── v5.4: Theme Accent Picker ── */
+  .accent-picker{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap}
+  .accent-swatch{width:1.6rem;height:1.6rem;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:var(--transition);position:relative;display:flex;align-items:center;justify-content:center}
+  .accent-swatch:hover{transform:scale(1.1)}
+  .accent-swatch.active{border-color:var(--text);box-shadow:0 0 0 2px var(--bg-elev),0 0 0 3px var(--text-dim)}
+  .accent-swatch.active::after{content:'';width:.5rem;height:.5rem;border-radius:50%;background:#fff;box-shadow:0 0 4px rgba(0,0,0,.5)}
+  .accent-swatch[data-color='orange']{background:#FF8C00}
+  .accent-swatch[data-color='cyan']{background:#06B6D4}
+  .accent-swatch[data-color='emerald']{background:#10B981}
+  .accent-swatch[data-color='pink']{background:#EC4899}
+  .accent-swatch[data-color='purple']{background:#8B5CF6}
+  .accent-swatch[data-color='red']{background:#DC2626}
+  .accent-swatch[data-color='amber']{background:#F59E0B}
+
+  /* ── v5.4: Compact Mode ── */
+  .grid.compact{gap:var(--space-2)}
+  .grid.compact .card{padding:var(--space-2) var(--space-3)}
+  .grid.compact .card-head .name{font-size:var(--font-sm)}
+  .grid.compact .card-body{margin-top:.25rem;margin-bottom:.25rem;gap:.4rem}
+  .grid.compact .card-actions{margin-top:.4rem;gap:.25rem}
+  .grid.compact .card-actions .btn.sm{padding:.2rem var(--space-2)}
+  .grid.compact .card-notes,.grid.compact .card-stats,.grid.compact .health-check-btn{display:none}
+  .grid.compact .build-tags-html{margin-top:0}
+  .grid.compact .profile-tag{font-size:9px;padding:0 .25rem}
+  .compact-toggle{display:inline-flex;align-items:center;gap:.3rem;padding:var(--space-1) var(--space-2);font-size:var(--font-xs);color:var(--text-dim);background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition)}
+  .compact-toggle:hover{color:var(--text);border-color:var(--border-hover)}
+  .compact-toggle.active{color:var(--accent);border-color:rgba(255,140,0,.3);background:rgba(255,140,0,.06)}
+  .compact-toggle svg{width:.7rem;height:.7rem}
+
+  /* ── v5.4: Last Played Chip ── */
+  .last-played-chip{display:inline-flex;align-items:center;gap:.2rem;font-size:var(--font-xs);color:var(--text-faint);font-weight:var(--weight-regular);padding:0}
+  .last-played-chip svg{width:.65rem;height:.65rem}
+  .last-played-chip.recent{color:var(--ok)}
+  .last-played-chip.stale{color:var(--text-faint)}
+
+  /* ── v5.4: Card Shine Entrance ── */
+  @keyframes cardShine{0%{background-position:-200% 0}60%{background-position:200% 0}100%{background-position:200% 0}}
+  .card.shine::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.04) 50%,transparent 65%);background-size:200% 100%;animation:cardShine 800ms ease-out;pointer-events:none;border-radius:inherit}
+
+  /* ── v5.4: Quick Launch Sidebar Widget ── */
+  .quick-launch{padding:var(--space-3) var(--space-4);border-top:1px solid var(--border)}
+  .quick-launch-title{font-size:var(--font-xs);color:var(--text-faint);text-transform:uppercase;letter-spacing:.6px;font-weight:var(--weight-semibold);margin-bottom:var(--space-2);display:flex;align-items:center;justify-content:space-between}
+  .quick-launch-title svg{width:.7rem;height:.7rem;color:var(--accent)}
+  .quick-launch-list{display:flex;flex-direction:column;gap:.25rem}
+  .quick-launch-item{display:flex;align-items:center;gap:.5rem;padding:.35rem .4rem;border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);position:relative}
+  .quick-launch-item:hover{background:var(--surface-hover)}
+  .quick-launch-item .ql-dot{width:.5rem;height:.5rem;border-radius:50%;flex-shrink:0;box-shadow:0 0 6px currentColor}
+  .quick-launch-item .ql-name{flex:1;font-size:var(--font-xs);color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:var(--weight-medium)}
+  .quick-launch-item .ql-count{font-size:9px;color:var(--text-faint);font-variant-numeric:tabular-nums;font-family:'SF Mono',Monaco,Consolas,monospace}
+  .quick-launch-item .ql-play{width:1rem;height:1rem;border-radius:var(--radius-sm);background:rgba(255,140,0,.1);color:var(--accent);display:none;align-items:center;justify-content:center;flex-shrink:0;transition:var(--transition)}
+  .quick-launch-item:hover .ql-play{display:flex}
+  .quick-launch-item .ql-play svg{width:.55rem;height:.55rem}
+  .quick-launch-empty{font-size:var(--font-xs);color:var(--text-faint);text-align:center;padding:var(--space-2);font-style:italic}
+
+  /* ── v5.4: Statistics Grid (Settings) ── */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:var(--space-2);margin-top:var(--space-2)}
+  .stat-tile{background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-3);display:flex;flex-direction:column;gap:.2rem;transition:var(--transition);position:relative;overflow:hidden}
+  .stat-tile:hover{border-color:var(--border-hover);transform:translateY(-1px)}
+  .stat-tile::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);opacity:.6}
+  .stat-tile-label{font-size:var(--font-xs);color:var(--text-faint);text-transform:uppercase;letter-spacing:.4px;font-weight:var(--weight-semibold)}
+  .stat-tile-value{font-size:var(--font-lg);font-weight:var(--weight-bold);color:var(--text);font-variant-numeric:tabular-nums;line-height:1.1}
+  .stat-tile-sub{font-size:var(--font-xs);color:var(--text-dim);font-weight:var(--weight-regular)}
+  .stat-tile.highlight::before{background:var(--ok);opacity:1}
+  .stat-tile.highlight .stat-tile-value{color:var(--ok)}
+
+  /* ── v5.4: Search Focus Glow ── */
+  .search-wrap{transition:var(--transition)}
+  .search-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,140,0,.08)}
+  .search-wrap:focus-within .search-icon{color:var(--accent)}
+
+  /* ── v5.4: Toast Polish ── */
+  .toast{transition:transform 280ms cubic-bezier(.2,.8,.3,1),opacity 200ms ease}
+  .toast.show{animation:toastSlideIn 320ms cubic-bezier(.2,.8,.3,1)}
+  @keyframes toastSlideIn{from{transform:translate(-50%,-12px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+
 </style>
 </head>
 <body>
@@ -650,6 +810,20 @@
       </div>
     </div>
 
+    <div class="sidebar-uptime">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Sessão: <span class="uptime-val" id="uptimeVal">0:00</span>
+    </div>
+    <!-- v5.4: Quick Launch Widget — top 3 most-used profiles -->
+    <div class="quick-launch" id="quickLaunch">
+      <div class="quick-launch-title">
+        <span>Acesso rápido</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      <div class="quick-launch-list" id="quickLaunchList">
+        <div class="quick-launch-empty">Jogue para popular.</div>
+      </div>
+    </div>
     <div class="sidebar-footer">
       <button class="btn sm" id="importBtn" title="Importar backup">Importar</button>
       <button class="btn sm" id="exportBtn" title="Exportar backup">Exportar</button>
@@ -676,6 +850,11 @@
         <span id="lastProfileName"></span>
       </button>
       <div class="actions">
+        <!-- v5.3: Connection Health Indicator -->
+        <div class="conn-indicator" id="connIndicator" title="Status de conexão">
+          <span class="conn-dot" id="connDot"></span>
+          <span id="connLabel">Online</span>
+        </div>
         <!-- v4.5: View Mode Toggle (grid/list) -->
         <div class="view-toggle" id="viewToggle" title="Alternar visualização">
           <button id="viewGrid" class="active" title="Grade" aria-label="Visualização em grade">
@@ -686,6 +865,11 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
           </button>
         </div>
+        <!-- v5.4: Compact Mode Toggle -->
+        <button class="compact-toggle" id="compactToggle" title="Modo compacto (cartões menores)" aria-label="Modo compacto">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+          Compacto
+        </button>
         <button class="btn icon" id="muteBtn" title="Notificações">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         </button>
@@ -728,6 +912,8 @@
             <span class="ac-label">Total de lançamentos</span>
           </div>
         </div>
+        <!-- v5.3: Tag Filter Bar -->
+        <div class="tag-filter-bar" id="tagFilterBar"></div>
         <div class="account-toolbar">
           <!-- v5.1: Batch Operations Bar -->
           <div class="batch-bar" id="batchBar">
@@ -766,6 +952,21 @@
 
       <!-- ── View: Events ── -->
       <div class="view" id="view-events">
+        <!-- v5.3: Session Overview -->
+        <div class="session-overview" id="sessionOverview">
+          <div class="session-overview-header">
+            <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Sessões ativas</h4>
+            <div class="session-overview-actions">
+              <button class="relaunch-btn" id="relaunchAllBtn" title="Relançar todos os perfis da última sessão">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                Relançar todos
+              </button>
+            </div>
+          </div>
+          <div class="session-list" id="sessionList">
+            <div class="session-empty">Nenhuma sessão ativa.</div>
+          </div>
+        </div>
         <div class="tabs" id="regionTabs"></div>
         <div id="eventList"></div>
         <!-- v5.0: Activity Log -->
@@ -872,78 +1073,159 @@
           </div>
         </div>
 
+        <div class="settings-section">
+          <div class="settings-header">Estatísticas (v5.4)</div>
+          <div class="stats-grid" id="statsGrid">
+            <div class="stat-tile">
+              <span class="stat-tile-label">Tempo total</span>
+              <span class="stat-tile-value" id="statTotalPlay">0h</span>
+              <span class="stat-tile-sub">todas as contas</span>
+            </div>
+            <div class="stat-tile">
+              <span class="stat-tile-label">Lançamentos</span>
+              <span class="stat-tile-value" id="statTotalLaunch">0</span>
+              <span class="stat-tile-sub">total</span>
+            </div>
+            <div class="stat-tile">
+              <span class="stat-tile-label">Conta top</span>
+              <span class="stat-tile-value" id="statTopName" style="font-size:var(--font-md)">—</span>
+              <span class="stat-tile-sub" id="statTopDetail">sem dados</span>
+            </div>
+            <div class="stat-tile highlight">
+              <span class="stat-tile-label">Ativos 7d</span>
+              <span class="stat-tile-value" id="statActive7d">0</span>
+              <span class="stat-tile-sub">contas usadas</span>
+            </div>
+            <div class="stat-tile">
+              <span class="stat-tile-label">Tags únicas</span>
+              <span class="stat-tile-value" id="statUniqueTags">0</span>
+              <span class="stat-tile-sub">criadas</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-header">Aparência (v5.4)</div>
+          <div class="settings-row with-icon">
+            <div class="settings-row-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/></svg></div>
+            <div style="flex:1">
+              <div class="label">Cor de destaque</div>
+              <div class="desc">Personalize a cor principal da interface. Persistente entre sessões.</div>
+            </div>
+            <div class="accent-picker" id="accentPicker">
+              <div class="accent-swatch active" data-color="orange" data-hex="#FF8C00" data-hover="#FFA833" title="Laranja (padrão)"></div>
+              <div class="accent-swatch" data-color="cyan" data-hex="#06B6D4" data-hover="#22D3EE" title="Ciano"></div>
+              <div class="accent-swatch" data-color="emerald" data-hex="#10B981" data-hover="#34D399" title="Esmeralda"></div>
+              <div class="accent-swatch" data-color="pink" data-hex="#EC4899" data-hover="#F472B6" title="Rosa"></div>
+              <div class="accent-swatch" data-color="purple" data-hex="#8B5CF6" data-hover="#A78BFA" title="Roxo"></div>
+              <div class="accent-swatch" data-color="red" data-hex="#DC2626" data-hover="#EF4444" title="Vermelho"></div>
+              <div class="accent-swatch" data-color="amber" data-hex="#F59E0B" data-hover="#FBBF24" title="Âmbar"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="settings-section" id="devToolsSection" style="display:none">
           <div class="settings-header">Dev Tools (v5.0) <span style="font-size:var(--font-xs);color:var(--text-faint);font-weight:var(--weight-regular);margin-left:.4rem">SHINOBI_DEBUG · tempmail + API login + inspector + JWT</span></div>
           <!-- Tempmail -->
-          <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
-            <div>
-              <div class="label">Criar conta tempmail</div>
-              <div class="desc">Cria email temporário (mail.tm) + registra no Naruto Online via API. Retorna JWT de 2h — sem Flash, sem CAPTCHA, sem verificação de email.</div>
+          <div class="dev-subsection">
+            <div class="dev-subsection-header" data-dev-toggle>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              <span>Criar conta tempmail</span>
+              <span class="dev-subsection-hint">mail.tm + Naruto API</span>
             </div>
-            <button class="btn sm" id="devTempmailCreate" type="button" style="align-self:flex-start">Criar conta tempmail</button>
-            <div id="devTempmailResult" class="dev-result-box" style="display:none"></div>
+            <div class="dev-subsection-body">
+              <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0">
+                <div class="desc">Cria email temporário (mail.tm) + registra no Naruto Online via API. Retorna JWT de 2h — sem Flash, sem CAPTCHA, sem verificação de email.</div>
+                <button class="btn sm" id="devTempmailCreate" type="button" style="align-self:flex-start">Criar conta tempmail</button>
+                <div id="devTempmailResult" class="dev-result-box" style="display:none"></div>
+              </div>
+            </div>
           </div>
           <!-- API Login -->
-          <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
-            <div>
-              <div class="label">Login via API</div>
-              <div class="desc">Autentica via passport.oasgames.com e injeta cookie oas_user na session do perfil selecionado.</div>
+          <div class="dev-subsection">
+            <div class="dev-subsection-header" data-dev-toggle>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              <span>Login via API</span>
+              <span class="dev-subsection-hint">passport.oasgames.com</span>
             </div>
-            <div class="dev-btn-group">
-              <select id="devApiLoginProfile" class="settings-select" style="min-width:160px"></select>
-              <input id="devApiLoginEmail" type="email" placeholder="email" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .6rem;color:var(--text);font-size:var(--font-sm)">
-              <input id="devApiLoginPass" type="password" placeholder="senha" style="flex:1;min-width:100px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .6rem;color:var(--text);font-size:var(--font-sm)">
-              <button class="btn sm" id="devApiLoginBtn" type="button">Login API</button>
+            <div class="dev-subsection-body">
+              <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0">
+                <div class="desc">Autentica via passport.oasgames.com e injeta cookie oas_user na session do perfil selecionado.</div>
+                <div class="dev-btn-group">
+                  <select id="devApiLoginProfile" class="settings-select" style="min-width:160px"></select>
+                  <input id="devApiLoginEmail" type="email" placeholder="email" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .6rem;color:var(--text);font-size:var(--font-sm)">
+                  <input id="devApiLoginPass" type="password" placeholder="senha" style="flex:1;min-width:100px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .6rem;color:var(--text);font-size:var(--font-sm)">
+                  <button class="btn sm" id="devApiLoginBtn" type="button">Login API</button>
+                </div>
+                <div class="dev-btn-group">
+                  <button class="btn sm" id="devSessionCheck" type="button">Verificar sessão JWT</button>
+                </div>
+                <div id="devApiLoginResult" class="dev-result-box" style="display:none"></div>
+              </div>
             </div>
-            <div class="dev-btn-group">
-              <button class="btn sm" id="devSessionCheck" type="button">Verificar sessão JWT</button>
-            </div>
-            <div id="devApiLoginResult" class="dev-result-box" style="display:none"></div>
           </div>
           <!-- JWT Decoder -->
-          <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
-            <div>
-              <div class="label">Decodificador JWT</div>
-              <div class="desc">Cole um token JWT para visualizar o header e payload decodificados com syntax highlighting.</div>
+          <div class="dev-subsection">
+            <div class="dev-subsection-header" data-dev-toggle>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              <span>Decodificador JWT</span>
+              <span class="dev-subsection-hint">header + payload</span>
             </div>
-            <div class="jwt-decoder">
-              <div class="jwt-input-wrap">
-                <textarea id="jwtInput" placeholder="Cole o token JWT aqui (eyJhbGciOiJIUzI1NiIs...)" rows="2"></textarea>
-                <button class="btn sm primary" id="jwtDecodeBtn" type="button" style="align-self:flex-end">Decodificar</button>
+            <div class="dev-subsection-body">
+              <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0">
+                <div class="desc">Cole um token JWT para visualizar o header e payload decodificados com syntax highlighting.</div>
+                <div class="jwt-decoder">
+                  <div class="jwt-input-wrap">
+                    <textarea id="jwtInput" placeholder="Cole o token JWT aqui (eyJhbGciOiJIUzI1NiIs...)" rows="2"></textarea>
+                    <button class="btn sm primary" id="jwtDecodeBtn" type="button" style="align-self:flex-end">Decodificar</button>
+                  </div>
+                  <div class="jwt-output" id="jwtOutput"></div>
+                </div>
               </div>
-              <div class="jwt-output" id="jwtOutput"></div>
             </div>
           </div>
           <!-- Inspector -->
-          <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
-            <div>
-              <div class="label">Inspector de Rede</div>
-              <div class="desc">Captura requisições HTTP do jogo via webRequest. Mostra URLs, cookies oas_user capturados (JWT decodificado) e estatísticas.</div>
+          <div class="dev-subsection">
+            <div class="dev-subsection-header" data-dev-toggle>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              <span>Inspector de Rede</span>
+              <span class="dev-subsection-hint">webRequest capture</span>
             </div>
-            <div class="dev-btn-group">
-              <select id="devInspectorProfile" class="settings-select" style="min-width:160px"></select>
-              <button class="btn sm" id="devInspectorEnable" type="button">Ativar captura</button>
-              <button class="btn sm" id="devInspectorDisable" type="button" disabled>Desativar</button>
-              <button class="btn sm" id="devInspectorRefresh" type="button">Atualizar</button>
-              <button class="btn sm" id="devInspectorClear" type="button">Limpar</button>
+            <div class="dev-subsection-body">
+              <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0">
+                <div class="desc">Captura requisições HTTP do jogo via webRequest. Mostra URLs, cookies oas_user capturados (JWT decodificado) e estatísticas.</div>
+                <div class="dev-btn-group">
+                  <select id="devInspectorProfile" class="settings-select" style="min-width:160px"></select>
+                  <button class="btn sm" id="devInspectorEnable" type="button">Ativar captura</button>
+                  <button class="btn sm" id="devInspectorDisable" type="button" disabled>Desativar</button>
+                  <button class="btn sm" id="devInspectorRefresh" type="button">Atualizar</button>
+                  <button class="btn sm" id="devInspectorClear" type="button">Limpar</button>
+                </div>
+                <div id="devInspectorStats" class="dev-result-box" style="display:none;margin-bottom:.3rem"></div>
+                <div id="devInspectorEntries" class="dev-result-box" style="display:none;max-height:280px"></div>
+              </div>
             </div>
-            <div id="devInspectorStats" class="dev-result-box" style="display:none;margin-bottom:.3rem"></div>
-            <div id="devInspectorEntries" class="dev-result-box" style="display:none;max-height:280px"></div>
           </div>
           <!-- Source Extractor -->
-          <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
-            <div>
-              <div class="label">Source Extractor + DevTools</div>
-              <div class="desc">Extrai o HTML da página Flash, lista cookies, recarrega a sessão (F5) e abre DevTools (F12).</div>
+          <div class="dev-subsection">
+            <div class="dev-subsection-header" data-dev-toggle>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              <span>Source Extractor + DevTools</span>
+              <span class="dev-subsection-hint">HTML + cookies + F5 + F12</span>
             </div>
-            <div class="dev-btn-group">
-              <select id="devSourceProfile" class="settings-select" style="min-width:160px"></select>
-              <button class="btn sm" id="devExtractSource" type="button">Extrair fonte</button>
-              <button class="btn sm" id="devListCookies" type="button">Listar cookies</button>
-              <button class="btn sm" id="devReloadGame" type="button">Recarregar (F5)</button>
-              <button class="btn sm" id="devToggleDt" type="button">DevTools (F12)</button>
+            <div class="dev-subsection-body">
+              <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0">
+                <div class="desc">Extrai o HTML da página Flash, lista cookies, recarrega a sessão (F5) e abre DevTools (F12).</div>
+                <div class="dev-btn-group">
+                  <select id="devSourceProfile" class="settings-select" style="min-width:160px"></select>
+                  <button class="btn sm" id="devExtractSource" type="button">Extrair fonte</button>
+                  <button class="btn sm" id="devListCookies" type="button">Listar cookies</button>
+                  <button class="btn sm" id="devReloadGame" type="button">Recarregar (F5)</button>
+                  <button class="btn sm" id="devToggleDt" type="button">DevTools (F12)</button>
+                </div>
+                <div id="devSourceResult" class="dev-result-box" style="display:none;max-height:320px"></div>
+              </div>
             </div>
-            <div id="devSourceResult" class="dev-result-box" style="display:none;max-height:320px"></div>
           </div>
         </div>
       </div>
@@ -983,6 +1265,13 @@
     <div class="field">
       <label>Cor</label>
       <div class="color-row" id="colorRow"></div>
+    </div>
+    <div class="field">
+      <label>Tags <span style="color:var(--text-faint);font-weight:var(--weight-regular);text-transform:none">(opcional — Enter para adicionar)</span></label>
+      <div class="tags-input-wrap" id="tagsInputWrap">
+        <input id="fTags" placeholder="Adicionar tag..." maxlength="20">
+      </div>
+      <div class="hint">Ex: main, alt, pvp, eventos, farm</div>
     </div>
     <div class="field">
       <label>Notas <span style="color:var(--text-faint);font-weight:var(--weight-regular);text-transform:none">(opcional)</span></label>
@@ -1058,7 +1347,8 @@
       <div class="kb-group">
         <div class="kb-group-title">Ações</div>
         <div class="kb-row"><span class="kb-action">Nova conta</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">N</span></span></div>
-        <div class="kb-row"><span class="kb-action">Buscar contas</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">F</span></span></div>
+        <div class="kb-row"><span class="kb-action">Buscar contas</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">F</span><span class="kb-key accent">/</span></span></div>
+        <div class="kb-row"><span class="kb-action">Limpar busca</span><span class="kb-keys"><span class="kb-key accent">Esc</span></span></div>
         <div class="kb-row"><span class="kb-action">Seleção múltipla</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">B</span></span></div>
         <div class="kb-row"><span class="kb-action">Exportar backup</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">E</span></span></div>
       </div>
@@ -1133,6 +1423,8 @@ let openWindows = {};      // { profileId: true }
 let autoLoginStatus = {};  // { profileId: 'idle'|'loading'|'success'|'error' }
 // v4.6: Sort mode, persisted in localStorage
 let sortMode = localStorage.getItem('shinobi-sort-mode') || 'favorite';
+// v5.4: Compact mode (slimmer cards), persisted in localStorage
+let compactMode = localStorage.getItem('shinobi-compact-mode') === 'true';
 // v4.6: i18n strings (loaded from main process on init)
 let i18nStrings = {};
 let currentLang = 'pt';
@@ -1176,7 +1468,7 @@ document.getElementById('lastProfileBtn').onclick = function() {
 };
 
 // ── IPC ──
-ipcRenderer.on('profiles:updated', (_e, list) => { profiles = list; renderProfiles(); renderRegionTabs(); loadLastProfile(); populateDevProfileSelects(); updateAnalytics(); });
+ipcRenderer.on('profiles:updated', (_e, list) => { profiles = list; renderProfiles(); renderRegionTabs(); loadLastProfile(); populateDevProfileSelects(); updateAnalytics(); renderTagFilterBar(); updateQuickLaunch(); updateStatsGrid(); });
 ipcRenderer.on('memory:update', (_e, s) => renderMemory(s));
 ipcRenderer.on('events:update', (_e, data) => renderEvents(data));
 ipcRenderer.on('profile:toast', (_e, t) => toast(t.msg, t.type));
@@ -1270,7 +1562,7 @@ document.getElementById('viewList').onclick = function() {
 function renderProfiles() {
   const grid = document.getElementById('profileGrid');
   // v4.5: Apply view mode class
-  grid.className = 'grid' + (viewMode === 'list' ? ' list-view' : '');
+  grid.className = 'grid' + (viewMode === 'list' ? ' list-view' : '') + (compactMode ? ' compact' : '');
   let filtered = profiles;
   if (searchQuery) {
     filtered = profiles.filter(function(p) {
@@ -1284,6 +1576,12 @@ function renderProfiles() {
         || regionCode.indexOf(searchQuery) !== -1
         || regionKey.indexOf(searchQuery) !== -1
         || notes.indexOf(searchQuery) !== -1;
+    });
+  }
+  // v5.3: Filter by active tag
+  if (activeTagFilter) {
+    filtered = filtered.filter(function(p) {
+      return (p.tags || []).indexOf(activeTagFilter) !== -1;
     });
   }
   // v4.6: Apply sorting
@@ -1321,7 +1619,7 @@ function renderProfiles() {
     card.style.animationDelay = (idx * 60) + 'ms';
     card.setAttribute('data-card-color', p.color);
     var favClass = p.favorite ? ' fav-card' : '';
-    card.className = 'card' + (p.hasVault ? ' has-vault' : '') + favClass + (batchSelected.has(p.id) ? ' batch-selected' : '');
+    card.className = 'card shine' + (p.hasVault ? ' has-vault' : '') + favClass + (batchSelected.has(p.id) ? ' batch-selected' : '');
     card.setAttribute('data-card-id', p.id);
     // v4.5: Build stats display (launch count, play time, last used)
     var launchCount = p.launchCount || 0;
@@ -1340,6 +1638,14 @@ function renderProfiles() {
         statsHtml += '<div class="stat-item" title="Tempo total de jogo">'
           + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
           + '<span class="val">' + formatPlayTime(playMs) + '</span>'
+          + '</div>';
+      }
+      // v5.4: Last played relative time chip
+      if (lastUsed > 0) {
+        var rel = formatRelativeTime(lastUsed);
+        statsHtml += '<div class="stat-item last-played-chip ' + (rel.recent ? 'recent' : 'stale') + '" title="Última vez jogada: ' + new Date(lastUsed).toLocaleString('pt-BR') + '">'
+          + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+          + '<span class="val">' + rel.label + '</span>'
           + '</div>';
       }
       statsHtml += '</div>';
@@ -1397,6 +1703,7 @@ function renderProfiles() {
         ${serverHtml}
         <div class="region">${REGIONS[p.region]||'—'}</div>
       </div>
+      ${buildTagsHtml(p.tags)}
       ${notesHtml}
       <div class="card-badges">
         ${p.hasVault?'<span class="badge ok">auto-login</span>':''}
@@ -1432,6 +1739,15 @@ function renderProfiles() {
           if (resultEl) runHealthCheck(p.id, resultEl);
         }
         else if (act === 'switch-server') { /* handled by onchange */ }
+      });
+    });
+    // v5.3: Tag remove handler on profile cards
+    card.querySelectorAll('[data-remove-tag]').forEach(function(tagEl) {
+      tagEl.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var tag = tagEl.getAttribute('data-remove-tag');
+        var currentTags = (p.tags || []).filter(function(t) { return t !== tag; });
+        ipcRenderer.send('profile:update', { id: p.id, tags: currentTags });
       });
     });
     // v5.1: Batch checkbox handler
@@ -1671,6 +1987,7 @@ function launch(id) {
 function edit(id) {
   const p = profiles.find(x => x.id === id); if (!p) return;
   editingId = id;
+  editingTags = (p.tags || []).slice(); // v5.3: Copy tags for editing
   document.getElementById('modalTitle').textContent = 'Editar conta';
   document.getElementById('fName').value = p.name;
   document.getElementById('fServer').value = p.server;
@@ -1681,6 +1998,9 @@ function edit(id) {
   updateNotesCounter();
   selectedColor = p.color;
   renderColors();
+  // v5.3: Load tags
+  if (window._renderTagsInput) window._renderTagsInput();
+  document.getElementById('fTags').value = '';
   document.getElementById('profileModal').classList.add('show');
 }
 async function del(id) {
@@ -1710,6 +2030,7 @@ async function openVault(id) {
 // ── Modal: Profile ──
 document.getElementById('newBtn').onclick = () => {
   editingId = null;
+  editingTags = [];
   document.getElementById('modalTitle').textContent = 'Nova conta';
   document.getElementById('fName').value = '';
   document.getElementById('fServer').value = '';
@@ -1719,6 +2040,9 @@ document.getElementById('newBtn').onclick = () => {
   updateNotesCounter();
   selectedColor = PALETTE[profiles.length % PALETTE.length];
   renderColors();
+  // v5.3: Clear tags input
+  if (window._renderTagsInput) window._renderTagsInput();
+  document.getElementById('fTags').value = '';
   document.getElementById('profileModal').classList.add('show');
 };
 document.getElementById('cancelProfile').onclick = () => document.getElementById('profileModal').classList.remove('show');
@@ -1729,6 +2053,7 @@ document.getElementById('saveProfile').onclick = () => {
     region: document.getElementById('fRegion').value,
     color: selectedColor,
     notes: document.getElementById('fNotes').value.trim(),  // v4.5: save notes
+    tags: editingTags.slice(),  // v5.3: save tags
   };
   if (!opts.name) { toast('Informe um nome', 'err'); return; }
   if (editingId) {
@@ -2427,6 +2752,20 @@ launch = function(id) {
   origLaunch(id);
 };
 
+// Track which profiles were open in last session for relaunch-all
+var LAST_SESSION_KEY = 'shinobi-last-session';
+ipcRenderer.on('game-window:status', function(_e, data) {
+  if (!data || !data.profileId) return;
+  var lastSession = JSON.parse(localStorage.getItem(LAST_SESSION_KEY) || '[]');
+  if (data.open) {
+    if (lastSession.indexOf(data.profileId) === -1) lastSession.push(data.profileId);
+  } else {
+    lastSession = lastSession.filter(function(id) { return id !== data.profileId; });
+  }
+  localStorage.setItem(LAST_SESSION_KEY, JSON.stringify(lastSession));
+  updateSessionOverview();
+});
+
 var origDel = del;
 // del is redefined below in v5.2 with custom confirm dialog + activity logging
 
@@ -2843,6 +3182,474 @@ document.getElementById('batchDeleteBtn').onclick = async function() {
 // ── v5.2: Vault remove uses custom confirm ──
 // Already handled above by overriding removeVault onclick
 
+// ── v5.3: Animated Analytics Counters ──
+var prevAnalytics = { totalAccounts: 0, vaultCount: 0, totalPlaytime: '', totalLaunches: 0 };
+function animateValue(el, start, end, duration) {
+  if (start === end || typeof start !== 'number' || typeof end !== 'number') { el.textContent = end; return; }
+  el.classList.add('animating');
+  var range = end - start;
+  var startTime = null;
+  function step(timestamp) {
+    if (!startTime) startTime = timestamp;
+    var progress = Math.min((timestamp - startTime) / duration, 1);
+    var eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    el.textContent = Math.round(start + range * eased);
+    if (progress < 1) requestAnimationFrame(step);
+    else { el.classList.remove('animating'); el.textContent = end; }
+  }
+  requestAnimationFrame(step);
+}
+
+var origUpdateAnalytics = updateAnalytics;
+updateAnalytics = function() {
+  var prevTotal = prevAnalytics.totalAccounts;
+  var prevVault = prevAnalytics.vaultCount;
+  var prevLaunches = prevAnalytics.totalLaunches;
+  origUpdateAnalytics();
+  if (!profiles || !profiles.length) return;
+  var newTotal = profiles.length;
+  var newVault = profiles.filter(function(p) { return p.hasVault; }).length;
+  var newLaunches = profiles.reduce(function(sum, p) { return sum + (p.launchCount || 0); }, 0);
+  // Animate counters if values changed
+  if (prevTotal !== newTotal) animateValue(document.getElementById('statTotalAccounts'), prevTotal, newTotal, 500);
+  if (prevVault !== newVault) animateValue(document.getElementById('statVaultCount'), prevVault, newVault, 500);
+  if (prevLaunches !== newLaunches) animateValue(document.getElementById('statTotalLaunches'), prevLaunches, newLaunches, 500);
+  prevAnalytics = { totalAccounts: newTotal, vaultCount: newVault, totalPlaytime: '', totalLaunches: newLaunches };
+};
+
+// ── v5.3: Connection Health Indicator ──
+var connState = 'online'; // online | offline | checking
+function updateConnectionState(state) {
+  connState = state;
+  var dot = document.getElementById('connDot');
+  var label = document.getElementById('connLabel');
+  if (!dot || !label) return;
+  dot.className = 'conn-dot' + (state === 'offline' ? ' disconnected' : state === 'checking' ? ' checking' : '');
+  label.textContent = state === 'online' ? 'Online' : state === 'offline' ? 'Offline' : 'Verificando';
+}
+// Check connectivity periodically
+function checkConnection() {
+  updateConnectionState('checking');
+  var timeout = setTimeout(function() { updateConnectionState('offline'); }, 5000);
+  try {
+    require('https').get('https://api.github.com', function(res) {
+      clearTimeout(timeout);
+      updateConnectionState(res.statusCode ? 'online' : 'offline');
+    }).on('error', function() { clearTimeout(timeout); updateConnectionState('offline'); });
+  } catch(e) { clearTimeout(timeout); updateConnectionState('offline'); }
+}
+setInterval(checkConnection, 60000); // Check every 60s
+setTimeout(checkConnection, 3000);   // First check after 3s
+
+// ── v5.3: Profile Tags System ──
+var TAG_COLORS = {
+  'main': '#FF8C00', 'alt': '#06B6D4', 'pvp': '#DC2626', 'farm': '#10B981',
+  'eventos': '#F59E0B', 'evento': '#F59E0B', 'events': '#F59E0B',
+  'pve': '#8B5CF6', 'ranked': '#EC4899', 'test': '#84CC16'
+};
+var activeTagFilter = null;
+var editingTags = []; // Tags being edited in modal
+
+function getTagColor(tag) {
+  var lower = (tag || '').toLowerCase();
+  if (TAG_COLORS[lower]) return TAG_COLORS[lower];
+  // Generate consistent color from tag string
+  var hash = 0;
+  for (var i = 0; i < lower.length; i++) hash = lower.charCodeAt(i) + ((hash << 5) - hash);
+  var hue = Math.abs(hash) % 360;
+  return 'hsl(' + hue + ', 65%, 55%)';
+}
+
+function getAllTags() {
+  var tagMap = {};
+  profiles.forEach(function(p) {
+    (p.tags || []).forEach(function(tag) {
+      tagMap[tag] = (tagMap[tag] || 0) + 1;
+    });
+  });
+  return Object.keys(tagMap).sort().map(function(t) { return { name: t, count: tagMap[t] }; });
+}
+
+function renderTagFilterBar() {
+  var bar = document.getElementById('tagFilterBar');
+  if (!bar) return;
+  var tags = getAllTags();
+  if (!tags.length) { bar.innerHTML = ''; return; }
+  var html = '<span style="font-size:var(--font-xs);color:var(--text-faint);margin-right:.2rem">Tags:</span>';
+  // "All" chip
+  html += '<span class="tag-filter-chip' + (!activeTagFilter ? ' active' : '') + '" data-tag-filter="">Todas</span>';
+  tags.forEach(function(t) {
+    var color = getTagColor(t.name);
+    html += '<span class="tag-filter-chip' + (activeTagFilter === t.name ? ' active' : '') + '" data-tag-filter="' + esc(t.name) + '" style="' + (activeTagFilter === t.name ? 'border-color:' + color + ';color:' + color + ';background:' + color + '15' : '') + '">'
+      + '<span style="width:6px;height:6px;border-radius:50%;background:' + color + ';display:inline-block"></span> '
+      + esc(t.name) + '<span class="tag-count">' + t.count + '</span></span>';
+  });
+  bar.innerHTML = html;
+  // Handlers
+  bar.querySelectorAll('.tag-filter-chip').forEach(function(chip) {
+    chip.onclick = function() {
+      var tag = chip.getAttribute('data-tag-filter');
+      activeTagFilter = tag || null;
+      renderTagFilterBar();
+      renderProfiles();
+    };
+  });
+}
+
+function buildTagsHtml(tags) {
+  if (!tags || !tags.length) return '';
+  return '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:2px">'
+    + tags.map(function(tag) {
+      var color = getTagColor(tag);
+      return '<span class="profile-tag" style="background:' + color + '18;color:' + color + ';border:1px solid ' + color + '30">'
+        + esc(tag)
+        + '<span class="tag-remove" data-remove-tag="' + esc(tag) + '">&times;</span>'
+        + '</span>';
+    }).join('')
+    + '</div>';
+}
+
+function initTagsInput() {
+  var wrap = document.getElementById('tagsInputWrap');
+  var input = document.getElementById('fTags');
+  if (!wrap || !input) return;
+
+  function renderTagsInput() {
+    // Remove existing tags in the wrapper (keep the input)
+    wrap.querySelectorAll('.profile-tag').forEach(function(t) { t.remove(); });
+    editingTags.forEach(function(tag) {
+      var span = document.createElement('span');
+      span.className = 'profile-tag';
+      span.style.background = getTagColor(tag) + '18';
+      span.style.color = getTagColor(tag);
+      span.style.border = '1px solid ' + getTagColor(tag) + '30';
+      span.innerHTML = esc(tag) + ' <span class="tag-remove" style="cursor:pointer;opacity:.6">&times;</span>';
+      span.querySelector('.tag-remove').onclick = function() {
+        editingTags = editingTags.filter(function(t) { return t !== tag; });
+        renderTagsInput();
+      };
+      wrap.insertBefore(span, input);
+    });
+  }
+
+  input.onkeydown = function(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      var val = input.value.trim().replace(/,/g, '').toLowerCase();
+      if (!val || editingTags.indexOf(val) !== -1 || editingTags.length >= 5) return;
+      editingTags.push(val);
+      input.value = '';
+      renderTagsInput();
+    }
+    if (e.key === 'Backspace' && !input.value && editingTags.length) {
+      editingTags.pop();
+      renderTagsInput();
+    }
+  };
+  // Store reference for modal open/close
+  window._renderTagsInput = renderTagsInput;
+}
+
+// ── v5.3: Session Overview Panel ──
+var sessionOpenTimes = {}; // { profileId: openTimestamp }
+
+function updateSessionOverview() {
+  var listEl = document.getElementById('sessionList');
+  if (!listEl) return;
+  var openIds = Object.keys(openWindows);
+  if (!openIds.length) {
+    listEl.innerHTML = '<div class="session-empty">Nenhuma sessão ativa.</div>';
+    return;
+  }
+  listEl.innerHTML = openIds.map(function(id) {
+    var p = profiles.find(function(x) { return x.id === id; });
+    var name = p ? p.name : id;
+    var uptime = sessionOpenTimes[id] ? formatSessionUptime(Date.now() - sessionOpenTimes[id]) : '—';
+    return '<div class="session-item">'
+      + '<span class="session-dot"></span>'
+      + '<div class="session-info">'
+        + '<div class="session-name">' + esc(name) + '</div>'
+        + '<div class="session-uptime">Aberta há ' + uptime + '</div>'
+      + '</div>'
+      + '<button class="session-close" data-close-session="' + id + '" title="Fechar sessão">'
+        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+      + '</button>'
+    + '</div>';
+  }).join('');
+  // Close session handlers
+  listEl.querySelectorAll('.session-close').forEach(function(btn) {
+    btn.onclick = function(e) {
+      e.stopPropagation();
+      var id = btn.getAttribute('data-close-session');
+      ipcRenderer.send('profile:close', id);
+      addActivity('info', 'Sessão fechada: <strong>' + esc(id) + '</strong>');
+    };
+  });
+}
+
+function formatSessionUptime(ms) {
+  if (!ms || ms < 1000) return '0s';
+  var seconds = Math.floor(ms / 1000);
+  var hours = Math.floor(seconds / 3600);
+  var minutes = Math.floor((seconds % 3600) / 60);
+  var secs = seconds % 60;
+  if (hours > 0) return hours + 'h ' + minutes + 'm';
+  if (minutes > 0) return minutes + 'm ' + secs + 's';
+  return secs + 's';
+}
+
+// Track session open times
+var origGameWindowStatus = null;
+// We already have the game-window:status listener, let's add timing
+ipcRenderer.on('game-window:status', function(_e, data) {
+  if (!data || !data.profileId) return;
+  if (data.open && !sessionOpenTimes[data.profileId]) {
+    sessionOpenTimes[data.profileId] = Date.now();
+  }
+  if (!data.open) {
+    delete sessionOpenTimes[data.profileId];
+  }
+});
+
+// ── v5.3: Quick Relaunch All ──
+document.getElementById('relaunchAllBtn').onclick = function() {
+  var lastSession = JSON.parse(localStorage.getItem(LAST_SESSION_KEY) || '[]');
+  if (!lastSession.length) { toast('Nenhuma sessão anterior encontrada', 'err'); return; }
+  var launched = 0;
+  lastSession.forEach(function(id) {
+    // Only launch if not already open
+    if (!openWindows[id]) {
+      var p = profiles.find(function(x) { return x.id === id; });
+      if (p) { origLaunch(id); launched++; }
+    }
+  });
+  if (launched > 0) toast('Relançando ' + launched + ' perfil(is)', 'ok');
+  else toast('Todos os perfis já estão abertos', 'ok');
+};
+
+// ── v5.3: Sidebar Uptime Counter ──
+var appStartTime = Date.now();
+function updateUptime() {
+  var el = document.getElementById('uptimeVal');
+  if (!el) return;
+  var ms = Date.now() - appStartTime;
+  var hours = Math.floor(ms / 3600000);
+  var minutes = Math.floor((ms % 3600000) / 60000);
+  if (hours > 0) el.textContent = hours + 'h ' + (minutes < 10 ? '0' : '') + minutes + 'm';
+  else el.textContent = minutes + 'm';
+}
+setInterval(updateUptime, 30000);
+updateUptime();
+
+// ── v5.3: Enhanced Event Rendering ──
+var origRenderEventsSingle = renderEventsSingle;
+renderEventsSingle = function(list) {
+  var el = document.getElementById('eventList');
+  if (!list || !list.length) { el.innerHTML = '<div style="color:var(--text-faint);text-align:center;padding:3rem;font-size:var(--font-sm)">Nenhum evento.</div>'; return; }
+  el.innerHTML = '';
+  list.slice(0, 10).forEach(function(ev) {
+    var eventType = ev.type || 'daily'; // daily, timed, special, cycle
+    var iconSvg = '';
+    if (eventType === 'daily') {
+      iconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+    } else if (eventType === 'timed') {
+      iconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+    } else if (eventType === 'special') {
+      iconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+    } else {
+      iconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>';
+    }
+    var item = document.createElement('div');
+    item.className = 'event';
+    item.setAttribute('data-type', eventType);
+    item.innerHTML = '<div class="event-icon ' + eventType + '">' + iconSvg + '</div>'
+      + '<div class="info"><div class="n">' + esc(ev.name) + '</div><div class="t">' + (ev.userTimeLabel||'') + '</div></div>'
+      + '<div class="cd">' + (ev.nextFireLabel||'') + '</div>';
+    el.appendChild(item);
+  });
+};
+
+// ── v5.4: Relative time helper ──
+function formatRelativeTime(ts) {
+  if (!ts || ts <= 0) return { label: 'nunca', recent: false };
+  var diff = Date.now() - ts;
+  if (diff < 0) diff = 0;
+  var sec = Math.floor(diff / 1000);
+  var min = Math.floor(sec / 60);
+  var hr = Math.floor(min / 60);
+  var day = Math.floor(hr / 24);
+  var label;
+  if (sec < 60) label = 'agora';
+  else if (min < 60) label = min + 'min atrás';
+  else if (hr < 24) label = hr + 'h atrás';
+  else if (day === 1) label = 'ontem';
+  else if (day < 7) label = day + 'd atrás';
+  else if (day < 30) label = Math.floor(day / 7) + 'sem atrás';
+  else label = Math.floor(day / 30) + 'mês atrás';
+  return { label: label, recent: min < 30 };
+}
+
+// ── v5.4: Compact Mode Toggle ──
+var compactToggleBtn = document.getElementById('compactToggle');
+if (compactMode && compactToggleBtn) compactToggleBtn.classList.add('active');
+if (compactToggleBtn) {
+  compactToggleBtn.onclick = function() {
+    compactMode = !compactMode;
+    localStorage.setItem('shinobi-compact-mode', String(compactMode));
+    compactToggleBtn.classList.toggle('active', compactMode);
+    renderProfiles();
+    toast(compactMode ? 'Modo compacto ativado' : 'Modo compacto desativado', 'ok');
+  };
+}
+
+// ── v5.4: Theme Accent Picker ──
+var ACCENT_STORAGE_KEY = 'shinobi-accent-color';
+function applyAccent(hex, hover) {
+  document.documentElement.style.setProperty('--accent', hex);
+  document.documentElement.style.setProperty('--accent-hover', hover || hex);
+  // Derive accent-2 (slightly darker) by simple RGB manipulation
+  try {
+    var m = hex.match(/^#([0-9a-f]{6})$/i);
+    if (m) {
+      var r = parseInt(m[1].slice(0, 2), 16);
+      var g = parseInt(m[1].slice(2, 4), 16);
+      var b = parseInt(m[1].slice(4, 6), 16);
+      var r2 = Math.max(0, Math.floor(r * 0.85));
+      var g2 = Math.max(0, Math.floor(g * 0.85));
+      var b2 = Math.max(0, Math.floor(b * 0.85));
+      var darker = '#' + ((1 << 24) + (r2 << 16) + (g2 << 8) + b2).toString(16).slice(1);
+      document.documentElement.style.setProperty('--accent-2', darker);
+    }
+  } catch (_) { /* ignore */ }
+}
+function initAccentPicker() {
+  var picker = document.getElementById('accentPicker');
+  if (!picker) return;
+  // Restore saved accent
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(ACCENT_STORAGE_KEY) || 'null'); } catch (_) {}
+  if (saved && saved.hex) {
+    applyAccent(saved.hex, saved.hover);
+    picker.querySelectorAll('.accent-swatch').forEach(function(s) {
+      s.classList.toggle('active', s.getAttribute('data-color') === saved.color);
+    });
+  }
+  picker.querySelectorAll('.accent-swatch').forEach(function(swatch) {
+    swatch.onclick = function() {
+      var color = swatch.getAttribute('data-color');
+      var hex = swatch.getAttribute('data-hex');
+      var hover = swatch.getAttribute('data-hover');
+      picker.querySelectorAll('.accent-swatch').forEach(function(s) { s.classList.remove('active'); });
+      swatch.classList.add('active');
+      applyAccent(hex, hover);
+      localStorage.setItem(ACCENT_STORAGE_KEY, JSON.stringify({ color: color, hex: hex, hover: hover }));
+      toast('Cor de destaque: ' + (swatch.title || color), 'ok');
+    };
+  });
+}
+
+// ── v5.4: Quick Launch Sidebar Widget (top 3 most-used) ──
+function updateQuickLaunch() {
+  var listEl = document.getElementById('quickLaunchList');
+  if (!listEl) return;
+  var sorted = profiles.slice().sort(function(a, b) {
+    return (b.launchCount || 0) - (a.launchCount || 0);
+  }).filter(function(p) { return (p.launchCount || 0) > 0; }).slice(0, 3);
+  if (!sorted.length) {
+    listEl.innerHTML = '<div class="quick-launch-empty">Jogue para popular.</div>';
+    return;
+  }
+  listEl.innerHTML = sorted.map(function(p) {
+    return '<div class="quick-launch-item" data-ql-id="' + p.id + '" title="' + esc(p.name) + ' — ' + (p.launchCount || 0) + ' lançamentos">'
+      + '<span class="ql-dot" style="background:' + p.color + ';color:' + p.color + '"></span>'
+      + '<span class="ql-name">' + esc(p.name) + '</span>'
+      + '<span class="ql-count">' + (p.launchCount || 0) + 'x</span>'
+      + '<span class="ql-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>'
+      + '</div>';
+  }).join('');
+  listEl.querySelectorAll('.quick-launch-item').forEach(function(item) {
+    item.onclick = function() {
+      var id = item.getAttribute('data-ql-id');
+      if (id) launch(id);
+    };
+  });
+}
+
+// ── v5.4: Settings Stats Grid ──
+function updateStatsGrid() {
+  var totalPlayEl = document.getElementById('statTotalPlay');
+  var totalLaunchEl = document.getElementById('statTotalLaunch');
+  var topNameEl = document.getElementById('statTopName');
+  var topDetailEl = document.getElementById('statTopDetail');
+  var active7dEl = document.getElementById('statActive7d');
+  var uniqueTagsEl = document.getElementById('statUniqueTags');
+  if (!totalPlayEl) return;
+  var totalPlayMs = profiles.reduce(function(s, p) { return s + (p.totalPlayMs || 0); }, 0);
+  var totalLaunch = profiles.reduce(function(s, p) { return s + (p.launchCount || 0); }, 0);
+  totalPlayEl.textContent = formatPlayTime(totalPlayMs);
+  totalLaunchEl.textContent = totalLaunch;
+  // Top profile (by play time, fallback to launch count)
+  var top = profiles.slice().sort(function(a, b) {
+    return (b.totalPlayMs || 0) - (a.totalPlayMs || 0) || (b.launchCount || 0) - (a.launchCount || 0);
+  })[0];
+  if (top && (top.totalPlayMs > 0 || top.launchCount > 0)) {
+    topNameEl.textContent = top.name.length > 14 ? top.name.slice(0, 12) + '…' : top.name;
+    topDetailEl.textContent = formatPlayTime(top.totalPlayMs || 0) + ' • ' + (top.launchCount || 0) + 'x';
+  } else {
+    topNameEl.textContent = '—';
+    topDetailEl.textContent = 'sem dados';
+  }
+  // Active 7d: profiles used within the last 7 days
+  var sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  var active7d = profiles.filter(function(p) { return p.lastUsed && (Date.now() - p.lastUsed) < sevenDaysMs; }).length;
+  active7dEl.textContent = active7d;
+  // Unique tags
+  var tagSet = {};
+  profiles.forEach(function(p) { (p.tags || []).forEach(function(t) { tagSet[t] = true; }); });
+  uniqueTagsEl.textContent = Object.keys(tagSet).length;
+}
+
+// ── v5.4: Dev Tools Subsection Collapsible ──
+function initDevSubsections() {
+  document.querySelectorAll('[data-dev-toggle]').forEach(function(header) {
+    header.onclick = function() {
+      var body = header.nextElementSibling;
+      if (!body) return;
+      var collapsed = body.classList.toggle('collapsed');
+      header.classList.toggle('collapsed', collapsed);
+    };
+  });
+}
+
+// ── v5.4: Keyboard Shortcuts (/ focus search, Esc clear) ──
+function initKeyboardShortcutsV54() {
+  document.addEventListener('keydown', function(e) {
+    // Don't intercept when typing in inputs (except for Esc)
+    var tag = (e.target.tagName || '').toLowerCase();
+    var inField = tag === 'input' || tag === 'textarea' || tag === 'select';
+    if (e.key === '/' && !inField) {
+      e.preventDefault();
+      var s = document.getElementById('searchInput');
+      if (s) { s.focus(); s.select(); }
+    } else if (e.key === 'Escape' && inField) {
+      var s2 = document.getElementById('searchInput');
+      if (s2 && s2.value) {
+        s2.value = '';
+        s2.dispatchEvent(new Event('input'));
+      } else if (s2) {
+        s2.blur();
+      }
+    }
+  });
+}
+
+// Auto-remove card shine class after animation completes (avoid re-trigger on re-render)
+function cleanupShine() {
+  document.querySelectorAll('.card.shine').forEach(function(c) {
+    setTimeout(function() { c.classList.remove('shine'); }, 900);
+  });
+}
+
 // ── Init ──
 ipcRenderer.send('manager:ready');
 loadLastProfile();
@@ -2851,11 +3658,28 @@ initPerfPanel();
 initDevTools();
 initDebugFlag();
 initDragDrop();
+initTagsInput();
+initAccentPicker();
+initDevSubsections();
+initKeyboardShortcutsV54();
 updateAnalytics();
 renderActivityLog();
 updateEventBadge();
+updateSessionOverview();
+updateQuickLaunch();
+updateStatsGrid();
 loadFlashCacheInfo();
-setTimeout(initCopyButtons, 1000);
+setTimeout(function() { initCopyButtons(); cleanupShine(); }, 1000);
+// Session overview refresh timer
+setInterval(updateSessionOverview, 10000);
+// v5.4: Refresh relative times + active-7d every minute
+setInterval(function() {
+  if (profiles.length) {
+    renderProfiles();
+    updateStatsGrid();
+    cleanupShine();
+  }
+}, 60000);
 </script>
 </body>
 </html>

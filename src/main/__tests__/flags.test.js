@@ -1,0 +1,181 @@
+/**
+ * Tests for src/main/flags.js — Electron command-line flags
+ *
+ * Verifies: exports, applyAll(), flag list, flash path handling,
+ * idempotency, heap computation, hardware profile, IS_LOW_SPEC/IS_RAMEN.
+ *
+ * NOTE: flags.js has module-level _applied flag (idempotent). Once applyAll()
+ * runs, it won't re-execute. We test the post-apply state by capturing
+ * appendSwitch calls from the initial registration.
+ */
+
+'use strict';
+
+const electron = require('electron');
+
+describe('flags.js', () => {
+  // Capture all appendSwitch calls from the initial applyAll() invocation.
+  // Since the module is required once and _applied becomes true, we need to
+  // record the calls that happened before our test suite runs.
+  // We'll call applyAll() once in beforeAll and capture the results.
+
+  let switchCalls = [];
+
+  beforeAll(() => {
+    // Clear any previous calls and invoke applyAll
+    electron.app.commandLine.appendSwitch.mockClear();
+    const flags = require('../flags');
+    flags.applyAll();
+    // Capture all the calls
+    switchCalls = electron.app.commandLine.appendSwitch.mock.calls.slice();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('exports', () => {
+    test('exports applyAll as function', () => {
+      const flags = require('../flags');
+      expect(typeof flags.applyAll).toBe('function');
+    });
+
+    test('exports IS_LOW_SPEC as boolean', () => {
+      const flags = require('../flags');
+      expect(typeof flags.IS_LOW_SPEC).toBe('boolean');
+    });
+
+    test('exports IS_RAMEN as boolean', () => {
+      const flags = require('../flags');
+      expect(typeof flags.IS_RAMEN).toBe('boolean');
+    });
+
+    test('exports SYSTEM_RAM_GB as number', () => {
+      const flags = require('../flags');
+      expect(typeof flags.SYSTEM_RAM_GB).toBe('number');
+      expect(flags.SYSTEM_RAM_GB).toBeGreaterThan(0);
+    });
+  });
+
+  describe('applyAll', () => {
+    test('calls app.commandLine.appendSwitch multiple times', () => {
+      expect(switchCalls.length).toBeGreaterThan(10);
+    });
+
+    test('is idempotent — second call does not add more switches', () => {
+      const flags = require('../flags');
+      flags.applyAll();
+      // Since _applied=true, no new calls should be made
+      expect(electron.app.commandLine.appendSwitch).not.toHaveBeenCalled();
+    });
+
+    test('applies no-sandbox flag', () => {
+      const hasFlag = switchCalls.some(function (c) { return c[0] === 'no-sandbox'; });
+      expect(hasFlag).toBe(true);
+    });
+
+    test('applies disable-gpu-sandbox flag', () => {
+      const hasFlag = switchCalls.some(function (c) { return c[0] === 'disable-gpu-sandbox'; });
+      expect(hasFlag).toBe(true);
+    });
+
+    test('applies always-authorize-plugins flag', () => {
+      const hasFlag = switchCalls.some(function (c) { return c[0] === 'always-authorize-plugins'; });
+      expect(hasFlag).toBe(true);
+    });
+
+    test('applies allow-outdated-plugins flag', () => {
+      const hasFlag = switchCalls.some(function (c) { return c[0] === 'allow-outdated-plugins'; });
+      expect(hasFlag).toBe(true);
+    });
+
+    test('applies ignore-gpu-blocklist flag', () => {
+      const hasFlag = switchCalls.some(function (c) { return c[0] === 'ignore-gpu-blocklist'; });
+      expect(hasFlag).toBe(true);
+    });
+
+    test('applies js-flags with --expose-gc and --max-old-space-size', () => {
+      const jsFlagsCall = switchCalls.find(function (c) { return c[0] === 'js-flags'; });
+      expect(jsFlagsCall).toBeDefined();
+      expect(jsFlagsCall[1]).toContain('--expose-gc');
+      expect(jsFlagsCall[1]).toContain('--max-old-space-size=');
+    });
+
+    test('applies disable-features flag', () => {
+      const flagCall = switchCalls.find(function (c) { return c[0] === 'disable-features'; });
+      expect(flagCall).toBeDefined();
+      expect(flagCall[1]).toContain('IsolateOrigins');
+      expect(flagCall[1]).toContain('site-per-process');
+    });
+
+    test('applies enable-features flag', () => {
+      const flagCall = switchCalls.find(function (c) { return c[0] === 'enable-features'; });
+      expect(flagCall).toBeDefined();
+      expect(flagCall[1]).toContain('VizDisplayCompositor');
+    });
+
+    test('applies disk-cache-size flag', () => {
+      const flagCall = switchCalls.find(function (c) { return c[0] === 'disk-cache-size'; });
+      expect(flagCall).toBeDefined();
+      // Should be either '134217728' (low spec) or '268435456' (normal)
+      expect(['134217728', '268435456']).toContain(flagCall[1]);
+    });
+
+    test('applies disable-setuid-sandbox flag', () => {
+      const hasFlag = switchCalls.some(function (c) { return c[0] === 'disable-setuid-sandbox'; });
+      expect(hasFlag).toBe(true);
+    });
+
+    test('applies disable-renderer-backgrounding flag', () => {
+      const hasFlag = switchCalls.some(function (c) { return c[0] === 'disable-renderer-backgrounding'; });
+      expect(hasFlag).toBe(true);
+    });
+
+    test('applies disable-background-timer-throttling flag', () => {
+      const hasFlag = switchCalls.some(function (c) { return c[0] === 'disable-background-timer-throttling'; });
+      expect(hasFlag).toBe(true);
+    });
+  });
+
+  describe('SYSTEM_RAM_GB', () => {
+    test('is a positive number rounded to 1 decimal', () => {
+      const flags = require('../flags');
+      expect(flags.SYSTEM_RAM_GB).toBeGreaterThan(0);
+      // Check it's rounded to 1 decimal (e.g. 15.9, not 15.9372)
+      const str = String(flags.SYSTEM_RAM_GB);
+      const parts = str.split('.');
+      if (parts[1]) {
+        expect(parts[1].length).toBeLessThanOrEqual(1);
+      }
+    });
+  });
+
+  describe('IS_LOW_SPEC', () => {
+    test('is determined by total RAM < 4GB', () => {
+      const flags = require('../flags');
+      if (flags.SYSTEM_RAM_GB < 4) {
+        expect(flags.IS_LOW_SPEC).toBe(true);
+      } else {
+        expect(flags.IS_LOW_SPEC).toBe(false);
+      }
+    });
+  });
+
+  describe('IS_RAMEN', () => {
+    test('is determined by total RAM < 2GB', () => {
+      const flags = require('../flags');
+      if (flags.SYSTEM_RAM_GB < 2) {
+        expect(flags.IS_RAMEN).toBe(true);
+      } else {
+        expect(flags.IS_RAMEN).toBe(false);
+      }
+    });
+
+    test('IS_RAMEN implies IS_LOW_SPEC', () => {
+      const flags = require('../flags');
+      if (flags.IS_RAMEN) {
+        expect(flags.IS_LOW_SPEC).toBe(true);
+      }
+    });
+  });
+});

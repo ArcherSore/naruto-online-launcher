@@ -111,6 +111,7 @@ function registerIpcHandlers(handlers) {
       language: src.language,
       color: src.color,
       notes: src.notes || '',
+      tags: src.tags || [],  // v5.3: copy tags
     });
     if (!copy) return { ok: false, error: 'Max profiles reached' };
     logger.info('Profile duplicated: ' + src.name + ' → ' + copy.name);
@@ -121,6 +122,18 @@ function registerIpcHandlers(handlers) {
   ipcMain.handle('profile:set-favorite', function (_e, id, fav) {
     if (typeof id !== 'string') return false;
     return store.update(id, { favorite: fav === true });
+  });
+
+  // v5.3: Close a running game window by profile ID
+  ipcMain.on('profile:close', function (_e, id) {
+    if (typeof id !== 'string') return;
+    // Track play time before closing
+    if (_launchTimes.has(id)) {
+      var elapsed = Date.now() - _launchTimes.get(id);
+      store.addPlayTime(id, elapsed);
+      _launchTimes.delete(id);
+    }
+    if (_handlers.closeProfile) _handlers.closeProfile(id);
   });
 
   ipcMain.on('auto-login:status', function (_e, data) {

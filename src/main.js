@@ -414,6 +414,7 @@ function _initManagerAndLaunch() {
   uiManager = require('./ui/controller');
   uiManager.registerIpcHandlers({
     launchProfile: launchGameForProfile,
+    closeProfile: profileManager.close,  // v5.3: close game window by profile ID
     getMemoryStats: function () { return memoryGuard.getStats(); },
     forceGC: function () { return memoryGuard.collect({ manual: true }); },
     getEvents: function (region) { return eventTimers.getUpcoming(region || 'br'); },

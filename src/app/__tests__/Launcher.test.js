@@ -48,7 +48,6 @@ jest.mock('../../config/urls', () => ({
 
 const Launcher = require('../Launcher');
 const store = require('../../profiles/store');
-const partition = require('../../profiles/partition');
 const SessionLifecycle = require('../SessionLifecycle');
 const KeyboardShortcuts = require('../../ui/manager/KeyboardShortcuts');
 const blocker = require('../../network/blocker');

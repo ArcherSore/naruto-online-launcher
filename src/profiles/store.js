@@ -67,6 +67,14 @@ function isValidProfile(p) {
   if (p.totalPlayMs !== undefined && (typeof p.totalPlayMs !== 'number' || p.totalPlayMs < 0 || !isFinite(p.totalPlayMs))) return false;
   // v4.6: favorite opcional (boolean)
   if (p.favorite !== undefined && typeof p.favorite !== 'boolean') return false;
+  // v5.3: tags opcional (array de strings, max 5 tags, cada max 20 chars)
+  if (p.tags !== undefined) {
+    if (!Array.isArray(p.tags)) return false;
+    if (p.tags.length > 5) return false;
+    for (var i = 0; i < p.tags.length; i++) {
+      if (typeof p.tags[i] !== 'string' || p.tags[i].length > 20 || p.tags[i].length === 0) return false;
+    }
+  }
   return true;
 }
 
@@ -82,6 +90,8 @@ function _migrateProfile(p) {
   if (p.totalPlayMs === undefined) p.totalPlayMs = 0;
   // v4.6: favorite flag (default false)
   if (p.favorite === undefined) p.favorite = false;
+  // v5.3: tags (default empty array)
+  if (p.tags === undefined) p.tags = [];
   return p;
 }
 
@@ -263,6 +273,8 @@ function create(opts) {
     totalPlayMs: 0,
     // v4.6: favorite flag
     favorite: typeof opts.favorite === 'boolean' ? opts.favorite : false,
+    // v5.3: tags (array of strings, max 5, each max 20 chars)
+    tags: Array.isArray(opts.tags) ? opts.tags.filter(function(t) { return typeof t === 'string' && t.length > 0 && t.length <= 20; }).slice(0, 5) : [],
     createdAt: Date.now(),
     lastUsed: 0,
   };
@@ -286,6 +298,10 @@ function update(id, updates) {
   if (typeof updates.notes === 'string') p.notes = updates.notes.slice(0, 200);
   // v4.6: favorite (boolean)
   if (typeof updates.favorite === 'boolean') p.favorite = updates.favorite;
+  // v5.3: tags (array of strings, max 5, each max 20 chars)
+  if (Array.isArray(updates.tags)) {
+    p.tags = updates.tags.filter(function(t) { return typeof t === 'string' && t.length > 0 && t.length <= 20; }).slice(0, 5);
+  }
   persist();
   return true;
 }

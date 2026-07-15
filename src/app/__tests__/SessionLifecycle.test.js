@@ -33,7 +33,6 @@ jest.mock('../../network/api-login', () => ({
 const SessionLifecycle = require('../SessionLifecycle');
 const vault = require('../../profiles/vault');
 const ManagerWindow = require('../../ui/manager/ManagerWindow');
-const apiLogin = require('../../network/api-login');
 
 /**
  * Cria um mock de BrowserWindow que captura handlers de evento.
@@ -148,7 +147,7 @@ describe('SessionLifecycle.js', () => {
 
   describe('attach', () => {
     test('registra handlers de evento na janela e webContents', () => {
-      const { win, wc, handlers, wcHandlers } = makeMockWin();
+      const { win, wc } = makeMockWin();
       const ctx = makeCtx();
       SessionLifecycle.attach(win, ctx);
 
@@ -184,7 +183,7 @@ describe('SessionLifecycle.js', () => {
       });
 
       test('reseta entry.failLoadRetry para false', () => {
-        const { win, wc, wcHandlers } = makeMockWin();
+        const { win, wcHandlers } = makeMockWin();
         const entry = { failLoadRetry: true, formInjectAttempts: 0, autoLoginTimer: null, failLoadTimer: null };
         const ctx = makeCtx({ entry });
         SessionLifecycle.attach(win, ctx);
@@ -196,7 +195,7 @@ describe('SessionLifecycle.js', () => {
       });
 
       test('chama vault.hasCredentials e _tryAutoLogin quando há credenciais', () => {
-        const { win, wc, wcHandlers } = makeMockWin();
+        const { win, wcHandlers } = makeMockWin();
         vault.hasCredentials.mockReturnValue(true);
         vault.getCredentials.mockReturnValue({ user: 'test@x.com', pass: 'secret' });
         vault.buildAutoLoginScript.mockReturnValue('(function(){return "filled";})()');
@@ -214,7 +213,7 @@ describe('SessionLifecycle.js', () => {
     describe('did-fail-load handler', () => {
       test('primeira falha: tenta novamente com delay (setTimeout)', () => {
         jest.useFakeTimers();
-        const { win, wc, wcHandlers } = makeMockWin();
+        const { win, wcHandlers } = makeMockWin();
         const entry = { failLoadRetry: false, formInjectAttempts: 0, autoLoginTimer: null, failLoadTimer: null };
         const ctx = makeCtx({ entry });
         SessionLifecycle.attach(win, ctx);
@@ -234,7 +233,7 @@ describe('SessionLifecycle.js', () => {
       });
 
       test('ignora data: URLs', () => {
-        const { win, wc, wcHandlers } = makeMockWin();
+        const { win, wcHandlers } = makeMockWin();
         const entry = { failLoadRetry: false, formInjectAttempts: 0, autoLoginTimer: null, failLoadTimer: null };
         const ctx = makeCtx({ entry });
         SessionLifecycle.attach(win, ctx);
@@ -246,7 +245,7 @@ describe('SessionLifecycle.js', () => {
       });
 
       test('ignora ERR_ABORTED (code -3)', () => {
-        const { win, wc, wcHandlers } = makeMockWin();
+        const { win, wcHandlers } = makeMockWin();
         const entry = { failLoadRetry: false, formInjectAttempts: 0, autoLoginTimer: null, failLoadTimer: null };
         const ctx = makeCtx({ entry });
         SessionLifecycle.attach(win, ctx);
@@ -429,7 +428,7 @@ describe('SessionLifecycle.js', () => {
 
     describe('render-process-gone handler', () => {
       test('registra handler sem lançar', () => {
-        const { win, wc, wcHandlers } = makeMockWin();
+        const { win, wcHandlers } = makeMockWin();
         const ctx = makeCtx();
         SessionLifecycle.attach(win, ctx);
 
