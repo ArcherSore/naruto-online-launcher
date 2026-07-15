@@ -5246,7 +5246,7 @@ async function loadStatsDashboard() {
     }
   } catch (e) {
     // Stats are non-critical; fail silently
-    console.log('Stats dashboard load failed:', e.message);
+    console.warn('Stats dashboard load failed:', e.message);
   }
 }
 
@@ -5324,7 +5324,7 @@ async function loadHeatmap() {
     _wireHeatmapTooltips();
   } catch (e) {
     grid.innerHTML = '<div style="color:var(--danger);font-size:var(--font-sm);padding:1rem 0">Erro ao carregar heatmap.</div>';
-    console.log('Heatmap load failed:', e.message);
+    console.warn('Heatmap load failed:', e.message);
   }
 }
 function _heatmapDateKey(d) {
@@ -5499,7 +5499,7 @@ function withButtonLoading(btn, asyncFn) {
   btn.disabled = true;
   return Promise.resolve(asyncFn())
     .then(function(r) { return r; })
-    .catch(function(e) { console.error(e); throw e; })
+    .catch(function(e) { throw e; })
     .finally(function() {
       btn.classList.remove('loading');
       btn.disabled = false;
