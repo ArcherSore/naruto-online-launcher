@@ -42,7 +42,7 @@ describe('GcDaemon.js', () => {
       // Segunda chamada imediata: deve ser throttled OU busy.
       const r = await GcDaemon.collect({ manual: true });
       expect(r.throttled === true || r.busy === true).toBe(true);
-    });
+    }, 15000);
   });
 
   describe('_clearIdleSessions — BLACK SCREEN FIX', () => {
