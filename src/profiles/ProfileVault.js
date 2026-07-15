@@ -234,7 +234,7 @@ function buildAutoLoginScript(user, pass) {
     '    setTimeout(function(){' +
     '      try{var retry=doLogin();' +
     '        if(retry!=="not-found"){' +
-    '          try{console.log("[auto-login] delayed retry succeeded:",retry);}catch(_){}' +
+    '          try{console.warn("[auto-login] delayed retry succeeded:",retry);}catch(_){}' +
     '        }else{' +
     '          try{console.warn("[auto-login] delayed retry: form still not found after 18s");}catch(_){}' +
     '        }' +
