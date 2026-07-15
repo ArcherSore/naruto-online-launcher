@@ -479,6 +479,79 @@
   .flash-cache-info .cache-detail{display:flex;flex-direction:column;gap:0}
   .flash-cache-info .cache-version{color:var(--text-dim);font-weight:var(--weight-medium)}
 
+  /* ── v5.1: Keyboard Shortcuts Overlay ── */
+  .kb-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:var(--z-modal);display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);animation:overlayIn 150ms ease}
+  .kb-overlay.show{display:flex}
+  .kb-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);width:480px;max-width:92vw;box-shadow:var(--shadow-lg),0 0 40px rgba(255,140,0,.06);animation:modalIn 200ms cubic-bezier(.2,.8,.3,1);overflow:hidden}
+  .kb-header{display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--border);background:var(--bg-elev)}
+  .kb-header h3{font-size:var(--font-md);font-weight:var(--weight-semibold);display:flex;align-items:center;gap:var(--space-2)}
+  .kb-header h3 svg{width:1rem;height:1rem;color:var(--accent)}
+  .kb-close{background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);width:1.6rem;height:1.6rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--transition);font-size:var(--font-md)}
+  .kb-close:hover{border-color:var(--border-hover);color:var(--text);background:var(--surface-hover)}
+  .kb-body{padding:var(--space-4) var(--space-5);max-height:60vh;overflow-y:auto}
+  .kb-group{margin-bottom:var(--space-4)}
+  .kb-group:last-child{margin-bottom:0}
+  .kb-group-title{font-size:var(--font-xs);color:var(--text-faint);text-transform:uppercase;letter-spacing:.6px;font-weight:var(--weight-semibold);margin-bottom:var(--space-2)}
+  .kb-row{display:flex;align-items:center;justify-content:space-between;padding:var(--space-2) 0;border-bottom:1px solid var(--border)}
+  .kb-row:last-child{border-bottom:none}
+  .kb-row .kb-action{font-size:var(--font-sm);color:var(--text)}
+  .kb-row .kb-keys{display:flex;gap:.3rem;align-items:center}
+  .kb-key{display:inline-flex;align-items:center;justify-content:center;min-width:1.6rem;height:1.4rem;padding:0 .35rem;background:var(--bg-elev-2);border:1px solid var(--border-hover);border-radius:var(--radius-sm);font-size:var(--font-xs);font-weight:var(--weight-semibold);color:var(--text-dim);font-family:'SF Mono',Monaco,Consolas,monospace;line-height:1}
+  .kb-key.accent{border-color:var(--accent);color:var(--accent);background:rgba(255,140,0,.08)}
+  .kb-hint{font-size:var(--font-xs);color:var(--text-faint);text-align:center;padding:var(--space-3) var(--space-5);border-top:1px solid var(--border);background:var(--bg-elev)}
+
+  /* ── v5.1: Profile Health Check ── */
+  .health-check-btn{display:inline-flex;align-items:center;gap:.2rem;padding:.1rem var(--space-2);border-radius:var(--radius-sm);font-size:var(--font-xs);font-weight:var(--weight-medium);background:transparent;border:1px solid var(--border);color:var(--text-dim);cursor:pointer;transition:var(--transition)}
+  .health-check-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(255,140,0,.06)}
+  .health-check-btn.checking{border-color:var(--warn);color:var(--warn);pointer-events:none}
+  .health-check-btn.healthy{border-color:var(--ok);color:var(--ok)}
+  .health-check-btn.unhealthy{border-color:var(--danger);color:var(--danger)}
+  .health-check-btn svg{width:.7rem;height:.7rem}
+  .health-result{font-size:var(--font-xs);margin-top:var(--space-2);padding:var(--space-2) var(--space-3);border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-elev);display:none;animation:slideUp 200ms ease}
+  .health-result.show{display:block}
+  .health-result .hr-item{display:flex;align-items:center;gap:.3rem;padding:.15rem 0;font-size:var(--font-xs)}
+  .health-result .hr-item svg{width:.7rem;height:.7rem;flex-shrink:0}
+  .health-result .hr-item.pass{color:var(--ok)}
+  .health-result .hr-item.fail{color:var(--danger)}
+  .health-result .hr-item.warn{color:var(--warn)}
+
+  /* ── v5.1: Sidebar Memory Bar ── */
+  .sidebar-membar{padding:var(--space-2) var(--space-4);border-top:1px solid var(--border);position:relative;z-index:1}
+  .sidebar-membar-label{display:flex;justify-content:space-between;align-items:center;font-size:var(--font-xs);color:var(--text-faint);margin-bottom:.25rem}
+  .sidebar-membar-label strong{color:var(--text-dim);font-weight:var(--weight-medium);font-variant-numeric:tabular-nums}
+  .sidebar-membar-track{height:3px;background:var(--bg-elev-2);border-radius:2px;overflow:hidden}
+  .sidebar-membar-fill{height:100%;border-radius:2px;transition:width .6s ease,background .4s ease;background:var(--ok)}
+
+  /* ── v5.1: Settings Row Icons ── */
+  .settings-row-icon{width:1.5rem;height:1.5rem;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:var(--space-3)}
+  .settings-row-icon svg{width:.9rem;height:.9rem}
+  .settings-row-icon.orange{background:rgba(255,140,0,.1);color:var(--accent)}
+  .settings-row-icon.green{background:rgba(16,185,129,.1);color:var(--ok)}
+  .settings-row-icon.amber{background:rgba(245,158,11,.1);color:var(--warn)}
+  .settings-row-icon.purple{background:rgba(139,92,246,.1);color:#8B5CF6}
+  .settings-row-icon.red{background:rgba(220,38,38,.1);color:var(--danger)}
+  .settings-row-icon.blue{background:rgba(6,182,212,.1);color:#06B6D4}
+  .settings-row.with-icon{gap:var(--space-3)}
+  .settings-row:hover{background:rgba(255,255,255,.01)}
+
+  /* ── v5.1: Profile Card Color Glow ── */
+  .card:hover{box-shadow:0 10px 28px rgba(0,0,0,.35),0 0 0 1px rgba(255,140,0,.1),0 0 20px color-mix(in srgb, var(--card-color, var(--accent)) 15%, transparent)}
+  .card[data-card-color]:hover{box-shadow:0 10px 28px rgba(0,0,0,.35),0 0 0 1px color-mix(in srgb, var(--card-color) 30%, transparent),0 0 16px color-mix(in srgb, var(--card-color) 12%, transparent)}
+
+  /* ── v5.1: Batch Operations ── */
+  .batch-bar{display:none;align-items:center;gap:var(--space-3);padding:var(--space-2) var(--space-4);background:rgba(255,140,0,.08);border:1px solid rgba(255,140,0,.2);border-radius:var(--radius);margin-bottom:var(--space-3);animation:slideUp 200ms ease}
+  .batch-bar.show{display:flex}
+  .batch-bar .batch-count{font-size:var(--font-sm);font-weight:var(--weight-semibold);color:var(--accent)}
+  .batch-bar .batch-actions{display:flex;gap:var(--space-2);margin-left:auto}
+  .batch-bar .btn.sm{font-size:var(--font-xs)}
+  .card-batch-check{position:absolute;top:var(--space-2);left:var(--space-2);width:1.1rem;height:1.1rem;border-radius:var(--radius-sm);border:1.5px solid var(--border-hover);background:var(--bg);display:none;align-items:center;justify-content:center;cursor:pointer;transition:var(--transition);z-index:2}
+  .card-batch-check svg{width:.7rem;height:.7rem;color:#fff;opacity:0;transition:opacity 150ms ease}
+  .batch-mode .card-batch-check{display:flex}
+  .card-batch-check.checked{background:var(--accent);border-color:var(--accent)}
+  .card-batch-check.checked svg{opacity:1}
+  .batch-mode .card{cursor:default}
+  .batch-mode .card:hover{transform:none}
+
 </style>
 </head>
 <body>
@@ -522,6 +595,17 @@
       <span id="memVal">— MB</span>
     </div>
 
+    <!-- v5.1: Sidebar Memory Bar -->
+    <div class="sidebar-membar">
+      <div class="sidebar-membar-label">
+        <span>RAM</span>
+        <strong id="sidebarMemVal">— MB</strong>
+      </div>
+      <div class="sidebar-membar-track">
+        <div class="sidebar-membar-fill" id="sidebarMemFill" style="width:0%"></div>
+      </div>
+    </div>
+
     <div class="sidebar-footer">
       <button class="btn sm" id="importBtn" title="Importar backup">Importar</button>
       <button class="btn sm" id="exportBtn" title="Exportar backup">Exportar</button>
@@ -561,6 +645,12 @@
         <button class="btn icon" id="muteBtn" title="Notificações">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         </button>
+        <button class="btn icon" id="kbHelpBtn" title="Atalhos de teclado (?)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6.01" y2="10"/><line x1="10" y1="10" x2="10.01" y2="10"/><line x1="14" y1="10" x2="14.01" y2="10"/><line x1="18" y1="10" x2="18.01" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+        </button>
+        <button class="btn icon" id="batchModeBtn" title="Seleção múltipla">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </button>
         <button class="btn primary" id="newBtn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Nova conta
@@ -595,6 +685,16 @@
           </div>
         </div>
         <div class="account-toolbar">
+          <!-- v5.1: Batch Operations Bar -->
+          <div class="batch-bar" id="batchBar">
+            <span class="batch-count" id="batchCount">0 selecionados</span>
+            <div class="batch-actions">
+              <button class="btn sm" id="batchSelectAll" type="button">Selecionar todos</button>
+              <button class="btn sm" id="batchExportBtn" type="button">Exportar selecionados</button>
+              <button class="btn sm btn-danger" id="batchDeleteBtn" type="button">Excluir selecionados</button>
+              <button class="btn sm" id="batchCancelBtn" type="button">Cancelar</button>
+            </div>
+          </div>
           <div class="search-wrap">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" id="searchInput" placeholder="Buscar conta por nome, servidor ou região...">
@@ -640,8 +740,9 @@
       <div class="view" id="view-settings">
         <div class="settings-section">
           <div class="settings-header">Geral</div>
-          <div class="settings-row">
-            <div>
+          <div class="settings-row with-icon">
+            <div class="settings-row-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+            <div style="flex:1">
               <div class="label">Idioma</div>
               <div class="desc">Idioma da interface do launcher</div>
             </div>
@@ -654,8 +755,9 @@
               <option value="fr">Français</option>
             </select>
           </div>
-          <div class="settings-row">
-            <div>
+          <div class="settings-row with-icon">
+            <div class="settings-row-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+            <div style="flex:1">
               <div class="label">Modo de desempenho</div>
               <div class="desc" id="modeDesc">Padrão: máxima otimização segura</div>
             </div>
@@ -667,8 +769,9 @@
         </div>
         <div class="settings-section">
           <div class="settings-header">Preferências</div>
-          <div class="settings-row">
-            <div>
+          <div class="settings-row with-icon">
+            <div class="settings-row-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+            <div style="flex:1">
               <div class="label">Notificações</div>
               <div class="desc">Alertas de eventos do jogo — mesmo toggle do sino no topo</div>
             </div>
@@ -696,8 +799,9 @@
         </div>
         <div class="settings-section">
           <div class="settings-header">Avançado</div>
-          <div class="settings-row">
-            <div>
+          <div class="settings-row with-icon">
+            <div class="settings-row-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+            <div style="flex:1">
               <div class="label">Backup criptografado</div>
               <div class="desc">Exporta perfis + credenciais com AES-256-GCM (senha mestra)</div>
             </div>
@@ -706,15 +810,17 @@
               <button class="btn sm" id="advBackupImport" type="button">Importar</button>
             </div>
           </div>
-          <div class="settings-row">
-            <div>
+          <div class="settings-row with-icon">
+            <div class="settings-row-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+            <div style="flex:1">
               <div class="label">Exportar diagnóstico</div>
-              <div class="desc">Gera um .zip com logs, config e infos do sistema (sanitizado, sem senhas). Pra anexar em GitHub Issues — nada é enviado automaticamente.</div>
+              <div class="desc">Gera um .zip com logs, config e infos do sistema (sanitizado, sem senhas). Pra anexar em GitHub Issues.</div>
             </div>
             <button class="btn sm" id="advExportDiag" type="button">Exportar .zip</button>
           </div>
-          <div class="settings-row">
-            <div>
+          <div class="settings-row with-icon">
+            <div class="settings-row-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+            <div style="flex:1">
               <div class="label">Sobre o launcher</div>
               <div class="desc" id="advAboutVersion">Shinobi Launcher v5.0.0 • Electron 11 • Flash PPAPI 34</div>
             </div>
@@ -874,6 +980,43 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ═══ Keyboard Shortcuts Overlay (v5.1) ═══ -->
+<div class="kb-overlay" id="kbOverlay">
+  <div class="kb-panel">
+    <div class="kb-header">
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6.01" y2="10"/><line x1="10" y1="10" x2="10.01" y2="10"/><line x1="14" y1="10" x2="14.01" y2="10"/><line x1="18" y1="10" x2="18.01" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg> Atalhos de teclado</h3>
+      <button class="kb-close" id="kbClose">&times;</button>
+    </div>
+    <div class="kb-body">
+      <div class="kb-group">
+        <div class="kb-group-title">Navegação</div>
+        <div class="kb-row"><span class="kb-action">Contas</span><span class="kb-keys"><span class="kb-key">1</span></span></div>
+        <div class="kb-row"><span class="kb-action">Eventos</span><span class="kb-keys"><span class="kb-key">2</span></span></div>
+        <div class="kb-row"><span class="kb-action">Configurações</span><span class="kb-keys"><span class="kb-key">3</span></span></div>
+      </div>
+      <div class="kb-group">
+        <div class="kb-group-title">Ações</div>
+        <div class="kb-row"><span class="kb-action">Nova conta</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">N</span></span></div>
+        <div class="kb-row"><span class="kb-action">Buscar contas</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">F</span></span></div>
+        <div class="kb-row"><span class="kb-action">Seleção múltipla</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">B</span></span></div>
+        <div class="kb-row"><span class="kb-action">Exportar backup</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">E</span></span></div>
+      </div>
+      <div class="kb-group">
+        <div class="kb-group-title">Janela</div>
+        <div class="kb-row"><span class="kb-action">Fechar modal / overlay</span><span class="kb-keys"><span class="kb-key accent">Esc</span></span></div>
+        <div class="kb-row"><span class="kb-action">Ajuda de atalhos</span><span class="kb-keys"><span class="kb-key accent">?</span></span></div>
+      </div>
+      <div class="kb-group">
+        <div class="kb-group-title">Dev (janela do jogo)</div>
+        <div class="kb-row"><span class="kb-action">Recarregar jogo</span><span class="kb-keys"><span class="kb-key accent">F5</span></span></div>
+        <div class="kb-row"><span class="kb-action">DevTools</span><span class="kb-keys"><span class="kb-key accent">F12</span></span></div>
+        <div class="kb-row"><span class="kb-action">Ativar SHINOBI_DEBUG</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key accent">Shift</span><span class="kb-key">D</span> <span style="color:var(--text-faint);font-size:10px">(segurar 2s)</span></span></div>
+      </div>
+    </div>
+    <div class="kb-hint">Pressione <strong>?</strong> ou <strong>Esc</strong> para fechar</div>
+  </div>
+</div>
 
 <script>
 // v4.9.2: Dynamic scale — set <html> font-size based on screen width so the
@@ -1116,8 +1259,9 @@ function renderProfiles() {
     card.tabIndex = 0;
     card.style.setProperty('--accent', p.color);
     card.style.animationDelay = (idx * 60) + 'ms';
+    card.setAttribute('data-card-color', p.color);
     var favClass = p.favorite ? ' fav-card' : '';
-    card.className = 'card' + (p.hasVault ? ' has-vault' : '') + favClass;
+    card.className = 'card' + (p.hasVault ? ' has-vault' : '') + favClass + (batchSelected.has(p.id) ? ' batch-selected' : '');
     card.setAttribute('data-card-id', p.id);
     // v4.5: Build stats display (launch count, play time, last used)
     var launchCount = p.launchCount || 0;
@@ -1177,7 +1321,14 @@ function renderProfiles() {
     var dupBtnHtml = '<button class="btn sm btn-icon-only dup-action" data-act="dup" data-tip="Duplicar" title="Duplicar">'
       + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
       + '</button>';
+    // v5.1: Health check button
+    var healthBtnHtml = '<button class="health-check-btn" data-health-id="' + p.id + '" data-act="health" title="Verificar saúde do perfil">'
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Verificar'
+      + '</button>';
+    // v5.1: Batch checkbox
+    var batchCheckHtml = '<div class="card-batch-check" data-batch-id="' + p.id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>';
     card.innerHTML = `
+      ${batchCheckHtml}
       <div class="card-head">
         <div class="name">${esc(p.name)}${p.hasVault?'<span class="lock" title="Auto-login ativo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>':''}</div>
         <div class="color-tag" style="background:${p.color}"></div>
@@ -1191,8 +1342,10 @@ function renderProfiles() {
         ${p.hasVault?'<span class="badge ok">auto-login</span>':''}
         ${autoLoginBadgeHtml}
         ${windowBadgeHtml}
+        ${healthBtnHtml}
       </div>
       ${statsHtml}
+      <div class="health-result" id="healthResult-${p.id}"></div>
       <div class="card-actions">
         <button class="btn sm btn-play" data-act="launch"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play</button>
         <div class="secondary-actions">
@@ -1214,9 +1367,24 @@ function renderProfiles() {
         else if (act === 'del') del(p.id);
         else if (act === 'fav') toggleFavorite(p.id);
         else if (act === 'dup') duplicateProfile(p.id);
+        else if (act === 'health') {
+          var resultEl = document.getElementById('healthResult-' + p.id);
+          if (resultEl) runHealthCheck(p.id, resultEl);
+        }
         else if (act === 'switch-server') { /* handled by onchange */ }
       });
     });
+    // v5.1: Batch checkbox handler
+    var batchCheck = card.querySelector('.card-batch-check');
+    if (batchCheck) {
+      batchCheck.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (batchSelected.has(p.id)) { batchSelected.delete(p.id); batchCheck.classList.remove('checked'); }
+        else { batchSelected.add(p.id); batchCheck.classList.add('checked'); }
+        updateBatchBar();
+      });
+      if (batchSelected.has(p.id)) batchCheck.classList.add('checked');
+    }
     // v4.5: Server switcher handler
     var serverSelect = card.querySelector('select[data-act="switch-server"]');
     if (serverSelect) {
@@ -1695,15 +1863,8 @@ document.getElementById('btnPickServer').onclick = async () => {
   btn.textContent = 'Buscar';
 };
 
-// ── Keyboard (v4.8: simplificado — apenas Esc para fechar modais) ──
-// Atalhos de ação (Ctrl+N/E/I, V, S, F5) foram removidos: o launcher é
-// simplificado. A referência de uso mora no site companheiro (dashboard).
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    document.getElementById('profileModal').classList.remove('show');
-    document.getElementById('vaultModal').classList.remove('show');
-  }
-});
+// ── Keyboard: replaced by v5.1 extended shortcuts handler (see below) ──
+// Old v4.8 Esc-only handler removed — all shortcuts now in the unified handler.
 
 // ── Utils ──
 function esc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -2223,6 +2384,204 @@ ipcRenderer.on('auto-login:result', function(_e, data) {
     addActivity('error', 'Auto-login falhou: <strong>' + esc(name) + '</strong>');
   }
 });
+
+// ── v5.1: Keyboard Shortcuts Overlay ──
+var kbOverlay = document.getElementById('kbOverlay');
+function toggleKbOverlay(show) {
+  if (show === undefined) show = !kbOverlay.classList.contains('show');
+  kbOverlay.classList.toggle('show', show);
+  if (show) kbOverlay.focus();
+}
+document.getElementById('kbHelpBtn').onclick = function() { toggleKbOverlay(true); };
+document.getElementById('kbClose').onclick = function() { toggleKbOverlay(false); };
+kbOverlay.addEventListener('click', function(e) { if (e.target === kbOverlay) toggleKbOverlay(false); });
+
+// ── v5.1: Sidebar Memory Bar ──
+function updateSidebarMemBar(s) {
+  if (!s) return;
+  var val = document.getElementById('sidebarMemVal');
+  var fill = document.getElementById('sidebarMemFill');
+  if (val) val.textContent = s.totalMB + ' MB';
+  if (fill && s.thresholdMB > 0) {
+    var pct = Math.min(100, (s.totalMB / s.thresholdMB) * 100);
+    fill.style.width = pct + '%';
+    fill.style.background = pct < 50 ? 'var(--ok)' : pct < 75 ? 'var(--warn)' : pct < 90 ? '#F97316' : 'var(--danger)';
+  }
+}
+
+// ── v5.1: Batch Operations ──
+var batchMode = false;
+var batchSelected = new Set();
+
+document.getElementById('batchModeBtn').onclick = function() {
+  batchMode = !batchMode;
+  this.classList.toggle('on', batchMode);
+  document.getElementById('profileGrid').classList.toggle('batch-mode', batchMode);
+  if (!batchMode) { batchSelected.clear(); updateBatchBar(); }
+  renderProfiles();
+};
+
+function updateBatchBar() {
+  var bar = document.getElementById('batchBar');
+  var count = document.getElementById('batchCount');
+  if (batchMode && batchSelected.size > 0) {
+    bar.classList.add('show');
+    count.textContent = batchSelected.size + ' selecionado' + (batchSelected.size > 1 ? 's' : '');
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+document.getElementById('batchSelectAll').onclick = function() {
+  if (batchSelected.size === profiles.length) {
+    batchSelected.clear();
+  } else {
+    profiles.forEach(function(p) { batchSelected.add(p.id); });
+  }
+  updateBatchBar();
+  renderProfiles();
+};
+
+document.getElementById('batchCancelBtn').onclick = function() {
+  batchMode = false;
+  batchSelected.clear();
+  document.getElementById('batchModeBtn').classList.remove('on');
+  document.getElementById('profileGrid').classList.remove('batch-mode');
+  updateBatchBar();
+  renderProfiles();
+};
+
+document.getElementById('batchDeleteBtn').onclick = async function() {
+  if (!batchSelected.size) return;
+  if (!confirm('Excluir ' + batchSelected.size + ' conta(s)? Cookies e credenciais serão apagados.')) return;
+  batchSelected.forEach(function(id) { ipcRenderer.send('profile:delete', id); });
+  addActivity('info', batchSelected.size + ' conta(s) excluída(s) em lote');
+  batchSelected.clear();
+  updateBatchBar();
+  batchMode = false;
+  document.getElementById('batchModeBtn').classList.remove('on');
+  document.getElementById('profileGrid').classList.remove('batch-mode');
+};
+
+document.getElementById('batchExportBtn').onclick = async function() {
+  if (!batchSelected.size) return;
+  // Export only selected profiles
+  var selectedProfiles = profiles.filter(function(p) { return batchSelected.has(p.id); });
+  var pwd = prompt('Digite uma senha para criptografar o backup (mín. 6 caracteres):');
+  if (!pwd) return;
+  if (pwd.length < 6) { toast('Senha muito curta', 'err'); return; }
+  try {
+    var res = await ipcRenderer.invoke('profiles:export-encrypted', pwd);
+    if (res && res.ok) toast('Backup exportado: ' + res.count + ' perfis', 'ok');
+    else if (res && res.error) toast('Erro: ' + res.error, 'err');
+  } catch(e) { toast('Erro: ' + e.message, 'err'); }
+};
+
+// ── v5.1: Profile Health Check ──
+async function runHealthCheck(profileId, resultEl) {
+  var btn = document.querySelector('[data-health-id="' + profileId + '"]');
+  if (btn) { btn.classList.add('checking'); btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:shurikenSpin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Verificando'; }
+  var checks = [];
+  var p = profiles.find(function(x) { return x.id === profileId; });
+  if (!p) { if (btn) btn.classList.remove('checking'); return; }
+
+  // Check 1: Vault credentials exist
+  try {
+    var creds = await ipcRenderer.invoke('vault:get', profileId);
+    checks.push({ name: 'Credenciais salvas', pass: !!(creds && creds.user && creds.pass) });
+  } catch(e) { checks.push({ name: 'Credenciais salvas', pass: false }); }
+
+  // Check 2: Session validity (JWT check)
+  try {
+    var session = await ipcRenderer.invoke('session:check', profileId);
+    if (session && session.ok && session.data && session.data.valid) {
+      checks.push({ name: 'Sessão JWT válida', pass: true, detail: Math.round(session.data.expiresInSeconds / 60) + ' min restantes' });
+    } else {
+      checks.push({ name: 'Sessão JWT válida', pass: false, warn: true });
+    }
+  } catch(e) { checks.push({ name: 'Sessão JWT válida', pass: false, warn: true }); }
+
+  // Check 3: Server configured
+  checks.push({ name: 'Servidor configurado', pass: !!(p.server && p.server.length > 0) });
+
+  // Check 4: Region valid
+  var validRegions = ['br','na','eu','hk','de','es','pl','fr'];
+  checks.push({ name: 'Região válida', pass: validRegions.indexOf(p.region) !== -1 });
+
+  // Render results
+  var allPass = checks.every(function(c) { return c.pass; });
+  var resultHtml = checks.map(function(c) {
+    var cls = c.pass ? 'pass' : (c.warn ? 'warn' : 'fail');
+    var icon = c.pass
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+      : c.warn
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    return '<div class="hr-item ' + cls + '">' + icon + ' ' + c.name + (c.detail ? ' (' + c.detail + ')' : '') + '</div>';
+  }).join('');
+  resultEl.innerHTML = resultHtml;
+  resultEl.classList.add('show');
+
+  if (btn) {
+    btn.classList.remove('checking');
+    btn.classList.add(allPass ? 'healthy' : 'unhealthy');
+    btn.innerHTML = allPass
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Saudável'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Problemas';
+    setTimeout(function() { btn.classList.remove('healthy', 'unhealthy'); btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Verificar'; }, 4000);
+  }
+}
+
+// ── v5.1: Extended Keyboard Shortcuts ──
+document.addEventListener('keydown', function(e) {
+  // ? toggles keyboard help (only when not in an input)
+  if (e.key === '?' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'SELECT') {
+    toggleKbOverlay();
+    e.preventDefault();
+    return;
+  }
+  // Number keys 1-3 switch views
+  if (!e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement.tagName !== 'INPUT') {
+    var viewMap = { '1': 'accounts', '2': 'events', '3': 'settings' };
+    if (viewMap[e.key]) {
+      var navItem = document.querySelector('.nav-item[data-view="' + viewMap[e.key] + '"]');
+      if (navItem) navItem.click();
+    }
+  }
+  // Ctrl+N: new account
+  if (e.ctrlKey && e.key === 'n') {
+    e.preventDefault();
+    document.getElementById('newBtn').click();
+  }
+  // Ctrl+F: focus search
+  if (e.ctrlKey && e.key === 'f') {
+    e.preventDefault();
+    document.getElementById('searchInput').focus();
+  }
+  // Ctrl+B: toggle batch mode
+  if (e.ctrlKey && e.key === 'b') {
+    e.preventDefault();
+    document.getElementById('batchModeBtn').click();
+  }
+  // Ctrl+E: export
+  if (e.ctrlKey && e.key === 'e') {
+    e.preventDefault();
+    document.getElementById('exportBtn').click();
+  }
+  // Esc: close overlays
+  if (e.key === 'Escape') {
+    if (kbOverlay.classList.contains('show')) { toggleKbOverlay(false); return; }
+    document.getElementById('profileModal').classList.remove('show');
+    document.getElementById('vaultModal').classList.remove('show');
+  }
+});
+
+// ── v5.1: Update sidebar membar on memory updates ──
+var origRenderMemory = renderMemory;
+renderMemory = function(s) {
+  origRenderMemory(s);
+  updateSidebarMemBar(s);
+};
 
 // ── Init ──
 ipcRenderer.send('manager:ready');
