@@ -394,6 +394,91 @@
   .btn-primary-glow{box-shadow:0 0 0 0 rgba(255,140,0,.4);animation:btn-glow-pulse 2.5s ease-in-out infinite}
   @keyframes btn-glow-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,140,0,0)}50%{box-shadow:0 0 0 4px rgba(255,140,0,.08)}}
 
+  /* ── v5.0: Profile Analytics Dashboard ── */
+  .analytics-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-3);margin-bottom:var(--space-5);animation:slideUp 300ms ease}
+  .analytics-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-4) var(--space-4);display:flex;flex-direction:column;gap:.15rem;position:relative;overflow:hidden;transition:border-color 200ms ease,box-shadow 200ms ease}
+  .analytics-card:hover{border-color:var(--border-hover);box-shadow:0 2px 12px rgba(0,0,0,.25)}
+  .analytics-card .ac-icon{width:1.6rem;height:1.6rem;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-1);flex-shrink:0}
+  .analytics-card .ac-icon svg{width:1rem;height:1rem}
+  .analytics-card .ac-icon.orange{background:rgba(255,140,0,.1);color:var(--accent)}
+  .analytics-card .ac-icon.green{background:rgba(16,185,129,.1);color:var(--ok)}
+  .analytics-card .ac-icon.amber{background:rgba(245,158,11,.1);color:var(--warn)}
+  .analytics-card .ac-icon.purple{background:rgba(139,92,246,.1);color:#8B5CF6}
+  .analytics-card .ac-value{font-size:var(--font-xl);font-weight:var(--weight-bold);color:var(--text);font-variant-numeric:tabular-nums;line-height:1.1}
+  .analytics-card .ac-label{font-size:var(--font-xs);color:var(--text-faint);font-weight:var(--weight-medium)}
+  .analytics-card::after{content:'';position:absolute;top:0;right:0;width:40%;height:100%;background:linear-gradient(135deg,transparent 60%,rgba(255,140,0,.02));pointer-events:none}
+
+  /* ── v5.0: JWT Decoder Widget ── */
+  .jwt-decoder{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .jwt-input-wrap{display:flex;gap:var(--space-2);padding:var(--space-3);border-bottom:1px solid var(--border)}
+  .jwt-input-wrap textarea{flex:1;min-height:3rem;max-height:6rem;padding:var(--space-2) var(--space-3);background:var(--bg-elev);border:1px solid var(--border-hover);border-radius:var(--radius-sm);color:var(--text);font-size:var(--font-xs);font-family:'SF Mono',Monaco,Consolas,monospace;resize:vertical;transition:border-color var(--transition)}
+  .jwt-input-wrap textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(255,140,0,.12)}
+  .jwt-input-wrap textarea::placeholder{color:var(--text-faint)}
+  .jwt-output{padding:var(--space-3);max-height:240px;overflow-y:auto;display:none}
+  .jwt-output.show{display:block}
+  .jwt-section{margin-bottom:var(--space-3)}
+  .jwt-section:last-child{margin-bottom:0}
+  .jwt-section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-1)}
+  .jwt-section-title{font-size:var(--font-xs);font-weight:var(--weight-semibold);color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px}
+  .jwt-copy-btn{background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);font-size:var(--font-xs);padding:.1rem .4rem;cursor:pointer;transition:var(--transition);font-family:var(--font-family)}
+  .jwt-copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .jwt-json{background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius-sm);padding:var(--space-3);font-family:'SF Mono',Monaco,Consolas,monospace;font-size:var(--font-xs);color:var(--text-dim);white-space:pre-wrap;word-break:break-all;line-height:1.5;max-height:120px;overflow-y:auto}
+  .jwt-json .key{color:var(--accent)}
+  .jwt-json .str{color:var(--ok)}
+  .jwt-json .num{color:var(--warn)}
+  .jwt-json .bool{color:#8B5CF6}
+  .jwt-expiry{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .6rem;border-radius:var(--radius-full);font-size:var(--font-xs);font-weight:var(--weight-semibold);margin-top:var(--space-2)}
+  .jwt-expiry.valid{background:rgba(16,185,129,.1);color:var(--ok)}
+  .jwt-expiry.expired{background:rgba(220,38,38,.1);color:var(--danger)}
+  .jwt-error{color:var(--danger);font-size:var(--font-xs);padding:var(--space-2)}
+
+  /* ── v5.0: Activity Log ── */
+  .activity-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:var(--space-4)}
+  .activity-header{display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-4);background:var(--bg-elev);border-bottom:1px solid var(--border)}
+  .activity-header h4{font-size:var(--font-sm);font-weight:var(--weight-semibold);display:flex;align-items:center;gap:var(--space-2)}
+  .activity-header h4 svg{width:.9rem;height:.9rem;color:var(--accent)}
+  .activity-clear{background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-faint);font-size:var(--font-xs);padding:.15rem .5rem;cursor:pointer;transition:var(--transition);font-family:var(--font-family)}
+  .activity-clear:hover{border-color:var(--danger);color:var(--danger)}
+  .activity-list{max-height:280px;overflow-y:auto}
+  .activity-item{display:flex;align-items:flex-start;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border);transition:background 100ms ease}
+  .activity-item:last-child{border-bottom:none}
+  .activity-item:hover{background:var(--surface-hover)}
+  .activity-dot{width:.5rem;height:.5rem;border-radius:50%;margin-top:.4rem;flex-shrink:0}
+  .activity-dot.launch{background:var(--accent)}
+  .activity-dot.login{background:var(--ok)}
+  .activity-dot.error{background:var(--danger)}
+  .activity-dot.info{background:var(--text-faint)}
+  .activity-body{flex:1;min-width:0}
+  .activity-text{font-size:var(--font-sm);color:var(--text);line-height:1.4}
+  .activity-text strong{color:var(--accent);font-weight:var(--weight-semibold)}
+  .activity-time{font-size:var(--font-xs);color:var(--text-faint);margin-top:.1rem;font-variant-numeric:tabular-nums}
+  .activity-empty{text-align:center;padding:var(--space-5);color:var(--text-faint);font-size:var(--font-sm)}
+
+  /* ── v5.0: Notification Badge ── */
+  .nav-badge{position:absolute;top:.25rem;right:.5rem;min-width:1rem;height:1rem;border-radius:var(--radius-full);background:var(--danger);color:#fff;font-size:var(--font-xs);font-weight:var(--weight-bold);display:none;align-items:center;justify-content:center;padding:0 .25rem;line-height:1;box-shadow:0 0 6px rgba(220,38,38,.4);animation:fadeIn 300ms ease}
+  .nav-badge.show{display:flex}
+  .nav-item{position:relative}
+
+  /* ── v5.0: Enhanced Dev Tools ── */
+  .dev-subsection{background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);margin-top:var(--space-3);overflow:hidden}
+  .dev-subsection-header{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);background:var(--surface);border-bottom:1px solid var(--border);font-size:var(--font-xs);font-weight:var(--weight-semibold);color:var(--text-dim);cursor:pointer;transition:background 150ms ease;user-select:none}
+  .dev-subsection-header:hover{background:var(--surface-hover)}
+  .dev-subsection-header svg{width:.8rem;height:.8rem;color:var(--accent);transition:transform 200ms ease}
+  .dev-subsection-header.collapsed svg{transform:rotate(-90deg)}
+  .dev-subsection-body{padding:var(--space-3);transition:max-height 300ms ease}
+  .dev-subsection-body.collapsed{display:none}
+  .dev-result-box{font-size:var(--font-xs);color:var(--text-dim);font-family:'SF Mono',Monaco,Consolas,monospace;background:var(--bg);padding:var(--space-3);border-radius:var(--radius);border:1px solid var(--border);white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;position:relative;scrollbar-width:thin}
+  .dev-result-box .copy-float{position:sticky;top:0;float:right;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-faint);font-size:10px;padding:.1rem .35rem;cursor:pointer;transition:var(--transition);font-family:var(--font-family);z-index:1}
+  .dev-result-box .copy-float:hover{border-color:var(--accent);color:var(--accent)}
+  .dev-btn-group{display:flex;gap:var(--space-1);flex-wrap:wrap;align-items:center}
+  .dev-btn-group .btn.sm{font-size:var(--font-xs)}
+
+  /* ── v5.0: Flash Cache Info ── */
+  .flash-cache-info{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-4);border-top:1px solid var(--border);font-size:var(--font-xs);color:var(--text-faint)}
+  .flash-cache-info svg{width:.75rem;height:.75rem;color:var(--ok);flex-shrink:0}
+  .flash-cache-info .cache-detail{display:flex;flex-direction:column;gap:0}
+  .flash-cache-info .cache-version{color:var(--text-dim);font-weight:var(--weight-medium)}
+
 </style>
 </head>
 <body>
@@ -412,7 +497,7 @@
       <div class="mark"><img src="logo.png" alt="Shinobi Launcher" /></div>
       <div class="brand">
         <h1>Shinobi</h1>
-        <span id="version">v4.9.2</span>
+        <span id="version">v5.0.0</span>
       </div>
     </div>
 
@@ -424,6 +509,7 @@
       <div class="nav-item" data-view="events">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Eventos
+        <span class="nav-badge" id="eventBadge"></span>
       </div>
       <div class="nav-item" data-view="settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -443,6 +529,13 @@
     <div class="flash-indicator">
       <span class="flash-dot"></span>
       <span id="flashStatus">Flash PPAPI ✓</span>
+    </div>
+    <div class="flash-cache-info" id="flashCacheInfo" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+      <div class="cache-detail">
+        <span class="cache-version" id="flashCacheVersion">—</span>
+        <span id="flashCacheDate"></span>
+      </div>
     </div>
   </nav>
 
@@ -478,6 +571,29 @@
     <div class="content">
       <!-- ── View: Accounts ── -->
       <div class="view active" id="view-accounts">
+        <!-- v5.0: Analytics Summary Bar -->
+        <div class="analytics-bar" id="analyticsBar">
+          <div class="analytics-card">
+            <div class="ac-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <span class="ac-value" id="statTotalAccounts">0</span>
+            <span class="ac-label">Contas</span>
+          </div>
+          <div class="analytics-card">
+            <div class="ac-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+            <span class="ac-value" id="statVaultCount">0</span>
+            <span class="ac-label">Com auto-login</span>
+          </div>
+          <div class="analytics-card">
+            <div class="ac-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <span class="ac-value" id="statTotalPlaytime">0h</span>
+            <span class="ac-label">Tempo total de jogo</span>
+          </div>
+          <div class="analytics-card">
+            <div class="ac-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+            <span class="ac-value" id="statTotalLaunches">0</span>
+            <span class="ac-label">Total de lançamentos</span>
+          </div>
+        </div>
         <div class="account-toolbar">
           <div class="search-wrap">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -508,6 +624,16 @@
       <div class="view" id="view-events">
         <div class="tabs" id="regionTabs"></div>
         <div id="eventList"></div>
+        <!-- v5.0: Activity Log -->
+        <div class="activity-section" id="activitySection">
+          <div class="activity-header">
+            <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 16 14"/><circle cx="12" cy="12" r="10"/></svg> Histórico de atividade</h4>
+            <button class="activity-clear" id="activityClearBtn">Limpar</button>
+          </div>
+          <div class="activity-list" id="activityList">
+            <div class="activity-empty">Nenhuma atividade registrada.</div>
+          </div>
+        </div>
       </div>
 
       <!-- ── View: Settings ── -->
@@ -590,7 +716,7 @@
           <div class="settings-row">
             <div>
               <div class="label">Sobre o launcher</div>
-              <div class="desc" id="advAboutVersion">Shinobi Launcher v4.9.2 • Electron 11 • Flash PPAPI 34</div>
+              <div class="desc" id="advAboutVersion">Shinobi Launcher v5.0.0 • Electron 11 • Flash PPAPI 34</div>
             </div>
             <a class="btn sm" id="advAboutRepo" href="#" type="button" title="Abrir repositório no GitHub">GitHub</a>
           </div>
@@ -598,56 +724,76 @@
 
         <div class="settings-section" id="devToolsSection" style="display:none">
           <div class="settings-header">Dev Tools (v5.0) <span style="font-size:var(--font-xs);color:var(--text-faint);font-weight:var(--weight-regular);margin-left:.4rem">SHINOBI_DEBUG · tempmail + API login + inspector + JWT</span></div>
+          <!-- Tempmail -->
           <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
             <div>
               <div class="label">Criar conta tempmail</div>
               <div class="desc">Cria email temporário (mail.tm) + registra no Naruto Online via API. Retorna JWT de 2h — sem Flash, sem CAPTCHA, sem verificação de email.</div>
             </div>
             <button class="btn sm" id="devTempmailCreate" type="button" style="align-self:flex-start">Criar conta tempmail</button>
-            <div id="devTempmailResult" style="font-size:var(--font-xs);color:var(--text-muted);font-family:monospace;background:var(--bg);padding:.6rem;border-radius:var(--radius);border:1px solid var(--border);display:none;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto"></div>
+            <div id="devTempmailResult" class="dev-result-box" style="display:none"></div>
           </div>
+          <!-- API Login -->
           <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
             <div>
               <div class="label">Login via API</div>
-              <div class="desc">Autentica via passport.oasgames.com e injeta cookie oas_user na session do perfil selecionado (mais robusto que o form HTML).</div>
+              <div class="desc">Autentica via passport.oasgames.com e injeta cookie oas_user na session do perfil selecionado.</div>
             </div>
-            <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+            <div class="dev-btn-group">
               <select id="devApiLoginProfile" class="settings-select" style="min-width:160px"></select>
-              <input id="devApiLoginEmail" type="email" placeholder="email" style="flex:1;min-width:160px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .6rem;color:var(--text);font-size:var(--font-sm)">
-              <input id="devApiLoginPass" type="password" placeholder="senha" style="flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .6rem;color:var(--text);font-size:var(--font-sm)">
+              <input id="devApiLoginEmail" type="email" placeholder="email" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .6rem;color:var(--text);font-size:var(--font-sm)">
+              <input id="devApiLoginPass" type="password" placeholder="senha" style="flex:1;min-width:100px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .6rem;color:var(--text);font-size:var(--font-sm)">
               <button class="btn sm" id="devApiLoginBtn" type="button">Login API</button>
             </div>
-            <button class="btn sm" id="devSessionCheck" type="button" style="align-self:flex-start">Verificar sessão JWT</button>
-            <div id="devApiLoginResult" style="font-size:var(--font-xs);color:var(--text-muted);font-family:monospace;background:var(--bg);padding:.6rem;border-radius:var(--radius);border:1px solid var(--border);display:none;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto"></div>
+            <div class="dev-btn-group">
+              <button class="btn sm" id="devSessionCheck" type="button">Verificar sessão JWT</button>
+            </div>
+            <div id="devApiLoginResult" class="dev-result-box" style="display:none"></div>
           </div>
+          <!-- JWT Decoder -->
+          <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
+            <div>
+              <div class="label">Decodificador JWT</div>
+              <div class="desc">Cole um token JWT para visualizar o header e payload decodificados com syntax highlighting.</div>
+            </div>
+            <div class="jwt-decoder">
+              <div class="jwt-input-wrap">
+                <textarea id="jwtInput" placeholder="Cole o token JWT aqui (eyJhbGciOiJIUzI1NiIs...)" rows="2"></textarea>
+                <button class="btn sm primary" id="jwtDecodeBtn" type="button" style="align-self:flex-end">Decodificar</button>
+              </div>
+              <div class="jwt-output" id="jwtOutput"></div>
+            </div>
+          </div>
+          <!-- Inspector -->
           <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
             <div>
               <div class="label">Inspector de Rede</div>
-              <div class="desc">Captura requisições HTTP do jogo (passport, odp3, game backend) via webRequest. Alternativa ao DevTools (que é bloqueado por segurança). Mostra URLs, cookies oas_user capturados (JWT decodificado) e estatísticas.</div>
+              <div class="desc">Captura requisições HTTP do jogo via webRequest. Mostra URLs, cookies oas_user capturados (JWT decodificado) e estatísticas.</div>
             </div>
-            <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+            <div class="dev-btn-group">
               <select id="devInspectorProfile" class="settings-select" style="min-width:160px"></select>
               <button class="btn sm" id="devInspectorEnable" type="button">Ativar captura</button>
               <button class="btn sm" id="devInspectorDisable" type="button" disabled>Desativar</button>
               <button class="btn sm" id="devInspectorRefresh" type="button">Atualizar</button>
               <button class="btn sm" id="devInspectorClear" type="button">Limpar</button>
             </div>
-            <div id="devInspectorStats" style="font-size:var(--font-xs);color:var(--text-muted);font-family:monospace;background:var(--bg);padding:.6rem;border-radius:var(--radius);border:1px solid var(--border);display:none;white-space:pre-wrap;margin-bottom:.4rem"></div>
-            <div id="devInspectorEntries" style="font-size:var(--font-xs);color:var(--text-muted);font-family:monospace;background:var(--bg);padding:.6rem;border-radius:var(--radius);border:1px solid var(--border);display:none;max-height:280px;overflow-y:auto"></div>
+            <div id="devInspectorStats" class="dev-result-box" style="display:none;margin-bottom:.3rem"></div>
+            <div id="devInspectorEntries" class="dev-result-box" style="display:none;max-height:280px"></div>
           </div>
+          <!-- Source Extractor -->
           <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
             <div>
               <div class="label">Source Extractor + DevTools</div>
-              <div class="desc">Extrai o HTML da página onde o Flash carrega (pra implementar ocultar/tela cheia), lista cookies, recarrega a sessão Flash (F5) e abre DevTools (F12). O jogo precisa estar aberto no perfil selecionado.</div>
+              <div class="desc">Extrai o HTML da página Flash, lista cookies, recarrega a sessão (F5) e abre DevTools (F12).</div>
             </div>
-            <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+            <div class="dev-btn-group">
               <select id="devSourceProfile" class="settings-select" style="min-width:160px"></select>
               <button class="btn sm" id="devExtractSource" type="button">Extrair fonte</button>
               <button class="btn sm" id="devListCookies" type="button">Listar cookies</button>
               <button class="btn sm" id="devReloadGame" type="button">Recarregar (F5)</button>
               <button class="btn sm" id="devToggleDt" type="button">DevTools (F12)</button>
             </div>
-            <div id="devSourceResult" style="font-size:var(--font-xs);color:var(--text-muted);font-family:monospace;background:var(--bg);padding:.6rem;border-radius:var(--radius);border:1px solid var(--border);display:none;white-space:pre-wrap;word-break:break-all;max-height:320px;overflow-y:auto"></div>
+            <div id="devSourceResult" class="dev-result-box" style="display:none;max-height:320px"></div>
           </div>
         </div>
       </div>
@@ -827,7 +973,7 @@ document.getElementById('lastProfileBtn').onclick = function() {
 };
 
 // ── IPC ──
-ipcRenderer.on('profiles:updated', (_e, list) => { profiles = list; renderProfiles(); renderRegionTabs(); loadLastProfile(); populateDevProfileSelects(); });
+ipcRenderer.on('profiles:updated', (_e, list) => { profiles = list; renderProfiles(); renderRegionTabs(); loadLastProfile(); populateDevProfileSelects(); updateAnalytics(); });
 ipcRenderer.on('memory:update', (_e, s) => renderMemory(s));
 ipcRenderer.on('events:update', (_e, data) => renderEvents(data));
 ipcRenderer.on('profile:toast', (_e, t) => toast(t.msg, t.type));
@@ -1849,6 +1995,235 @@ function initDebugFlag() {
   document.addEventListener('blur', cancelHold, true);
 }
 
+// ── v5.0: Profile Analytics Dashboard ──
+function updateAnalytics() {
+  if (!profiles || !profiles.length) {
+    document.getElementById('statTotalAccounts').textContent = '0';
+    document.getElementById('statVaultCount').textContent = '0';
+    document.getElementById('statTotalPlaytime').textContent = '0h';
+    document.getElementById('statTotalLaunches').textContent = '0';
+    return;
+  }
+  document.getElementById('statTotalAccounts').textContent = profiles.length;
+  var vaultCount = profiles.filter(function(p) { return p.hasVault; }).length;
+  document.getElementById('statVaultCount').textContent = vaultCount;
+  var totalMs = profiles.reduce(function(sum, p) { return sum + (p.totalPlayMs || 0); }, 0);
+  document.getElementById('statTotalPlaytime').textContent = formatPlayTime(totalMs);
+  var totalLaunches = profiles.reduce(function(sum, p) { return sum + (p.launchCount || 0); }, 0);
+  document.getElementById('statTotalLaunches').textContent = totalLaunches;
+}
+
+// ── v5.0: Activity Log (persisted in localStorage) ──
+var ACTIVITY_KEY = 'shinobi-activity-log';
+var MAX_ACTIVITIES = 50;
+
+function getActivityLog() {
+  try {
+    return JSON.parse(localStorage.getItem(ACTIVITY_KEY) || '[]');
+  } catch(e) { return []; }
+}
+
+function addActivity(type, text) {
+  var log = getActivityLog();
+  log.unshift({ type: type, text: text, time: Date.now() });
+  if (log.length > MAX_ACTIVITIES) log = log.slice(0, MAX_ACTIVITIES);
+  localStorage.setItem(ACTIVITY_KEY, JSON.stringify(log));
+  renderActivityLog();
+  updateEventBadge();
+}
+
+function renderActivityLog() {
+  var el = document.getElementById('activityList');
+  var log = getActivityLog();
+  if (!log.length) {
+    el.innerHTML = '<div class="activity-empty">Nenhuma atividade registrada.</div>';
+    return;
+  }
+  el.innerHTML = log.slice(0, 30).map(function(item) {
+    var dotClass = 'info';
+    if (item.type === 'launch') dotClass = 'launch';
+    else if (item.type === 'login') dotClass = 'login';
+    else if (item.type === 'error') dotClass = 'error';
+    var timeStr = new Date(item.time).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    return '<div class="activity-item">' +
+      '<span class="activity-dot ' + dotClass + '"></span>' +
+      '<div class="activity-body">' +
+        '<div class="activity-text">' + esc(item.text) + '</div>' +
+        '<div class="activity-time">' + timeStr + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+document.getElementById('activityClearBtn').onclick = function() {
+  localStorage.removeItem(ACTIVITY_KEY);
+  renderActivityLog();
+  updateEventBadge();
+  toast('Histórico de atividade limpo', 'ok');
+};
+
+// ── v5.0: Notification Badge on Events ──
+function updateEventBadge() {
+  var badge = document.getElementById('eventBadge');
+  if (!badge) return;
+  var log = getActivityLog();
+  var unread = log.filter(function(item) { return Date.now() - item.time < 3600000; }).length; // last hour
+  if (unread > 0 && !notificationsMuted) {
+    badge.textContent = unread > 9 ? '9+' : unread;
+    badge.classList.add('show');
+  } else {
+    badge.classList.remove('show');
+  }
+}
+
+// ── v5.0: JWT Decoder Widget ──
+function decodeJWT(token) {
+  var parts = token.trim().split('.');
+  if (parts.length !== 3) return { error: 'Token inválido — JWT deve ter 3 partes separadas por ponto.' };
+  try {
+    var header = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')));
+    var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    var exp = payload.exp ? new Date(payload.exp * 1000) : null;
+    var iat = payload.iat ? new Date(payload.iat * 1000) : null;
+    return { header: header, payload: payload, exp: exp, iat: iat };
+  } catch(e) {
+    return { error: 'Falha ao decodificar: ' + e.message };
+  }
+}
+
+function syntaxHighlightJSON(obj) {
+  var json = JSON.stringify(obj, null, 2);
+  return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function(match) {
+    var cls = 'num';
+    if (/^"/.test(match)) {
+      if (/:$/.test(match)) cls = 'key';
+      else cls = 'str';
+    } else if (/true|false/.test(match)) cls = 'bool';
+    return '<span class="' + cls + '">' + match + '</span>';
+  });
+}
+
+document.getElementById('jwtDecodeBtn').onclick = function() {
+  var token = document.getElementById('jwtInput').value.trim();
+  var output = document.getElementById('jwtOutput');
+  if (!token) { output.className = 'jwt-output show'; output.innerHTML = '<div class="jwt-error">Cole um token JWT para decodificar.</div>'; return; }
+  var result = decodeJWT(token);
+  if (result.error) { output.className = 'jwt-output show'; output.innerHTML = '<div class="jwt-error">' + esc(result.error) + '</div>'; return; }
+  var now = Date.now();
+  var isExpired = result.exp && result.exp.getTime() < now;
+  var expiryHtml = '';
+  if (result.exp) {
+    var label = isExpired ? 'Expirado' : 'Válido';
+    var cls = isExpired ? 'expired' : 'valid';
+    var timeLeft = isExpired ? 'expirou ' + formatRelativeTime(result.exp) : 'expira em ' + formatRelativeTime(result.exp);
+    expiryHtml = '<div class="jwt-expiry ' + cls + '">' +
+      '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ' +
+      label + ' — ' + timeLeft + '</div>';
+  }
+  output.className = 'jwt-output show';
+  output.innerHTML =
+    '<div class="jwt-section">' +
+      '<div class="jwt-section-header"><span class="jwt-section-title">Header</span><button class="jwt-copy-btn" data-copy="' + esc(JSON.stringify(result.header)) + '">Copiar</button></div>' +
+      '<div class="jwt-json">' + syntaxHighlightJSON(result.header) + '</div>' +
+    '</div>' +
+    '<div class="jwt-section">' +
+      '<div class="jwt-section-header"><span class="jwt-section-title">Payload</span><button class="jwt-copy-btn" data-copy="' + esc(JSON.stringify(result.payload)) + '">Copiar</button></div>' +
+      '<div class="jwt-json">' + syntaxHighlightJSON(result.payload) + '</div>' +
+      expiryHtml +
+    '</div>';
+  // Copy button handlers
+  output.querySelectorAll('.jwt-copy-btn').forEach(function(btn) {
+    btn.onclick = function() {
+      var text = btn.getAttribute('data-copy');
+      clipboardWrite(text);
+      toast('Copiado!', 'ok');
+    };
+  });
+};
+
+function formatRelativeTime(date) {
+  var diff = Math.abs(Date.now() - date.getTime());
+  var seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return seconds + 's';
+  var minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + 'min';
+  var hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + 'h';
+  return Math.floor(hours / 24) + 'd';
+}
+
+function clipboardWrite(text) {
+  try {
+    require('electron').clipboard.writeText(text);
+  } catch(e) {
+    // Fallback
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+}
+
+// ── v5.0: Flash Cache Info ──
+async function loadFlashCacheInfo() {
+  try {
+    var info = await ipcRenderer.invoke('flash:cache-info');
+    var el = document.getElementById('flashCacheInfo');
+    if (!info || !info.version) { if (el) el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    document.getElementById('flashCacheVersion').textContent = 'Flash ' + info.version;
+    document.getElementById('flashCacheDate').textContent = info.downloadDate || '';
+  } catch(e) {
+    // Handler might not exist on older versions — silently ignore
+  }
+}
+
+// ── v5.0: Copy-to-clipboard for dev result boxes ──
+function initCopyButtons() {
+  document.querySelectorAll('.dev-result-box').forEach(function(box) {
+    if (box.querySelector('.copy-float')) return;
+    var btn = document.createElement('button');
+    btn.className = 'copy-float';
+    btn.textContent = 'Copiar';
+    btn.onclick = function() {
+      clipboardWrite(box.textContent || '');
+      toast('Conteúdo copiado!', 'ok');
+    };
+    box.style.position = 'relative';
+    box.insertBefore(btn, box.firstChild);
+  });
+}
+
+// ── v5.0: Activity tracking hooks ──
+var origLaunch = launch;
+launch = function(id) {
+  var p = profiles.find(function(x) { return x.id === id; });
+  if (p) addActivity('launch', 'Jogo lançado: <strong>' + esc(p.name) + '</strong> (' + p.server + ')');
+  origLaunch(id);
+};
+
+var origDel = del;
+del = function(id) {
+  var p = profiles.find(function(x) { return x.id === id; });
+  if (p) addActivity('info', 'Conta excluída: <strong>' + esc(p.name) + '</strong>');
+  origDel(id);
+};
+
+// Track auto-login results as activities
+ipcRenderer.on('auto-login:result', function(_e, data) {
+  var p = profiles.find(function(x) { return x.id === data.profileId; });
+  var name = p ? p.name : data.profileId;
+  if (data.result === 'filled' || data.result === 'clicked') {
+    addActivity('login', 'Auto-login: <strong>' + esc(name) + '</strong> autenticado');
+  } else if (data.result === 'error') {
+    addActivity('error', 'Auto-login falhou: <strong>' + esc(name) + '</strong>');
+  }
+});
+
 // ── Init ──
 ipcRenderer.send('manager:ready');
 loadLastProfile();
@@ -1856,6 +2231,11 @@ initI18n();
 initPerfPanel();
 initDevTools();
 initDebugFlag();
+updateAnalytics();
+renderActivityLog();
+updateEventBadge();
+loadFlashCacheInfo();
+setTimeout(initCopyButtons, 1000);
 </script>
 </body>
 </html>
