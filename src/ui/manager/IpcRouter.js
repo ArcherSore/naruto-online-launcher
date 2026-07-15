@@ -44,6 +44,33 @@ function registerIpcHandlers(handlers) {
 
   ipcMain.on('manager:ready', function () { StateBroadcaster.pushAll(); });
 
+  // ── v5.8: Window Always-on-Top toggle ──
+  ipcMain.handle('window:toggle-always-on-top', function (_e, on) {
+    const win = ManagerWindow.getManagerWindow();
+    if (!win || win.isDestroyed()) return { ok: false, error: 'window-unavailable' };
+    const next = typeof on === 'boolean' ? on : !win.isAlwaysOnTop();
+    win.setAlwaysOnTop(next);
+    logger.info('Always-on-top: ' + next);
+    return { ok: true, alwaysOnTop: next };
+  });
+  ipcMain.handle('window:get-always-on-top', function () {
+    const win = ManagerWindow.getManagerWindow();
+    if (!win || win.isDestroyed()) return false;
+    return win.isAlwaysOnTop();
+  });
+
+  // ── v5.8: Window minimize / maximize helpers (for the new window controls) ──
+  ipcMain.on('window:minimize', function () {
+    const win = ManagerWindow.getManagerWindow();
+    if (win && !win.isDestroyed()) win.minimize();
+  });
+  ipcMain.handle('window:toggle-maximize', function () {
+    const win = ManagerWindow.getManagerWindow();
+    if (!win || win.isDestroyed()) return null;
+    if (win.isMaximized()) { win.unmaximize(); return false; }
+    win.maximize(); return true;
+  });
+
   // ── Profile CRUD ──
   ipcMain.on('profile:create', function (_e, opts) {
     const p = store.create(opts);

@@ -1009,6 +1009,101 @@
   /* ── v5.7: Enhanced topbar search focus ── */
   .search-wrap:focus-within .search-icon{color:var(--accent);transform:scale(1.1);transition:transform 200ms ease}
 
+  /* ════════════════════════════════════════════════════════════════════
+     v5.8 — Statistics Dashboard · Activity Heatmap · Always-on-Top · Window Controls · Polish
+     ════════════════════════════════════════════════════════════════════ */
+
+  /* ── v5.8: Statistics Dashboard (4-card grid at top of Events view) ── */
+  .stats-dashboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--space-3);margin-bottom:var(--space-4)}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-4);position:relative;overflow:hidden;transition:transform 200ms ease,border-color 200ms ease,box-shadow 200ms ease}
+  .stat-card:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 0 1px var(--accent)}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity 200ms ease}
+  .stat-card:hover::before{opacity:1}
+  .stat-card .sc-icon{width:2rem;height:2rem;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-3);color:var(--accent)}
+  .stat-card .sc-icon svg{width:1.1rem;height:1.1rem}
+  .stat-card .sc-icon.orange{background:rgba(255,140,0,.12);color:var(--accent)}
+  .stat-card .sc-icon.green{background:rgba(16,185,129,.12);color:var(--ok)}
+  .stat-card .sc-icon.purple{background:rgba(168,85,247,.12);color:#a855f7}
+  .stat-card .sc-icon.blue{background:rgba(14,165,233,.12);color:#0ea5e9}
+  .stat-card .sc-label{font-size:var(--font-xs);color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:var(--weight-semibold);margin-bottom:.2rem}
+  .stat-card .sc-value{font-size:1.75rem;font-weight:var(--weight-bold);color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
+  .stat-card .sc-suffix{font-size:var(--font-sm);color:var(--text-dim);font-weight:var(--weight-normal);margin-left:.2rem}
+  .stat-card .sc-sub{font-size:var(--font-xs);color:var(--text-faint);margin-top:.3rem}
+
+  /* ── v5.8: Activity Heatmap (GitHub-style 365-day calendar) ── */
+  .heatmap-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:var(--space-4);padding:var(--space-4)}
+  .heatmap-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3);flex-wrap:wrap;gap:var(--space-2)}
+  .heatmap-header h4{display:flex;align-items:center;gap:.4rem;font-size:var(--font-md);font-weight:var(--weight-semibold);color:var(--text);margin:0}
+  .heatmap-header h4 svg{width:1rem;height:1rem;color:var(--accent)}
+  .heatmap-legend{display:flex;align-items:center;gap:.3rem;font-size:var(--font-xs);color:var(--text-faint)}
+  .heatmap-legend .hm-swatch{width:.7rem;height:.7rem;border-radius:2px;display:inline-block}
+  .heatmap-wrap{overflow-x:auto;padding-bottom:.3rem}
+  .heatmap-wrap::-webkit-scrollbar{height:6px}
+  .heatmap-wrap::-webkit-scrollbar-thumb{background:var(--border-hover);border-radius:3px}
+  .heatmap-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;min-width:max-content}
+  .heatmap-cell{width:11px;height:11px;border-radius:2px;background:var(--bg-elev);border:1px solid rgba(255,255,255,.03);transition:transform 120ms ease,box-shadow 120ms ease;cursor:pointer}
+  .heatmap-cell:hover{transform:scale(1.4);box-shadow:0 0 6px var(--accent);z-index:2;position:relative}
+  .heatmap-cell.l1{background:rgba(255,140,0,.25)}
+  .heatmap-cell.l2{background:rgba(255,140,0,.45)}
+  .heatmap-cell.l3{background:rgba(255,140,0,.7)}
+  .heatmap-cell.l4{background:var(--accent);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+  .heatmap-cell.today{outline:1.5px solid var(--accent);outline-offset:1px}
+  .heatmap-months{display:grid;grid-auto-flow:column;gap:3px;margin-top:.3rem;font-size:var(--font-2xs);color:var(--text-faint);min-width:max-content}
+  .heatmap-month-label{padding-left:2px;text-transform:uppercase;letter-spacing:.05em}
+  .heatmap-tooltip{position:fixed;background:var(--bg-elev);border:1px solid var(--border-hover);border-radius:var(--radius-sm);padding:.4rem .6rem;font-size:var(--font-xs);color:var(--text);pointer-events:none;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,.4);white-space:nowrap;opacity:0;transition:opacity 120ms ease}
+  .heatmap-tooltip.show{opacity:1}
+  .heatmap-tooltip strong{color:var(--accent)}
+
+  /* ── v5.8: Window Controls (always-on-top + minimize + maximize) ── */
+  .window-controls{display:flex;gap:.2rem;margin-left:var(--space-2);align-items:center}
+  .wc-btn{width:1.7rem;height:1.7rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text-dim);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--transition)}
+  .wc-btn:hover{color:var(--text);border-color:var(--border-hover);background:var(--surface-hover)}
+  .wc-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(255,140,0,.1);box-shadow:0 0 8px rgba(255,140,0,.25)}
+  .wc-btn svg{width:.85rem;height:.85rem}
+  .wc-btn:active{transform:scale(.92)}
+
+  /* ── v5.8: Favorite star pop animation ── */
+  @keyframes favPop{0%{transform:scale(1)}40%{transform:scale(1.5) rotate(72deg)}70%{transform:scale(.9) rotate(-15deg)}100%{transform:scale(1) rotate(0)}}
+  .fav-action.pop{animation:favPop 450ms cubic-bezier(.2,.8,.3,1)}
+
+  /* ── v5.8: Button loading state ── */
+  .btn.loading{position:relative;color:transparent!important;pointer-events:none}
+  .btn.loading::after{content:'';position:absolute;top:50%;left:50%;width:.85rem;height:.85rem;margin:-.425rem 0 0 -.425rem;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:btnSpin 600ms linear infinite}
+  @keyframes btnSpin{to{transform:rotate(360deg)}}
+
+  /* ── v5.8: Refined view transition (fade + slide + subtle scale) ── */
+  @keyframes viewEnterV58{from{opacity:0;transform:translateY(12px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+  .view.view-enter-v58{animation:viewEnterV58 280ms cubic-bezier(.2,.8,.3,1)}
+
+  /* ── v5.8: Toast slide-in with subtle bounce ── */
+  @keyframes toastSlideV58{0%{transform:translateX(120%);opacity:0}60%{transform:translateX(-8px);opacity:1}80%{transform:translateX(4px)}100%{transform:translateX(0)}}
+  .toast.toast-enter-v58{animation:toastSlideV58 380ms cubic-bezier(.2,.8,.3,1)}
+
+  /* ── v5.8: Tooltip fade animation ── */
+  [data-tip]{position:relative}
+  [data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%) translateY(4px);background:var(--bg-elev);color:var(--text);border:1px solid var(--border-hover);border-radius:var(--radius-sm);padding:.2rem .5rem;font-size:var(--font-2xs);white-space:nowrap;opacity:0;pointer-events:none;transition:opacity 160ms ease,transform 160ms ease;z-index:100}
+  [data-tip]:hover::after{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ── v5.8: Card entrance stagger refinement (slight scale) ── */
+  @keyframes cardEnterV58{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+  .card.card-enter-v58{animation:cardEnterV58 320ms cubic-bezier(.2,.8,.3,1) both}
+
+  /* ── v5.8: Custom checkbox/radio (themed) ── */
+  input[type="checkbox"].themed,input[type="radio"].themed{appearance:none;width:1.05rem;height:1.05rem;border:1.5px solid var(--border-hover);border-radius:var(--radius-sm);background:var(--bg);cursor:pointer;position:relative;transition:var(--transition);flex-shrink:0}
+  input[type="radio"].themed{border-radius:50%}
+  input[type="checkbox"].themed:hover,input[type="radio"].themed:hover{border-color:var(--accent)}
+  input[type="checkbox"].themed:checked{background:var(--accent);border-color:var(--accent)}
+  input[type="checkbox"].themed:checked::after{content:'';position:absolute;top:50%;left:50%;width:.35rem;height:.6rem;border:solid #0a0a0f;border-width:0 2px 2px 0;transform:translate(-50%,-60%) rotate(45deg)}
+  input[type="radio"].themed:checked{border-color:var(--accent)}
+  input[type="radio"].themed:checked::after{content:'';position:absolute;top:50%;left:50%;width:.5rem;height:.5rem;border-radius:50%;background:var(--accent);transform:translate(-50%,-50%)}
+
+  /* ── v5.8: Alt+N quick-launch hotkey hint badge ── */
+  .ql-badge{display:inline-flex;align-items:center;justify-content:center;min-width:1.1rem;height:1.1rem;padding:0 .25rem;border-radius:var(--radius-sm);background:var(--bg-elev);border:1px solid var(--border);color:var(--text-faint);font-size:var(--font-2xs);font-weight:var(--weight-semibold);margin-left:auto}
+  .quick-launch-item:hover .ql-badge{color:var(--accent);border-color:var(--accent)}
+
+  /* ── v5.8: Sidebar footer version pill ── */
+  .version-pill{display:inline-flex;align-items:center;gap:.2rem;padding:.1rem .4rem;border-radius:var(--radius-full);background:rgba(255,140,0,.1);color:var(--accent);font-size:var(--font-2xs);font-weight:var(--weight-semibold);border:1px solid rgba(255,140,0,.2)}
+
 </style>
 </head>
 <body>
@@ -1144,6 +1239,18 @@
         <button class="btn icon" id="kbHelpBtn" title="Atalhos de teclado (?)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6.01" y2="10"/><line x1="10" y1="10" x2="10.01" y2="10"/><line x1="14" y1="10" x2="14.01" y2="10"/><line x1="18" y1="10" x2="18.01" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
         </button>
+        <!-- v5.8: Window Controls (always-on-top + minimize + maximize) -->
+        <div class="window-controls">
+          <button class="wc-btn" id="wcAlwaysOnTop" title="Sempre visível (fixar acima)" aria-label="Always on top" data-tip="Sempre visível">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button class="wc-btn" id="wcMinimize" title="Minimizar" aria-label="Minimizar" data-tip="Minimizar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="wc-btn" id="wcMaximize" title="Maximizar / Restaurar" aria-label="Maximizar" data-tip="Maximizar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1"/></svg>
+          </button>
+        </div>
         <button class="btn icon" id="batchModeBtn" title="Seleção múltipla">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         </button>
@@ -1220,6 +1327,55 @@
 
       <!-- ── View: Events ── -->
       <div class="view" id="view-events">
+        <!-- v5.8: Statistics Dashboard (4 cards with count-up animation) -->
+        <div class="stats-dashboard" id="statsDashboard">
+          <div class="stat-card">
+            <div class="sc-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+            <div class="sc-label">Total de lançamentos</div>
+            <div class="sc-value" data-stat="totalLaunches">0</div>
+            <div class="sc-sub" data-stat="totalLaunchesSub">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="sc-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div class="sc-label">Tempo total de jogo</div>
+            <div class="sc-value" data-stat="totalPlaytime">0<span class="sc-suffix" data-stat="totalPlaytimeSuffix"></span></div>
+            <div class="sc-sub" data-stat="totalPlaytimeSub">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="sc-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg></div>
+            <div class="sc-label">Perfil mais jogado</div>
+            <div class="sc-value" data-stat="topProfile" style="font-size:1.2rem">—</div>
+            <div class="sc-sub" data-stat="topProfileSub">0 lançamentos</div>
+          </div>
+          <div class="stat-card">
+            <div class="sc-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+            <div class="sc-label">Sequência atual</div>
+            <div class="sc-value"><span data-stat="currentStreak">0</span><span class="sc-suffix">dias</span></div>
+            <div class="sc-sub" data-stat="streakSub">—</div>
+          </div>
+        </div>
+        <!-- v5.8: Activity Heatmap (365-day GitHub-style calendar) -->
+        <div class="heatmap-section">
+          <div class="heatmap-header">
+            <h4>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Atividade — últimos 365 dias
+            </h4>
+            <div class="heatmap-legend">
+              <span>Menos</span>
+              <span class="hm-swatch" style="background:var(--bg-elev)"></span>
+              <span class="hm-swatch" style="background:rgba(255,140,0,.25)"></span>
+              <span class="hm-swatch" style="background:rgba(255,140,0,.45)"></span>
+              <span class="hm-swatch" style="background:rgba(255,140,0,.7)"></span>
+              <span class="hm-swatch" style="background:var(--accent)"></span>
+              <span>Mais</span>
+            </div>
+          </div>
+          <div class="heatmap-wrap">
+            <div class="heatmap-grid" id="heatmapGrid"></div>
+            <div class="heatmap-months" id="heatmapMonths"></div>
+          </div>
+        </div>
         <!-- v5.3: Session Overview -->
         <div class="session-overview" id="sessionOverview">
           <div class="session-overview-header">
@@ -1682,6 +1838,8 @@
         <div class="kb-row"><span class="kb-action">Limpar busca</span><span class="kb-keys"><span class="kb-key accent">Esc</span></span></div>
         <div class="kb-row"><span class="kb-action">Seleção múltipla</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">B</span></span></div>
         <div class="kb-row"><span class="kb-action">Exportar backup</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">E</span></span></div>
+        <div class="kb-row"><span class="kb-action">Lançar perfil (1–9)</span><span class="kb-keys"><span class="kb-key accent">Alt</span><span class="kb-key">1</span><span class="kb-key">…</span><span class="kb-key">9</span></span></div>
+        <div class="kb-row"><span class="kb-action">Sempre visível (fixar)</span><span class="kb-keys"><span class="kb-key accent">Alt</span><span class="kb-key">P</span></span></div>
       </div>
       <div class="kb-group">
         <div class="kb-group-title">Janela</div>
@@ -4742,16 +4900,16 @@ function updateStatusBar() {
     var hr = Math.floor(ms / 3600000);
     uptimeEl.textContent = (hr > 0 ? hr + ':' : '') + String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
   }
-  // Connection status (sync from conn indicator)
+  // Connection status (v5.8: read connState directly — avoids className mismatch bug
+  // where connDotTop.className is "conn-dot disconnected" not "red")
   var connDot = document.getElementById('sbConnDot');
   var connLabel = document.getElementById('sbConnLabel');
-  var connDotTop = document.getElementById('connDot');
-  if (connDot && connDotTop) {
-    connDot.className = 'sb-dot ' + (connDotTop.className || 'green');
+  var CONN_COLOR_MAP = { online: 'green', offline: 'red', checking: 'amber' };
+  if (connDot) {
+    connDot.className = 'sb-dot ' + (CONN_COLOR_MAP[connState] || 'green');
   }
   if (connLabel) {
-    var connLabelTop = document.getElementById('connLabel');
-    if (connLabelTop) connLabel.textContent = connLabelTop.textContent;
+    connLabel.textContent = connState === 'online' ? 'Online' : connState === 'offline' ? 'Offline' : 'Verificando';
   }
   // Flash status (sync from flash indicator)
   var flashDot = document.getElementById('sbFlashDot');
@@ -4810,39 +4968,15 @@ function initSearchFilters() {
   toolbarRight.insertBefore(vaultFilter, toolbarRight.firstChild);
   toolbarRight.insertBefore(regionFilter, toolbarRight.firstChild);
 }
-// Patch renderProfiles to include filters
-var _origApplySorting = typeof applySorting === 'function' ? applySorting : null;
-// The filtering is already done for search + tags in renderProfiles, we add region + vault
-// We need to patch the filtering section. Let's wrap the existing filter logic.
-(function patchRenderProfiles() {
-  var origRender = renderProfiles;
-  renderProfiles = function() {
-    // Temporarily patch profiles for region/vault filtering
-    var savedProfiles = profiles;
-    if (searchFilterRegion || searchFilterVault) {
-      // We can't modify the global profiles, so we hook into the filtering inside
-      // The simplest approach: modify the filtered result inside renderProfiles
-      // Since renderProfiles uses the global profiles, we temporarily swap the filtering
-    }
-    origRender();
-  };
-})();
-// Better approach: patch the search filter to also respect region/vault
-// The existing renderProfiles already filters by searchQuery and activeTagFilter
-// We patch it by wrapping the filter function
+// v5.8: Single clean patch — apply region/vault filters as a post-render pass.
+// (Previous v5.7 had a redundant no-op wrapper plus the real patch; consolidated here.)
 var _origRenderProfiles = renderProfiles;
 renderProfiles = function() {
-  // Save and patch
-  var origSearchQuery = searchQuery;
-  // We'll add our filters by temporarily modifying the profiles array visibility
-  // Actually, the cleanest way is to modify the filter section of renderProfiles
-  // But since it's inline, we use a different approach: filter after the existing filter
   _origRenderProfiles();
-  // After rendering, apply additional post-filter by re-filtering displayed cards
   if (!searchFilterRegion && !searchFilterVault) return;
   var grid = document.getElementById('profileGrid');
   if (!grid) return;
-  grid.querySelectorAll('.card').forEach(function(card) {
+  grid.querySelectorAll('.card[data-card-id]').forEach(function(card) {
     var id = card.getAttribute('data-card-id');
     var p = profiles.find(function(x) { return x.id === id; });
     if (!p) return;
@@ -4869,14 +5003,7 @@ function showSkeletonLoader() {
   grid.innerHTML = '<div class="skeleton-grid">' + skeletonHtml + '</div>';
 }
 
-// ── v5.7: Card expand on hover (show extra stats) ──
-function initCardExpand() {
-  // Already handled by CSS (.card:hover .card-expand)
-  // Just need to add the expand section to cards during render
-  // This is done by modifying the card HTML template in renderProfiles
-}
-
-// ── v5.7: New profile bounce animation ──
+// ── v5.7: New profile bounce animation (v5.8: now actually wired) ──
 function markNewProfile(profileId) {
   setTimeout(function() {
     var card = document.querySelector('.card[data-card-id="' + profileId + '"]');
@@ -4911,11 +5038,44 @@ function initQuickLaunchKeyboard() {
   });
 }
 
-// ── v5.7: Patch profile creation to trigger bounce animation ──
-var _origNewBtnClick = document.getElementById('newBtn').onclick;
-// We hook into the modal save instead (after profile is created)
+// ── v5.7: Patch profile creation to trigger bounce animation (v5.8: properly wired) ──
+// Track the last-created profile name so we can detect it in the next profiles:updated event
+// and trigger the bounce animation. The backend creates the profile asynchronously, so we
+// can't know the ID at click time — we match by name + recency.
+var _pendingNewProfileName = null;
+var _pendingNewProfileTs = 0;
+(function wireMarkNewProfile() {
+  var saveBtn = document.getElementById('saveProfile');
+  if (!saveBtn) return;
+  saveBtn.addEventListener('click', function() {
+    // Capture name only if this is a create (not edit) operation
+    if (!editingId) {
+      var nameEl = document.getElementById('fName');
+      if (nameEl && nameEl.value.trim()) {
+        _pendingNewProfileName = nameEl.value.trim();
+        _pendingNewProfileTs = Date.now();
+      }
+    }
+  }, true); // capture phase so it runs before the existing handler
+})();
+// Hook profiles:updated to detect the new profile and animate it
+(function hookProfilesUpdatedForNewProfile() {
+  ipcRenderer.on('profiles:updated', function() {
+    if (!_pendingNewProfileName) return;
+    // Only match within 5s of the save click
+    if (Date.now() - _pendingNewProfileTs > 5000) {
+      _pendingNewProfileName = null;
+      return;
+    }
+    var match = profiles.find(function(p) { return p.name === _pendingNewProfileName; });
+    if (match) {
+      markNewProfile(match.id);
+      _pendingNewProfileName = null;
+    }
+  });
+})();
 
-// ── v5.7: Add card-expand section to profile cards ──
+// ── v5.7: Add card-expand section to profile cards (v5.8: childList only — was subtree:true which over-fired) ──
 // We patch the existing card innerHTML to add an expand section
 // This is tricky since the card template is inline. We'll use a MutationObserver.
 (function initCardExpandObserver() {
@@ -4945,7 +5105,7 @@ var _origNewBtnClick = document.getElementById('newBtn').onclick;
       }
     });
   });
-  observer.observe(grid, { childList: true, subtree: true });
+  observer.observe(grid, { childList: true });
 })();
 
 // ── v5.7: Init sequence ──
@@ -4957,6 +5117,498 @@ showSkeletonLoader();
 setTimeout(function() {
   if (profiles.length > 0) renderProfiles();
 }, 300);
+
+// ════════════════════════════════════════════════════════════════════
+// v5.8: Statistics Dashboard · Activity Heatmap · Alt+1..9 Hotkeys · Always-on-Top · Count-up · Polish
+// ════════════════════════════════════════════════════════════════════
+
+// ── v5.8: Count-up animation utility ──
+function animateCountUp(el, targetValue, opts) {
+  if (!el) return;
+  opts = opts || {};
+  var duration = opts.duration || 800;
+  var decimals = opts.decimals || 0;
+  var suffix = opts.suffix || '';
+  var startVal = opts.startVal || 0;
+  var startTime = null;
+  // Cancel any in-flight animation on this element
+  if (el._countUpRaf) cancelAnimationFrame(el._countUpRaf);
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+  function step(ts) {
+    if (!startTime) startTime = ts;
+    var progress = Math.min((ts - startTime) / duration, 1);
+    var eased = easeOutCubic(progress);
+    var current = startVal + (targetValue - startVal) * eased;
+    el.textContent = (decimals ? current.toFixed(decimals) : Math.round(current).toLocaleString('pt-BR')) + suffix;
+    if (progress < 1) {
+      el._countUpRaf = requestAnimationFrame(step);
+    } else {
+      el._countUpRaf = null;
+    }
+  }
+  el._countUpRaf = requestAnimationFrame(step);
+}
+
+// ── v5.8: Statistics Dashboard loader ──
+async function loadStatsDashboard() {
+  try {
+    var stats = await ipcRenderer.invoke('profile:launch-log-stats');
+    var totalLaunches = (stats && stats.total) || 0;
+
+    // Total launches card (count-up)
+    var totalEl = document.querySelector('[data-stat="totalLaunches"]');
+    animateCountUp(totalEl, totalLaunches);
+    var totalSubEl = document.querySelector('[data-stat="totalLaunchesSub"]');
+    if (totalSubEl) {
+      if (totalLaunches === 0) totalSubEl.textContent = 'Nenhum lançamento ainda';
+      else if (stats.oldestTs) totalSubEl.textContent = 'Desde ' + new Date(stats.oldestTs).toLocaleDateString('pt-BR');
+      else totalSubEl.textContent = '—';
+    }
+
+    // Total playtime card (sum across all profiles)
+    var totalPlayMs = profiles.reduce(function(sum, p) { return sum + (p.totalPlayMs || 0); }, 0);
+    var playEl = document.querySelector('[data-stat="totalPlaytime"]');
+    var playSuffixEl = document.querySelector('[data-stat="totalPlaytimeSuffix"]');
+    var playSubEl = document.querySelector('[data-stat="totalPlaytimeSub"]');
+    if (playEl) {
+      // Decompose playtime into hr+min for count-up
+      var totalMin = Math.floor(totalPlayMs / 60000);
+      var hr = Math.floor(totalMin / 60);
+      var min = totalMin % 60;
+      if (hr > 0) {
+        animateCountUp(playEl, hr, { suffix: '' });
+        if (playSuffixEl) playSuffixEl.textContent = 'h ' + String(min).padStart(2, '0') + 'm';
+      } else {
+        animateCountUp(playEl, min, { suffix: '' });
+        if (playSuffixEl) playSuffixEl.textContent = 'min';
+      }
+    }
+    if (playSubEl) {
+      if (totalPlayMs === 0) playSubEl.textContent = 'Sem tempo registrado';
+      else {
+        var avg = profiles.length ? Math.floor(totalPlayMs / profiles.length / 60000) : 0;
+        playSubEl.textContent = 'Média: ' + avg + 'min por perfil';
+      }
+    }
+
+    // Top profile card
+    var topProfile = null;
+    var topCount = 0;
+    profiles.forEach(function(p) {
+      if ((p.launchCount || 0) > topCount) {
+        topCount = p.launchCount || 0;
+        topProfile = p;
+      }
+    });
+    var topEl = document.querySelector('[data-stat="topProfile"]');
+    var topSubEl = document.querySelector('[data-stat="topProfileSub"]');
+    if (topEl) topEl.textContent = topProfile ? topProfile.name : '—';
+    if (topSubEl) topSubEl.textContent = topProfile ? (topCount + ' lançamento' + (topCount > 1 ? 's' : '')) : 'Crie um perfil';
+
+    // Current streak card
+    var timeline = await ipcRenderer.invoke('profile:launch-timeline', 365);
+    var streak = 0;
+    var bestStreak = 0;
+    var streakActive = false;
+    if (timeline && timeline.length) {
+      // Walk from the most recent day backwards; if today has launches, count from today; else from yesterday
+      var todayIdx = timeline.length - 1;
+      var startIdx = todayIdx;
+      if ((timeline[todayIdx].count || 0) === 0) {
+        startIdx = todayIdx - 1; // allow streak from yesterday
+      }
+      for (var i = startIdx; i >= 0; i--) {
+        if ((timeline[i].count || 0) > 0) {
+          streak++;
+          streakActive = true;
+        } else if (streakActive) {
+          break;
+        }
+      }
+      // Best streak: scan full timeline
+      var cur = 0;
+      for (var j = 0; j < timeline.length; j++) {
+        if ((timeline[j].count || 0) > 0) {
+          cur++;
+          if (cur > bestStreak) bestStreak = cur;
+        } else {
+          cur = 0;
+        }
+      }
+    }
+    var streakEl = document.querySelector('[data-stat="currentStreak"]');
+    animateCountUp(streakEl, streak);
+    var streakSubEl = document.querySelector('[data-stat="streakSub"]');
+    if (streakSubEl) {
+      if (streak === 0) streakSubEl.textContent = 'Inicie uma sequência hoje!';
+      else if (bestStreak > streak) streakSubEl.textContent = 'Recorde: ' + bestStreak + ' dias';
+      else streakSubEl.textContent = 'Novo recorde! 🎉';
+    }
+  } catch (e) {
+    // Stats are non-critical; fail silently
+    console.log('Stats dashboard load failed:', e.message);
+  }
+}
+
+// ── v5.8: Activity Heatmap (365-day GitHub-style calendar) ──
+var HEATMAP_MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+async function loadHeatmap() {
+  var grid = document.getElementById('heatmapGrid');
+  var monthsEl = document.getElementById('heatmapMonths');
+  if (!grid || !monthsEl) return;
+  try {
+    var timeline = await ipcRenderer.invoke('profile:launch-timeline', 365);
+    if (!timeline || !timeline.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-faint);font-size:var(--font-sm);padding:1rem 0">Sem dados de atividade ainda.</div>';
+      monthsEl.innerHTML = '';
+      return;
+    }
+    // Build a date → count map for the last 365 days
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var countMap = {};
+    timeline.forEach(function(day) {
+      countMap[day.date] = day.count || 0;
+    });
+    // Find the start date — go back 364 days, then align to Sunday (so weeks line up)
+    var start = new Date(today);
+    start.setDate(start.getDate() - 364);
+    var startDow = start.getDay(); // 0=Sun
+    start.setDate(start.getDate() - startDow); // align to Sunday
+    // Build cells
+    var cells = [];
+    var cur = new Date(start);
+    var todayStr = _heatmapDateKey(today);
+    var firstCellDate = new Date(cur);
+    while (cur <= today) {
+      var dateStr = _heatmapDateKey(cur);
+      var count = countMap[dateStr] || 0;
+      var level = 0;
+      if (count >= 10) level = 4;
+      else if (count >= 5) level = 3;
+      else if (count >= 3) level = 2;
+      else if (count >= 1) level = 1;
+      cells.push({
+        date: dateStr,
+        dateObj: new Date(cur),
+        count: count,
+        level: level,
+        isToday: dateStr === todayStr
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+    // Render grid (column-major — weeks as columns)
+    var html = '';
+    cells.forEach(function(c) {
+      var cls = 'heatmap-cell' + (c.level ? ' l' + c.level : '') + (c.isToday ? ' today' : '');
+      html += '<div class="' + cls + '" data-date="' + c.date + '" data-count="' + c.count + '"></div>';
+    });
+    grid.innerHTML = html;
+    // Month labels: one per week-column where the month changes
+    var monthLabelHtml = '';
+    cur = new Date(firstCellDate);
+    var prevMonth = -1;
+    while (cur <= today) {
+      var m = cur.getMonth();
+      if (m !== prevMonth && cur.getDate() <= 7) {
+        // First week of a new month
+        monthLabelHtml += '<span class="heatmap-month-label">' + HEATMAP_MONTHS[m] + '</span>';
+      } else {
+        monthLabelHtml += '<span></span>';
+      }
+      prevMonth = m;
+      cur.setDate(cur.getDate() + 7); // advance one week
+    }
+    monthsEl.innerHTML = monthLabelHtml;
+    // Wire tooltips
+    _wireHeatmapTooltips();
+  } catch (e) {
+    grid.innerHTML = '<div style="color:var(--danger);font-size:var(--font-sm);padding:1rem 0">Erro ao carregar heatmap.</div>';
+    console.log('Heatmap load failed:', e.message);
+  }
+}
+function _heatmapDateKey(d) {
+  var y = d.getFullYear();
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+function _wireHeatmapTooltips() {
+  var grid = document.getElementById('heatmapGrid');
+  var tooltip = document.getElementById('heatmapTooltip');
+  if (!grid || !tooltip) return;
+  grid.querySelectorAll('.heatmap-cell').forEach(function(cell) {
+    cell.addEventListener('mouseenter', function(e) {
+      var date = cell.getAttribute('data-date');
+      var count = parseInt(cell.getAttribute('data-count'), 10) || 0;
+      var dateLabel = new Date(date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+      tooltip.innerHTML = '<strong>' + count + '</strong> lançamento' + (count !== 1 ? 's' : '') + '<br>' + dateLabel + (cell.classList.contains('today') ? ' • hoje' : '');
+      tooltip.classList.add('show');
+      var rect = cell.getBoundingClientRect();
+      tooltip.style.left = (rect.left + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
+      tooltip.style.top = (rect.top - tooltip.offsetHeight - 6) + 'px';
+    });
+    cell.addEventListener('mouseleave', function() {
+      tooltip.classList.remove('show');
+    });
+    cell.addEventListener('click', function() {
+      var count = parseInt(cell.getAttribute('data-count'), 10) || 0;
+      var date = cell.getAttribute('data-date');
+      if (count > 0) toast(count + ' lançamento(s) em ' + new Date(date + 'T00:00:00').toLocaleDateString('pt-BR'), 'info');
+    });
+  });
+}
+
+// ── v5.8: Alt+1..9 Quick Launch Hotkeys + Alt+P Always-on-Top ──
+function initAltNumberHotkeys() {
+  document.addEventListener('keydown', function(e) {
+    if (!e.altKey) return;
+    if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+    // Alt+P → toggle always-on-top
+    if (e.key.toLowerCase() === 'p') {
+      e.preventDefault();
+      var aotBtn = document.getElementById('wcAlwaysOnTop');
+      if (aotBtn) aotBtn.click();
+      return;
+    }
+    var n = parseInt(e.key, 10);
+    if (isNaN(n) || n < 1 || n > 9) return;
+    // Build ordered list: favorites first (by launchCount desc), then by name
+    var ordered = profiles.slice().sort(function(a, b) {
+      if (!!b.favorite - !!a.favorite !== 0) return !!b.favorite - !!a.favorite;
+      var ac = a.launchCount || 0;
+      var bc = b.launchCount || 0;
+      if (bc !== ac) return bc - ac;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+    if (n > ordered.length) {
+      toast('Alt+' + n + ' → sem perfil nesta posição', 'err');
+      return;
+    }
+    e.preventDefault();
+    var p = ordered[n - 1];
+    toast('Alt+' + n + ' → ' + p.name, 'info');
+    launch(p.id);
+  });
+}
+
+// ── v5.8: Window Controls (always-on-top + minimize + maximize) ──
+async function initWindowControls() {
+  var aotBtn = document.getElementById('wcAlwaysOnTop');
+  var minBtn = document.getElementById('wcMinimize');
+  var maxBtn = document.getElementById('wcMaximize');
+  if (!aotBtn || !minBtn || !maxBtn) return;
+  // Restore always-on-top state from localStorage (UI hint only; actual state is verified via IPC)
+  var savedAot = localStorage.getItem('shinobi-aot') === '1';
+  if (savedAot) aotBtn.classList.add('active');
+  // Verify actual window state on init
+  try {
+    var actual = await ipcRenderer.invoke('window:get-always-on-top');
+    aotBtn.classList.toggle('active', !!actual);
+    if (actual) localStorage.setItem('shinobi-aot', '1');
+    else localStorage.removeItem('shinobi-aot');
+  } catch (_) { /* ignore */ }
+  aotBtn.addEventListener('click', async function() {
+    try {
+      var res = await ipcRenderer.invoke('window:toggle-always-on-top');
+      if (res && res.ok) {
+        aotBtn.classList.toggle('active', !!res.alwaysOnTop);
+        if (res.alwaysOnTop) localStorage.setItem('shinobi-aot', '1');
+        else localStorage.removeItem('shinobi-aot');
+        toast(res.alwaysOnTop ? 'Janela fixada acima' : 'Fixação desativada', 'info');
+      }
+    } catch (e) { toast('Erro: ' + e.message, 'err'); }
+  });
+  minBtn.addEventListener('click', function() {
+    ipcRenderer.send('window:minimize');
+  });
+  maxBtn.addEventListener('click', async function() {
+    try {
+      var isMax = await ipcRenderer.invoke('window:toggle-maximize');
+      maxBtn.classList.toggle('active', !!isMax);
+    } catch (_) { /* ignore */ }
+  });
+}
+
+// ── v5.8: Favorite star pop animation ──
+(function wireFavoritePop() {
+  // Wrap the existing toggleFavorite function to add the pop animation
+  if (typeof toggleFavorite !== 'function') return;
+  var _orig = toggleFavorite;
+  toggleFavorite = function(id) {
+    var btn = document.querySelector('.card[data-card-id="' + id + '"] .fav-action');
+    if (btn) {
+      btn.classList.remove('pop');
+      // Force reflow so the animation re-triggers
+      void btn.offsetWidth;
+      btn.classList.add('pop');
+    }
+    return _orig.apply(this, arguments);
+  };
+})();
+
+// ── v5.8: Refined view transition + lazy-load Events view data ──
+(function wireViewTransitionsV58() {
+  var navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(function(item) {
+    item.addEventListener('click', function() {
+      var targetView = item.getAttribute('data-view');
+      var view = document.getElementById('view-' + targetView);
+      if (!view) return;
+      // Remove the v58 class, force reflow, then re-add (re-trigger animation)
+      view.classList.remove('view-enter-v58');
+      void view.offsetWidth;
+      view.classList.add('view-enter-v58');
+      // Lazy-load Events view data
+      if (targetView === 'events') {
+        setTimeout(loadStatsDashboard, 80);
+        setTimeout(loadHeatmap, 120);
+      }
+    });
+  });
+})();
+
+// ── v5.8: Toast slide-in with bounce (refined) ──
+// NOTE: Use a unique var name (_origToastV58) — v5.5 already declared _origToast,
+// and reusing the same name would cause infinite recursion (both wrappers would
+// reference the same script-scope variable, with the later wrapper pointing back
+// to itself via the earlier wrapper's closure).
+(function wireToastEnterV58() {
+  if (typeof toast !== 'function') return;
+  var _origToastV58 = toast;
+  toast = function(msg, type) {
+    _origToastV58(msg, type);
+    // Find the most recent toast element and add the v58 enter class
+    var container = document.getElementById('toastContainer') || document.querySelector('.toast-container');
+    if (!container) return;
+    var lastToast = container.lastElementChild;
+    if (lastToast) {
+      lastToast.classList.remove('toast-enter-v58');
+      void lastToast.offsetWidth;
+      lastToast.classList.add('toast-enter-v58');
+    }
+  };
+})();
+
+// ── v5.8: Button loading state helper (for async actions) ──
+// Usage: withButtonLoading(btnEl, asyncFn) — disables btn, shows spinner, restores on settle
+function withButtonLoading(btn, asyncFn) {
+  if (!btn || typeof asyncFn !== 'function') return Promise.resolve();
+  if (btn.classList.contains('loading')) return Promise.resolve(); // already loading
+  btn.classList.add('loading');
+  btn.disabled = true;
+  return Promise.resolve(asyncFn())
+    .then(function(r) { return r; })
+    .catch(function(e) { console.error(e); throw e; })
+    .finally(function() {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    });
+}
+
+// ── v5.8: Wire button loading to key async actions ──
+(function wireButtonLoading() {
+  // Export backup button
+  var exportBtn = document.getElementById('advBackupExport');
+  if (exportBtn) {
+    var orig = exportBtn.onclick;
+    if (orig) exportBtn.onclick = function() { withButtonLoading(exportBtn, orig); };
+  }
+  var importBtn = document.getElementById('advBackupImport');
+  if (importBtn) {
+    var orig2 = importBtn.onclick;
+    if (orig2) importBtn.onclick = function() { withButtonLoading(importBtn, orig2); };
+  }
+  // Health check buttons (delegated) — add a one-shot loading class
+  document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-health-id]');
+    if (!t) return;
+    // The original handler is wired via addEventListener, so we just add a loading state
+    t.classList.add('loading');
+    setTimeout(function() { t.classList.remove('loading'); }, 4000);
+  }, true);
+})();
+
+// ── v5.8: Add Alt+N hint badges to quick-launch items ──
+(function wireQuickLaunchBadges() {
+  // Observe the quick launch list and inject badges
+  var list = document.getElementById('quickLaunchList');
+  if (!list) return;
+  function addBadges() {
+    var items = list.querySelectorAll('.quick-launch-item');
+    items.forEach(function(item, idx) {
+      if (idx >= 9) return;
+      if (item.querySelector('.ql-badge')) return;
+      var badge = document.createElement('span');
+      badge.className = 'ql-badge';
+      badge.textContent = 'Alt+' + (idx + 1);
+      badge.title = 'Atalho: Alt+' + (idx + 1);
+      // Append at end of item
+      item.appendChild(badge);
+    });
+  }
+  addBadges();
+  // Re-run when profiles change
+  ipcRenderer.on('profiles:updated', function() { setTimeout(addBadges, 50); });
+  // Also observe DOM changes
+  if (window.MutationObserver) {
+    new MutationObserver(function() { addBadges(); }).observe(list, { childList: true });
+  }
+})();
+
+// ── v5.8: Replace sidebar version text with a version pill ──
+(function wireVersionPill() {
+  var versionEl = document.getElementById('version');
+  if (!versionEl) return;
+  var txt = versionEl.textContent.trim();
+  if (txt.indexOf('v5.') === 0 || txt.indexOf('v4.') === 0) {
+    versionEl.innerHTML = '<span class="version-pill">' + txt + '</span>';
+  }
+  // Status bar version
+  var sbVersion = document.querySelectorAll('#statusBar .sb-right span:last-child');
+  if (sbVersion.length) {
+    var last = sbVersion[sbVersion.length - 1];
+    var t = last.textContent.trim();
+    if (t.indexOf('v') === 0) {
+      last.innerHTML = '<span class="version-pill">' + t + '</span>';
+    }
+  }
+})();
+
+// ── v5.8: Card entrance stagger refinement (use the v58 keyframe) ──
+(function wireCardEnterV58() {
+  // Hook renderProfiles to add the card-enter-v58 class on new cards
+  var orig = renderProfiles;
+  renderProfiles = function() {
+    orig.apply(this, arguments);
+    var cards = document.querySelectorAll('#profileGrid .card:not(.card-enter-v58)');
+    cards.forEach(function(card, idx) {
+      card.style.animationDelay = (idx * 40) + 'ms';
+      card.classList.add('card-enter-v58');
+    });
+  };
+})();
+
+// ── v5.8: Init sequence ──
+initAltNumberHotkeys();
+initWindowControls();
+// Lazy-load stats/heatmap on first Events view visit (handled in wireViewTransitionsV58).
+// Also do an initial load in case the user starts on the Events view.
+setTimeout(function() {
+  if (document.getElementById('view-events') && document.getElementById('view-events').classList.contains('active')) {
+    loadStatsDashboard();
+    loadHeatmap();
+  }
+}, 500);
+// Refresh stats/heatmap when profiles change (throttled)
+var _statsRefreshTs = 0;
+ipcRenderer.on('profiles:updated', function() {
+  var now = Date.now();
+  if (now - _statsRefreshTs < 2000) return;
+  _statsRefreshTs = now;
+  setTimeout(loadStatsDashboard, 300);
+  setTimeout(loadHeatmap, 400);
+});
 </script>
 <!-- v5.5: Command Palette Overlay -->
 <div class="cmdk-overlay" id="cmdkOverlay" hidden>
@@ -5020,5 +5672,8 @@ setTimeout(function() {
     <p>Solte o arquivo aqui para importar</p>
   </div>
 </div>
+
+<!-- v5.8: Heatmap tooltip -->
+<div class="heatmap-tooltip" id="heatmapTooltip"></div>
 </body>
 </html>
