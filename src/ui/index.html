@@ -4935,26 +4935,6 @@
         position: relative;
         overflow: hidden;
       }
-      .skeleton-card::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(
-          90deg,
-          transparent 0%,
-          rgba(255, 140, 0, 0.04) 50%,
-          transparent 100%
-        );
-        animation: skel-shimmer 1.6s infinite;
-      }
-      @keyframes skel-shimmer {
-        0% {
-          transform: translateX(-100%);
-        }
-        100% {
-          transform: translateX(100%);
-        }
-      }
       .skel-line {
         height: 12px;
         border-radius: var(--radius-sm);
