@@ -36,6 +36,12 @@ const BACKUP_FILE = 'profiles.json.bak';
 const MAX_PROFILES = 12;
 const MAX_FILE_BYTES = 1024 * 1024; // 1MB sane limit
 
+// v5.5: Launch log (timeline) — persisted separado de profiles.json para
+// não interferir em migrações de schema de perfis. Limite de 5000 entradas
+// previne crescimento ilimitado (~6 meses de uso intensivo).
+const LAUNCH_LOG_FILE = 'launch-log.json';
+const MAX_LAUNCH_LOG_ENTRIES = 5000;
+
 // Cores para identificação visual rápida (paleta Naruto)
 const PALETTE = [
   '#FF8C00', '#DC2626', '#10B981', '#F59E0B',
@@ -97,6 +103,7 @@ function _migrateProfile(p) {
 
 let _profiles = null;       // cache em memória
 let _listeners = [];
+let _launchLog = null;      // v5.5: cache em memória do log de lançamentos
 
 function getDir() {
   return path.join(app.getPath('userData'), PROFILES_DIR);
@@ -128,6 +135,11 @@ function ensureDir() {
  */
 function load() {
   ensureDir();
+
+  // v5.5: carrega launch log sempre (independente do estado de profiles.json,
+  // para que o cache _launchLog não fique stale entre loads)
+  _loadLaunchLog();
+
   const file = getFile();
   const backup = getBackupFile();
 
@@ -478,6 +490,190 @@ function _rmrf(p) {
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// v5.5: Launch log (timeline) — log de lançamentos para gráfico de 7 dias
+// Persistido em userData/launch-log.json (arquivo separado de profiles.json).
+// Cada entrada: { id: profileId, ts: number }. Cap em MAX_LAUNCH_LOG_ENTRIES.
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Retorna o caminho do arquivo de launch log.
+ * @returns {string}
+ */
+function getLaunchLogFile() {
+  return path.join(app.getPath('userData'), LAUNCH_LOG_FILE);
+}
+
+/**
+ * Formata um timestamp como 'YYYY-MM-DD' usando hora LOCAL (não UTC).
+ * @param {number} ts
+ * @returns {string}
+ */
+function _formatDate(ts) {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+/**
+ * Carrega o launch log do disco. Arquivo ausente → array vazio.
+ * JSON malformado → array vazio + warning. Faz cap em MAX_LAUNCH_LOG_ENTRIES.
+ * NUNCA lança — captura todas as exceções.
+ * @returns {Array}
+ */
+function _loadLaunchLog() {
+  const file = getLaunchLogFile();
+  try {
+    if (fs.existsSync(file)) {
+      const raw = fs.readFileSync(file, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        // Valida cada entrada; descarta inválidas silenciosamente
+        _launchLog = parsed.filter(function (e) {
+          return e && typeof e.id === 'string' && typeof e.ts === 'number' && isFinite(e.ts);
+        });
+        if (_launchLog.length !== parsed.length) {
+          logger.warn('LaunchLog: ' + (parsed.length - _launchLog.length) + ' entrada(s) inválida(s) descartada(s)');
+        }
+      } else {
+        logger.warn('LaunchLog: arquivo não é array — iniciando vazio');
+        _launchLog = [];
+      }
+    } else {
+      // Backward-compat: primeira execução, arquivo não existe → começa vazio
+      _launchLog = [];
+    }
+  } catch (e) {
+    logger.warn('LaunchLog: arquivo corrompido (' + e.message + ') — iniciando vazio');
+    _launchLog = [];
+  }
+  // Cap defensivo (normalmente o cap já acontece em recordLaunch)
+  if (_launchLog.length > MAX_LAUNCH_LOG_ENTRIES) {
+    _launchLog = _launchLog.slice(_launchLog.length - MAX_LAUNCH_LOG_ENTRIES);
+  }
+  return _launchLog;
+}
+
+/**
+ * Persiste o launch log no disco (atomic write: tmp → rename). NUNCA lança.
+ */
+function _persistLaunchLog() {
+  if (_launchLog === null) return;
+  const file = getLaunchLogFile();
+  const tmp = file + '.tmp';
+  try {
+    const dir = app.getPath('userData');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const json = JSON.stringify(_launchLog);
+    fs.writeFileSync(tmp, json, 'utf8');
+    fs.renameSync(tmp, file);
+  } catch (e) {
+    logger.error('LaunchLog: falha ao salvar: ' + e.message);
+    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) { /* ignore */ }
+  }
+}
+
+/**
+ * v5.5: Registra um lançamento no log. No-op se o perfil não existir.
+ * @param {string} profileId
+ * @returns {boolean} true se registrou, false caso contrário (id inválido ou perfil inexistente)
+ */
+function recordLaunch(profileId) {
+  if (_profiles === null) load();
+  if (_launchLog === null) _loadLaunchLog();
+  if (typeof profileId !== 'string' || profileId.length === 0) return false;
+  const p = _profiles.find(function (x) { return x.id === profileId; });
+  if (!p) return false;
+  _launchLog.push({ id: profileId, ts: Date.now() });
+  // Cap em MAX_LAUNCH_LOG_ENTRIES (drop oldest)
+  if (_launchLog.length > MAX_LAUNCH_LOG_ENTRIES) {
+    _launchLog = _launchLog.slice(_launchLog.length - MAX_LAUNCH_LOG_ENTRIES);
+  }
+  _persistLaunchLog();
+  return true;
+}
+
+/**
+ * v5.5: Retorna timeline de lançamentos dos últimos `days` dias.
+ * Array de tamanho `days`, oldest first → newest last.
+ * Cada entrada: { date: 'YYYY-MM-DD', count: number, profiles: [{id, name, color, count}] }
+ * Entradas sem lançamentos aparecem com count 0 e profiles vazio.
+ * @param {number} [days=7]
+ * @returns {Array}
+ */
+function getLaunchTimeline(days) {
+  if (_launchLog === null) _loadLaunchLog();
+  if (_profiles === null) load();
+  if (typeof days !== 'number' || !isFinite(days) || days <= 0) days = 7;
+  days = Math.floor(days);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Constrói buckets: índice 0 = (days-1) dias atrás, índice (days-1) = hoje
+  const buckets = [];
+  const dateToIdx = {};
+  for (var i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = _formatDate(d.getTime());
+    const idx = buckets.length;
+    buckets.push({ date: dateStr, count: 0, profiles: [], _byId: {} });
+    dateToIdx[dateStr] = idx;
+  }
+
+  // Agrega launch log por data local
+  _launchLog.forEach(function (entry) {
+    const dateStr = _formatDate(entry.ts);
+    const idx = dateToIdx[dateStr];
+    if (idx === undefined) return; // fora da janela de dias
+    const b = buckets[idx];
+    b.count++;
+    const p = _profiles.find(function (x) { return x.id === entry.id; });
+    if (!p) return; // perfil deletado — não conta no profiles array
+    if (!b._byId[entry.id]) {
+      b._byId[entry.id] = { id: entry.id, name: p.name, color: p.color, count: 0 };
+      b.profiles.push(b._byId[entry.id]);
+    }
+    b._byId[entry.id].count++;
+  });
+
+  // Remove helper interno antes de retornar
+  buckets.forEach(function (b) { delete b._byId; });
+  return buckets;
+}
+
+/**
+ * v5.5: Limpa todo o launch log (zera e persiste).
+ */
+function clearLaunchLog() {
+  if (_launchLog === null) _loadLaunchLog();
+  _launchLog = [];
+  _persistLaunchLog();
+}
+
+/**
+ * v5.5: Retorna estatísticas do launch log.
+ * @returns {{total:number, oldestTs:number|null, newestTs:number|null}}
+ */
+function getLaunchLogStats() {
+  if (_launchLog === null) _loadLaunchLog();
+  if (_launchLog.length === 0) {
+    return { total: 0, oldestTs: null, newestTs: null };
+  }
+  let oldest = _launchLog[0].ts;
+  let newest = _launchLog[0].ts;
+  for (var i = 1; i < _launchLog.length; i++) {
+    if (_launchLog[i].ts < oldest) oldest = _launchLog[i].ts;
+    if (_launchLog[i].ts > newest) newest = _launchLog[i].ts;
+  }
+  return { total: _launchLog.length, oldestTs: oldest, newestTs: newest };
+}
+
 module.exports = {
   load: load,
   getAll: getAll,
@@ -497,4 +693,9 @@ module.exports = {
   getPartitionName: function (id) { return 'persist:profile-' + id; },
   MAX_PROFILES: MAX_PROFILES,
   PALETTE: PALETTE,
+  // v5.5: launch log (timeline)
+  recordLaunch: recordLaunch,
+  getLaunchTimeline: getLaunchTimeline,
+  clearLaunchLog: clearLaunchLog,
+  getLaunchLogStats: getLaunchLogStats,
 };

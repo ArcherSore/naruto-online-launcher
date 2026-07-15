@@ -26,6 +26,11 @@ jest.mock('../../../profiles/store', () => ({
   importJSON: jest.fn(() => ({ imported: 0, skipped: 0 })),
   MAX_PROFILES: 12,
   onChange: jest.fn(),
+  // v5.5: launch log methods
+  recordLaunch: jest.fn(() => true),
+  getLaunchTimeline: jest.fn(() => []),
+  clearLaunchLog: jest.fn(),
+  getLaunchLogStats: jest.fn(() => ({ total: 0, oldestTs: null, newestTs: null })),
 }));
 
 jest.mock('../../../memory/guard', () => ({
@@ -391,6 +396,110 @@ describe('IpcRouter.js', () => {
 
       await handler();
       expect(mg.collect).toHaveBeenCalledWith({ manual: true });
+    });
+  });
+
+  // ── v5.5: Launch log (timeline) handlers ──
+  describe('profile:launch-timeline handler', () => {
+    test('handler registrado', () => {
+      expect(handleHandlers['profile:launch-timeline']).toBeDefined();
+    });
+
+    test('chama store.getLaunchTimeline(7) por padrão', async () => {
+      store.getLaunchTimeline.mockReturnValue([
+        { date: '2024-01-01', count: 0, profiles: [] },
+      ]);
+      const handler = handleHandlers['profile:launch-timeline'];
+
+      const result = await handler({}, undefined);
+      expect(store.getLaunchTimeline).toHaveBeenCalledWith(7);
+      expect(Array.isArray(result)).toBe(true);
+    });
+
+    test('passa days informado para store.getLaunchTimeline', async () => {
+      store.getLaunchTimeline.mockReturnValue([]);
+      const handler = handleHandlers['profile:launch-timeline'];
+
+      await handler({}, 14);
+      expect(store.getLaunchTimeline).toHaveBeenCalledWith(14);
+    });
+
+    test('trata days=0 como default 7 (falsy → 7)', async () => {
+      store.getLaunchTimeline.mockReturnValue([]);
+      const handler = handleHandlers['profile:launch-timeline'];
+
+      await handler({}, 0);
+      expect(store.getLaunchTimeline).toHaveBeenCalledWith(7);
+    });
+  });
+
+  describe('profile:clear-launch-log handler', () => {
+    test('handler registrado', () => {
+      expect(handleHandlers['profile:clear-launch-log']).toBeDefined();
+    });
+
+    test('chama store.clearLaunchLog e retorna {ok:true}', async () => {
+      const handler = handleHandlers['profile:clear-launch-log'];
+
+      const result = await handler({});
+      expect(store.clearLaunchLog).toHaveBeenCalled();
+      expect(result).toEqual({ ok: true });
+    });
+
+    test('faz pushProfiles após limpar', async () => {
+      const handler = handleHandlers['profile:clear-launch-log'];
+
+      await handler({});
+      expect(StateBroadcaster.pushProfiles).toHaveBeenCalled();
+    });
+  });
+
+  describe('profile:launch-log-stats handler', () => {
+    test('handler registrado', () => {
+      expect(handleHandlers['profile:launch-log-stats']).toBeDefined();
+    });
+
+    test('chama store.getLaunchLogStats e retorna objeto', async () => {
+      const expected = { total: 42, oldestTs: 1000, newestTs: 5000 };
+      store.getLaunchLogStats.mockReturnValue(expected);
+      const handler = handleHandlers['profile:launch-log-stats'];
+
+      const result = await handler({});
+      expect(store.getLaunchLogStats).toHaveBeenCalled();
+      expect(result).toEqual(expected);
+      expect(typeof result).toBe('object');
+      expect(result).toHaveProperty('total');
+      expect(result).toHaveProperty('oldestTs');
+      expect(result).toHaveProperty('newestTs');
+    });
+  });
+
+  describe('launchProfile (function export)', () => {
+    test('chama store.recordLaunch além de incrementLaunch quando janela abre', () => {
+      const gameLauncher = require('../../game-launcher');
+      // Faz o mock do game-launcher invocar o callback onOpened
+      gameLauncher.launchProfile.mockImplementation(function (id, onOpened) {
+        if (onOpened) onOpened();
+      });
+
+      IpcRouter.launchProfile('p_001');
+
+      expect(store.incrementLaunch).toHaveBeenCalledWith('p_001');
+      expect(store.recordLaunch).toHaveBeenCalledWith('p_001');
+    });
+
+    test('não quebra o launch se store.recordLaunch lançar exceção', () => {
+      const gameLauncher = require('../../game-launcher');
+      gameLauncher.launchProfile.mockImplementation(function (id, onOpened) {
+        if (onOpened) onOpened();
+      });
+      store.recordLaunch.mockImplementation(function () {
+        throw new Error('boom');
+      });
+
+      expect(function () { IpcRouter.launchProfile('p_002'); }).not.toThrow();
+      expect(store.incrementLaunch).toHaveBeenCalledWith('p_002');
+      expect(store.recordLaunch).toHaveBeenCalledWith('p_002');
     });
   });
 });

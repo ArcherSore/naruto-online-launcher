@@ -40,6 +40,9 @@ describe('store.js', () => {
     // We force a fresh load by deleting the profiles file on disk
     const profilesDir = path.join(tmpDir, 'profiles');
     try { fs.rmSync(profilesDir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+    // v5.5: Clear launch log file from previous tests (no-op for non-launch-log tests)
+    const launchLogFile = path.join(tmpDir, 'launch-log.json');
+    try { fs.rmSync(launchLogFile, { force: true }); } catch (_) { /* ignore */ }
     // Force reload from disk (clears in-memory cache)
     store.load();
   });
@@ -446,6 +449,294 @@ describe('store.js', () => {
       // onChange may have been called during create → persist
       // Note: the listener list grows across tests, but we just verify it fires
       expect(called).toBe(true);
+    });
+  });
+
+  // ── v5.5: Launch log (timeline) ──
+  describe('launch log', () => {
+    // Helper: formata ts como 'YYYY-MM-DD' em hora local (replica _formatDate)
+    function formatDateLocal(ts) {
+      const d = new Date(ts);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    test('exports recordLaunch as function', () => {
+      expect(typeof store.recordLaunch).toBe('function');
+    });
+    test('exports getLaunchTimeline as function', () => {
+      expect(typeof store.getLaunchTimeline).toBe('function');
+    });
+    test('exports clearLaunchLog as function', () => {
+      expect(typeof store.clearLaunchLog).toBe('function');
+    });
+    test('exports getLaunchLogStats as function', () => {
+      expect(typeof store.getLaunchLogStats).toBe('function');
+    });
+
+    describe('recordLaunch', () => {
+      test('appends entry and returns true for valid profile id', () => {
+        const p = store.create({ name: 'Recorder' });
+        const result = store.recordLaunch(p.id);
+        expect(result).toBe(true);
+        const stats = store.getLaunchLogStats();
+        expect(stats.total).toBe(1);
+      });
+
+      test('returns false for unknown profile id', () => {
+        const result = store.recordLaunch('p_nonexistent');
+        expect(result).toBe(false);
+        expect(store.getLaunchLogStats().total).toBe(0);
+      });
+
+      test('returns false for empty string id', () => {
+        const result = store.recordLaunch('');
+        expect(result).toBe(false);
+      });
+
+      test('returns false for null id', () => {
+        const result = store.recordLaunch(null);
+        expect(result).toBe(false);
+      });
+
+      test('returns false for non-string id', () => {
+        const result = store.recordLaunch(12345);
+        expect(result).toBe(false);
+      });
+
+      test('persists entry to launch-log.json on disk', () => {
+        const p = store.create({ name: 'Persisted' });
+        store.recordLaunch(p.id);
+        const file = path.join(tmpDir, 'launch-log.json');
+        expect(fs.existsSync(file)).toBe(true);
+        const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+        expect(Array.isArray(data)).toBe(true);
+        expect(data.length).toBe(1);
+        expect(data[0].id).toBe(p.id);
+        expect(typeof data[0].ts).toBe('number');
+      });
+    });
+
+    describe('getLaunchTimeline', () => {
+      test('returns array of length=days (default 7)', () => {
+        const timeline = store.getLaunchTimeline();
+        expect(Array.isArray(timeline)).toBe(true);
+        expect(timeline.length).toBe(7);
+      });
+
+      test('supports custom days (e.g., 14)', () => {
+        const timeline = store.getLaunchTimeline(14);
+        expect(timeline.length).toBe(14);
+      });
+
+      test('supports custom days (e.g., 3)', () => {
+        const timeline = store.getLaunchTimeline(3);
+        expect(timeline.length).toBe(3);
+      });
+
+      test('oldest first → newest last (last bucket is today)', () => {
+        const timeline = store.getLaunchTimeline(7);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        expect(timeline[6].date).toBe(formatDateLocal(today.getTime()));
+        const sixDaysAgo = new Date(today);
+        sixDaysAgo.setDate(sixDaysAgo.getDate() - 6);
+        expect(timeline[0].date).toBe(formatDateLocal(sixDaysAgo.getTime()));
+      });
+
+      test('entries with 0 launches still present with count 0 and empty profiles', () => {
+        const timeline = store.getLaunchTimeline(7);
+        timeline.forEach(function (bucket) {
+          expect(bucket.count).toBe(0);
+          expect(Array.isArray(bucket.profiles)).toBe(true);
+          expect(bucket.profiles.length).toBe(0);
+          expect(typeof bucket.date).toBe('string');
+          expect(bucket.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        });
+      });
+
+      test('aggregates launches by local date (count matches log)', () => {
+        const p = store.create({ name: 'Aggregator' });
+        store.recordLaunch(p.id);
+        store.recordLaunch(p.id);
+        store.recordLaunch(p.id);
+        const timeline = store.getLaunchTimeline(7);
+        const todayBucket = timeline[6];
+        expect(todayBucket.count).toBe(3);
+      });
+
+      test('profiles array contains id/name/color/count', () => {
+        const p = store.create({ name: 'ProfileFields', color: '#FF8C00' });
+        store.recordLaunch(p.id);
+        store.recordLaunch(p.id);
+        const timeline = store.getLaunchTimeline(7);
+        const todayBucket = timeline[6];
+        expect(todayBucket.profiles.length).toBe(1);
+        const entry = todayBucket.profiles[0];
+        expect(entry.id).toBe(p.id);
+        expect(entry.name).toBe('ProfileFields');
+        expect(entry.color).toBe('#FF8C00');
+        expect(entry.count).toBe(2);
+      });
+
+      test('multiple profiles in same day are listed separately', () => {
+        const p1 = store.create({ name: 'Multi1', color: '#FF0000' });
+        const p2 = store.create({ name: 'Multi2', color: '#00FF00' });
+        store.recordLaunch(p1.id);
+        store.recordLaunch(p1.id);
+        store.recordLaunch(p2.id);
+        const timeline = store.getLaunchTimeline(7);
+        const todayBucket = timeline[6];
+        expect(todayBucket.count).toBe(3);
+        expect(todayBucket.profiles.length).toBe(2);
+      });
+
+      test('falls back to 7 days for invalid days argument', () => {
+        expect(store.getLaunchTimeline(0).length).toBe(7);
+        expect(store.getLaunchTimeline(-1).length).toBe(7);
+        expect(store.getLaunchTimeline(NaN).length).toBe(7);
+        expect(store.getLaunchTimeline('abc').length).toBe(7);
+        expect(store.getLaunchTimeline(undefined).length).toBe(7);
+      });
+    });
+
+    describe('clearLaunchLog', () => {
+      test('empties the log (subsequent getLaunchTimeline returns all-zero counts)', () => {
+        const p = store.create({ name: 'Clearable' });
+        store.recordLaunch(p.id);
+        store.recordLaunch(p.id);
+        expect(store.getLaunchLogStats().total).toBe(2);
+        store.clearLaunchLog();
+        const stats = store.getLaunchLogStats();
+        expect(stats.total).toBe(0);
+        const timeline = store.getLaunchTimeline(7);
+        timeline.forEach(function (bucket) {
+          expect(bucket.count).toBe(0);
+          expect(bucket.profiles.length).toBe(0);
+        });
+      });
+
+      test('persists empty log to disk', () => {
+        const p = store.create({ name: 'Clearable2' });
+        store.recordLaunch(p.id);
+        const file = path.join(tmpDir, 'launch-log.json');
+        expect(JSON.parse(fs.readFileSync(file, 'utf8')).length).toBe(1);
+        store.clearLaunchLog();
+        const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+        expect(Array.isArray(data)).toBe(true);
+        expect(data.length).toBe(0);
+      });
+
+      test('returns nothing (undefined)', () => {
+        const result = store.clearLaunchLog();
+        expect(result).toBeUndefined();
+      });
+    });
+
+    describe('getLaunchLogStats', () => {
+      test('empty log returns total:0, oldestTs:null, newestTs:null', () => {
+        const stats = store.getLaunchLogStats();
+        expect(stats).toEqual({ total: 0, oldestTs: null, newestTs: null });
+      });
+
+      test('populated log returns correct total + oldest/newest ts', () => {
+        const p = store.create({ name: 'StatCheck' });
+        // Pre-populate launch-log.json with known timestamps
+        const file = path.join(tmpDir, 'launch-log.json');
+        const entries = [
+          { id: p.id, ts: 1000 },
+          { id: p.id, ts: 5000 },
+          { id: p.id, ts: 3000 },
+          { id: p.id, ts: 8000 },
+        ];
+        fs.writeFileSync(file, JSON.stringify(entries), 'utf8');
+        store.load(); // reload to pick up the file
+        const stats = store.getLaunchLogStats();
+        expect(stats.total).toBe(4);
+        expect(stats.oldestTs).toBe(1000);
+        expect(stats.newestTs).toBe(8000);
+      });
+    });
+
+    describe('persistence', () => {
+      test('log is restored after re-load()', () => {
+        const p = store.create({ name: 'Persist' });
+        store.recordLaunch(p.id);
+        store.recordLaunch(p.id);
+        store.recordLaunch(p.id);
+        expect(store.getLaunchLogStats().total).toBe(3);
+        // Force reload from disk (simulates app restart)
+        store.load();
+        const stats = store.getLaunchLogStats();
+        expect(stats.total).toBe(3);
+      });
+
+      test('missing launch-log.json on first run starts empty (no migration needed)', () => {
+        // No file exists at this point (beforeEach deleted it)
+        const file = path.join(tmpDir, 'launch-log.json');
+        expect(fs.existsSync(file)).toBe(false);
+        store.load();
+        expect(store.getLaunchLogStats().total).toBe(0);
+        expect(store.getLaunchTimeline(7).length).toBe(7);
+      });
+
+      test('malformed launch-log.json falls back to empty array', () => {
+        const file = path.join(tmpDir, 'launch-log.json');
+        fs.writeFileSync(file, 'NOT VALID JSON {{{', 'utf8');
+        store.load();
+        expect(store.getLaunchLogStats().total).toBe(0);
+      });
+
+      test('launch-log.json that is not an array falls back to empty array', () => {
+        const file = path.join(tmpDir, 'launch-log.json');
+        fs.writeFileSync(file, JSON.stringify({ not: 'an array' }), 'utf8');
+        store.load();
+        expect(store.getLaunchLogStats().total).toBe(0);
+      });
+    });
+
+    describe('cap at MAX_LAUNCH_LOG_ENTRIES (5000)', () => {
+      test('caps at 5000 entries when recordLaunch exceeds (oldest dropped)', () => {
+        const p = store.create({ name: 'CapTest' });
+        // Pre-populate launch-log.json with 4999 entries (ts 1..4999)
+        const entries = [];
+        for (var i = 1; i <= 4999; i++) {
+          entries.push({ id: p.id, ts: i });
+        }
+        const file = path.join(tmpDir, 'launch-log.json');
+        fs.writeFileSync(file, JSON.stringify(entries), 'utf8');
+        store.load();
+        // Insert 6 more via recordLaunch (total would be 5005)
+        for (var j = 0; j < 6; j++) {
+          store.recordLaunch(p.id);
+        }
+        // Cap should have kicked in: only 5000 entries remain
+        const stats = store.getLaunchLogStats();
+        expect(stats.total).toBe(5000);
+        // Oldest 5 entries (ts 1..5) should be dropped
+        const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const tsSet = new Set(data.map(function (e) { return e.ts; }));
+        expect(tsSet.has(1)).toBe(false);
+        expect(tsSet.has(5)).toBe(false);
+        expect(tsSet.has(6)).toBe(true); // ts 6 is the oldest surviving
+      });
+
+      test('caps at 5000 entries on load when file has 5005 entries', () => {
+        const p = store.create({ name: 'LoadCap' });
+        const entries = [];
+        for (var i = 1; i <= 5005; i++) {
+          entries.push({ id: p.id, ts: i });
+        }
+        const file = path.join(tmpDir, 'launch-log.json');
+        fs.writeFileSync(file, JSON.stringify(entries), 'utf8');
+        store.load();
+        const stats = store.getLaunchLogStats();
+        expect(stats.total).toBe(5000);
+        expect(stats.oldestTs).toBe(6); // first 5 dropped
+        expect(stats.newestTs).toBe(5005);
+      });
     });
   });
 });

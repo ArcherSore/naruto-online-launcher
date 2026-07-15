@@ -94,6 +94,19 @@ function registerIpcHandlers(handlers) {
     return store.getStats(id);
   });
 
+  // v5.5: Launch timeline (7-day activity chart data)
+  ipcMain.handle('profile:launch-timeline', function (_e, days) {
+    return store.getLaunchTimeline(days || 7);
+  });
+  ipcMain.handle('profile:clear-launch-log', function () {
+    store.clearLaunchLog();
+    _pushProfiles();
+    return { ok: true };
+  });
+  ipcMain.handle('profile:launch-log-stats', function () {
+    return store.getLaunchLogStats();
+  });
+
   ipcMain.on('profile:update-notes', function (_e, data) {
     if (typeof data !== 'object' || typeof data.id !== 'string' || typeof data.notes !== 'string') return;
     store.update(data.id, { notes: data.notes.slice(0, 200) });
@@ -528,6 +541,12 @@ function launchProfile(profileId, onOpened, onClosed) {
   const gameLauncher = require('../game-launcher');
   gameLauncher.launchProfile(profileId, function () {
     store.incrementLaunch(profileId);
+    // v5.5: registra no launch log para timeline (não pode quebrar o launch)
+    try {
+      store.recordLaunch(profileId);
+    } catch (e) {
+      logger.warn('IpcRouter: recordLaunch falhou: ' + e.message);
+    }
     _launchTimes.set(profileId, Date.now());
     _pushProfiles();
     if (onOpened) onOpened();

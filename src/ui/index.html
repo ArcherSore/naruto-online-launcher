@@ -756,6 +756,139 @@
   .toast.show{animation:toastSlideIn 320ms cubic-bezier(.2,.8,.3,1)}
   @keyframes toastSlideIn{from{transform:translate(-50%,-12px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
 
+  /* ── v5.5: Custom themed scrollbars ── */
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:var(--bg-elev)}
+  ::-webkit-scrollbar-thumb{background:var(--border-hover);border-radius:5px;border:2px solid var(--bg-elev)}
+  ::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+  ::-webkit-scrollbar-corner{background:var(--bg-elev)}
+  *{scrollbar-width:thin;scrollbar-color:var(--border-hover) var(--bg-elev)}
+
+  /* ── v5.5: Focus ring polish ── */
+  *:focus{outline:none}
+  *:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+  .btn:focus-visible,.nav-item:focus-visible,.card:focus-visible,.accent-swatch:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ── v5.5: Glass morphism cards ── */
+  .card.glass-card{
+    background:rgba(15,15,15,.72);
+    backdrop-filter:blur(12px) saturate(140%);
+    -webkit-backdrop-filter:blur(12px) saturate(140%);
+    border:1px solid rgba(255,255,255,.06);
+    box-shadow:0 8px 32px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .card.glass-card:hover{
+    background:rgba(26,26,26,.78);
+    border-color:rgba(255,140,0,.35);
+    box-shadow:0 12px 36px rgba(0,0,0,.5),0 0 0 1px rgba(255,140,0,.12),inset 0 1px 0 rgba(255,255,255,.06);
+  }
+
+  /* ── v5.5: 3D card tilt on hover ── */
+  .card{transform-style:preserve-3d;will-change:transform}
+  .card:hover{
+    transform:perspective(800px) rotateX(2deg) translateY(-3px);
+  }
+  @keyframes cardTiltReset{from{transform:perspective(800px) rotateX(0) translateY(0)}to{transform:none}}
+
+  /* ── v5.5: View transition ── */
+  @keyframes viewEnter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .view.view-enter{animation:viewEnter 250ms ease-out}
+
+  /* ── v5.5: Enhanced empty state ── */
+  .empty{position:relative}
+  .empty-shuriken{position:relative}
+  .empty-shuriken::before{content:'';position:absolute;inset:-12px;border-radius:50%;background:radial-gradient(circle,rgba(255,140,0,.15) 0%,transparent 70%);animation:glowPulse 3s ease-in-out infinite;z-index:-1}
+  .empty-shuriken svg{width:4.5rem;height:4.5rem;color:var(--accent);opacity:.55;filter:drop-shadow(0 0 8px rgba(255,140,0,.25))}
+  .empty h3{font-size:var(--font-xl);font-weight:var(--weight-bold);color:var(--text);letter-spacing:.3px}
+  .empty p{font-size:var(--font-md);color:var(--text-dim);max-width:340px;line-height:1.5}
+
+  /* ── v5.5: Notifications Bell + Dropdown ── */
+  .notif-bell{position:relative;width:2rem;height:2rem;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;transition:var(--transition);padding:0}
+  .notif-bell:hover{background:var(--surface);color:var(--accent);border-color:var(--border-hover)}
+  .notif-bell svg{width:1rem;height:1rem;stroke-width:2}
+  .notif-bell.has-new svg{animation:bellSway 600ms ease-in-out}
+  .notif-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;background:var(--accent);color:#0a0a0f;font-size:10px;font-weight:var(--weight-bold);border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;font-family:var(--font-family);box-shadow:0 0 0 2px var(--bg-elev)}
+  .notif-dropdown{position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;background:var(--bg-elev);border:1px solid var(--border-hover);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:var(--z-overlay);display:flex;flex-direction:column;overflow:hidden;animation:modalIn 180ms ease-out}
+  .notif-header{display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border);background:var(--bg-elev-2)}
+  .notif-header span{font-size:var(--font-sm);font-weight:var(--weight-semibold);color:var(--text)}
+  .notif-clear{background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-faint);font-size:var(--font-xs);padding:.2rem .55rem;cursor:pointer;transition:var(--transition);font-family:var(--font-family)}
+  .notif-clear:hover{border-color:var(--danger);color:var(--danger)}
+  .notif-list{flex:1;overflow-y:auto;max-height:340px}
+  .notif-item{display:flex;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border);transition:background 100ms ease}
+  .notif-item:last-child{border-bottom:none}
+  .notif-item:hover{background:var(--surface)}
+  .notif-item .ni-icon{width:1.4rem;height:1.4rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);margin-top:1px}
+  .notif-item.ok .ni-icon{background:rgba(16,185,129,.12);color:var(--ok)}
+  .notif-item.err .ni-icon{background:rgba(220,38,38,.12);color:var(--danger)}
+  .notif-item.info .ni-icon{background:rgba(255,140,0,.1);color:var(--accent)}
+  .notif-item .ni-body{flex:1;min-width:0}
+  .notif-item .ni-msg{font-size:var(--font-sm);color:var(--text);line-height:1.4;word-wrap:break-word}
+  .notif-item .ni-time{font-size:var(--font-xs);color:var(--text-faint);margin-top:.15rem;font-variant-numeric:tabular-nums}
+  .notif-empty{text-align:center;padding:var(--space-6) var(--space-4);color:var(--text-faint);font-size:var(--font-sm)}
+
+  /* ── v5.5: Theme Variants ── */
+  .theme-variants{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2)}
+  .theme-variant-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-3);cursor:pointer;transition:var(--transition);position:relative;overflow:hidden}
+  .theme-variant-card:hover{border-color:var(--border-hover);transform:translateY(-2px)}
+  .theme-variant-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 4px 12px rgba(255,140,0,.15)}
+  .theme-variant-card .tv-swatches{display:flex;gap:3px;margin-bottom:var(--space-2)}
+  .theme-variant-card .tv-swatches span{width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,.1)}
+  .theme-variant-card .tv-name{font-size:var(--font-xs);font-weight:var(--weight-medium);color:var(--text-dim);text-align:center}
+  .theme-variant-card.active .tv-name{color:var(--accent)}
+  .theme-hint{font-size:var(--font-xs);color:var(--text-faint);margin-top:.4rem;line-height:1.4}
+
+  /* ── v5.5: Activity Timeline Chart ── */
+  .timeline-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:var(--space-4)}
+  .timeline-header{display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-4);background:var(--bg-elev);border-bottom:1px solid var(--border)}
+  .timeline-header h4{font-size:var(--font-sm);font-weight:var(--weight-semibold);display:flex;align-items:center;gap:var(--space-2)}
+  .timeline-header h4 svg{width:.9rem;height:.9rem;color:var(--accent)}
+  .timeline-clear{background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-faint);font-size:var(--font-xs);padding:.15rem .5rem;cursor:pointer;transition:var(--transition);font-family:var(--font-family)}
+  .timeline-clear:hover{border-color:var(--danger);color:var(--danger)}
+  .timeline-chart{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-2);padding:var(--space-4);height:180px;position:relative}
+  .timeline-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:var(--space-1);min-width:0;cursor:default;position:relative}
+  .timeline-bar-count{font-size:var(--font-xs);font-weight:var(--weight-semibold);color:var(--text-dim);font-variant-numeric:tabular-nums;height:14px;visibility:hidden}
+  .timeline-bar-col.has-count .timeline-bar-count{visibility:visible}
+  .timeline-bar{width:100%;max-width:36px;min-height:4px;background:linear-gradient(180deg,var(--accent) 0%,var(--accent-2) 100%);border-radius:var(--radius-sm) var(--radius-sm) 0 0;transform-origin:bottom;animation:barGrow 600ms ease-out;transition:filter 150ms ease;position:relative}
+  .timeline-bar-col:hover .timeline-bar{filter:brightness(1.2)}
+  .timeline-bar-col.today .timeline-bar{box-shadow:0 0 12px rgba(255,140,0,.4)}
+  .timeline-bar-col.today .timeline-bar::after{content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulseRing 1.6s ease-in-out infinite}
+  .timeline-bar-col.empty .timeline-bar{background:var(--border);min-height:2px;opacity:.5}
+  @keyframes barGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+  .timeline-day{font-size:var(--font-xs);font-weight:var(--weight-medium);color:var(--text-dim);text-transform:capitalize}
+  .timeline-date{font-size:10px;color:var(--text-faint);font-variant-numeric:tabular-nums}
+  .timeline-bar-col.today .timeline-day{color:var(--accent)}
+  .timeline-tooltip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--bg-elev-2);border:1px solid var(--border-hover);border-radius:var(--radius-sm);padding:.4rem .6rem;font-size:var(--font-xs);color:var(--text);white-space:nowrap;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity 150ms ease;z-index:5}
+  .timeline-bar-col:hover .timeline-tooltip{opacity:1}
+  .timeline-empty-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-faint);font-size:var(--font-sm);text-align:center;padding:var(--space-4);pointer-events:none}
+  .timeline-legend{display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) var(--space-4);border-top:1px solid var(--border);background:var(--bg-elev);font-size:var(--font-xs);color:var(--text-faint)}
+  .timeline-legend strong{color:var(--accent);font-weight:var(--weight-semibold)}
+
+  /* ── v5.5: Command Palette ── */
+  .cmdk-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:var(--z-modal);display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;animation:overlayIn 180ms ease-out}
+  .cmdk-overlay[hidden]{display:none}
+  .cmdk-modal{width:100%;max-width:560px;background:var(--bg-elev);border:1px solid var(--border-hover);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);overflow:hidden;animation:modalIn 220ms cubic-bezier(.2,.8,.3,1)}
+  .cmdk-input-wrap{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4);border-bottom:1px solid var(--border);background:var(--bg-elev-2)}
+  .cmdk-icon{width:1.1rem;height:1.1rem;color:var(--text-faint);flex-shrink:0;stroke-width:2}
+  .cmdk-input-wrap input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:var(--font-md);font-family:var(--font-family)}
+  .cmdk-input-wrap input::placeholder{color:var(--text-faint)}
+  .cmdk-esc{font-size:var(--font-xs);color:var(--text-faint);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.15rem .45rem;font-family:var(--font-family);font-weight:var(--weight-medium)}
+  .cmdk-results{max-height:360px;overflow-y:auto;padding:var(--space-2)}
+  .cmdk-result{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-3);border-radius:var(--radius);cursor:pointer;transition:background 100ms ease;position:relative}
+  .cmdk-result:hover{background:var(--surface)}
+  .cmdk-result.selected{background:rgba(255,140,0,.1);box-shadow:inset 0 0 0 1px rgba(255,140,0,.25)}
+  .cmdk-result .cr-icon{width:1.4rem;height:1.4rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim)}
+  .cmdk-result.selected .cr-icon{color:var(--accent);border-color:rgba(255,140,0,.35)}
+  .cmdk-result .cr-icon svg{width:.85rem;height:.85rem;stroke-width:2}
+  .cmdk-result .cr-body{flex:1;min-width:0}
+  .cmdk-result .cr-title{font-size:var(--font-sm);font-weight:var(--weight-medium);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cmdk-result .cr-sub{font-size:var(--font-xs);color:var(--text-faint);margin-top:.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cmdk-result .cr-cat{font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.5px;font-weight:var(--weight-semibold);padding:.1rem .35rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);flex-shrink:0}
+  .cmdk-result.selected .cr-cat{color:var(--accent);border-color:rgba(255,140,0,.3);background:rgba(255,140,0,.06)}
+  .cmdk-empty{padding:var(--space-6) var(--space-4);text-align:center;color:var(--text-faint);font-size:var(--font-sm)}
+  .cmdk-footer{display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) var(--space-4);border-top:1px solid var(--border);background:var(--bg-elev-2);font-size:var(--font-xs);color:var(--text-faint)}
+  .cmdk-footer span{display:flex;align-items:center;gap:.25rem}
+  .cmdk-footer kbd{font-family:var(--font-family);font-size:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.05rem .3rem;color:var(--text-dim);font-weight:var(--weight-medium)}
+
 </style>
 </head>
 <body>
@@ -873,6 +1006,21 @@
         <button class="btn icon" id="muteBtn" title="Notificações">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         </button>
+        <!-- v5.5: Notifications Center -->
+        <div style="position:relative">
+          <button class="notif-bell" id="notifBell" aria-label="Centro de notificações" title="Notificações recentes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="notif-badge" id="notifBadge" hidden>0</span>
+          </button>
+          <div class="notif-dropdown" id="notifDropdown" hidden>
+            <div class="notif-header">
+              <span>Notificações</span>
+              <button class="notif-clear" id="notifClear" type="button">Limpar</button>
+            </div>
+            <div class="notif-list" id="notifList"></div>
+            <div class="notif-empty" id="notifEmpty">Nenhuma notificação ainda.</div>
+          </div>
+        </div>
         <button class="btn icon" id="kbHelpBtn" title="Atalhos de teclado (?)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6.01" y2="10"/><line x1="10" y1="10" x2="10.01" y2="10"/><line x1="14" y1="10" x2="14.01" y2="10"/><line x1="18" y1="10" x2="18.01" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
         </button>
@@ -969,6 +1117,21 @@
         </div>
         <div class="tabs" id="regionTabs"></div>
         <div id="eventList"></div>
+        <!-- v5.5: Activity Timeline (7-day launches bar chart) -->
+        <div class="timeline-section">
+          <div class="timeline-header">
+            <h4>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Atividade — últimos 7 dias
+            </h4>
+            <button class="timeline-clear" id="timelineClearBtn" type="button" title="Limpar histórico de lançamentos">Limpar</button>
+          </div>
+          <div class="timeline-chart" id="timelineChart"></div>
+          <div class="timeline-legend" id="timelineLegend">
+            <span>Total: <strong id="timelineTotal">0</strong> lançamentos</span>
+            <span>Média: <strong id="timelineAvg">0</strong>/dia</span>
+          </div>
+        </div>
         <!-- v5.0: Activity Log -->
         <div class="activity-section" id="activitySection">
           <div class="activity-header">
@@ -1120,6 +1283,32 @@
               <div class="accent-swatch" data-color="purple" data-hex="#8B5CF6" data-hover="#A78BFA" title="Roxo"></div>
               <div class="accent-swatch" data-color="red" data-hex="#DC2626" data-hover="#EF4444" title="Vermelho"></div>
               <div class="accent-swatch" data-color="amber" data-hex="#F59E0B" data-hover="#FBBF24" title="Âmbar"></div>
+            </div>
+          </div>
+          <div class="settings-row with-icon">
+            <div class="settings-row-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></div>
+            <div style="flex:1">
+              <div class="label">Tema (v5.5)</div>
+              <div class="desc">Predefinições de paleta que trocam a cor de destaque. Persistente entre sessões.</div>
+              <div class="theme-variants" id="themeVariants" style="margin-top:.6rem">
+                <div class="theme-variant-card active" data-variant="midnight" title="Midnight Shinobi (padrão)">
+                  <div class="tv-swatches"><span style="background:#000000"></span><span style="background:#FF8C00"></span><span style="background:#FF6B00"></span></div>
+                  <div class="tv-name">Midnight</div>
+                </div>
+                <div class="theme-variant-card" data-variant="crimson" title="Crimson Dawn">
+                  <div class="tv-swatches"><span style="background:#000000"></span><span style="background:#DC2626"></span><span style="background:#B91C1C"></span></div>
+                  <div class="tv-name">Crimson</div>
+                </div>
+                <div class="theme-variant-card" data-variant="forest" title="Forest Mist">
+                  <div class="tv-swatches"><span style="background:#000000"></span><span style="background:#10B981"></span><span style="background:#059669"></span></div>
+                  <div class="tv-name">Forest</div>
+                </div>
+                <div class="theme-variant-card" data-variant="arctic" title="Arctic Glow">
+                  <div class="tv-swatches"><span style="background:#000000"></span><span style="background:#06B6D4"></span><span style="background:#0891B2"></span></div>
+                  <div class="tv-name">Arctic</div>
+                </div>
+              </div>
+              <div class="theme-hint">Dica: o seletor de cor individual acima sobrescreve o tema. Aplique um tema para resetar, depois ajuste a cor.</div>
             </div>
           </div>
         </div>
@@ -1348,6 +1537,7 @@
         <div class="kb-group-title">Ações</div>
         <div class="kb-row"><span class="kb-action">Nova conta</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">N</span></span></div>
         <div class="kb-row"><span class="kb-action">Buscar contas</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">F</span><span class="kb-key accent">/</span></span></div>
+        <div class="kb-row"><span class="kb-action">Command Palette</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">K</span></span></div>
         <div class="kb-row"><span class="kb-action">Limpar busca</span><span class="kb-keys"><span class="kb-key accent">Esc</span></span></div>
         <div class="kb-row"><span class="kb-action">Seleção múltipla</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">B</span></span></div>
         <div class="kb-row"><span class="kb-action">Exportar backup</span><span class="kb-keys"><span class="kb-key accent">Ctrl</span><span class="kb-key">E</span></span></div>
@@ -3680,6 +3870,449 @@ setInterval(function() {
     cleanupShine();
   }
 }, 60000);
+
+// ════════════════════════════════════════════════════════════════════
+// v5.5: Theme Variants · Notifications Center · Command Palette · Timeline
+// ════════════════════════════════════════════════════════════════════
+
+// ── v5.5: Theme Variants ──
+var THEME_VARIANT_KEY = 'shinobi-theme-variant';
+var THEME_VARIANTS = {
+  midnight: { accent: '#FF8C00', hover: '#FFA833', accent2: '#FF6B00', label: 'Midnight Shinobi' },
+  crimson:  { accent: '#DC2626', hover: '#EF4444', accent2: '#B91C1C', label: 'Crimson Dawn' },
+  forest:   { accent: '#10B981', hover: '#34D399', accent2: '#059669', label: 'Forest Mist' },
+  arctic:   { accent: '#06B6D4', hover: '#22D3EE', accent2: '#0891B2', label: 'Arctic Glow' }
+};
+function applyThemeVariant(variant) {
+  var v = THEME_VARIANTS[variant];
+  if (!v) return;
+  if (variant === 'midnight') {
+    // Reset to defaults — clear inline overrides
+    document.documentElement.style.removeProperty('--accent');
+    document.documentElement.style.removeProperty('--accent-hover');
+    document.documentElement.style.removeProperty('--accent-2');
+  } else {
+    document.documentElement.style.setProperty('--accent', v.accent);
+    document.documentElement.style.setProperty('--accent-hover', v.hover);
+    document.documentElement.style.setProperty('--accent-2', v.accent2);
+  }
+  // Sync accent picker active state
+  var picker = document.getElementById('accentPicker');
+  if (picker) {
+    picker.querySelectorAll('.accent-swatch').forEach(function(s) {
+      s.classList.toggle('active', s.getAttribute('data-hex') === v.accent);
+    });
+  }
+  // Update theme variant card active state
+  document.querySelectorAll('.theme-variant-card').forEach(function(c) {
+    c.classList.toggle('active', c.getAttribute('data-variant') === variant);
+  });
+}
+function initThemeVariants() {
+  var saved = 'midnight';
+  try { saved = localStorage.getItem(THEME_VARIANT_KEY) || 'midnight'; } catch (_) {}
+  if (!THEME_VARIANTS[saved]) saved = 'midnight';
+  applyThemeVariant(saved);
+  document.querySelectorAll('.theme-variant-card').forEach(function(card) {
+    card.onclick = function() {
+      var variant = card.getAttribute('data-variant');
+      applyThemeVariant(variant);
+      localStorage.setItem(THEME_VARIANT_KEY, variant);
+      // Clear any saved individual accent (theme takes precedence)
+      try { localStorage.removeItem(ACCENT_STORAGE_KEY); } catch (_) {}
+      toast('Tema: ' + THEME_VARIANTS[variant].label, 'ok');
+    };
+  });
+}
+
+// ── v5.5: Notifications Center ──
+var notifications = [];
+var notifViewed = 0;
+var NOTIF_MAX = 30;
+function pushNotification(msg, type) {
+  if (!msg) return;
+  notifications.unshift({ msg: String(msg), type: type || 'info', ts: Date.now() });
+  if (notifications.length > NOTIF_MAX) notifications.length = NOTIF_MAX;
+  updateNotifBadge();
+  // Sway animation
+  var bell = document.getElementById('notifBell');
+  if (bell) {
+    bell.classList.remove('has-new');
+    void bell.offsetWidth; // reflow to restart animation
+    bell.classList.add('has-new');
+  }
+}
+function updateNotifBadge() {
+  var badge = document.getElementById('notifBadge');
+  if (!badge) return;
+  var unviewed = Math.max(0, notifications.length - notifViewed);
+  if (unviewed > 0) {
+    badge.textContent = unviewed > 9 ? '9+' : String(unviewed);
+    badge.hidden = false;
+  } else {
+    badge.hidden = true;
+  }
+}
+function renderNotifications() {
+  var list = document.getElementById('notifList');
+  var empty = document.getElementById('notifEmpty');
+  if (!list || !empty) return;
+  if (!notifications.length) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = notifications.map(function(n) {
+    var icon = n.type === 'ok'
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+      : n.type === 'err'
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+      : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    var rel = formatRelativeTime(n.ts);
+    return '<div class="notif-item ' + (n.type || 'info') + '">'
+      + '<div class="ni-icon">' + icon + '</div>'
+      + '<div class="ni-body"><div class="ni-msg">' + esc(n.msg) + '</div>'
+      + '<div class="ni-time">' + rel.label + '</div></div>'
+      + '</div>';
+  }).join('');
+}
+function initNotificationCenter() {
+  var bell = document.getElementById('notifBell');
+  var dropdown = document.getElementById('notifDropdown');
+  if (!bell || !dropdown) return;
+  bell.onclick = function(e) {
+    e.stopPropagation();
+    var isHidden = dropdown.hidden;
+    dropdown.hidden = !isHidden;
+    if (isHidden) {
+      notifViewed = notifications.length;
+      updateNotifBadge();
+      renderNotifications();
+    }
+  };
+  document.getElementById('notifClear').onclick = function(e) {
+    e.stopPropagation();
+    notifications = [];
+    notifViewed = 0;
+    updateNotifBadge();
+    renderNotifications();
+    toast('Notificações limpas', 'ok');
+  };
+  // Click outside closes dropdown
+  document.addEventListener('click', function(e) {
+    if (!dropdown.hidden && !bell.parentElement.contains(e.target)) {
+      dropdown.hidden = true;
+    }
+  });
+  // Auto-refresh relative times every 30s while open
+  setInterval(function() {
+    if (!dropdown.hidden) renderNotifications();
+  }, 30000);
+}
+
+// ── v5.5: Activity Timeline (7-day bar chart) ──
+var WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+async function loadTimeline() {
+  var chart = document.getElementById('timelineChart');
+  if (!chart) return;
+  var data;
+  try {
+    data = await ipcRenderer.invoke('profile:launch-timeline', 7);
+  } catch (e) {
+    chart.innerHTML = '<div class="timeline-empty-msg">Erro ao carregar atividade.</div>';
+    return;
+  }
+  if (!Array.isArray(data) || !data.length) {
+    chart.innerHTML = '<div class="timeline-empty-msg">Nenhuma atividade ainda. Jogue para ver o gráfico ganhar vida!</div>';
+    return;
+  }
+  var maxCount = 1;
+  var totalCount = 0;
+  data.forEach(function(d) {
+    if (d.count > maxCount) maxCount = d.count;
+    totalCount += d.count || 0;
+  });
+  var todayStr = (function() {
+    var d = new Date();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  })();
+  var hasAny = totalCount > 0;
+  var barsHtml = data.map(function(d) {
+    var isToday = d.date === todayStr;
+    var heightPct = d.count > 0 ? Math.max(8, (d.count / maxCount) * 100) : 0;
+    var dateObj = new Date(d.date + 'T00:00:00');
+    var weekday = isNaN(dateObj.getTime()) ? '?' : WEEKDAY_SHORT[dateObj.getDay()];
+    var dateLabel = d.date.slice(8) + '/' + d.date.slice(5, 7);
+    var topProfile = (d.profiles && d.profiles.length) ? d.profiles[0] : null;
+    var tooltipText = d.date + ' · ' + d.count + ' lançamento' + (d.count === 1 ? '' : 's');
+    if (topProfile) tooltipText += ' · Top: ' + topProfile.name + ' (' + topProfile.count + 'x)';
+    var barStyle = d.count > 0
+      ? 'height:' + heightPct + '%'
+      : 'height:2px';
+    var classes = 'timeline-bar-col' + (isToday ? ' today' : '') + (d.count > 0 ? '' : ' empty') + (d.count > 0 ? ' has-count' : '');
+    return '<div class="' + classes + '">'
+      + '<div class="timeline-bar-count">' + (d.count || '') + '</div>'
+      + '<div class="timeline-bar" style="' + barStyle + '"></div>'
+      + '<div class="timeline-day">' + weekday + '</div>'
+      + '<div class="timeline-date">' + dateLabel + '</div>'
+      + '<div class="timeline-tooltip">' + esc(tooltipText) + '</div>'
+      + '</div>';
+  }).join('');
+  chart.innerHTML = barsHtml + (hasAny ? '' : '<div class="timeline-empty-msg">Nenhuma atividade ainda. Jogue para ver o gráfico ganhar vida!</div>');
+  // Update legend
+  var totalEl = document.getElementById('timelineTotal');
+  var avgEl = document.getElementById('timelineAvg');
+  if (totalEl) totalEl.textContent = totalCount;
+  if (avgEl) avgEl.textContent = (totalCount / 7).toFixed(1);
+}
+function initTimelineClearBtn() {
+  var btn = document.getElementById('timelineClearBtn');
+  if (!btn) return;
+  btn.onclick = async function() {
+    if (!confirm('Limpar todo o histórico de lançamentos? Esta ação não pode ser desfeita.')) return;
+    try {
+      await ipcRenderer.invoke('profile:clear-launch-log');
+      toast('Histórico de atividade limpo', 'ok');
+      loadTimeline();
+    } catch (e) {
+      toast('Erro ao limpar: ' + e.message, 'err');
+    }
+  };
+}
+
+// ── v5.5: Command Palette (Ctrl+K) ──
+var cmdkState = { items: [], selected: 0, query: '' };
+function buildCmdkIndex() {
+  var items = [];
+  // Profiles
+  profiles.forEach(function(p) {
+    items.push({
+      type: 'profile',
+      title: p.name + ' (' + p.server + ')',
+      sub: 'perfil · região ' + (p.region || '?').toUpperCase() + (p.launchCount ? ' · ' + p.launchCount + 'x' : ''),
+      category: 'Perfil',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/></svg>',
+      action: function() { launch(p.id); }
+    });
+  });
+  // Navigation
+  items.push({ type: 'nav', title: 'Contas', sub: 'navegação · ver perfis', category: 'Nav', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>', action: function() { clickNav('accounts'); } });
+  items.push({ type: 'nav', title: 'Eventos', sub: 'navegação · eventos + atividade', category: 'Nav', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', action: function() { clickNav('events'); } });
+  items.push({ type: 'nav', title: 'Configurações', sub: 'navegação · preferências', category: 'Nav', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>', action: function() { clickNav('settings'); } });
+  // Quick actions
+  items.push({ type: 'action', title: 'Nova conta', sub: 'ação · criar perfil', category: 'Ação', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>', action: function() { var b = document.getElementById('newBtn'); if (b) b.click(); } });
+  items.push({ type: 'action', title: 'Backup criptografado', sub: 'ação · exportar perfis + vault', category: 'Ação', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>', action: function() { clickNav('settings'); setTimeout(function() { var b = document.getElementById('exportBackupBtn'); if (b) b.click(); }, 200); } });
+  items.push({ type: 'action', title: 'Importar backup', sub: 'ação · restaurar perfis', category: 'Ação', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>', action: function() { clickNav('settings'); setTimeout(function() { var b = document.getElementById('importBackupBtn'); if (b) b.click(); }, 200); } });
+  items.push({ type: 'action', title: 'Alternar modo compacto', sub: 'ação · cartões menores', category: 'Ação', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>', action: function() { var b = document.getElementById('compactToggle'); if (b) b.click(); } });
+  items.push({ type: 'action', title: 'Recarregar launcher', sub: 'ação · reiniciar interface', category: 'Ação', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>', action: function() { if (typeof relaunchManager === 'function') relaunchManager(); else if (window.__shinobiRelaunch) window.__shinobiRelaunch(); else toast('Recarregue via Ctrl+R', 'info'); } });
+  cmdkState.items = items;
+}
+function clickNav(view) {
+  var navItem = document.querySelector('.nav-item[data-view="' + view + '"]');
+  if (navItem) navItem.click();
+}
+function fuzzyScore(query, text) {
+  if (!query) return 1;
+  query = query.toLowerCase();
+  text = (text || '').toLowerCase();
+  if (text.indexOf(query) !== -1) {
+    // Bonus for substring match
+    var idx = text.indexOf(query);
+    return 100 + (text.length - idx - query.length) + (idx === 0 ? 50 : 0);
+  }
+  // Subsequence match
+  var qi = 0, score = 0, lastMatch = -2;
+  for (var ti = 0; ti < text.length && qi < query.length; ti++) {
+    if (text[ti] === query[qi]) {
+      score += 10;
+      if (lastMatch === ti - 1) score += 15; // consecutive bonus
+      if (ti === 0) score += 20; // start bonus
+      lastMatch = ti;
+      qi++;
+    }
+  }
+  return qi === query.length ? score : 0;
+}
+function renderCmdkResults() {
+  var container = document.getElementById('cmdkResults');
+  if (!container) return;
+  var q = cmdkState.query.trim();
+  var scored = cmdkState.items.map(function(item) {
+    var s = fuzzyScore(q, item.title) + fuzzyScore(q, item.sub) * 0.5 + fuzzyScore(q, item.category) * 0.3;
+    return { item: item, score: s };
+  }).filter(function(x) { return x.score > 0; })
+    .sort(function(a, b) { return b.score - a.score; })
+    .slice(0, 8);
+  if (!scored.length) {
+    container.innerHTML = '<div class="cmdk-empty">Nenhum resultado para "' + esc(q) + '"</div>';
+    cmdkState.selected = 0;
+    return;
+  }
+  cmdkState.selected = Math.min(cmdkState.selected, scored.length - 1);
+  container.innerHTML = scored.map(function(x, idx) {
+    var it = x.item;
+    return '<div class="cmdk-result' + (idx === cmdkState.selected ? ' selected' : '') + '" data-idx="' + idx + '" role="option">'
+      + '<div class="cr-icon">' + it.icon + '</div>'
+      + '<div class="cr-body"><div class="cr-title">' + esc(it.title) + '</div><div class="cr-sub">' + esc(it.sub) + '</div></div>'
+      + '<div class="cr-cat">' + esc(it.category) + '</div>'
+      + '</div>';
+  }).join('');
+  // Wire click handlers
+  container.querySelectorAll('.cmdk-result').forEach(function(el) {
+    el.onclick = function() {
+      var idx = parseInt(el.getAttribute('data-idx'), 10);
+      if (scored[idx]) {
+        closeCmdk();
+        scored[idx].item.action();
+      }
+    };
+    el.onmouseenter = function() {
+      var idx = parseInt(el.getAttribute('data-idx'), 10);
+      cmdkState.selected = idx;
+      container.querySelectorAll('.cmdk-result').forEach(function(e, i) {
+        e.classList.toggle('selected', i === idx);
+      });
+    };
+  });
+  // Scroll selected into view
+  var sel = container.querySelector('.cmdk-result.selected');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+function openCmdk() {
+  var overlay = document.getElementById('cmdkOverlay');
+  if (!overlay) return;
+  buildCmdkIndex();
+  cmdkState.query = '';
+  cmdkState.selected = 0;
+  var input = document.getElementById('cmdkInput');
+  if (input) input.value = '';
+  overlay.hidden = false;
+  renderCmdkResults();
+  setTimeout(function() { if (input) input.focus(); }, 50);
+}
+function closeCmdk() {
+  var overlay = document.getElementById('cmdkOverlay');
+  if (overlay) overlay.hidden = true;
+}
+function initCommandPalette() {
+  var overlay = document.getElementById('cmdkOverlay');
+  var input = document.getElementById('cmdkInput');
+  if (!overlay || !input) return;
+  // Global Ctrl+K
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (overlay.hidden) openCmdk();
+      else closeCmdk();
+      return;
+    }
+    if (e.key === 'Escape' && !overlay.hidden) {
+      closeCmdk();
+      return;
+    }
+    if (overlay.hidden) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      cmdkState.selected = Math.min(cmdkState.selected + 1, 7);
+      renderCmdkResults();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      cmdkState.selected = Math.max(cmdkState.selected - 1, 0);
+      renderCmdkResults();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      var sel = document.querySelector('.cmdk-result.selected');
+      if (sel) sel.click();
+    }
+  });
+  input.addEventListener('input', function() {
+    cmdkState.query = input.value;
+    cmdkState.selected = 0;
+    renderCmdkResults();
+  });
+  // Click outside closes
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeCmdk();
+  });
+}
+
+// ── v5.5: View transitions (fade-slide) ──
+var _origNavHandler = null;
+function initViewTransitions() {
+  // Re-hook nav click to add view-enter animation
+  document.querySelectorAll('.nav-item').forEach(function(item) {
+    // We can't easily remove the existing listener, so we hook via a wrapping event
+    item.addEventListener('click', function() {
+      var view = item.dataset.view;
+      var viewEl = document.getElementById('view-' + view);
+      if (viewEl) {
+        viewEl.classList.remove('view-enter');
+        void viewEl.offsetWidth; // reflow
+        viewEl.classList.add('view-enter');
+      }
+      if (view === 'events') {
+        setTimeout(loadTimeline, 100);
+      }
+    });
+  }, { capture: false });
+}
+
+// ── v5.5: Glass morphism init (apply to profile cards) ──
+function initGlassMorphism() {
+  // Toggle via localStorage (default ON for v5.5)
+  var enabled = true;
+  try { enabled = localStorage.getItem('shinobi-glass') !== 'off'; } catch (_) {}
+  if (enabled) document.body.classList.add('glass-cards-on');
+}
+
+// ── v5.5: Hook toast() to also push to notifications center ──
+var _origToast = toast;
+toast = function(msg, type) {
+  _origToast(msg, type);
+  pushNotification(msg, type);
+};
+
+// ── v5.5: init sequence ──
+initThemeVariants();
+initNotificationCenter();
+initCommandPalette();
+initViewTransitions();
+initGlassMorphism();
+initTimelineClearBtn();
+// Load timeline on first nav to Events (also triggered by view transition hook)
+setTimeout(loadTimeline, 500);
+// Hook profiles:updated to also refresh cmdk index + timeline
+var _origProfilesUpdatedHandler = null;
+// We can't easily unbind the existing ipcRenderer.on listener, but we can piggyback:
+ipcRenderer.on('profiles:updated', function() {
+  // Rebuild cmdk index lazily on next open (built in openCmdk)
+  // Timeline refresh is throttled to avoid spamming
+  if (window._timelineRefreshTimer) return;
+  window._timelineRefreshTimer = setTimeout(function() {
+    window._timelineRefreshTimer = null;
+    loadTimeline();
+  }, 2000);
+});
 </script>
+<!-- v5.5: Command Palette Overlay -->
+<div class="cmdk-overlay" id="cmdkOverlay" hidden>
+  <div class="cmdk-modal" role="dialog" aria-label="Command Palette">
+    <div class="cmdk-input-wrap">
+      <svg class="cmdk-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="cmdkInput" placeholder="Buscar perfis, ações, navegação..." autocomplete="off" spellcheck="false" aria-label="Comando">
+      <kbd class="cmdk-esc">ESC</kbd>
+    </div>
+    <div class="cmdk-results" id="cmdkResults" role="listbox"></div>
+    <div class="cmdk-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+      <span><kbd>↵</kbd> executar</span>
+      <span><kbd>ESC</kbd> fechar</span>
+    </div>
+  </div>
+</div>
 </body>
 </html>
