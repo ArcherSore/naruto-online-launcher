@@ -310,6 +310,32 @@ function remove(id) {
   return true;
 }
 
+/**
+ * Reorder profiles to match the given array of IDs.
+ * IDs not found are ignored; profiles not in the list keep their relative order.
+ * @param {string[]} order - Array of profile IDs in desired order
+ */
+function reorder(order) {
+  if (_profiles === null) load();
+  if (!Array.isArray(order)) return;
+  var reordered = [];
+  var seen = new Set();
+  // First, place profiles in the specified order
+  order.forEach(function (id) {
+    var p = _profiles.find(function (x) { return x.id === id; });
+    if (p && !seen.has(id)) {
+      reordered.push(p);
+      seen.add(id);
+    }
+  });
+  // Then append any profiles not in the order list
+  _profiles.forEach(function (p) {
+    if (!seen.has(p.id)) reordered.push(p);
+  });
+  _profiles = reordered;
+  persist();
+}
+
 function touch(id) {
   if (_profiles === null) load();
   const p = _profiles.find(function (x) { return x.id === id; });
@@ -443,6 +469,7 @@ module.exports = {
   create: create,
   update: update,
   remove: remove,
+  reorder: reorder,
   touch: touch,
   exportJSON: exportJSON,
   importJSON: importJSON,

@@ -252,9 +252,7 @@
   .tab:hover{border-color:var(--border-hover)}
   .tab.active{background:var(--accent);border-color:var(--accent);color:#0a0a0f;box-shadow:0 0 10px rgba(255,140,0,.2)}
 
-  /* ── Views ── */
-  .view{display:none}
-  .view.active{display:block;animation:fadeIn 200ms ease}
+  /* ── Views (see v5.2 enhanced transitions below) ── */
 
   /* ── Reduced Motion ── */
   @media (prefers-reduced-motion:reduce){
@@ -551,6 +549,52 @@
   .card-batch-check.checked svg{opacity:1}
   .batch-mode .card{cursor:default}
   .batch-mode .card:hover{transform:none}
+
+  /* ── v5.2: Custom Confirm Dialog ── */
+  .confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:var(--z-modal);backdrop-filter:blur(6px);animation:overlayIn 150ms ease}
+  .confirm-overlay.show{display:flex}
+  .confirm-dialog{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--space-6);width:24rem;max-width:92vw;box-shadow:var(--shadow-lg),0 0 24px rgba(255,140,0,.04);animation:modalIn 200ms cubic-bezier(.2,.8,.3,1)}
+  .confirm-dialog .confirm-icon{width:2.5rem;height:2.5rem;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-4)}
+  .confirm-dialog .confirm-icon.danger{background:rgba(220,38,38,.12);color:var(--danger)}
+  .confirm-dialog .confirm-icon.warn{background:rgba(245,158,11,.12);color:var(--warn)}
+  .confirm-dialog .confirm-icon svg{width:1.2rem;height:1.2rem}
+  .confirm-dialog .confirm-title{font-size:var(--font-lg);font-weight:var(--weight-semibold);text-align:center;margin-bottom:var(--space-2)}
+  .confirm-dialog .confirm-message{font-size:var(--font-sm);color:var(--text-dim);text-align:center;line-height:1.5;margin-bottom:var(--space-5)}
+  .confirm-dialog .confirm-actions{display:flex;gap:var(--space-2);justify-content:center}
+  .confirm-dialog .confirm-actions .btn{min-width:5rem;justify-content:center}
+
+  /* ── v5.2: Context Menu ── */
+  .ctx-menu{position:fixed;z-index:var(--z-modal);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);min-width:12rem;padding:var(--space-1) 0;display:none;animation:modalIn 120ms cubic-bezier(.2,.8,.3,1)}
+  .ctx-menu.show{display:block}
+  .ctx-menu-item{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-4);font-size:var(--font-sm);color:var(--text-dim);cursor:pointer;transition:background 100ms,color 100ms;user-select:none}
+  .ctx-menu-item:hover{background:var(--surface-hover);color:var(--text)}
+  .ctx-menu-item.danger{color:var(--danger)}
+  .ctx-menu-item.danger:hover{background:rgba(220,38,38,.08);color:var(--danger)}
+  .ctx-menu-item svg{width:.9rem;height:.9rem;flex-shrink:0}
+  .ctx-menu-item .shortcut{margin-left:auto;font-size:var(--font-xs);color:var(--text-faint);font-family:'SF Mono',Monaco,Consolas,monospace}
+  .ctx-menu-divider{height:1px;background:var(--border);margin:var(--space-1) 0}
+
+  /* ── v5.2: View Transitions ── */
+  .view{display:none;opacity:0;transform:translateY(6px)}
+  .view.active{display:block;animation:viewFadeIn 250ms ease forwards}
+  @keyframes viewFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ── v5.2: Drag-and-Drop ── */
+  .card[draggable="true"]{cursor:grab}
+  .card[draggable="true"]:active{cursor:grabbing}
+  .card.dragging{opacity:.4;transform:scale(.97);box-shadow:none!important}
+  .card.drag-over{border-color:var(--accent)!important;border-style:dashed;box-shadow:0 0 12px rgba(255,140,0,.15)!important}
+  .drag-placeholder{background:rgba(255,140,0,.04);border:2px dashed rgba(255,140,0,.2);border-radius:var(--radius);min-height:80px;animation:fadeIn 200ms ease}
+
+  /* ── v5.2: Micro-animation polish ── */
+  .btn{transition:all var(--transition)}
+  .btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+  .toggle{transition:background 250ms cubic-bezier(.4,0,.2,1)}
+  .nav-item{transition:all 200ms ease}
+  .card{transition:border-color 200ms ease,background 200ms ease,transform 200ms ease,box-shadow 200ms ease,opacity 200ms ease}
+  .settings-row{transition:background 150ms ease}
+  .badge{transition:all 200ms ease}
+  .badge:hover{filter:brightness(1.1)}
 
 </style>
 </head>
@@ -980,6 +1024,22 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ═══ Custom Confirm Dialog (v5.2) ═══ -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-dialog">
+    <div class="confirm-icon danger" id="confirmIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+    <div class="confirm-title" id="confirmTitle">Confirmar ação</div>
+    <div class="confirm-message" id="confirmMessage">Tem certeza?</div>
+    <div class="confirm-actions">
+      <button class="btn" id="confirmCancel">Cancelar</button>
+      <button class="btn btn-danger" id="confirmOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Context Menu (v5.2) ═══ -->
+<div class="ctx-menu" id="ctxMenu"></div>
 
 <!-- ═══ Keyboard Shortcuts Overlay (v5.1) ═══ -->
 <div class="kb-overlay" id="kbOverlay">
@@ -2368,11 +2428,7 @@ launch = function(id) {
 };
 
 var origDel = del;
-del = function(id) {
-  var p = profiles.find(function(x) { return x.id === id; });
-  if (p) addActivity('info', 'Conta excluída: <strong>' + esc(p.name) + '</strong>');
-  origDel(id);
-};
+// del is redefined below in v5.2 with custom confirm dialog + activity logging
 
 // Track auto-login results as activities
 ipcRenderer.on('auto-login:result', function(_e, data) {
@@ -2583,6 +2639,210 @@ renderMemory = function(s) {
   updateSidebarMemBar(s);
 };
 
+// ── v5.2: Custom Confirm Dialog ──
+var _confirmResolve = null;
+function customConfirm(title, message, opts) {
+  opts = opts || {};
+  var overlay = document.getElementById('confirmOverlay');
+  var iconEl = document.getElementById('confirmIcon');
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').textContent = message;
+  // Set icon type
+  iconEl.className = 'confirm-icon ' + (opts.type || 'danger');
+  var okBtn = document.getElementById('confirmOk');
+  okBtn.className = 'btn ' + (opts.type === 'warn' ? 'primary' : 'btn-danger');
+  okBtn.textContent = opts.okText || 'Confirmar';
+  overlay.classList.add('show');
+  return new Promise(function(resolve) {
+    _confirmResolve = resolve;
+  });
+}
+document.getElementById('confirmCancel').onclick = function() {
+  document.getElementById('confirmOverlay').classList.remove('show');
+  if (_confirmResolve) { _confirmResolve(false); _confirmResolve = null; }
+};
+document.getElementById('confirmOk').onclick = function() {
+  document.getElementById('confirmOverlay').classList.remove('show');
+  if (_confirmResolve) { _confirmResolve(true); _confirmResolve = null; }
+};
+document.getElementById('confirmOverlay').addEventListener('click', function(e) {
+  if (e.target === this) { this.classList.remove('show'); if (_confirmResolve) { _confirmResolve(false); _confirmResolve = null; } }
+});
+
+// Replace browser confirm() calls with custom dialog (v5.2)
+del = async function(id) {
+  var p = profiles.find(function(x) { return x.id === id; });
+  var pName = p ? p.name : id;
+  var confirmed = await customConfirm(
+    'Excluir conta',
+    'Excluir "' + pName + '"? Cookies e credenciais serão apagados permanentemente.',
+    { type: 'danger', okText: 'Excluir' }
+  );
+  if (!confirmed) return;
+  ipcRenderer.send('profile:delete', id);
+  addActivity('info', 'Conta excluída: <strong>' + esc(pName) + '</strong>');
+  if (localStorage.getItem(LAST_PROFILE_KEY) === id) {
+    localStorage.removeItem(LAST_PROFILE_KEY);
+    loadLastProfile();
+  }
+};
+
+var origRemoveVault = document.getElementById('removeVault').onclick;
+document.getElementById('removeVault').onclick = async function() {
+  var confirmed = await customConfirm(
+    'Remover credenciais',
+    'Remover as credenciais salvas deste perfil? O auto-login será desativado.',
+    { type: 'warn', okText: 'Remover' }
+  );
+  if (!confirmed) return;
+  await ipcRenderer.invoke('vault:remove', vaultId);
+  toast('Credenciais removidas', 'ok');
+  document.getElementById('vaultModal').classList.remove('show');
+};
+
+// ── v5.2: Context Menu ──
+var ctxMenu = document.getElementById('ctxMenu');
+var ctxProfileId = null;
+
+function showContextMenu(x, y, profileId) {
+  ctxProfileId = profileId;
+  var p = profiles.find(function(x) { return x.id === profileId; });
+  if (!p) return;
+  ctxMenu.innerHTML =
+    '<div class="ctx-menu-item" data-ctx="launch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Jogar<span class="shortcut">Play</span></div>' +
+    '<div class="ctx-menu-item" data-ctx="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Editar<span class="shortcut">E</span></div>' +
+    (p.hasVault
+      ? '<div class="ctx-menu-item" data-ctx="vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Credenciais</div>'
+      : '<div class="ctx-menu-item" data-ctx="vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Adicionar credenciais</div>') +
+    '<div class="ctx-menu-divider"></div>' +
+    '<div class="ctx-menu-item" data-ctx="health"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Verificar saúde</div>' +
+    '<div class="ctx-menu-item" data-ctx="dup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicar</div>' +
+    '<div class="ctx-menu-item" data-ctx="fav"><svg viewBox="0 0 24 24" fill="' + (p.favorite ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> ' + (p.favorite ? 'Desfavoritar' : 'Favoritar') + '</div>' +
+    '<div class="ctx-menu-divider"></div>' +
+    '<div class="ctx-menu-item danger" data-ctx="del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Excluir<span class="shortcut">Del</span></div>';
+  // Position
+  ctxMenu.style.left = Math.min(x, window.innerWidth - 200) + 'px';
+  ctxMenu.style.top = Math.min(y, window.innerHeight - 300) + 'px';
+  ctxMenu.classList.add('show');
+  // Handlers
+  ctxMenu.querySelectorAll('.ctx-menu-item').forEach(function(item) {
+    item.onclick = function() {
+      var act = item.getAttribute('data-ctx');
+      ctxMenu.classList.remove('show');
+      if (act === 'launch') launch(ctxProfileId);
+      else if (act === 'edit') edit(ctxProfileId);
+      else if (act === 'vault') openVault(ctxProfileId);
+      else if (act === 'fav') toggleFavorite(ctxProfileId);
+      else if (act === 'dup') duplicateProfile(ctxProfileId);
+      else if (act === 'health') {
+        var resultEl = document.getElementById('healthResult-' + ctxProfileId);
+        if (resultEl) runHealthCheck(ctxProfileId, resultEl);
+      }
+      else if (act === 'del') del(ctxProfileId);
+    };
+  });
+}
+
+// Close context menu on click outside
+document.addEventListener('click', function() { ctxMenu.classList.remove('show'); });
+document.addEventListener('contextmenu', function(e) {
+  // Only handle right-click on profile cards
+  var card = e.target.closest('.card[data-card-id]');
+  if (card) {
+    e.preventDefault();
+    showContextMenu(e.clientX, e.clientY, card.getAttribute('data-card-id'));
+  } else {
+    ctxMenu.classList.remove('show');
+  }
+});
+
+// ── v5.2: Drag-and-Drop Profile Reorder ──
+var dragSrcId = null;
+
+function initDragDrop() {
+  var grid = document.getElementById('profileGrid');
+  grid.addEventListener('dragstart', function(e) {
+    var card = e.target.closest('.card[data-card-id]');
+    if (!card || batchMode) { e.preventDefault(); return; }
+    dragSrcId = card.getAttribute('data-card-id');
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragSrcId);
+  });
+  grid.addEventListener('dragend', function(e) {
+    var card = e.target.closest('.card[data-card-id]');
+    if (card) card.classList.remove('dragging');
+    dragSrcId = null;
+    // Remove all drag-over states
+    grid.querySelectorAll('.drag-over').forEach(function(c) { c.classList.remove('drag-over'); });
+  });
+  grid.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    var card = e.target.closest('.card[data-card-id]');
+    if (card && card.getAttribute('data-card-id') !== dragSrcId) {
+      // Clear other drag-overs
+      grid.querySelectorAll('.drag-over').forEach(function(c) { c.classList.remove('drag-over'); });
+      card.classList.add('drag-over');
+    }
+  });
+  grid.addEventListener('dragleave', function(e) {
+    var card = e.target.closest('.card[data-card-id]');
+    if (card) card.classList.remove('drag-over');
+  });
+  grid.addEventListener('drop', function(e) {
+    e.preventDefault();
+    var targetCard = e.target.closest('.card[data-card-id]');
+    if (!targetCard || !dragSrcId) return;
+    var targetId = targetCard.getAttribute('data-card-id');
+    if (targetId === dragSrcId) return;
+    // Reorder profiles array
+    var srcIdx = profiles.findIndex(function(p) { return p.id === dragSrcId; });
+    var tgtIdx = profiles.findIndex(function(p) { return p.id === targetId; });
+    if (srcIdx === -1 || tgtIdx === -1) return;
+    var moved = profiles.splice(srcIdx, 1)[0];
+    profiles.splice(tgtIdx, 0, moved);
+    // Persist order via IPC
+    var order = profiles.map(function(p) { return p.id; });
+    ipcRenderer.send('profile:reorder', order);
+    renderProfiles();
+    toast('Perfil reposicionado', 'ok');
+  });
+}
+
+// Make cards draggable after render
+var origRenderProfiles = renderProfiles;
+renderProfiles = function() {
+  origRenderProfiles();
+  if (!batchMode) {
+    document.querySelectorAll('.card[data-card-id]').forEach(function(card) {
+      card.setAttribute('draggable', 'true');
+    });
+  }
+};
+
+// ── v5.2: Batch delete uses custom confirm ──
+var origBatchDelete = document.getElementById('batchDeleteBtn').onclick;
+document.getElementById('batchDeleteBtn').onclick = async function() {
+  if (!batchSelected.size) return;
+  var confirmed = await customConfirm(
+    'Excluir ' + batchSelected.size + ' conta(s)',
+    'Esta ação é irreversível. Cookies e credenciais serão apagados permanentemente.',
+    { type: 'danger', okText: 'Excluir ' + batchSelected.size + ' conta(s)' }
+  );
+  if (!confirmed) return;
+  batchSelected.forEach(function(id) { ipcRenderer.send('profile:delete', id); });
+  addActivity('info', batchSelected.size + ' conta(s) excluída(s) em lote');
+  batchSelected.clear();
+  updateBatchBar();
+  batchMode = false;
+  document.getElementById('batchModeBtn').classList.remove('on');
+  document.getElementById('profileGrid').classList.remove('batch-mode');
+};
+
+// ── v5.2: Vault remove uses custom confirm ──
+// Already handled above by overriding removeVault onclick
+
 // ── Init ──
 ipcRenderer.send('manager:ready');
 loadLastProfile();
@@ -2590,6 +2850,7 @@ initI18n();
 initPerfPanel();
 initDevTools();
 initDebugFlag();
+initDragDrop();
 updateAnalytics();
 renderActivityLog();
 updateEventBadge();

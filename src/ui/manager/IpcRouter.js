@@ -75,6 +75,12 @@ function registerIpcHandlers(handlers) {
     _send('profile:toast', { type: 'info', msg: 'Conta removida (dados + cookies apagados)' });
   });
 
+  ipcMain.on('profile:reorder', function (_e, order) {
+    if (!Array.isArray(order)) return;
+    store.reorder(order);
+    _pushProfiles();
+  });
+
   ipcMain.on('profile:launch', function (_e, id) {
     if (typeof id !== 'string' || !store.get(id)) {
       _send('profile:toast', { type: 'error', msg: 'Perfil não encontrado' });
