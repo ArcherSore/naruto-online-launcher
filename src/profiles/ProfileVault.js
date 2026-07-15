@@ -249,7 +249,7 @@ function buildAutoLoginScript(user, pass) {
     '      var currentUrl=window.location.href;' +
     '      var errEl=document.querySelector(".login-error,.error-msg,.alert-error,[class*=error_msg]");' +
     '      if(currentUrl!==startUrl){' +
-    '        try{console.log("[auto-login] verification: URL changed — login likely succeeded");}catch(_){}' +
+    '        try{console.info("[auto-login] verification: URL changed — login likely succeeded");}catch(_){}' +
     '      }else if(errEl){' +
     '        try{console.warn("[auto-login] verification: error element found — login may have failed:",errEl.textContent.trim());}catch(_){}' +
     '      }else{' +
