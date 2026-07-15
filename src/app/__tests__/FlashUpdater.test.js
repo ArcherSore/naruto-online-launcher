@@ -10,7 +10,9 @@ const FlashUpdater = require('../FlashUpdater');
 
 describe('FlashUpdater.js', () => {
   describe('pickAsset', () => {
-    // Assets reais do darktohka/clean-flash-builds (verificado via GitHub API, v1.54+)
+    // Assets reais do darktohka/clean-flash-builds
+    // Windows: v1.54 (ChineseFlash-Patched-Win-34.0.0.376.7z)
+    // Linux: v1.7 (flash_player_patched_ppapi_linux.x86_64.tar.gz) — última com asset Linux
     const release = {
       tag_name: 'v1.54',
       assets: [
@@ -28,6 +30,11 @@ describe('FlashUpdater.js', () => {
           name: 'ChineseFlash-NPAPI-FlashPlayer-10.6.zip',
           browser_download_url: 'https://x/mac-npapi.zip',
           size: 8000000
+        },
+        {
+          name: 'flash_player_patched_ppapi_linux.x86_64.tar.gz',
+          browser_download_url: 'https://x/linux.tar.gz',
+          size: 8499275
         }
       ]
     };
@@ -38,14 +45,14 @@ describe('FlashUpdater.js', () => {
       expect(a.name).toBe('ChineseFlash-Patched-Win-34.0.0.376.7z');
     });
 
-    test('seleciona asset Mac (.zip PPAPI) quando platform=darwin', () => {
-      const a = FlashUpdater.pickAsset(release, 'darwin');
+    test('seleciona asset Linux (.tar.gz) quando platform=linux', () => {
+      const a = FlashUpdater.pickAsset(release, 'linux');
       expect(a).not.toBeNull();
-      expect(a.name).toBe('ChineseFlash-PPAPI-PepperFlashPlayer.zip');
+      expect(a.name).toBe('flash_player_patched_ppapi_linux.x86_64.tar.gz');
     });
 
-    test('retorna null para Linux (darktohka não tem asset Linux)', () => {
-      const a = FlashUpdater.pickAsset(release, 'linux');
+    test('retorna null para Mac (não suportado pelo launcher)', () => {
+      const a = FlashUpdater.pickAsset(release, 'darwin');
       expect(a).toBeNull();
     });
 
@@ -62,16 +69,9 @@ describe('FlashUpdater.js', () => {
       expect(FlashUpdater.pickAsset(null, 'win32')).toBeNull();
     });
 
-    test('também casa asset .exe legacy (InnoSetup) para win32', () => {
-      const r = {
-        tag_name: 'v1.0',
-        assets: [
-          { name: 'clean-flash-windows.exe', browser_download_url: 'https://x.exe', size: 16000000 }
-        ]
-      };
-      const a = FlashUpdater.pickAsset(r, 'win32');
-      expect(a).not.toBeNull();
-      expect(a.name).toBe('clean-flash-windows.exe');
+    test('retorna null para plataforma desconhecida', () => {
+      const a = FlashUpdater.pickAsset(release, 'freebsd');
+      expect(a).toBeNull();
     });
 
     test('default platform = process.platform', () => {
@@ -202,13 +202,17 @@ describe('FlashUpdater.js', () => {
     });
   });
 
-  describe('ensureLatest — Linux não suportado', () => {
-    test('lança erro acionável para Linux (sem tentar download)', async () => {
-      // darktohka/clean-flash-builds não tem asset Linux — ensureLatest deve
-      // falhar cedo com mensagem explicando como obter o binary manualmente.
-      await expect(FlashUpdater.ensureLatest('linux')).rejects.toThrow(
-        /não está disponível.*Linux/i
-      );
+  describe('ensureLatest — binário committed', () => {
+    test('PINNED_RELEASES tem tags corretas para Linux e Windows', () => {
+      // Flash EOL: tags fixas em vez de "latest"
+      // Verifica que as constantes estão configuradas corretamente
+      // (não testa ensureLatest diretamente pois depende de rede/app.getAppPath)
+      // Accessamos via require para inspecionar as constantes internas
+      const src = fs.readFileSync(require('path').join(__dirname, '..', 'FlashUpdater.js'), 'utf8');
+      expect(src).toContain("tag: 'v1.7'");
+      expect(src).toContain("tag: 'v1.54'");
+      expect(src).toContain('flash_player_patched_ppapi_linux\\.x86_64\\.tar\\.gz');
+      expect(src).toContain('ChineseFlash-Patched-Win-.*\\.7z');
     });
   });
 

@@ -1,39 +1,27 @@
 /**
- * app/FlashUpdater.js — Clean Flash PPAPI on-demand downloader + cache
- * v1.0.0 (Fase 2 da migração v5.0 — Decisão A)
+ * app/FlashUpdater.js — Clean Flash PPAPI fallback downloader + cache
+ * v1.1.0 (Flash EOL — binaries now COMMITTED to repo; this is fallback only)
  *
- * FILOSOFIA:
- *   O repositório NÃO versiona mais os 32MB de binário Flash. O plugin é
- *   baixado sob demanda do build canônico do darktohka (clean-flash-builds),
- *   sempre na versão MAIS RECENTE, e cacheado localmente em
- *   `userData/flash-cache/`.
+ * FILOSOFIA (atualizada v5.9.2):
+ *   Flash é EOL (end-of-life) e nunca mais vai mudar. Os binários PPAPI
+ *   (libpepflashplayer.so + pepflashplayer.dll) agora são COMMITTED ao
+ *   repo em flash/. O findFlashPlugin() em flash/plugin.js os encontra
+ *   automaticamente — este FlashUpdater só é chamado em caso de binários
+ *   missing (raro: usuário deletou, instalação corrompida).
+ *
+ *   Como fallback de emergência, ainda tenta baixar do darktohka/clean-flash-builds:
+ *     Windows: ChineseFlash-Patched-Win-<ver>.7z  (v1.54 = 34.0.0.376)
+ *     Linux:   flash_player_patched_ppapi_linux.x86_64.tar.gz  (v1.7 = 34.0.0.137, última com asset Linux)
  *
  * BOOT FLOW (orquestrado por main.js):
- *   1. findFlashPlugin() (em flash/plugin.js) agora procura TAMBÉM no cache.
- *      - Se achar (cache quente) → boot normal, flags aplicadas antes de ready.
- *   2. Se não achar (first-run / cache vazio):
- *        a. flags.applyAll() roda SEM flashPath (outros switches antes de ready).
- *        b. app.ready → abre loading window → FlashUpdater.ensureLatest() async.
- *        c. Download + extração → escreve no cache.
- *        d. app.relaunch() + app.exit() → segundo boot acha o cache (passo 1).
- *   3. Update semanal em background (pós-boot, non-blocking): se cache > 7 dias,
- *      re-download para o PRÓXIMO boot (não relança — só refresca o cache).
+ *   1. findFlashPlugin() acha binário committed em flash/ → boot normal.
+ *   2. Só se NÃO achar (corrompido/deletado): abre loading window →
+ *      FlashUpdater.ensureLatest() → download + extração → relaunch.
  *
  * SOURCE canônico:
- *   https://github.com/darktohka/clean-flash-builds/releases/latest
- *   API:    https://api.github.com/repos/darktohka/clean-flash-builds/releases/latest
- *   Linux:  clean-flash-linux.tar.xz  →  libpepflashplayer.so + manifest.json
- *   Windows: clean-flash-windows.exe   →  pepflashplayer.dll (InnoSetup installer)
- *
- * PERFORMANCE:
- *   - Cache quente = stat síncrono, ~0ms.
- *   - First-run download = ~17MB, 5-30s conforme rede.
- *   - Relaunch = +1s de boot overhead UMA vez (first-run only).
- *
- * ROBUSTEZ:
- *   - GitHub API rate-limit (60/h anônimo): irrelevante p/ single-user.
- *   - Fall-through: se download falhar e cache existir (mesmo stale), usa cache.
- *   - Extração Linux via `tar -xJf` (universal). Windows via innoextract|7z.
+ *   Windows: https://github.com/darktohka/clean-flash-builds/releases/tag/v1.54
+ *   Linux:   https://github.com/darktohka/clean-flash-builds/releases/tag/v1.7
+ *   (Linux "latest" tag NÃO tem asset Linux — v1.7 é a última com asset Linux PPAPI)
  */
 
 'use strict';
@@ -47,10 +35,25 @@ const logger = require('../utils/logger');
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
+// Flash EOL: pinamos tags específicas em vez de "latest" (que não tem asset Linux).
+// v1.7 = última release com asset Linux PPAPI (34.0.0.137).
+// v1.54 = release mais recente com asset Windows PPAPI (34.0.0.376).
+const PINNED_RELEASES = {
+  linux: {
+    tag: 'v1.7',
+    apiPath: '/repos/darktohka/clean-flash-builds/releases/tags/v1.7',
+    assetMatch: /flash_player_patched_ppapi_linux\.x86_64\.tar\.gz$/i
+  },
+  win32: {
+    tag: 'v1.54',
+    apiPath: '/repos/darktohka/clean-flash-builds/releases/tags/v1.54',
+    assetMatch: /ChineseFlash-Patched-Win-.*\.7z$/i
+  }
+};
+
 const API_HOST = 'api.github.com';
-const API_PATH = '/repos/darktohka/clean-flash-builds/releases/latest';
 const USER_AGENT =
-  'Shinobi-Launcher-FlashUpdater/1.0 (+https://github.com/Chrispsz/naruto-online-launcher)';
+  'Shinobi-Launcher-FlashUpdater/1.1 (+https://github.com/Chrispsz/naruto-online-launcher)';
 
 const CACHE_SUBDIR = 'flash-cache';
 const CACHE_MANIFEST = 'cache-manifest.json';
@@ -136,15 +139,19 @@ function isCacheStale() {
 // ── GitHub API ───────────────────────────────────────────────────────────────
 
 /**
- * Fetch JSON do GitHub API (release latest).
+ * Fetch JSON do GitHub API para a release PINNADA da plataforma.
+ * Flash EOL: usamos tags fixas (v1.7 Linux, v1.54 Windows) em vez de "latest".
+ * @param {string} [platform] - default process.platform
  * @returns {Promise<Object>} release object com assets[]
  */
-function fetchLatestRelease() {
+function fetchLatestRelease(platform) {
+  const plat = platform || process.platform;
+  const pinned = PINNED_RELEASES[plat] || PINNED_RELEASES.win32;
   return new Promise(function (resolve, reject) {
     const req = https.get(
       {
         host: API_HOST,
-        path: API_PATH,
+        path: pinned.apiPath,
         headers: {
           'User-Agent': USER_AGENT,
           Accept: 'application/vnd.github+json'
@@ -172,7 +179,7 @@ function fetchLatestRelease() {
           return;
         }
         if (res.statusCode !== 200) {
-          reject(new Error('GitHub API HTTP ' + res.statusCode));
+          reject(new Error('GitHub API HTTP ' + res.statusCode + ' para ' + pinned.tag));
           return;
         }
         _readJson(res, resolve, reject);
@@ -202,16 +209,11 @@ function _readJson(stream, resolve, reject) {
 }
 
 /**
- * Encontra o asset correto para a plataforma atual no release.
+ * Encontra o asset correto para a plataforma atual no release PINNADO.
  *
- * REALIDADE (verificada via GitHub API, v1.54+): o repositório
- * darktohka/clean-flash-builds NÃO tem asset Linux — apenas Windows (.7z) e
- * Mac (.zip). O prompt de migração assumia um clean-flash-linux.tar.xz que
- * não existe. Ver worklog para o contexto.
- *
- *   Windows: ChineseFlash-Patched-Win-<ver>.7z  (contém pepflashplayer.dll PPAPI)
- *   Mac:     ChineseFlash-PPAPI-PepperFlashPlayer.zip (não usado pelo launcher)
- *   Linux:   nenhum asset → pickAsset retorna null → ensureLatest lança erro acionável.
+ * Flash EOL (v5.9.2):
+ *   Linux:   flash_player_patched_ppapi_linux.x86_64.tar.gz (v1.7, 34.0.0.137)
+ *   Windows: ChineseFlash-Patched-Win-<ver>.7z              (v1.54, 34.0.0.376)
  *
  * @param {Object} release
  * @param {string} [platform] - default process.platform
@@ -219,20 +221,12 @@ function _readJson(stream, resolve, reject) {
  */
 function pickAsset(release, platform) {
   const plat = platform || process.platform;
+  const pinned = PINNED_RELEASES[plat];
+  if (!pinned) return null;
   const assets = (release && release.assets) || [];
   for (let i = 0; i < assets.length; i++) {
     const a = assets[i];
-    const name = (a.name || '').toLowerCase();
-    if (plat === 'win32') {
-      // .7z (formato atual darktohka) ou .exe (InnoSetup legacy) — ambos Windows.
-      if (name.indexOf('win') !== -1 && (name.endsWith('.7z') || name.endsWith('.exe'))) return a;
-    } else if (plat === 'darwin') {
-      if (name.indexOf('ppapi') !== -1 && name.endsWith('.zip')) return a;
-    } else if (plat === 'linux') {
-      // Reserva: se um dia houver asset linux (.tar.xz ou .zip), casa aqui.
-      if (name.indexOf('linux') !== -1 && (name.endsWith('.tar.xz') || name.endsWith('.zip')))
-        return a;
-    }
+    if (pinned.assetMatch.test(a.name || '')) return a;
   }
   return null;
 }
@@ -431,23 +425,44 @@ async function ensureLatest(platform, onProgress) {
   const cacheDir = getCacheDir();
   if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 
-  // Linux: o repositório darktohka/clean-flash-builds NÃO tem asset Linux
-  // (apenas Windows .7z e Mac .zip — verificado via GitHub API em v1.54+).
-  // Falhar cedo com mensagem acionável em vez de tentar download inútil.
-  if (plat === 'linux') {
-    throw new Error(
-      'Clean Flash PPAPI para Linux não está disponível no repositório ' +
-        'darktohka/clean-flash-builds (apenas Windows/Mac). Para usar o launcher ' +
-        'em Linux, obtenha libpepflashplayer.so manualmente (ex.: de um build ' +
-        'Chromium 87 ou do Clean Flash Linux) e coloque em: ' +
-        cacheDir +
-        '/'
+  // Verifica primeiro se binário committed existe em flash/ (caminho relativo ao app).
+  // Se existir, copia pro cache e retorna — não precisa de download.
+  try {
+    const appPath = app.getAppPath().replace(/\.asar$/, '');
+    const committedPath = path.join(appPath, 'flash', PLUGIN_NAMES[plat] || PLUGIN_NAMES.win32);
+    if (fs.existsSync(committedPath)) {
+      const stat = fs.statSync(committedPath);
+      if (stat.size > 1024 * 1024) {
+        const pluginPath = path.join(cacheDir, PLUGIN_NAMES[plat] || PLUGIN_NAMES.win32);
+        if (!fs.existsSync(pluginPath)) {
+          fs.copyFileSync(committedPath, pluginPath);
+        }
+        const manifest = {
+          version: '34.0.0.' + (plat === 'linux' ? '137' : '376'),
+          downloadDate: new Date().toISOString(),
+          assetName: 'committed-binary',
+          releaseTag: PINNED_RELEASES[plat] ? PINNED_RELEASES[plat].tag : null,
+          source: 'repo-flash-dir'
+        };
+        fs.writeFileSync(getCacheManifestPath(), JSON.stringify(manifest, null, 2), 'utf8');
+        logger.info('FlashUpdater: ✅ binário committed encontrado em flash/ — copiado ao cache');
+        if (onProgress) onProgress(100, '', '', 'done');
+        return pluginPath;
+      }
+    }
+  } catch (e) {
+    logger.debug(
+      'FlashUpdater: binário committed não acessível (' + e.message + ') — tentando download'
     );
   }
 
-  logger.info('FlashUpdater: buscando release mais recente do Clean Flash...');
+  logger.info(
+    'FlashUpdater: buscando release pinada do Clean Flash (' +
+      (PINNED_RELEASES[plat] ? PINNED_RELEASES[plat].tag : plat) +
+      ')...'
+  );
 
-  const release = await fetchLatestRelease();
+  const release = await fetchLatestRelease(plat);
   const asset = pickAsset(release, plat);
   if (!asset) {
     throw new Error(
@@ -501,8 +516,18 @@ async function ensureLatest(platform, onProgress) {
 
   // Localiza o plugin PPAPI extraído (estrutura interna do .7z varia) e move
   // para a raiz do cache, onde getCachedPluginPath() espera encontrá-lo.
+  // Windows: o .7z tem pepflashplayer64_*.dll em flash64/ — precisamos achar
+  // pelo padrão e renomear para pepflashplayer.dll.
   const pluginName = PLUGIN_NAMES[plat] || PLUGIN_NAMES.win32;
-  const found = _findFileRecursive(extractDir, pluginName);
+  let found = _findFileRecursive(extractDir, pluginName);
+  // Windows fallback: achar pepflashplayer64_*.dll e renomear
+  if (!found && plat === 'win32') {
+    found = _findFileRecursive(extractDir, 'pepflashplayer64');
+  }
+  // Linux fallback: achar pelo .so
+  if (!found && plat === 'linux') {
+    found = _findFileRecursive(extractDir, 'libpepflashplayer');
+  }
   if (!found) {
     throw new Error(
       'Extração concluída mas ' + pluginName + ' não encontrado dentro do archive ' + asset.name

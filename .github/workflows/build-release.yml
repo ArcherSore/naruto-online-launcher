@@ -74,14 +74,18 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Verify Flash manifest + Build + Package (Linux)
+      - name: Verify Flash binaries + Build + Package (Linux)
         if: runner.os == 'Linux'
         run: |
-          if [ ! -f flash/manifest.json ]; then
-            echo "::error::flash/manifest.json not found! Flash binaries are on-demand (downloaded by FlashUpdater on first boot). Only manifest.json should be committed."
+          if [ ! -f flash/libpepflashplayer.so ]; then
+            echo "::error::flash/libpepflashplayer.so not found! Linux Flash PPAPI binary must be committed to repo."
             exit 1
           fi
-          echo "✓ flash/manifest.json present (Flash on-demand design — Decision A/Phase 2)"
+          if [ ! -f flash/pepflashplayer.dll ]; then
+            echo "::error::flash/pepflashplayer.dll not found! Windows Flash PPAPI binary must be committed to repo."
+            exit 1
+          fi
+          echo "✓ Flash binaries committed (Linux $(du -h flash/libpepflashplayer.so | cut -f1), Windows $(du -h flash/pepflashplayer.dll | cut -f1))"
           npx electron-builder --linux AppImage --publish never
           mkdir -p release
           cp dist/*.AppImage release/
@@ -93,15 +97,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ESLINT_USE_FLAT_CONFIG: 'false'
 
-      - name: Verify Flash manifest + Build + Package (Windows)
+      - name: Verify Flash binaries + Build + Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if (-not (Test-Path "flash/manifest.json")) {
-            Write-Error "flash/manifest.json not found! Flash binaries are on-demand."
+          if (-not (Test-Path "flash/pepflashplayer.dll")) {
+            Write-Error "flash/pepflashplayer.dll not found!"
             exit 1
           }
-          Write-Host "✓ flash/manifest.json present (Flash on-demand design)"
+          if (-not (Test-Path "flash/libpepflashplayer.so")) {
+            Write-Error "flash/libpepflashplayer.so not found!"
+            exit 1
+          }
+          Write-Host "✓ Flash binaries committed (Linux + Windows)"
           npx electron-builder --win portable --publish never
           mkdir release
           Copy-Item dist/*.exe release/

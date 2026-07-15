@@ -27,12 +27,14 @@ Thumbs.db
 # Electron
 *.asar
 
-# Flash PPAPI binaries — downloaded on-demand by FlashUpdater (Decisão A / Fase 2)
-# Never version-control the 32MB binaries; cache lives in userData/flash-cache/.
-flash/*.so
-flash/*.dll
+# Flash PPAPI binaries — COMMITTED to repo (Flash EOL, no updates needed).
+# Linux: flash/libpepflashplayer.so (Clean Flash v1.7, 34.0.0.137)
+# Windows: flash/pepflashplayer.dll (Clean Flash v1.54, 34.0.0.376)
+# Source: https://github.com/darktohka/clean-flash-builds
+# On-demand download still works as fallback (FlashUpdater) but binaries
+# are version-controlled for offline robustness.
+# userData/flash-cache/ is NOT committed (user-local cache).
 flash/flash-cache/
-# manifest.json stays versioned (small, used as version fallback).
 
 # Other package managers (npm only)
 bun.lock
