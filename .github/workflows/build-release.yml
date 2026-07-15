@@ -2,7 +2,10 @@ name: Build & Release
 
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -13,7 +16,33 @@ permissions:
   contents: write
 
 jobs:
+  # ── Quality gate: lint + prettier + test (fail-fast before spending build minutes) ──
+  quality:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 16.20.2
+          cache: npm
+
+      - run: npm install --no-audit --no-fund
+
+      - name: Lint (ESLint)
+        run: npm run lint
+        env:
+          ESLINT_USE_FLAT_CONFIG: 'false'
+
+      - name: Prettier check
+        run: npx prettier --check "src/**/*.{js,html,css,json}" "tests/**/*.js"
+
+      - name: Test (Jest)
+        run: npm test
+
+  # ── Build matrix: Linux AppImage + Windows portable ──
   build:
+    needs: quality
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -30,6 +59,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 16.20.2
+          cache: npm
 
       - name: System deps (Linux)
         if: runner.os == 'Linux'
@@ -39,19 +69,19 @@ jobs:
             libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 \
             xdg-utils libatspi2.0-0 libuuid1 libappindicator3-1
 
-      - name: npm install
-        run: npm install --no-audit --no-fund
+      - run: npm install --no-audit --no-fund
 
       - name: Run tests
         run: npm test
 
-      - name: Verify Flash + Build + Package (Linux)
+      - name: Verify Flash manifest + Build + Package (Linux)
         if: runner.os == 'Linux'
         run: |
-          if [ ! -f flash/libpepflashplayer.so ]; then
-            echo "ERROR: libpepflashplayer.so not found!"
+          if [ ! -f flash/manifest.json ]; then
+            echo "::error::flash/manifest.json not found! Flash binaries are on-demand (downloaded by FlashUpdater on first boot). Only manifest.json should be committed."
             exit 1
           fi
+          echo "✓ flash/manifest.json present (Flash on-demand design — Decision A/Phase 2)"
           npx electron-builder --linux AppImage --publish never
           mkdir -p release
           cp dist/*.AppImage release/
@@ -61,15 +91,17 @@ jobs:
           cd release && zip -r ../naruto-online-linux.zip .
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ESLINT_USE_FLAT_CONFIG: 'false'
 
-      - name: Verify Flash + Build + Package (Windows)
+      - name: Verify Flash manifest + Build + Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if (-not (Test-Path "flash/pepflashplayer.dll")) {
-            Write-Error "pepflashplayer.dll not found!"
+          if (-not (Test-Path "flash/manifest.json")) {
+            Write-Error "flash/manifest.json not found! Flash binaries are on-demand."
             exit 1
           }
+          Write-Host "✓ flash/manifest.json present (Flash on-demand design)"
           npx electron-builder --win portable --publish never
           mkdir release
           Copy-Item dist/*.exe release/
@@ -83,6 +115,7 @@ jobs:
           path: naruto-online-${{ matrix.platform }}.zip
           retention-days: 7
 
+  # ── Release: only on tags v* ──
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -95,6 +128,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           draft: false
+          generate_release_notes: true
           files: artifacts/**/*
           body: |
             ## Naruto Online Launcher
@@ -130,13 +164,16 @@ jobs:
             | F11 | Fullscreen |
             | Ctrl+Shift+S | Screenshot |
             | Ctrl+Shift+T | Always on Top |
-            | Ctrl++/- | Zoom In/Out |
-            | Ctrl+0 | Reset Zoom |
-            | Ctrl+N | New Account (v2.0) |
-            | F8 | Force Memory GC (v2.0) |
+            | Ctrl+N | New Account |
+            | F8 | Force Memory GC |
+            | Alt+1..9 | Quick Launch Profile (v5.8) |
+            | Alt+P | Toggle Always-on-Top (v5.8) |
 
             ### Regions
             🇧🇷 PT · 🇺🇸 EN · 🇫🇷 FR · 🇩🇪 DE · 🇪🇸 ES · 🇵🇱 PL
+
+            ### Flash PPAPI
+            Flash binaries are downloaded on-demand on first boot (no binaries committed to repo). Linux shows an actionable error if Flash cannot be provisioned.
 
   # ── Auto-update README with latest download links ──
   update-readme:
@@ -174,4 +211,3 @@ jobs:
           git add README.md
           git commit -m "docs: bump download links to ${{ steps.latest.outputs.version }} [skip ci]" || echo "nothing to commit"
           git push
-
