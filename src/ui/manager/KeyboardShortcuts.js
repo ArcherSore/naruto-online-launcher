@@ -47,7 +47,10 @@ function attach(win, profileName) {
       return;
     }
     // Bloqueia F10 (menu bar do Chromium), Alt (menu toggle)
-    if (input.key === 'F10' || (input.alt && !input.control && !input.shift && input.key !== 'F4')) {
+    if (
+      input.key === 'F10' ||
+      (input.alt && !input.control && !input.shift && input.key !== 'F4')
+    ) {
       event.preventDefault();
       return;
     }
@@ -60,5 +63,5 @@ function attach(win, profileName) {
 }
 
 module.exports = {
-  attach: attach,
+  attach: attach
 };

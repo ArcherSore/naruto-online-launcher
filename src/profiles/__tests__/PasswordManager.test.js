@@ -33,7 +33,9 @@ afterAll(function () {
     const saltFile = path.join(tmpDir, PasswordManager.VAULT_SALT_FILE);
     if (fs.existsSync(saltFile)) fs.unlinkSync(saltFile);
     fs.rmdirSync(tmpDir);
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 });
 
 describe('PasswordManager.js', () => {
@@ -43,7 +45,11 @@ describe('PasswordManager.js', () => {
     PasswordManager._resetCache();
     // Remove salt file if exists
     const saltFile = path.join(tmpDir, PasswordManager.VAULT_SALT_FILE);
-    try { if (fs.existsSync(saltFile)) fs.unlinkSync(saltFile); } catch (_) { /* ignore */ }
+    try {
+      if (fs.existsSync(saltFile)) fs.unlinkSync(saltFile);
+    } catch (_) {
+      /* ignore */
+    }
   });
 
   describe('exports', () => {
@@ -116,12 +122,26 @@ describe('PasswordManager.js', () => {
 
       // Derivar manualmente para comparar
       let userDataPath = '';
-      try { userDataPath = electron.app.getPath('userData'); } catch (_) { /* expected */ }
+      try {
+        userDataPath = electron.app.getPath('userData');
+      } catch (_) {
+        /* expected */
+      }
       let username = '';
-      try { username = os.userInfo().username; } catch (_) { /* expected */ }
+      try {
+        username = os.userInfo().username;
+      } catch (_) {
+        /* expected */
+      }
       const machineSeed = os.hostname() + '|' + username + '|' + userDataPath + '|shinobi-vault-v2';
 
-      const expectedKey = crypto.pbkdf2Sync(machineSeed, salt, 100000, CryptoService.PBKDF2_KEYLEN, 'sha512');
+      const expectedKey = crypto.pbkdf2Sync(
+        machineSeed,
+        salt,
+        100000,
+        CryptoService.PBKDF2_KEYLEN,
+        'sha512'
+      );
 
       // Get the actual key (salt is cached now)
       const actualKey = PasswordManager.getMachineKey();
@@ -133,7 +153,11 @@ describe('PasswordManager.js', () => {
 
       // Delete salt file and reset cache → new salt → new key
       const saltFile = path.join(tmpDir, PasswordManager.VAULT_SALT_FILE);
-      try { fs.unlinkSync(saltFile); } catch (_) { /* expected */ }
+      try {
+        fs.unlinkSync(saltFile);
+      } catch (_) {
+        /* expected */
+      }
       PasswordManager._resetCache();
 
       const key2 = PasswordManager.getMachineKey();
@@ -148,15 +172,35 @@ describe('PasswordManager.js', () => {
       PasswordManager._resetCache();
 
       let userDataPath = '';
-      try { userDataPath = electron.app.getPath('userData'); } catch (_) { /* expected */ }
+      try {
+        userDataPath = electron.app.getPath('userData');
+      } catch (_) {
+        /* expected */
+      }
       let username = '';
-      try { username = os.userInfo().username; } catch (_) { /* expected */ }
+      try {
+        username = os.userInfo().username;
+      } catch (_) {
+        /* expected */
+      }
       const machineSeed = os.hostname() + '|' + username + '|' + userDataPath + '|shinobi-vault-v2';
 
       // 100k iters (machine key)
-      const key100k = crypto.pbkdf2Sync(machineSeed, salt, 100000, CryptoService.PBKDF2_KEYLEN, 'sha512');
+      const key100k = crypto.pbkdf2Sync(
+        machineSeed,
+        salt,
+        100000,
+        CryptoService.PBKDF2_KEYLEN,
+        'sha512'
+      );
       // 200k iters (backup key — should be different)
-      const key200k = crypto.pbkdf2Sync(machineSeed, salt, 200000, CryptoService.PBKDF2_KEYLEN, 'sha512');
+      const key200k = crypto.pbkdf2Sync(
+        machineSeed,
+        salt,
+        200000,
+        CryptoService.PBKDF2_KEYLEN,
+        'sha512'
+      );
 
       expect(key100k.equals(key200k)).toBe(false);
     });
@@ -216,7 +260,11 @@ describe('PasswordManager.js', () => {
 
       // Delete salt file and reset cache
       const saltFile = path.join(tmpDir, PasswordManager.VAULT_SALT_FILE);
-      try { fs.unlinkSync(saltFile); } catch (_) { /* expected */ }
+      try {
+        fs.unlinkSync(saltFile);
+      } catch (_) {
+        /* expected */
+      }
       PasswordManager._resetCache();
 
       const salt2 = PasswordManager.getSalt();

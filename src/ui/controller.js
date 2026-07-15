@@ -33,5 +33,5 @@ module.exports = {
   showManager: showManager,
   hideManager: ManagerWindow.hideManager,
   registerIpcHandlers: IpcRouter.registerIpcHandlers,
-  launchProfile: IpcRouter.launchProfile,
+  launchProfile: IpcRouter.launchProfile
 };

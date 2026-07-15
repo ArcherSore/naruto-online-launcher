@@ -71,7 +71,10 @@ describe('CryptoService.js', () => {
   });
 
   describe('exportEncryptedBackup / importEncryptedBackup', () => {
-    const profiles = [{ id: 'p_1', name: 'Main' }, { id: 'p_2', name: 'Alt' }];
+    const profiles = [
+      { id: 'p_1', name: 'Main' },
+      { id: 'p_2', name: 'Alt' }
+    ];
     const creds = { p_1: { user: 'u1', pass: 's1' } };
 
     test('round-trip recupera perfis + credenciais', () => {
@@ -85,7 +88,9 @@ describe('CryptoService.js', () => {
     });
 
     test('export rejeita senha curta (<4 chars)', () => {
-      expect(() => Cs.exportEncryptedBackup(profiles, creds, 'ab')).toThrow(/pelo menos 4 caracteres/);
+      expect(() => Cs.exportEncryptedBackup(profiles, creds, 'ab')).toThrow(
+        /pelo menos 4 caracteres/
+      );
     });
 
     test('export rejeita profiles não-array', () => {
@@ -98,7 +103,9 @@ describe('CryptoService.js', () => {
     });
 
     test('import de base64 inválido lança "inválido ou corrompido"', () => {
-      expect(() => Cs.importEncryptedBackup('not-valid-base64-json', 'pw')).toThrow(/inválido ou corrompido/);
+      expect(() => Cs.importEncryptedBackup('not-valid-base64-json', 'pw')).toThrow(
+        /inválido ou corrompido/
+      );
     });
 
     test('import rejeita argumentos vazios', () => {

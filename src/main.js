@@ -37,8 +37,10 @@
 // o nome antigo no shell). vblank_mode é intencional (vsync do usuário) —
 // não tocamos.
 (function _migrateMesaEnv() {
-  if (process.env.MESA_GLSL_CACHE_DISABLE !== undefined &&
-      process.env.MESA_SHADER_CACHE_DISABLE === undefined) {
+  if (
+    process.env.MESA_GLSL_CACHE_DISABLE !== undefined &&
+    process.env.MESA_SHADER_CACHE_DISABLE === undefined
+  ) {
     process.env.MESA_SHADER_CACHE_DISABLE = process.env.MESA_GLSL_CACHE_DISABLE;
   }
   delete process.env.MESA_GLSL_CACHE_DISABLE;
@@ -78,7 +80,7 @@ flags.applyAll({
   flashPath: flashPath,
   flashVersion: flashVersion,
   hardwareProfile: config.hardwareProfile,
-  forceBatata: config.forceBatata === true,
+  forceBatata: config.forceBatata === true
 });
 
 // Single Instance Lock
@@ -142,25 +144,29 @@ function launchGameForProfile(profileId) {
     uiManager = require('./ui/controller');
     if (!uiManager.getManagerWindow()) uiManager.createManagerWindow();
   }
-  profileManager.launch(profileId, function onOpened() {
-    activeGameWindows++;
-    // Ramen Mode (PC <2GB): oculta o manager para liberar RAM (comportamento legado).
-    // Caso contrário: manager fica visível → multi-conta simultânea habilitada.
-    if (memoryGuard.isRamen() && uiManager) {
-      uiManager.hideManager();
-      logger.info('Manager oculto (Ramen Mode) — RAM liberada para o jogo');
-    } else {
-      logger.info('Jogo aberto — manager visível (multi-conta disponível)');
+  profileManager.launch(
+    profileId,
+    function onOpened() {
+      activeGameWindows++;
+      // Ramen Mode (PC <2GB): oculta o manager para liberar RAM (comportamento legado).
+      // Caso contrário: manager fica visível → multi-conta simultânea habilitada.
+      if (memoryGuard.isRamen() && uiManager) {
+        uiManager.hideManager();
+        logger.info('Manager oculto (Ramen Mode) — RAM liberada para o jogo');
+      } else {
+        logger.info('Jogo aberto — manager visível (multi-conta disponível)');
+      }
+    },
+    function onClosed() {
+      activeGameWindows = Math.max(0, activeGameWindows - 1);
+      if (activeGameWindows === 0 && uiManager) {
+        // Último jogo fechou: garante que o manager esteja visível (caso o
+        // usuário o tenha ocultado manualmente via X durante o jogo).
+        uiManager.showManager();
+        logger.info('Jogo fechado — manager restaurado');
+      }
     }
-  }, function onClosed() {
-    activeGameWindows = Math.max(0, activeGameWindows - 1);
-    if (activeGameWindows === 0 && uiManager) {
-      // Último jogo fechou: garante que o manager esteja visível (caso o
-      // usuário o tenha ocultado manualmente via X durante o jogo).
-      uiManager.showManager();
-      logger.info('Jogo fechado — manager restaurado');
-    }
-  });
+  );
 }
 
 function showManager() {
@@ -176,7 +182,9 @@ function showManager() {
 // APP EVENTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-app.on('second-instance', function () { showManager(); });
+app.on('second-instance', function () {
+  showManager();
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // v3.5: ONBOARDING (Setup Window) — primeira execução
@@ -215,12 +223,16 @@ function showSetupWindow(onDone) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      backgroundThrottling: false,
-    },
+      backgroundThrottling: false
+    }
   });
 
   // Passa idioma atual via query string (setup.html agora em ui/setup/)
-  const setupUrl = 'file://' + path.join(__dirname, 'ui', 'setup', 'setup.html') + '?lang=' + (config.language || 'pt');
+  const setupUrl =
+    'file://' +
+    path.join(__dirname, 'ui', 'setup', 'setup.html') +
+    '?lang=' +
+    (config.language || 'pt');
   setupWindow.loadURL(setupUrl);
 
   setupWindow.once('ready-to-show', function () {
@@ -235,7 +247,14 @@ function showSetupWindow(onDone) {
       try {
         const jsonStr = title.slice('__SETUP_DONE__'.length);
         const result = JSON.parse(jsonStr);
-        logger.info('Setup concluído: lang=' + result.language + ' region=' + (result.region || 'br') + ' advanced=' + result.advancedMode);
+        logger.info(
+          'Setup concluído: lang=' +
+            result.language +
+            ' region=' +
+            (result.region || 'br') +
+            ' advanced=' +
+            result.advancedMode
+        );
 
         // Aplica configurações
         config.firstBoot = false;
@@ -253,7 +272,9 @@ function showSetupWindow(onDone) {
         try {
           const { createMmsCfg } = require('./flash/mms');
           createMmsCfg(config.hardwareProfile, { advancedMode: config.advancedMode });
-        } catch (_) { /* ignore */ }
+        } catch (_) {
+          /* ignore */
+        }
 
         // Fecha setup e chama callback
         setupWindow.destroy();
@@ -346,8 +367,8 @@ function _provisionFlashAndRelaunch() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      backgroundThrottling: false,
-    },
+      backgroundThrottling: false
+    }
   });
   loadingWin.loadFile(path.join(__dirname, 'ui', 'loading', 'loading.html'));
 
@@ -358,44 +379,58 @@ function _provisionFlashAndRelaunch() {
 
   function setProgress(percent, phase, detail) {
     if (loadingWin.isDestroyed()) return;
-    var js = 'window.setProgress && window.setProgress(' + percent + ',' + JSON.stringify(phase) + ',' + JSON.stringify(detail || '') + ')';
-    loadingWin.webContents.executeJavaScript(js, true).catch(function () { /* page not ready yet */ });
+    var js =
+      'window.setProgress && window.setProgress(' +
+      percent +
+      ',' +
+      JSON.stringify(phase) +
+      ',' +
+      JSON.stringify(detail || '') +
+      ')';
+    loadingWin.webContents.executeJavaScript(js, true).catch(function () {
+      /* page not ready yet */
+    });
   }
 
   // Aguarda a página carregar antes de iniciar o download (garante setProgress disponível).
   loadingWin.webContents.once('did-finish-load', function () {
     setProgress(0, 'download', 'Conectando...');
 
-    flashUpdater.ensureLatest(process.platform, function (percent, dl, tot, phase) {
-      if (phase === 'download') {
-        setProgress(percent, 'download', dl + ' / ' + tot + ' MB');
-      } else if (phase === 'extract') {
-        setProgress(100, 'extract');
-      } else if (phase === 'done') {
+    flashUpdater
+      .ensureLatest(process.platform, function (percent, dl, tot, phase) {
+        if (phase === 'download') {
+          setProgress(percent, 'download', dl + ' / ' + tot + ' MB');
+        } else if (phase === 'extract') {
+          setProgress(100, 'extract');
+        } else if (phase === 'done') {
+          setProgress(100, 'done');
+        }
+      })
+      .then(function (pluginPath) {
+        loadingWin.__flashDone = true;
         setProgress(100, 'done');
-      }
-    }).then(function (pluginPath) {
-      loadingWin.__flashDone = true;
-      setProgress(100, 'done');
-      logger.info('Flash baixado com sucesso em ' + pluginPath + ' — reiniciando launcher');
-      // Pequeno delay para o usuário ver o "✓" antes do relaunch.
-      setTimeout(function () {
-        app.relaunch();
-        app.exit(0);
-      }, 900);
-    }).catch(function (err) {
-      logger.error('FlashUpdater falhou: ' + err.message + '\n' + (err.stack || ''));
-      setProgress(0, 'error', err.message);
-      loadingWin.__flashDone = true;
-      dialog.showMessageBoxSync(loadingWin, {
-        type: 'error',
-        title: 'Falha no download do Flash',
-        message: 'Não foi possível baixar o Clean Flash PPAPI.',
-        detail: err.message + '\n\nVerifique sua conexão com a internet e tente novamente. O launcher precisa do Flash para rodar Naruto Online.',
-        buttons: ['Sair'],
+        logger.info('Flash baixado com sucesso em ' + pluginPath + ' — reiniciando launcher');
+        // Pequeno delay para o usuário ver o "✓" antes do relaunch.
+        setTimeout(function () {
+          app.relaunch();
+          app.exit(0);
+        }, 900);
+      })
+      .catch(function (err) {
+        logger.error('FlashUpdater falhou: ' + err.message + '\n' + (err.stack || ''));
+        setProgress(0, 'error', err.message);
+        loadingWin.__flashDone = true;
+        dialog.showMessageBoxSync(loadingWin, {
+          type: 'error',
+          title: 'Falha no download do Flash',
+          message: 'Não foi possível baixar o Clean Flash PPAPI.',
+          detail:
+            err.message +
+            '\n\nVerifique sua conexão com a internet e tente novamente. O launcher precisa do Flash para rodar Naruto Online.',
+          buttons: ['Sair']
+        });
+        app.exit(1);
       });
-      app.exit(1);
-    });
   });
 }
 
@@ -403,34 +438,56 @@ function _provisionFlashAndRelaunch() {
  * Inicializa UI Manager + banner (separado para chamar após setup).
  */
 function _initManagerAndLaunch() {
-
   // v3.5: Recria mms.cfg com Modo Leve Avançado se ativado no config
   try {
     const { createMmsCfg } = require('./flash/mms');
     createMmsCfg(config.hardwareProfile, { advancedMode: config.advancedMode === true });
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 
   // UI Manager — skip em Ramen Mode (manager-only economiza 45MB em PCs <2GB)
   uiManager = require('./ui/controller');
   uiManager.registerIpcHandlers({
     launchProfile: launchGameForProfile,
-    closeProfile: profileManager.close,  // v5.3: close game window by profile ID
-    getMemoryStats: function () { return memoryGuard.getStats(); },
-    forceGC: function () { return memoryGuard.collect({ manual: true }); },
-    getEvents: function (region) { return eventTimers.getUpcoming(region || 'br'); },
-    setMuted: function (m) { eventTimers.setMuted(m); _persistConfig(); },
-    getVault: function (profileId) { return vault.getCredentials(profileId); },
-    setVault: function (profileId, user, pass) { return vault.setCredentials(profileId, user, pass); },
-    removeVault: function (profileId) { return vault.removeCredentials(profileId); },
-    hasVault: function (profileId) { return vault.hasCredentials(profileId); },
-    isBatata: function () { return memoryGuard.isBatata(); },
-    isRamen: function () { return memoryGuard.isRamen(); },
+    closeProfile: profileManager.close, // v5.3: close game window by profile ID
+    getMemoryStats: function () {
+      return memoryGuard.getStats();
+    },
+    forceGC: function () {
+      return memoryGuard.collect({ manual: true });
+    },
+    getEvents: function (region) {
+      return eventTimers.getUpcoming(region || 'br');
+    },
+    setMuted: function (m) {
+      eventTimers.setMuted(m);
+      _persistConfig();
+    },
+    getVault: function (profileId) {
+      return vault.getCredentials(profileId);
+    },
+    setVault: function (profileId, user, pass) {
+      return vault.setCredentials(profileId, user, pass);
+    },
+    removeVault: function (profileId) {
+      return vault.removeCredentials(profileId);
+    },
+    hasVault: function (profileId) {
+      return vault.hasCredentials(profileId);
+    },
+    isBatata: function () {
+      return memoryGuard.isBatata();
+    },
+    isRamen: function () {
+      return memoryGuard.isRamen();
+    },
     toggleBatata: function () {
       memoryGuard.setForceBatata(!memoryGuard.isBatata());
       partition.setBatataMode(memoryGuard.isBatata());
       _persistConfig();
       return memoryGuard.isBatata();
-    },
+    }
     // v4.9.1: crash reporter removido do Settings
   });
 
@@ -448,7 +505,9 @@ function _initManagerAndLaunch() {
   // pode mostrar um aviso se a versão for inesperada, mas não bloqueia.
 }
 
-app.on('before-quit', function () { isQuitting = true; });
+app.on('before-quit', function () {
+  isQuitting = true;
+});
 
 // v3.3: SEM TRAY — quando todas as janelas fecham, o app encerra.
 // (Antes ficava na bandeja sem tray para restaurar → "tento sair e nao sai")
@@ -468,7 +527,14 @@ app.on('gpu-process-crashed', function (event) {
 });
 
 app.on('child-process-gone', function (event, details) {
-  logger.warn('⚡ Child process gone — type=' + details.type + ' reason=' + details.reason + ' exitCode=' + details.exitCode);
+  logger.warn(
+    '⚡ Child process gone — type=' +
+      details.type +
+      ' reason=' +
+      details.reason +
+      ' exitCode=' +
+      details.exitCode
+  );
   // v4.9.1: crash reporter removido — só log
 });
 
@@ -476,14 +542,22 @@ app.on('will-quit', function () {
   try {
     const { restoreMmsCfg } = require('./flash/mms');
     restoreMmsCfg();
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
   memoryGuard.stop();
   eventTimers.stop();
 });
 
 // Graceful exit
-process.on('SIGTERM', function () { isQuitting = true; app.quit(); });
-process.on('SIGINT', function () { isQuitting = true; app.quit(); });
+process.on('SIGTERM', function () {
+  isQuitting = true;
+  app.quit();
+});
+process.on('SIGINT', function () {
+  isQuitting = true;
+  app.quit();
+});
 process.on('uncaughtException', function (e) {
   logger.error('Uncaught: ' + e.message + '\n' + (e.stack || ''));
   isQuitting = true;
@@ -500,7 +574,12 @@ process.on('unhandledRejection', function (reason) {
 function _persistConfig() {
   try {
     const { saveConfig } = require('./config/settings');
-    config.forceBatata = memoryGuard.isBatata() && !memoryGuard.IS_LOW_SPEC ? memoryGuard.isBatata() : (memoryGuard.IS_LOW_SPEC ? undefined : config.forceBatata);
+    config.forceBatata =
+      memoryGuard.isBatata() && !memoryGuard.IS_LOW_SPEC
+        ? memoryGuard.isBatata()
+        : memoryGuard.IS_LOW_SPEC
+          ? undefined
+          : config.forceBatata;
     config.mutedEvents = eventTimers.isMuted();
     saveConfig(config);
   } catch (e) {
@@ -517,13 +596,21 @@ function _logBanner() {
   logger.info('Perfis: ' + profileStore.getAll().length + '/' + profileStore.MAX_PROFILES);
   logger.info('Idioma: ' + i18n.getLanguage());
   logger.info('RAM do sistema: ' + memoryGuard.SYSTEM_RAM_GB + 'GB');
-  logger.info('Modo Leve: ' + (memoryGuard.isBatata() ? 'ON' : 'OFF') + ' (threshold ' + memoryGuard.getThreshold() + 'MB)');
+  logger.info(
+    'Modo Leve: ' +
+      (memoryGuard.isBatata() ? 'ON' : 'OFF') +
+      ' (threshold ' +
+      memoryGuard.getThreshold() +
+      'MB)'
+  );
   logger.info('Modo Leve Avançado: ' + (config.advancedMode ? 'ON (Flash low quality)' : 'OFF'));
   // v4.9.1: Telemetria removida (crash reporter deletado a pedido do usuário)
   logger.info('═══════════════════════════════════════════');
 }
 
 module.exports = {
-  isQuitting: function () { return isQuitting; },
-  launchGameForProfile: launchGameForProfile,
+  isQuitting: function () {
+    return isQuitting;
+  },
+  launchGameForProfile: launchGameForProfile
 };

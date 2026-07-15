@@ -30,7 +30,7 @@ jest.mock('../../../profiles/store', () => ({
   recordLaunch: jest.fn(() => true),
   getLaunchTimeline: jest.fn(() => []),
   clearLaunchLog: jest.fn(),
-  getLaunchLogStats: jest.fn(() => ({ total: 0, oldestTs: null, newestTs: null })),
+  getLaunchLogStats: jest.fn(() => ({ total: 0, oldestTs: null, newestTs: null }))
 }));
 
 jest.mock('../../../memory/guard', () => ({
@@ -38,14 +38,14 @@ jest.mock('../../../memory/guard', () => ({
   collect: jest.fn(() => ({ freed: 0 })),
   getWebviewStats: jest.fn(() => []),
   onMemoryUpdate: jest.fn(),
-  onGC: jest.fn(),
+  onGC: jest.fn()
 }));
 
 jest.mock('../../../utils/EventTimers', () => ({
   getUpcoming: jest.fn(() => []),
   setMuted: jest.fn(),
   onRemind: jest.fn(),
-  getUserOffsetHours: jest.fn(() => -3),
+  getUserOffsetHours: jest.fn(() => -3)
 }));
 
 jest.mock('../../../profiles/vault', () => ({
@@ -54,42 +54,46 @@ jest.mock('../../../profiles/vault', () => ({
   removeCredentials: jest.fn(() => true),
   hasCredentials: jest.fn(() => false),
   exportEncryptedBackup: jest.fn(() => 'encrypted-data'),
-  importEncryptedBackup: jest.fn(() => ({ profiles: [], credentials: {} })),
+  importEncryptedBackup: jest.fn(() => ({ profiles: [], credentials: {} }))
 }));
 
 jest.mock('../../../profiles/partition', () => ({
   getPartitionName: jest.fn(() => 'persist:profile-p_001'),
-  removeSnapshot: jest.fn(),
+  removeSnapshot: jest.fn()
 }));
 
 jest.mock('../ManagerWindow', () => ({
   send: jest.fn(),
-  getManagerWindow: jest.fn(() => null),
+  getManagerWindow: jest.fn(() => null)
 }));
 
 jest.mock('../StateBroadcaster', () => ({
   pushProfiles: jest.fn(),
   pushEvents: jest.fn(),
   pushAll: jest.fn(),
-  startAutoRefresh: jest.fn(),
+  startAutoRefresh: jest.fn()
 }));
 
 jest.mock('../../../utils/diagnostics', () => ({
-  exportZip: jest.fn(() => Promise.resolve({ ok: true, size: 1024, entries: 5 })),
+  exportZip: jest.fn(() => Promise.resolve({ ok: true, size: 1024, entries: 5 }))
 }));
 
 jest.mock('../../../network/tempmail', () => ({
-  createNarutoAccount: jest.fn(() => Promise.resolve({
-    tempmail: { address: 'test@temp.com', password: 'tmppass' },
-    game: { nickname: 'NarutoTest' },
-  })),
-  getRecommendedServers: jest.fn(() => Promise.resolve([])),
+  createNarutoAccount: jest.fn(() =>
+    Promise.resolve({
+      tempmail: { address: 'test@temp.com', password: 'tmppass' },
+      game: { nickname: 'NarutoTest' }
+    })
+  ),
+  getRecommendedServers: jest.fn(() => Promise.resolve([]))
 }));
 
 jest.mock('../../../network/api-login', () => ({
-  loginAndInject: jest.fn(() => Promise.resolve({ nickname: 'Test', expiresAt: Date.now() + 7200000 })),
+  loginAndInject: jest.fn(() =>
+    Promise.resolve({ nickname: 'Test', expiresAt: Date.now() + 7200000 })
+  ),
   checkSession: jest.fn(() => Promise.resolve({ valid: true })),
-  renewIfNeeded: jest.fn(() => Promise.resolve({ renewed: false })),
+  renewIfNeeded: jest.fn(() => Promise.resolve({ renewed: false }))
 }));
 
 jest.mock('../../../network/inspector', () => ({
@@ -98,25 +102,25 @@ jest.mock('../../../network/inspector', () => ({
     disable: jest.fn(),
     getEntries: jest.fn(() => []),
     getStats: jest.fn(() => null),
-    clear: jest.fn(),
-  })),
+    clear: jest.fn()
+  }))
 }));
 
 jest.mock('../../server-selector', () => ({
   fetchServers: jest.fn(() => []),
-  clearCache: jest.fn(),
+  clearCache: jest.fn()
 }));
 
 jest.mock('../../game-launcher', () => ({
   launchProfile: jest.fn(),
-  getWebContents: jest.fn(() => null),
+  getWebContents: jest.fn(() => null)
 }));
 
 jest.mock('../../../config/i18n', () => ({
   getLanguage: jest.fn(() => 'pt'),
   setLanguage: jest.fn(),
   getAll: jest.fn(() => ({})),
-  t: jest.fn((k) => k),
+  t: jest.fn(k => k)
 }));
 
 const IpcRouter = require('../IpcRouter');
@@ -128,7 +132,7 @@ const StateBroadcaster = require('../StateBroadcaster');
 const tempmail = require('../../../network/tempmail');
 
 // Capture all handlers from the single registration
-let onHandlers = {};   // channel -> handler fn
+let onHandlers = {}; // channel -> handler fn
 let handleHandlers = {}; // channel -> handler fn
 
 // Register once and capture all handlers
@@ -200,7 +204,9 @@ describe('IpcRouter.js', () => {
       expect(typeof StateBroadcaster.startAutoRefresh).toBe('function');
       // Verify it was called at least once (during initial registration before mocks cleared)
       // Since we can't check that, verify the module structure is correct
-      expect(Object.keys(onHandlers).length + Object.keys(handleHandlers).length).toBeGreaterThan(10);
+      expect(Object.keys(onHandlers).length + Object.keys(handleHandlers).length).toBeGreaterThan(
+        10
+      );
     });
 
     test('é idempotente — segunda chamada não registra de novo (guard _registered)', () => {
@@ -211,8 +217,12 @@ describe('IpcRouter.js', () => {
       // We check by verifying ipcMain.on/handle were not called again
       // Since we cleared mocks, any new calls would be from the second registerIpcHandlers
       // But _registered=true means it returns early
-      const newOnChannels = ipcMain.on.mock.calls.map(function (c) { return c[0]; });
-      const newHandleChannels = ipcMain.handle.mock.calls.map(function (c) { return c[0]; });
+      const newOnChannels = ipcMain.on.mock.calls.map(function (c) {
+        return c[0];
+      });
+      const newHandleChannels = ipcMain.handle.mock.calls.map(function (c) {
+        return c[0];
+      });
       expect(newOnChannels.length).toBe(0);
       expect(newHandleChannels.length).toBe(0);
     });
@@ -236,9 +246,12 @@ describe('IpcRouter.js', () => {
 
       handler({}, { name: 'New' });
 
-      expect(ManagerWindow.send).toHaveBeenCalledWith('profile:toast', expect.objectContaining({
-        type: 'error',
-      }));
+      expect(ManagerWindow.send).toHaveBeenCalledWith(
+        'profile:toast',
+        expect.objectContaining({
+          type: 'error'
+        })
+      );
     });
   });
 
@@ -259,9 +272,12 @@ describe('IpcRouter.js', () => {
 
       handler({}, 'nonexistent');
 
-      expect(ManagerWindow.send).toHaveBeenCalledWith('profile:toast', expect.objectContaining({
-        type: 'error',
-      }));
+      expect(ManagerWindow.send).toHaveBeenCalledWith(
+        'profile:toast',
+        expect.objectContaining({
+          type: 'error'
+        })
+      );
     });
 
     test('envia toast de erro para id não-string', () => {
@@ -269,9 +285,12 @@ describe('IpcRouter.js', () => {
 
       handler({}, 123);
 
-      expect(ManagerWindow.send).toHaveBeenCalledWith('profile:toast', expect.objectContaining({
-        type: 'error',
-      }));
+      expect(ManagerWindow.send).toHaveBeenCalledWith(
+        'profile:toast',
+        expect.objectContaining({
+          type: 'error'
+        })
+      );
     });
   });
 
@@ -406,9 +425,7 @@ describe('IpcRouter.js', () => {
     });
 
     test('chama store.getLaunchTimeline(7) por padrão', async () => {
-      store.getLaunchTimeline.mockReturnValue([
-        { date: '2024-01-01', count: 0, profiles: [] },
-      ]);
+      store.getLaunchTimeline.mockReturnValue([{ date: '2024-01-01', count: 0, profiles: [] }]);
       const handler = handleHandlers['profile:launch-timeline'];
 
       const result = await handler({}, undefined);
@@ -497,7 +514,9 @@ describe('IpcRouter.js', () => {
         throw new Error('boom');
       });
 
-      expect(function () { IpcRouter.launchProfile('p_002'); }).not.toThrow();
+      expect(function () {
+        IpcRouter.launchProfile('p_002');
+      }).not.toThrow();
       expect(store.incrementLaunch).toHaveBeenCalledWith('p_002');
       expect(store.recordLaunch).toHaveBeenCalledWith('p_002');
     });

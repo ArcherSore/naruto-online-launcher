@@ -2,7 +2,14 @@
  * Testes para src/config/urls.js (v3.5.1 — URLs reais validadas por pesquisa)
  */
 
-const { getGameUrl, getServerlistUrl, getGameCode, getLauncherParams, REGION_URLS, LAUNCHER_PARAMS } = require('../urls');
+const {
+  getGameUrl,
+  getServerlistUrl,
+  getGameCode,
+  getLauncherParams,
+  REGION_URLS,
+  LAUNCHER_PARAMS
+} = require('../urls');
 
 describe('config/urls.js v3.5.1', () => {
   describe('getGameUrl', () => {

@@ -10,12 +10,12 @@ const MemoryGuard = require('../MemoryGuard');
 jest.mock('../../profiles/store', () => ({
   getAll: jest.fn(() => [
     { id: 'p_active', name: 'Active' },
-    { id: 'p_idle', name: 'Idle' },
-  ]),
+    { id: 'p_idle', name: 'Idle' }
+  ])
 }));
 jest.mock('../../profiles/partition', () => ({
-  getPartitionName: jest.fn((p) => 'persist:profile-' + p.id),
-  setBatataMode: jest.fn(),
+  getPartitionName: jest.fn(p => 'persist:profile-' + p.id),
+  setBatataMode: jest.fn()
 }));
 
 const store = require('../../profiles/store');
@@ -54,7 +54,7 @@ describe('GcDaemon.js', () => {
 
       await GcDaemon._clearIdleSessions();
 
-      const calledPartitions = fromPartitionSpy.mock.calls.map((c) => c[0]);
+      const calledPartitions = fromPartitionSpy.mock.calls.map(c => c[0]);
       // p_idle (ocioso) DEVE ser limpo
       expect(calledPartitions).toContain('persist:profile-p_idle');
       // p_active (ativo) NÃO deve ser limpo — black screen fix
@@ -67,7 +67,7 @@ describe('GcDaemon.js', () => {
       const fromPartitionSpy = jest.spyOn(electron.session, 'fromPartition');
       await GcDaemon._clearIdleSessions();
 
-      const calledPartitions = fromPartitionSpy.mock.calls.map((c) => c[0]);
+      const calledPartitions = fromPartitionSpy.mock.calls.map(c => c[0]);
       expect(calledPartitions).toContain('persist:profile-p_active');
       expect(calledPartitions).toContain('persist:profile-p_idle');
     });
@@ -85,7 +85,7 @@ describe('GcDaemon.js', () => {
       jest.spyOn(MemoryGuard, 'getActiveProfileIds').mockReturnValue([]);
       jest.spyOn(electron.session, 'fromPartition').mockReturnValue({
         clearCache: jest.fn(() => Promise.resolve()),
-        clearStorageData: jest.fn(() => Promise.resolve()),
+        clearStorageData: jest.fn(() => Promise.resolve())
       });
       await GcDaemon._clearIdleSessions();
       expect(partition.getPartitionName).toHaveBeenCalled();
@@ -93,7 +93,9 @@ describe('GcDaemon.js', () => {
 
     test('não lança mesmo se store/partition falham', async () => {
       jest.spyOn(MemoryGuard, 'getActiveProfileIds').mockReturnValue([]);
-      jest.spyOn(store, 'getAll').mockImplementation(() => { throw new Error('boom'); });
+      jest.spyOn(store, 'getAll').mockImplementation(() => {
+        throw new Error('boom');
+      });
       // Não deve lançar — _clearIdleSessions está envolto em try/catch no collect,
       // mas chamado direto aqui pode lançar. Verificamos que o erro é propagado
       // de forma controlada (store.getAll throws → _clearIdleSessions rejeita).

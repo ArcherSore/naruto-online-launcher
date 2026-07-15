@@ -44,9 +44,18 @@ const MAX_LAUNCH_LOG_ENTRIES = 5000;
 
 // Cores para identificação visual rápida (paleta Naruto)
 const PALETTE = [
-  '#FF8C00', '#DC2626', '#10B981', '#F59E0B',
-  '#8B5CF6', '#06B6D4', '#EC4899', '#84CC16',
-  '#F97316', '#14B8A6', '#A855F7', '#EAB308',
+  '#FF8C00',
+  '#DC2626',
+  '#10B981',
+  '#F59E0B',
+  '#8B5CF6',
+  '#06B6D4',
+  '#EC4899',
+  '#84CC16',
+  '#F97316',
+  '#14B8A6',
+  '#A855F7',
+  '#EAB308'
 ];
 
 // Schema validator — nunca confiar em dados lidos do disco
@@ -61,16 +70,25 @@ function isValidProfile(p) {
   // v3.4: language opcional (default 'pt' para retrocompatibilidade)
   if (p.language !== undefined && !['pt', 'en'].includes(p.language)) return false;
   // v3.4: notificationsEnabled opcional (default true para retrocompatibilidade)
-  if (p.notificationsEnabled !== undefined && typeof p.notificationsEnabled !== 'boolean') return false;
+  if (p.notificationsEnabled !== undefined && typeof p.notificationsEnabled !== 'boolean')
+    return false;
   if (typeof p.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(p.color)) return false;
   if (typeof p.createdAt !== 'number' || p.createdAt < 0) return false;
   if (typeof p.lastUsed !== 'number' || p.lastUsed < 0) return false;
   // v4.5: notes opcional (string, max 200 chars)
   if (p.notes !== undefined && (typeof p.notes !== 'string' || p.notes.length > 200)) return false;
   // v4.5: launchCount opcional (number, >= 0)
-  if (p.launchCount !== undefined && (typeof p.launchCount !== 'number' || p.launchCount < 0 || !isFinite(p.launchCount))) return false;
+  if (
+    p.launchCount !== undefined &&
+    (typeof p.launchCount !== 'number' || p.launchCount < 0 || !isFinite(p.launchCount))
+  )
+    return false;
   // v4.5: totalPlayMs opcional (number, >= 0)
-  if (p.totalPlayMs !== undefined && (typeof p.totalPlayMs !== 'number' || p.totalPlayMs < 0 || !isFinite(p.totalPlayMs))) return false;
+  if (
+    p.totalPlayMs !== undefined &&
+    (typeof p.totalPlayMs !== 'number' || p.totalPlayMs < 0 || !isFinite(p.totalPlayMs))
+  )
+    return false;
   // v4.6: favorite opcional (boolean)
   if (p.favorite !== undefined && typeof p.favorite !== 'boolean') return false;
   // v5.3: tags opcional (array de strings, max 5 tags, cada max 20 chars)
@@ -78,7 +96,8 @@ function isValidProfile(p) {
     if (!Array.isArray(p.tags)) return false;
     if (p.tags.length > 5) return false;
     for (var i = 0; i < p.tags.length; i++) {
-      if (typeof p.tags[i] !== 'string' || p.tags[i].length > 20 || p.tags[i].length === 0) return false;
+      if (typeof p.tags[i] !== 'string' || p.tags[i].length > 20 || p.tags[i].length === 0)
+        return false;
     }
   }
   return true;
@@ -101,9 +120,9 @@ function _migrateProfile(p) {
   return p;
 }
 
-let _profiles = null;       // cache em memória
+let _profiles = null; // cache em memória
 let _listeners = [];
-let _launchLog = null;      // v5.5: cache em memória do log de lançamentos
+let _launchLog = null; // v5.5: cache em memória do log de lançamentos
 
 function getDir() {
   return path.join(app.getPath('userData'), PROFILES_DIR);
@@ -178,7 +197,11 @@ function load() {
   // Valida cada perfil; descarta inválidos silenciosamente
   _profiles = parsed.filter(isValidProfile);
   if (_profiles.length !== parsed.length) {
-    logger.warn('ProfileStore: ' + (parsed.length - _profiles.length) + ' perfil(is) inválido(s) descartado(s)');
+    logger.warn(
+      'ProfileStore: ' +
+        (parsed.length - _profiles.length) +
+        ' perfil(is) inválido(s) descartado(s)'
+    );
   }
   // v3.4: migra perfis v1 (sem language/notificationsEnabled) para v2
   let migrated = 0;
@@ -189,7 +212,11 @@ function load() {
     if (before !== after) migrated++;
   });
   if (migrated > 0) {
-    logger.info('ProfileStore: ' + migrated + ' perfil(is) migrado(s) para schema v2 (language + notificationsEnabled)');
+    logger.info(
+      'ProfileStore: ' +
+        migrated +
+        ' perfil(is) migrado(s) para schema v2 (language + notificationsEnabled)'
+    );
     _saveToDisk(_profiles);
   } else if (_profiles.length !== parsed.length) {
     _saveToDisk(_profiles);
@@ -236,7 +263,11 @@ function _saveToDisk(profiles) {
   } catch (e) {
     logger.error('ProfileStore: falha ao salvar: ' + e.message);
     // Tenta limpar tmp órfão
-    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) { /* ignore */ }
+    try {
+      if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+    } catch (_) {
+      /* ignore */
+    }
     return false;
   }
 }
@@ -249,7 +280,11 @@ function persist() {
   const ok = _saveToDisk(_profiles);
   if (ok) {
     _listeners.forEach(function (cb) {
-      try { cb(_profiles); } catch (_) { /* ignore listener errors */ }
+      try {
+        cb(_profiles);
+      } catch (_) {
+        /* ignore listener errors */
+      }
     });
   }
 }
@@ -261,7 +296,11 @@ function getAll() {
 
 function get(id) {
   if (_profiles === null) load();
-  return _profiles.find(function (p) { return p.id === id; }) || null;
+  return (
+    _profiles.find(function (p) {
+      return p.id === id;
+    }) || null
+  );
 }
 
 function create(opts) {
@@ -273,12 +312,23 @@ function create(opts) {
   opts = opts || {};
   const profile = {
     id: 'p_' + crypto.randomBytes(6).toString('hex'),
-    name: String(opts.name || ('Conta ' + (_profiles.length + 1))).slice(0, 40).trim() || 'Conta',
-    server: String(opts.server || '').slice(0, 20).trim(),
-    region: ['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(opts.region) ? opts.region : 'br',
+    name:
+      String(opts.name || 'Conta ' + (_profiles.length + 1))
+        .slice(0, 40)
+        .trim() || 'Conta',
+    server: String(opts.server || '')
+      .slice(0, 20)
+      .trim(),
+    region: ['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(opts.region)
+      ? opts.region
+      : 'br',
     language: ['pt', 'en'].includes(opts.language) ? opts.language : 'pt',
-    notificationsEnabled: typeof opts.notificationsEnabled === 'boolean' ? opts.notificationsEnabled : true,
-    color: (typeof opts.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(opts.color)) ? opts.color : PALETTE[_profiles.length % PALETTE.length],
+    notificationsEnabled:
+      typeof opts.notificationsEnabled === 'boolean' ? opts.notificationsEnabled : true,
+    color:
+      typeof opts.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(opts.color)
+        ? opts.color
+        : PALETTE[_profiles.length % PALETTE.length],
     // v4.5: novos campos
     notes: typeof opts.notes === 'string' ? opts.notes.slice(0, 200) : '',
     launchCount: 0,
@@ -286,33 +336,57 @@ function create(opts) {
     // v4.6: favorite flag
     favorite: typeof opts.favorite === 'boolean' ? opts.favorite : false,
     // v5.3: tags (array of strings, max 5, each max 20 chars)
-    tags: Array.isArray(opts.tags) ? opts.tags.filter(function(t) { return typeof t === 'string' && t.length > 0 && t.length <= 20; }).slice(0, 5) : [],
+    tags: Array.isArray(opts.tags)
+      ? opts.tags
+          .filter(function (t) {
+            return typeof t === 'string' && t.length > 0 && t.length <= 20;
+          })
+          .slice(0, 5)
+      : [],
     createdAt: Date.now(),
-    lastUsed: 0,
+    lastUsed: 0
   };
   _profiles.push(profile);
   persist();
-  logger.info('ProfileStore: perfil criado — ' + profile.name + (profile.server ? ' (' + profile.server + ')' : '') + ' [' + profile.region + '/' + profile.language + ']');
+  logger.info(
+    'ProfileStore: perfil criado — ' +
+      profile.name +
+      (profile.server ? ' (' + profile.server + ')' : '') +
+      ' [' +
+      profile.region +
+      '/' +
+      profile.language +
+      ']'
+  );
   return profile;
 }
 
 function update(id, updates) {
   if (_profiles === null) load();
-  const p = _profiles.find(function (x) { return x.id === id; });
+  const p = _profiles.find(function (x) {
+    return x.id === id;
+  });
   if (!p) return false;
   if (typeof updates.name === 'string') p.name = updates.name.slice(0, 40).trim() || p.name;
   if (typeof updates.server === 'string') p.server = updates.server.slice(0, 20).trim();
-  if (['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(updates.region)) p.region = updates.region;
+  if (['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(updates.region))
+    p.region = updates.region;
   if (['pt', 'en'].includes(updates.language)) p.language = updates.language;
-  if (typeof updates.notificationsEnabled === 'boolean') p.notificationsEnabled = updates.notificationsEnabled;
-  if (typeof updates.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(updates.color)) p.color = updates.color;
+  if (typeof updates.notificationsEnabled === 'boolean')
+    p.notificationsEnabled = updates.notificationsEnabled;
+  if (typeof updates.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(updates.color))
+    p.color = updates.color;
   // v4.5: notes (string, max 200)
   if (typeof updates.notes === 'string') p.notes = updates.notes.slice(0, 200);
   // v4.6: favorite (boolean)
   if (typeof updates.favorite === 'boolean') p.favorite = updates.favorite;
   // v5.3: tags (array of strings, max 5, each max 20 chars)
   if (Array.isArray(updates.tags)) {
-    p.tags = updates.tags.filter(function(t) { return typeof t === 'string' && t.length > 0 && t.length <= 20; }).slice(0, 5);
+    p.tags = updates.tags
+      .filter(function (t) {
+        return typeof t === 'string' && t.length > 0 && t.length <= 20;
+      })
+      .slice(0, 5);
   }
   persist();
   return true;
@@ -320,7 +394,9 @@ function update(id, updates) {
 
 function remove(id) {
   if (_profiles === null) load();
-  const idx = _profiles.findIndex(function (x) { return x.id === id; });
+  const idx = _profiles.findIndex(function (x) {
+    return x.id === id;
+  });
   if (idx === -1) return false;
   _profiles.splice(idx, 1);
   persist();
@@ -350,7 +426,9 @@ function reorder(order) {
   var seen = new Set();
   // First, place profiles in the specified order
   order.forEach(function (id) {
-    var p = _profiles.find(function (x) { return x.id === id; });
+    var p = _profiles.find(function (x) {
+      return x.id === id;
+    });
     if (p && !seen.has(id)) {
       reordered.push(p);
       seen.add(id);
@@ -366,7 +444,9 @@ function reorder(order) {
 
 function touch(id) {
   if (_profiles === null) load();
-  const p = _profiles.find(function (x) { return x.id === id; });
+  const p = _profiles.find(function (x) {
+    return x.id === id;
+  });
   if (p) {
     p.lastUsed = Date.now();
     persist();
@@ -380,7 +460,9 @@ function touch(id) {
  */
 function incrementLaunch(id) {
   if (_profiles === null) load();
-  const p = _profiles.find(function (x) { return x.id === id; });
+  const p = _profiles.find(function (x) {
+    return x.id === id;
+  });
   if (!p) return false;
   p.launchCount = (p.launchCount || 0) + 1;
   p.lastUsed = Date.now();
@@ -396,7 +478,9 @@ function incrementLaunch(id) {
  */
 function addPlayTime(id, ms) {
   if (_profiles === null) load();
-  const p = _profiles.find(function (x) { return x.id === id; });
+  const p = _profiles.find(function (x) {
+    return x.id === id;
+  });
   if (!p) return false;
   // Sanity check: 0 <= ms <= 24h (evita overflow por bug de timer)
   const clamped = Math.max(0, Math.min(24 * 60 * 60 * 1000, Number(ms) || 0));
@@ -412,7 +496,9 @@ function addPlayTime(id, ms) {
  */
 function getStats(id) {
   if (_profiles === null) load();
-  const p = _profiles.find(function (x) { return x.id === id; });
+  const p = _profiles.find(function (x) {
+    return x.id === id;
+  });
   if (!p) return null;
   const launches = p.launchCount || 0;
   const totalMs = p.totalPlayMs || 0;
@@ -420,7 +506,7 @@ function getStats(id) {
     launchCount: launches,
     totalPlayMs: totalMs,
     lastUsed: p.lastUsed || 0,
-    avgSessionMs: launches > 0 ? Math.round(totalMs / launches) : 0,
+    avgSessionMs: launches > 0 ? Math.round(totalMs / launches) : 0
   };
 }
 
@@ -431,11 +517,15 @@ function getStats(id) {
  */
 function exportJSON() {
   if (_profiles === null) load();
-  return JSON.stringify({
-    version: 2,
-    exportedAt: Date.now(),
-    profiles: _profiles,
-  }, null, 2);
+  return JSON.stringify(
+    {
+      version: 2,
+      exportedAt: Date.now(),
+      profiles: _profiles
+    },
+    null,
+    2
+  );
 }
 
 /**
@@ -452,19 +542,31 @@ function importJSON(jsonStr) {
     logger.error('ProfileStore: import JSON inválido: ' + e.message);
     return { imported: 0, skipped: 0 };
   }
-  const incoming = Array.isArray(data.profiles) ? data.profiles : (Array.isArray(data) ? data : []);
-  let imported = 0, skipped = 0;
+  const incoming = Array.isArray(data.profiles) ? data.profiles : Array.isArray(data) ? data : [];
+  let imported = 0,
+    skipped = 0;
   incoming.forEach(function (p) {
-    if (!isValidProfile(p)) { skipped++; return; }
-    if (_profiles.length >= MAX_PROFILES) { skipped++; return; }
+    if (!isValidProfile(p)) {
+      skipped++;
+      return;
+    }
+    if (_profiles.length >= MAX_PROFILES) {
+      skipped++;
+      return;
+    }
     // Dedup por nome+server
-    const dup = _profiles.find(function (x) { return x.name === p.name && x.server === p.server; });
-    if (dup) { skipped++; return; }
+    const dup = _profiles.find(function (x) {
+      return x.name === p.name && x.server === p.server;
+    });
+    if (dup) {
+      skipped++;
+      return;
+    }
     // Novo ID (evita colisão com existentes)
     const fresh = Object.assign({}, p, {
       id: 'p_' + crypto.randomBytes(6).toString('hex'),
       createdAt: Date.now(),
-      lastUsed: 0,
+      lastUsed: 0
     });
     _profiles.push(fresh);
     imported++;
@@ -535,7 +637,11 @@ function _loadLaunchLog() {
           return e && typeof e.id === 'string' && typeof e.ts === 'number' && isFinite(e.ts);
         });
         if (_launchLog.length !== parsed.length) {
-          logger.warn('LaunchLog: ' + (parsed.length - _launchLog.length) + ' entrada(s) inválida(s) descartada(s)');
+          logger.warn(
+            'LaunchLog: ' +
+              (parsed.length - _launchLog.length) +
+              ' entrada(s) inválida(s) descartada(s)'
+          );
         }
       } else {
         logger.warn('LaunchLog: arquivo não é array — iniciando vazio');
@@ -573,7 +679,11 @@ function _persistLaunchLog() {
     fs.renameSync(tmp, file);
   } catch (e) {
     logger.error('LaunchLog: falha ao salvar: ' + e.message);
-    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) { /* ignore */ }
+    try {
+      if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+    } catch (_) {
+      /* ignore */
+    }
   }
 }
 
@@ -586,7 +696,9 @@ function recordLaunch(profileId) {
   if (_profiles === null) load();
   if (_launchLog === null) _loadLaunchLog();
   if (typeof profileId !== 'string' || profileId.length === 0) return false;
-  const p = _profiles.find(function (x) { return x.id === profileId; });
+  const p = _profiles.find(function (x) {
+    return x.id === profileId;
+  });
   if (!p) return false;
   _launchLog.push({ id: profileId, ts: Date.now() });
   // Cap em MAX_LAUNCH_LOG_ENTRIES (drop oldest)
@@ -633,7 +745,9 @@ function getLaunchTimeline(days) {
     if (idx === undefined) return; // fora da janela de dias
     const b = buckets[idx];
     b.count++;
-    const p = _profiles.find(function (x) { return x.id === entry.id; });
+    const p = _profiles.find(function (x) {
+      return x.id === entry.id;
+    });
     if (!p) return; // perfil deletado — não conta no profiles array
     if (!b._byId[entry.id]) {
       b._byId[entry.id] = { id: entry.id, name: p.name, color: p.color, count: 0 };
@@ -643,7 +757,9 @@ function getLaunchTimeline(days) {
   });
 
   // Remove helper interno antes de retornar
-  buckets.forEach(function (b) { delete b._byId; });
+  buckets.forEach(function (b) {
+    delete b._byId;
+  });
   return buckets;
 }
 
@@ -690,12 +806,14 @@ module.exports = {
   incrementLaunch: incrementLaunch,
   addPlayTime: addPlayTime,
   getStats: getStats,
-  getPartitionName: function (id) { return 'persist:profile-' + id; },
+  getPartitionName: function (id) {
+    return 'persist:profile-' + id;
+  },
   MAX_PROFILES: MAX_PROFILES,
   PALETTE: PALETTE,
   // v5.5: launch log (timeline)
   recordLaunch: recordLaunch,
   getLaunchTimeline: getLaunchTimeline,
   clearLaunchLog: clearLaunchLog,
-  getLaunchLogStats: getLaunchLogStats,
+  getLaunchLogStats: getLaunchLogStats
 };

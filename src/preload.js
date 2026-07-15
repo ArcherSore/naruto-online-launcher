@@ -30,12 +30,14 @@ contextBridge.exposeInMainWorld('narutoLauncher', {
    * Get the launcher version from package.json
    * @returns {Promise<string>} version string (e.g. "4.1.0")
    */
-  getVersion: function() {
+  getVersion: function () {
     return ipcRenderer.invoke('launcher:get-version');
   },
   /**
    * v5.0: Whether the launcher was booted with SHINOBI_DEBUG=1.
    * @returns {boolean}
    */
-  isDebug: function () { return DEBUG; },
+  isDebug: function () {
+    return DEBUG;
+  }
 });

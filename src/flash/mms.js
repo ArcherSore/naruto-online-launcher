@@ -41,7 +41,7 @@ function generateMmsContent(hardwareProfile, opts) {
   const config = [
     // === GPU ===
     'OverrideGPUValidation=1',
-    isCpuMode ? 'EnableHardwareAcceleration=0' : 'EnableHardwareAcceleration=1',
+    isCpuMode ? 'EnableHardwareAcceleration=0' : 'EnableHardwareAcceleration=1'
   ];
 
   // ── v3.5: MODO LEVE AVANÇADO (Flash low quality para ganhar FPS) ──
@@ -63,7 +63,7 @@ function generateMmsContent(hardwareProfile, opts) {
       // Desativa silenciamento de áudio em background (evita cut em combates)
       'EnableSockets=1',
       // Reduz qualidade de suavização de fontes
-      'FontSmoothingType=0',
+      'FontSmoothingType=0'
     );
   }
 
@@ -96,7 +96,12 @@ function createMmsCfg(hardwareProfile, opts) {
 
     const content = generateMmsContent(hardwareProfile, opts);
     fs.writeFileSync(cfgPath, content, 'utf8');
-    logger.info('mms.cfg atualizado (' + hardwareProfile + (opts && opts.advancedMode ? ' + Advanced' : '') + ')');
+    logger.info(
+      'mms.cfg atualizado (' +
+        hardwareProfile +
+        (opts && opts.advancedMode ? ' + Advanced' : '') +
+        ')'
+    );
     return true;
   } catch (e) {
     logger.error('Falha ao criar mms.cfg: ' + e.message);

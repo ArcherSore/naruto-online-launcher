@@ -17,33 +17,35 @@ const electron = require('electron');
 // Mock submodules
 jest.mock('../../profiles/store', () => ({
   get: jest.fn(),
-  getAll: jest.fn(() => []),
+  getAll: jest.fn(() => [])
 }));
 
 jest.mock('../../profiles/partition', () => ({
   getPartitionName: jest.fn(() => 'persist:profile-p_001'),
-  shouldUseShadow: jest.fn(() => false),
+  shouldUseShadow: jest.fn(() => false)
 }));
 
 jest.mock('../../network/blocker', () => ({
-  setupBlocker: jest.fn(),
+  setupBlocker: jest.fn()
 }));
 
 jest.mock('../../network/cookies', () => ({
-  setupPersistentCookies: jest.fn(),
+  setupPersistentCookies: jest.fn()
 }));
 
 jest.mock('../SessionLifecycle', () => ({
-  attach: jest.fn(),
+  attach: jest.fn()
 }));
 
 jest.mock('../../ui/manager/KeyboardShortcuts', () => ({
-  attach: jest.fn(),
+  attach: jest.fn()
 }));
 
 jest.mock('../../config/urls', () => ({
-  getGameUrl: jest.fn(() => 'https://naruto.narutowebgame.com/pt/serverlist?logintype=4&launcher=shinobi'),
-  getLauncherParams: jest.fn(() => 'logintype=4&leftbar_collapse=Yes&launcher=shinobi'),
+  getGameUrl: jest.fn(
+    () => 'https://naruto.narutowebgame.com/pt/serverlist?logintype=4&launcher=shinobi'
+  ),
+  getLauncherParams: jest.fn(() => 'logintype=4&leftbar_collapse=Yes&launcher=shinobi')
 }));
 
 const Launcher = require('../Launcher');
@@ -60,11 +62,11 @@ function mockBrowserWindow() {
   const wc = {
     session: {
       setUserAgent: jest.fn(),
-      cookies: { flushStore: jest.fn(() => Promise.resolve()) },
+      cookies: { flushStore: jest.fn(() => Promise.resolve()) }
     },
     on: jest.fn(),
     once: jest.fn(),
-    stop: jest.fn(),
+    stop: jest.fn()
   };
   const win = {
     webContents: wc,
@@ -77,7 +79,7 @@ function mockBrowserWindow() {
     destroy: jest.fn(),
     setMenuBarVisibility: jest.fn(),
     setTitle: jest.fn(),
-    loadURL: jest.fn(),
+    loadURL: jest.fn()
   };
   return { win, wc };
 }
@@ -111,7 +113,7 @@ describe('Launcher.js', () => {
       name: 'TestProfile',
       region: 'br',
       language: 'pt',
-      server: 's799',
+      server: 's799'
     });
   });
 
@@ -202,20 +204,26 @@ describe('Launcher.js', () => {
       launchAndTrack('p_001');
 
       expect(blocker.setupBlocker).toHaveBeenCalledWith(bwMock.wc.session);
-      expect(cookies.setupPersistentCookies).toHaveBeenCalledWith(bwMock.wc.session, expect.any(Object));
+      expect(cookies.setupPersistentCookies).toHaveBeenCalledWith(
+        bwMock.wc.session,
+        expect.any(Object)
+      );
     });
 
     test('anexa SessionLifecycle com contexto correto', () => {
       launchAndTrack('p_001');
 
-      expect(SessionLifecycle.attach).toHaveBeenCalledWith(bwMock.win, expect.objectContaining({
-        profileId: 'p_001',
-        profile: expect.objectContaining({ id: 'p_001' }),
-        entry: expect.objectContaining({
-          failLoadRetry: false,
-          formInjectAttempts: 0,
-        }),
-      }));
+      expect(SessionLifecycle.attach).toHaveBeenCalledWith(
+        bwMock.win,
+        expect.objectContaining({
+          profileId: 'p_001',
+          profile: expect.objectContaining({ id: 'p_001' }),
+          entry: expect.objectContaining({
+            failLoadRetry: false,
+            formInjectAttempts: 0
+          })
+        })
+      );
     });
 
     test('anexa KeyboardShortcuts', () => {

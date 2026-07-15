@@ -14,10 +14,22 @@ describe('FlashUpdater.js', () => {
     const release = {
       tag_name: 'v1.54',
       assets: [
-        { name: 'ChineseFlash-Patched-Win-34.0.0.376.7z', browser_download_url: 'https://x/win.7z', size: 29689253 },
-        { name: 'ChineseFlash-PPAPI-PepperFlashPlayer.zip', browser_download_url: 'https://x/mac.zip', size: 9000000 },
-        { name: 'ChineseFlash-NPAPI-FlashPlayer-10.6.zip', browser_download_url: 'https://x/mac-npapi.zip', size: 8000000 },
-      ],
+        {
+          name: 'ChineseFlash-Patched-Win-34.0.0.376.7z',
+          browser_download_url: 'https://x/win.7z',
+          size: 29689253
+        },
+        {
+          name: 'ChineseFlash-PPAPI-PepperFlashPlayer.zip',
+          browser_download_url: 'https://x/mac.zip',
+          size: 9000000
+        },
+        {
+          name: 'ChineseFlash-NPAPI-FlashPlayer-10.6.zip',
+          browser_download_url: 'https://x/mac-npapi.zip',
+          size: 8000000
+        }
+      ]
     };
 
     test('seleciona asset Windows (.7z) quando platform=win32', () => {
@@ -38,7 +50,10 @@ describe('FlashUpdater.js', () => {
     });
 
     test('retorna null quando nenhum asset casa com a plataforma', () => {
-      const a = FlashUpdater.pickAsset({ tag_name: 'v1', assets: [{ name: 'readme.md' }] }, 'win32');
+      const a = FlashUpdater.pickAsset(
+        { tag_name: 'v1', assets: [{ name: 'readme.md' }] },
+        'win32'
+      );
       expect(a).toBeNull();
     });
 
@@ -48,7 +63,12 @@ describe('FlashUpdater.js', () => {
     });
 
     test('também casa asset .exe legacy (InnoSetup) para win32', () => {
-      const r = { tag_name: 'v1.0', assets: [{ name: 'clean-flash-windows.exe', browser_download_url: 'https://x.exe', size: 16000000 }] };
+      const r = {
+        tag_name: 'v1.0',
+        assets: [
+          { name: 'clean-flash-windows.exe', browser_download_url: 'https://x.exe', size: 16000000 }
+        ]
+      };
       const a = FlashUpdater.pickAsset(r, 'win32');
       expect(a).not.toBeNull();
       expect(a.name).toBe('clean-flash-windows.exe');
@@ -87,7 +107,9 @@ describe('FlashUpdater.js', () => {
   });
 
   describe('hasCachedPlugin', () => {
-    afterEach(() => { jest.restoreAllMocks(); });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
 
     test('retorna false quando o arquivo não existe', () => {
       jest.spyOn(fs, 'existsSync').mockReturnValue(false);
@@ -108,7 +130,9 @@ describe('FlashUpdater.js', () => {
   });
 
   describe('getCacheInfo', () => {
-    afterEach(() => { jest.restoreAllMocks(); });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
 
     test('retorna null quando cache-manifest.json não existe', () => {
       jest.spyOn(fs, 'existsSync').mockReturnValue(false);
@@ -129,7 +153,11 @@ describe('FlashUpdater.js', () => {
 
     test('retorna objeto parsed quando manifest é válido', () => {
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-      const data = { version: '34.0.0.137', downloadDate: '2026-01-01T00:00:00.000Z', assetName: 'clean-flash-linux.tar.xz' };
+      const data = {
+        version: '34.0.0.137',
+        downloadDate: '2026-01-01T00:00:00.000Z',
+        assetName: 'clean-flash-linux.tar.xz'
+      };
       jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify(data));
       const info = FlashUpdater.getCacheInfo();
       expect(info).not.toBeNull();
@@ -139,7 +167,9 @@ describe('FlashUpdater.js', () => {
   });
 
   describe('isCacheStale', () => {
-    afterEach(() => { jest.restoreAllMocks(); });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
 
     test('retorna true quando não há cache info', () => {
       jest.spyOn(fs, 'existsSync').mockReturnValue(false);
@@ -148,7 +178,9 @@ describe('FlashUpdater.js', () => {
 
     test('retorna true quando cache tem mais de STALE_DAYS', () => {
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-      const old = new Date(Date.now() - (FlashUpdater.STALE_DAYS + 1) * 24 * 60 * 60 * 1000).toISOString();
+      const old = new Date(
+        Date.now() - (FlashUpdater.STALE_DAYS + 1) * 24 * 60 * 60 * 1000
+      ).toISOString();
       jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({ downloadDate: old }));
       expect(FlashUpdater.isCacheStale()).toBe(true);
     });
@@ -174,7 +206,9 @@ describe('FlashUpdater.js', () => {
     test('lança erro acionável para Linux (sem tentar download)', async () => {
       // darktohka/clean-flash-builds não tem asset Linux — ensureLatest deve
       // falhar cedo com mensagem explicando como obter o binary manualmente.
-      await expect(FlashUpdater.ensureLatest('linux')).rejects.toThrow(/não está disponível.*Linux/i);
+      await expect(FlashUpdater.ensureLatest('linux')).rejects.toThrow(
+        /não está disponível.*Linux/i
+      );
     });
   });
 

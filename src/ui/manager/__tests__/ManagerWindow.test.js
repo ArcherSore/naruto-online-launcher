@@ -16,7 +16,9 @@ var electron = require('electron');
 // Mock game-launcher (lazy-required inside close handler)
 jest.mock('../../game-launcher', function () {
   return {
-    hasOpenWindows: jest.fn(function () { return false; }),
+    hasOpenWindows: jest.fn(function () {
+      return false;
+    })
   };
 });
 
@@ -25,7 +27,7 @@ jest.mock('../../../utils/logger', function () {
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    debug: jest.fn(),
+    debug: jest.fn()
   };
 });
 
@@ -38,13 +40,15 @@ function createMockWindow() {
     loadFile: jest.fn(),
     once: jest.fn(),
     on: jest.fn(),
-    isDestroyed: jest.fn(function () { return false; }),
+    isDestroyed: jest.fn(function () {
+      return false;
+    }),
     focus: jest.fn(),
     show: jest.fn(),
     hide: jest.fn(),
     webContents: {
-      send: jest.fn(),
-    },
+      send: jest.fn()
+    }
   };
 }
 
@@ -147,7 +151,9 @@ describe('ManagerWindow.js', function () {
     });
 
     test('onReady error is caught silently', function () {
-      var onReady = jest.fn(function () { throw new Error('ready error'); });
+      var onReady = jest.fn(function () {
+        throw new Error('ready error');
+      });
       ManagerWindow.createManagerWindow({ onReady: onReady });
 
       var readyHandler = null;
@@ -156,7 +162,9 @@ describe('ManagerWindow.js', function () {
       });
 
       // Should not throw
-      expect(function () { readyHandler(); }).not.toThrow();
+      expect(function () {
+        readyHandler();
+      }).not.toThrow();
     });
 
     test('registers close event listener', function () {
@@ -278,7 +286,9 @@ describe('ManagerWindow.js', function () {
 
     test('is no-op when window is null', function () {
       // No window exists after afterEach reset
-      expect(function () { ManagerWindow.hideManager(); }).not.toThrow();
+      expect(function () {
+        ManagerWindow.hideManager();
+      }).not.toThrow();
     });
 
     test('is no-op when window is destroyed', function () {
@@ -301,7 +311,9 @@ describe('ManagerWindow.js', function () {
 
     test('is no-op when window is null', function () {
       // No window exists after afterEach reset
-      expect(function () { ManagerWindow.send('ch', 'data'); }).not.toThrow();
+      expect(function () {
+        ManagerWindow.send('ch', 'data');
+      }).not.toThrow();
     });
 
     test('is no-op when window is destroyed', function () {
@@ -316,7 +328,9 @@ describe('ManagerWindow.js', function () {
       mockWindow.webContents.send.mockImplementation(function () {
         throw new Error('send error');
       });
-      expect(function () { ManagerWindow.send('ch', 'data'); }).not.toThrow();
+      expect(function () {
+        ManagerWindow.send('ch', 'data');
+      }).not.toThrow();
     });
   });
 });

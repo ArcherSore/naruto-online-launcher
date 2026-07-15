@@ -43,10 +43,10 @@ function createManagerWindow(opts) {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      nodeIntegration: true,        // UI interna confiável (só carrega index.html local)
+      nodeIntegration: true, // UI interna confiável (só carrega index.html local)
       contextIsolation: false,
-      backgroundThrottling: false,
-    },
+      backgroundThrottling: false
+    }
   });
 
   managerWindow.loadFile(path.join(__dirname, '..', 'index.html'));
@@ -55,7 +55,11 @@ function createManagerWindow(opts) {
     managerWindow.show();
     logger.info('UI Manager exibida');
     if (typeof opts.onReady === 'function') {
-      try { opts.onReady(); } catch (e) { logger.debug('ManagerWindow onReady: ' + e.message); }
+      try {
+        opts.onReady();
+      } catch (e) {
+        logger.debug('ManagerWindow onReady: ' + e.message);
+      }
     }
   });
 
@@ -71,7 +75,9 @@ function createManagerWindow(opts) {
     }
   });
 
-  managerWindow.on('closed', function () { managerWindow = null; });
+  managerWindow.on('closed', function () {
+    managerWindow = null;
+  });
 
   return managerWindow;
 }
@@ -107,7 +113,11 @@ function hideManager() {
  */
 function send(channel, payload) {
   if (!managerWindow || managerWindow.isDestroyed()) return;
-  try { managerWindow.webContents.send(channel, payload); } catch (_) { /* ignore */ }
+  try {
+    managerWindow.webContents.send(channel, payload);
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 module.exports = {
@@ -115,5 +125,5 @@ module.exports = {
   getManagerWindow: getManagerWindow,
   showManager: showManager,
   hideManager: hideManager,
-  send: send,
+  send: send
 };

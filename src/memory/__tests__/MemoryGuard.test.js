@@ -11,7 +11,7 @@
 
 // Mock partition to avoid side effects from setForceBatata
 jest.mock('../../profiles/partition', () => ({
-  setBatataMode: jest.fn(),
+  setBatataMode: jest.fn()
 }));
 
 const MemoryGuard = require('../MemoryGuard');
@@ -227,9 +227,11 @@ describe('MemoryGuard.js', () => {
       const cb = jest.fn();
       MemoryGuard.onMemoryUpdate(cb);
       MemoryGuard._notify();
-      expect(cb).toHaveBeenCalledWith(expect.objectContaining({
-        totalMB: expect.any(Number),
-      }));
+      expect(cb).toHaveBeenCalledWith(
+        expect.objectContaining({
+          totalMB: expect.any(Number)
+        })
+      );
     });
 
     test('_notify calls all registered listeners', () => {

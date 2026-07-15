@@ -69,8 +69,13 @@ async function loginAndInject(session, email, password, opts) {
     sameSite: 'no_restriction'
   });
 
-  logger.info('ApiLogin: cookie oas_user injetado em .' + OAS_USER_DOMAIN +
-    ' (expira em ' + Math.round(auth.expiresAt / 1000 - Date.now() / 1000) + 's)');
+  logger.info(
+    'ApiLogin: cookie oas_user injetado em .' +
+      OAS_USER_DOMAIN +
+      ' (expira em ' +
+      Math.round(auth.expiresAt / 1000 - Date.now() / 1000) +
+      's)'
+  );
 
   return {
     loginKey: auth.loginKey,

@@ -53,7 +53,11 @@ function _tryAutoLogin(profileId, win, entry) {
 
   if (entry) {
     if (entry.formInjectAttempts > 5) {
-      logger.debug('Auto-login form: max attempts atingido para ' + profileId + ' — parando (possível loop de redirect)');
+      logger.debug(
+        'Auto-login form: max attempts atingido para ' +
+          profileId +
+          ' — parando (possível loop de redirect)'
+      );
       return;
     }
   }
@@ -62,30 +66,33 @@ function _tryAutoLogin(profileId, win, entry) {
   if (!creds || !creds.user || !creds.pass) return;
 
   const script = vault.buildAutoLoginScript(creds.user, creds.pass);
-  win.webContents.executeJavaScript(script).then(function (result) {
-    if (result === 'filled') {
-      logger.info('Auto-login: credenciais injetadas + login chamado para ' + profileId);
-      if (entry) entry.formInjectAttempts = 0;
-      _sendAutoLoginResult(profileId, 'filled');
-    } else if (result === 'clicked') {
-      logger.info('Auto-login: botão fallback clicado para ' + profileId);
-      if (entry) entry.formInjectAttempts = 0;
-      _sendAutoLoginResult(profileId, 'clicked');
-    } else if (result === 'waiting') {
-      logger.info('Auto-login: MutationObserver aguardando form para ' + profileId);
-      _sendAutoLoginResult(profileId, 'waiting');
-    } else if (result === 'not-found') {
-      logger.debug('Auto-login: form não encontrado (página sem login) para ' + profileId);
-      _sendAutoLoginResult(profileId, 'not-found');
-    } else if (typeof result === 'string' && result.indexOf('error:') === 0) {
-      logger.warn('Auto-login: erro no script para ' + profileId + ' — ' + result);
-      _sendAutoLoginResult(profileId, 'error');
-    } else {
-      logger.debug('Auto-login: resultado inesperado para ' + profileId + ' — ' + result);
-    }
-  }).catch(function (e) {
-    logger.debug('Auto-login falhou (ok se já logado por cookie): ' + e.message);
-  });
+  win.webContents
+    .executeJavaScript(script)
+    .then(function (result) {
+      if (result === 'filled') {
+        logger.info('Auto-login: credenciais injetadas + login chamado para ' + profileId);
+        if (entry) entry.formInjectAttempts = 0;
+        _sendAutoLoginResult(profileId, 'filled');
+      } else if (result === 'clicked') {
+        logger.info('Auto-login: botão fallback clicado para ' + profileId);
+        if (entry) entry.formInjectAttempts = 0;
+        _sendAutoLoginResult(profileId, 'clicked');
+      } else if (result === 'waiting') {
+        logger.info('Auto-login: MutationObserver aguardando form para ' + profileId);
+        _sendAutoLoginResult(profileId, 'waiting');
+      } else if (result === 'not-found') {
+        logger.debug('Auto-login: form não encontrado (página sem login) para ' + profileId);
+        _sendAutoLoginResult(profileId, 'not-found');
+      } else if (typeof result === 'string' && result.indexOf('error:') === 0) {
+        logger.warn('Auto-login: erro no script para ' + profileId + ' — ' + result);
+        _sendAutoLoginResult(profileId, 'error');
+      } else {
+        logger.debug('Auto-login: resultado inesperado para ' + profileId + ' — ' + result);
+      }
+    })
+    .catch(function (e) {
+      logger.debug('Auto-login falhou (ok se já logado por cookie): ' + e.message);
+    });
 }
 
 /**
@@ -105,18 +112,31 @@ function attach(win, ctx) {
 
   // ── ISOLAMENTO DE CRASH ──
   win.webContents.on('render-process-gone', function (_e, details) {
-    logger.error('SessionLifecycle: render-process-gone em "' + profile.name + '" — reason=' + details.reason + ' exitCode=' + details.exitCode);
+    logger.error(
+      'SessionLifecycle: render-process-gone em "' +
+        profile.name +
+        '" — reason=' +
+        details.reason +
+        ' exitCode=' +
+        details.exitCode
+    );
     try {
       const manager = require('../profiles/manager');
       manager.reportCrash(profileId);
-    } catch (_) { /* ignore circular */ }
+    } catch (_) {
+      /* ignore circular */
+    }
     try {
       require('../memory/guard').reportCrash();
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
   });
 
   win.on('unresponsive', function () {
-    logger.warn('SessionLifecycle: janela UNRESPONSIVE — "' + profile.name + '" (outras contas continuam ok)');
+    logger.warn(
+      'SessionLifecycle: janela UNRESPONSIVE — "' + profile.name + '" (outras contas continuam ok)'
+    );
   });
   win.on('responsive', function () {
     logger.info('SessionLifecycle: janela RESPONSIVE novamente — "' + profile.name + '"');
@@ -127,7 +147,9 @@ function attach(win, ctx) {
     if (url.startsWith('data:')) return;
     try {
       const parsed = new URL(url);
-      const isAsset = parsed.pathname.match(/\.(js|css|png|jpg|jpeg|gif|swf|json|xml|ico|svg|woff2?|mp3|mp4|flv|ogg|wav|webm|ttf|eot|otf|map|dat|bin|zip|gz)$/i);
+      const isAsset = parsed.pathname.match(
+        /\.(js|css|png|jpg|jpeg|gif|swf|json|xml|ico|svg|woff2?|mp3|mp4|flv|ogg|wav|webm|ttf|eot|otf|map|dat|bin|zip|gz)$/i
+      );
       const isPage = !isAsset;
       const isGameHost = parsed.hostname.includes('naruto') || parsed.hostname.includes('oasgames');
       if (isGameHost && isPage && !parsed.search.includes('logintype')) {
@@ -135,7 +157,9 @@ function attach(win, ctx) {
         const sep = url.includes('?') ? '&' : '?';
         win.loadURL(url + sep + LAUNCHER_PARAMS);
       }
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
   });
 
   win.webContents.on('new-window', function (e, url) {
@@ -149,7 +173,9 @@ function attach(win, ctx) {
           const { shell } = require('electron');
           shell.openExternal(url);
         }
-      } catch (_) { /* ignore */ }
+      } catch (_) {
+        /* ignore */
+      }
     }
   });
 
@@ -159,34 +185,40 @@ function attach(win, ctx) {
     ses.cookies.flushStore().catch(function () {});
 
     // CAMADA 1: limpeza leve (ads, cookies, popups)
-    win.webContents.insertCSS(
-      '.ad, .ads, .banner, .ad-banner, .ad-container, [class*="advertisement"], [id*="advertisement"] { display: none !important; }' +
-      '.cookie-notice, .cookie-banner, #cookieConsent, .gdpr-banner { display: none !important; }' +
-      '.support-link, .help-link, .external-link, .social-share, .share-buttons { display: none !important; }'
-    ).catch(function () {});
+    win.webContents
+      .insertCSS(
+        '.ad, .ads, .banner, .ad-banner, .ad-container, [class*="advertisement"], [id*="advertisement"] { display: none !important; }' +
+          '.cookie-notice, .cookie-banner, #cookieConsent, .gdpr-banner { display: none !important; }' +
+          '.support-link, .help-link, .external-link, .social-share, .share-buttons { display: none !important; }'
+      )
+      .catch(function () {});
 
     // CAMADA 2: fullscreen limpo SOMENTE se há Flash embed (página de jogo)
-    win.webContents.executeJavaScript(
-      'if (document.querySelector("embed") || document.querySelector("object")) {' +
-      '  var s = document.createElement("style");' +
-      '  s.textContent = ' +
-      '    "html, body { margin:0 !important; padding:0 !important; overflow:hidden !important; width:100% !important; height:100% !important; background:#000 !important; }" +' +
-      '    "#oas-bar, .oas-bar, .header, .header-wrap, .site-header, .top-bar, .topbar { display:none !important; height:0 !important; min-height:0 !important; }" +' +
-      '    "footer, .footer, .site-footer, .footer-wrap, #footer { display:none !important; height:0 !important; }" +' +
-      '    ".sidebar, .left-sidebar, .right-sidebar, .nav-sidebar { display:none !important; }" +' +
-      '    "embed, object { width:100vw !important; height:100vh !important; display:block !important; }" +' +
-      '    "body > div { height:100vh !important; overflow:hidden !important; background:#000 !important; }";' +
-      '  document.head.appendChild(s);' +
-      '}'
-    ).catch(function () {});
+    win.webContents
+      .executeJavaScript(
+        'if (document.querySelector("embed") || document.querySelector("object")) {' +
+          '  var s = document.createElement("style");' +
+          '  s.textContent = ' +
+          '    "html, body { margin:0 !important; padding:0 !important; overflow:hidden !important; width:100% !important; height:100% !important; background:#000 !important; }" +' +
+          '    "#oas-bar, .oas-bar, .header, .header-wrap, .site-header, .top-bar, .topbar { display:none !important; height:0 !important; min-height:0 !important; }" +' +
+          '    "footer, .footer, .site-footer, .footer-wrap, #footer { display:none !important; height:0 !important; }" +' +
+          '    ".sidebar, .left-sidebar, .right-sidebar, .nav-sidebar { display:none !important; }" +' +
+          '    "embed, object { width:100vw !important; height:100vh !important; display:block !important; }" +' +
+          '    "body > div { height:100vh !important; overflow:hidden !important; background:#000 !important; }";' +
+          '  document.head.appendChild(s);' +
+          '}'
+      )
+      .catch(function () {});
 
     // Mock FB object — fallback se SDK real não carrega
-    win.webContents.executeJavaScript(
-      'if (typeof window.FB === "undefined") {' +
-      '  window.FB = { init: function(){}, login: function(c){c({status:"unknown"});}, getLoginStatus: function(c){c({status:"unknown"});}, api: function(){}, Event: { subscribe: function(){}, unsubscribe: function(){} }, Canvas: { setAutoGrow: function(){} }, AppEvents: { activateApp: function(){}, logEvent: function(){}, logPageView: function(){}, logPurchase: function(){} }, getUserID: function(){return null;}, getAccessToken: function(){return null;} };' +
-      '  window.fbAsyncInit = function(){};' +
-      '}'
-    ).catch(function () {});
+    win.webContents
+      .executeJavaScript(
+        'if (typeof window.FB === "undefined") {' +
+          '  window.FB = { init: function(){}, login: function(c){c({status:"unknown"});}, getLoginStatus: function(c){c({status:"unknown"});}, api: function(){}, Event: { subscribe: function(){}, unsubscribe: function(){} }, Canvas: { setAutoGrow: function(){} }, AppEvents: { activateApp: function(){}, logEvent: function(){}, logPageView: function(){}, logPurchase: function(){} }, getUserID: function(){return null;}, getAccessToken: function(){return null;} };' +
+          '  window.fbAsyncInit = function(){};' +
+          '}'
+      )
+      .catch(function () {});
 
     _tryAutoLogin(profileId, win, entry);
   });
@@ -198,7 +230,15 @@ function attach(win, ctx) {
 
     const alreadyRetried = entry && entry.failLoadRetry;
     if (!alreadyRetried) {
-      logger.warn('Falha ao carregar (' + profile.name + '): ' + code + ' ' + desc + ' — tentando novamente...');
+      logger.warn(
+        'Falha ao carregar (' +
+          profile.name +
+          '): ' +
+          code +
+          ' ' +
+          desc +
+          ' — tentando novamente...'
+      );
       if (entry) entry.failLoadRetry = true;
       if (entry) {
         entry.failLoadTimer = setTimeout(function () {
@@ -209,23 +249,48 @@ function attach(win, ctx) {
         }, 1500);
       }
     } else {
-      logger.error('Falha ao carregar (' + profile.name + '): ' + code + ' ' + desc + ' — retry esgotado, exibindo tela de erro');
-      const safeDesc = String(desc).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const safeCode = String(code).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      logger.error(
+        'Falha ao carregar (' +
+          profile.name +
+          '): ' +
+          code +
+          ' ' +
+          desc +
+          ' — retry esgotado, exibindo tela de erro'
+      );
+      const safeDesc = String(desc)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      const safeCode = String(code)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
       const gameUrl = getGameUrl(profile);
-      win.webContents.loadURL('data:text/html,' + encodeURIComponent(
-        '<html><head><meta charset="utf-8"></head><body style="background:#0f0f14;color:#fff;display:flex;' +
-        'align-items:center;justify-content:center;height:100vh;font-family:system-ui,sans-serif;flex-direction:column">' +
-        '<div style="font-size:48px;margin-bottom:16px">⚠️</div>' +
-        '<h2 style="color:#DC2626">Falha na conexão</h2>' +
-        '<p style="color:#8a8a96;margin:10px 0;font-size:13px">Erro: ' + safeDesc + ' (' + safeCode + ')</p>' +
-        '<p style="color:#5a5a68;font-size:11px;margin-bottom:20px">Perfil: ' + profile.name + '</p>' +
-        '<button onclick="location.href=\'' + gameUrl + '\'" ' +
-        'style="padding:10px 24px;background:linear-gradient(135deg,#DC2626,#7a1414);color:#fff;' +
-        'border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">' +
-        '🔄 Tentar Novamente</button>' +
-        '</body></html>'
-      ));
+      win.webContents.loadURL(
+        'data:text/html,' +
+          encodeURIComponent(
+            '<html><head><meta charset="utf-8"></head><body style="background:#0f0f14;color:#fff;display:flex;' +
+              'align-items:center;justify-content:center;height:100vh;font-family:system-ui,sans-serif;flex-direction:column">' +
+              '<div style="font-size:48px;margin-bottom:16px">⚠️</div>' +
+              '<h2 style="color:#DC2626">Falha na conexão</h2>' +
+              '<p style="color:#8a8a96;margin:10px 0;font-size:13px">Erro: ' +
+              safeDesc +
+              ' (' +
+              safeCode +
+              ')</p>' +
+              '<p style="color:#5a5a68;font-size:11px;margin-bottom:20px">Perfil: ' +
+              profile.name +
+              '</p>' +
+              '<button onclick="location.href=\'' +
+              gameUrl +
+              '\'" ' +
+              'style="padding:10px 24px;background:linear-gradient(135deg,#DC2626,#7a1414);color:#fff;' +
+              'border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">' +
+              '🔄 Tentar Novamente</button>' +
+              '</body></html>'
+          )
+      );
     }
   });
 
@@ -244,23 +309,34 @@ function attach(win, ctx) {
       if (entry.failLoadTimer) clearTimeout(entry.failLoadTimer);
     }
     // JWT auto-renewal interval cleanup
-    if (_renewTimer) { clearInterval(_renewTimer); _renewTimer = null; }
+    if (_renewTimer) {
+      clearInterval(_renewTimer);
+      _renewTimer = null;
+    }
 
     try {
       if (!win.isDestroyed() && win.webContents) {
         win.webContents.stop();
-        win.webContents.executeJavaScript(
-          'document.querySelectorAll("embed,object").forEach(function(e){e.remove();});'
-        ).catch(function () { /* ignore */ });
+        win.webContents
+          .executeJavaScript(
+            'document.querySelectorAll("embed,object").forEach(function(e){e.remove();});'
+          )
+          .catch(function () {
+            /* ignore */
+          });
       }
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
 
     setTimeout(function () {
       try {
         if (win && !win.isDestroyed()) {
           win.destroy();
         }
-      } catch (_) { /* ignore */ }
+      } catch (_) {
+        /* ignore */
+      }
     }, 500);
   });
 
@@ -293,27 +369,42 @@ function attach(win, ctx) {
   // próximo de expirar (threshold 5 min) e renova via api-login. O JWT do
   // Naruto Online expira em 2h; sem renovação, a sessão cai e o auto-login
   // via form injection reassume — mas renovar evita essa interrupção.
-  _renewTimer = setInterval(function () {
-    if (win.isDestroyed()) {
-      if (_renewTimer) { clearInterval(_renewTimer); _renewTimer = null; }
-      return;
-    }
-    if (!vault.hasCredentials(profileId)) return; // sem creds → não pode renovar
-    const creds = vault.getCredentials(profileId);
-    if (!creds || !creds.user || !creds.pass) return;
-    try {
-      const apiLogin = require('../network/api-login');
-      apiLogin.renewIfNeeded(ses, creds.user, creds.pass, 300).then(function (r) {
-        if (r.renewed) {
-          logger.info('JWT auto-renovado para "' + profile.name + '" (novo expira em ' + Math.round(r.expiresAt / 1000 - Date.now() / 1000) + 's)');
+  _renewTimer = setInterval(
+    function () {
+      if (win.isDestroyed()) {
+        if (_renewTimer) {
+          clearInterval(_renewTimer);
+          _renewTimer = null;
         }
-      }).catch(function (e) {
-        logger.debug('JWT auto-renewal falhou para ' + profileId + ': ' + e.message);
-      });
-    } catch (e) {
-      logger.debug('JWT auto-renewal skip: ' + e.message);
-    }
-  }, 30 * 60 * 1000); // 30 min
+        return;
+      }
+      if (!vault.hasCredentials(profileId)) return; // sem creds → não pode renovar
+      const creds = vault.getCredentials(profileId);
+      if (!creds || !creds.user || !creds.pass) return;
+      try {
+        const apiLogin = require('../network/api-login');
+        apiLogin
+          .renewIfNeeded(ses, creds.user, creds.pass, 300)
+          .then(function (r) {
+            if (r.renewed) {
+              logger.info(
+                'JWT auto-renovado para "' +
+                  profile.name +
+                  '" (novo expira em ' +
+                  Math.round(r.expiresAt / 1000 - Date.now() / 1000) +
+                  's)'
+              );
+            }
+          })
+          .catch(function (e) {
+            logger.debug('JWT auto-renewal falhou para ' + profileId + ': ' + e.message);
+          });
+      } catch (e) {
+        logger.debug('JWT auto-renewal skip: ' + e.message);
+      }
+    },
+    30 * 60 * 1000
+  ); // 30 min
   if (_renewTimer.unref) _renewTimer.unref();
 }
 
@@ -321,5 +412,5 @@ module.exports = {
   attach: attach,
   // expostos p/ testes
   _sendWindowStatus: _sendWindowStatus,
-  _sendAutoLoginResult: _sendAutoLoginResult,
+  _sendAutoLoginResult: _sendAutoLoginResult
 };

@@ -17,7 +17,7 @@ jest.mock('../../utils/logger', () => ({
   info: jest.fn(),
   warn: jest.fn(),
   error: jest.fn(),
-  debug: jest.fn(),
+  debug: jest.fn()
 }));
 
 let tmpDir;
@@ -27,7 +27,11 @@ beforeAll(function () {
 });
 
 afterAll(function () {
-  try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+  try {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  } catch (_) {
+    /* ignore */
+  }
 });
 
 const partition = require('../partition');
@@ -198,11 +202,13 @@ describe('partition.js', function () {
 
   describe('snapshotCookies', function () {
     test('returns true on successful snapshot of auth cookies', async function () {
-      var mockCookies = [
-        { domain: '.oasgames.com', name: 'session', value: 'abc123' },
-      ];
+      var mockCookies = [{ domain: '.oasgames.com', name: 'session', value: 'abc123' }];
       electron.session.fromPartition.mockReturnValue({
-        cookies: { get: jest.fn(function () { return Promise.resolve(mockCookies); }) },
+        cookies: {
+          get: jest.fn(function () {
+            return Promise.resolve(mockCookies);
+          })
+        }
       });
 
       var result = await partition.snapshotCookies('persist:profile-p_snap1', 'p_snap1');
@@ -215,10 +221,14 @@ describe('partition.js', function () {
       var allCookies = [
         { domain: '.oasgames.com', name: 'session', value: 'abc', secure: true },
         { domain: '.google.com', name: 'analytics', value: 'xyz' },
-        { domain: '.naruto.oasgames.com', name: 'token', value: 'def' },
+        { domain: '.naruto.oasgames.com', name: 'token', value: 'def' }
       ];
       electron.session.fromPartition.mockReturnValue({
-        cookies: { get: jest.fn(function () { return Promise.resolve(allCookies); }) },
+        cookies: {
+          get: jest.fn(function () {
+            return Promise.resolve(allCookies);
+          })
+        }
       });
 
       await partition.snapshotCookies('persist:profile-p_snap2', 'p_snap2');
@@ -227,8 +237,11 @@ describe('partition.js', function () {
       var setCalls = [];
       electron.session.fromPartition.mockReturnValue({
         cookies: {
-          set: jest.fn(function (c) { setCalls.push(c); return Promise.resolve(); }),
-        },
+          set: jest.fn(function (c) {
+            setCalls.push(c);
+            return Promise.resolve();
+          })
+        }
       });
       var count = await partition.restoreCookies('persist:profile-p_snap2', 'p_snap2');
       expect(count).toBe(2); // oasgames.com + naruto.oasgames.com
@@ -247,7 +260,11 @@ describe('partition.js', function () {
 
     test('returns false when cookies.get rejects', async function () {
       electron.session.fromPartition.mockReturnValue({
-        cookies: { get: jest.fn(function () { return Promise.reject(new Error('cookie error')); }) },
+        cookies: {
+          get: jest.fn(function () {
+            return Promise.reject(new Error('cookie error'));
+          })
+        }
       });
 
       var result = await partition.snapshotCookies('persist:profile-p_snap4', 'p_snap4');
@@ -265,10 +282,14 @@ describe('partition.js', function () {
       // Create snapshot first
       var authCookies = [
         { domain: '.oasgames.com', name: 'sid', value: 'v1', secure: true },
-        { domain: '.naruto.oasgames.com', name: 'tok', value: 'v2', secure: false },
+        { domain: '.naruto.oasgames.com', name: 'tok', value: 'v2', secure: false }
       ];
       electron.session.fromPartition.mockReturnValue({
-        cookies: { get: jest.fn(function () { return Promise.resolve(authCookies); }) },
+        cookies: {
+          get: jest.fn(function () {
+            return Promise.resolve(authCookies);
+          })
+        }
       });
       await partition.snapshotCookies('persist:profile-p_rest1', 'p_rest1');
 
@@ -276,8 +297,11 @@ describe('partition.js', function () {
       var setCalls = [];
       electron.session.fromPartition.mockReturnValue({
         cookies: {
-          set: jest.fn(function (c) { setCalls.push(c); return Promise.resolve(); }),
-        },
+          set: jest.fn(function (c) {
+            setCalls.push(c);
+            return Promise.resolve();
+          })
+        }
       });
 
       var count = await partition.restoreCookies('persist:profile-p_rest1', 'p_rest1');
@@ -295,10 +319,14 @@ describe('partition.js', function () {
       // Create snapshot with 2 cookies
       var authCookies = [
         { domain: '.oasgames.com', name: 'good', value: 'v', secure: true },
-        { domain: '.oasgames.com', name: 'bad', value: 'x', secure: true },
+        { domain: '.oasgames.com', name: 'bad', value: 'x', secure: true }
       ];
       electron.session.fromPartition.mockReturnValue({
-        cookies: { get: jest.fn(function () { return Promise.resolve(authCookies); }) },
+        cookies: {
+          get: jest.fn(function () {
+            return Promise.resolve(authCookies);
+          })
+        }
       });
       await partition.snapshotCookies('persist:profile-p_rest2', 'p_rest2');
 
@@ -310,8 +338,8 @@ describe('partition.js', function () {
             callIndex++;
             if (callIndex === 2) return Promise.reject(new Error('bad cookie'));
             return Promise.resolve();
-          }),
-        },
+          })
+        }
       });
 
       var count = await partition.restoreCookies('persist:profile-p_rest2', 'p_rest2');
@@ -323,7 +351,11 @@ describe('partition.js', function () {
     test('returns 0 when session.fromPartition throws', async function () {
       // Ensure snapshots are loaded first
       electron.session.fromPartition.mockReturnValue({
-        cookies: { get: jest.fn(function () { return Promise.resolve([]); }) },
+        cookies: {
+          get: jest.fn(function () {
+            return Promise.resolve([]);
+          })
+        }
       });
       await partition.snapshotCookies('persist:profile-p_rest3', 'p_rest3');
 
@@ -342,11 +374,13 @@ describe('partition.js', function () {
   describe('removeSnapshot', function () {
     test('removes snapshot and prevents restore', async function () {
       // Create a snapshot
-      var authCookies = [
-        { domain: '.oasgames.com', name: 's', value: 'v', secure: true },
-      ];
+      var authCookies = [{ domain: '.oasgames.com', name: 's', value: 'v', secure: true }];
       electron.session.fromPartition.mockReturnValue({
-        cookies: { get: jest.fn(function () { return Promise.resolve(authCookies); }) },
+        cookies: {
+          get: jest.fn(function () {
+            return Promise.resolve(authCookies);
+          })
+        }
       });
       await partition.snapshotCookies('persist:profile-p_rem1', 'p_rem1');
 
@@ -355,14 +389,20 @@ describe('partition.js', function () {
 
       // Verify it's gone
       electron.session.fromPartition.mockReturnValue({
-        cookies: { set: jest.fn(function () { return Promise.resolve(); }) },
+        cookies: {
+          set: jest.fn(function () {
+            return Promise.resolve();
+          })
+        }
       });
       var count = await partition.restoreCookies('persist:profile-p_rem1', 'p_rem1');
       expect(count).toBe(0);
     });
 
     test('is no-op when no snapshot exists for profile', function () {
-      expect(function () { partition.removeSnapshot('p_nonexistent_xyz'); }).not.toThrow();
+      expect(function () {
+        partition.removeSnapshot('p_nonexistent_xyz');
+      }).not.toThrow();
     });
 
     test('does not affect other profile snapshots', async function () {
@@ -371,12 +411,20 @@ describe('partition.js', function () {
         return [{ domain: '.oasgames.com', name: name, value: 'v', secure: true }];
       };
       electron.session.fromPartition.mockReturnValue({
-        cookies: { get: jest.fn(function () { return Promise.resolve(makeCookies('cookie_a')); }) },
+        cookies: {
+          get: jest.fn(function () {
+            return Promise.resolve(makeCookies('cookie_a'));
+          })
+        }
       });
       await partition.snapshotCookies('persist:profile-p_rem_a', 'p_rem_a');
 
       electron.session.fromPartition.mockReturnValue({
-        cookies: { get: jest.fn(function () { return Promise.resolve(makeCookies('cookie_b')); }) },
+        cookies: {
+          get: jest.fn(function () {
+            return Promise.resolve(makeCookies('cookie_b'));
+          })
+        }
       });
       await partition.snapshotCookies('persist:profile-p_rem_b', 'p_rem_b');
 
@@ -384,9 +432,11 @@ describe('partition.js', function () {
       partition.removeSnapshot('p_rem_a');
 
       // Verify the other still exists
-      var setFn = jest.fn(function () { return Promise.resolve(); });
+      var setFn = jest.fn(function () {
+        return Promise.resolve();
+      });
       electron.session.fromPartition.mockReturnValue({
-        cookies: { set: setFn },
+        cookies: { set: setFn }
       });
       var count = await partition.restoreCookies('persist:profile-p_rem_b', 'p_rem_b');
       expect(count).toBe(1);

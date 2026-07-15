@@ -82,7 +82,7 @@ function exportEncryptedBackup(profiles, credentialsMap, password) {
     version: BACKUP_VERSION,
     exportedAt: Date.now(),
     profiles: profiles,
-    credentials: credentialsMap || {},
+    credentials: credentialsMap || {}
   };
 
   const plaintext = JSON.stringify(payload);
@@ -100,16 +100,16 @@ function exportEncryptedBackup(profiles, credentialsMap, password) {
       algorithm: 'pbkdf2',
       hash: 'sha512',
       iterations: PBKDF2_ITERATIONS,
-      keyLength: PBKDF2_KEYLEN,
+      keyLength: PBKDF2_KEYLEN
     },
     cipher: {
       algorithm: 'aes-256-gcm',
-      ivLength: GCM_IV_LEN,
+      ivLength: GCM_IV_LEN
     },
     salt: salt.toString('base64'),
     iv: iv.toString('base64'),
     ct: ct.toString('base64'),
-    tag: tag.toString('base64'),
+    tag: tag.toString('base64')
   };
 
   return Buffer.from(JSON.stringify(envelope)).toString('base64');
@@ -192,5 +192,5 @@ module.exports = {
   PBKDF2_KEYLEN: PBKDF2_KEYLEN,
   PBKDF2_SALT_LEN: PBKDF2_SALT_LEN,
   GCM_IV_LEN: GCM_IV_LEN,
-  BACKUP_VERSION: BACKUP_VERSION,
+  BACKUP_VERSION: BACKUP_VERSION
 };

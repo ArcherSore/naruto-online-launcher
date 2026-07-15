@@ -56,16 +56,29 @@ function _sanitizeObj(obj, depth) {
   if (obj === null || obj === undefined) return obj;
   if (typeof obj === 'string') return _sanitize(obj);
   if (typeof obj === 'number' || typeof obj === 'boolean') return obj;
-  if (Array.isArray(obj)) return obj.map(function (i) { return _sanitizeObj(i, depth + 1); });
+  if (Array.isArray(obj))
+    return obj.map(function (i) {
+      return _sanitizeObj(i, depth + 1);
+    });
   if (typeof obj === 'object') {
     const out = {};
     for (const k in obj) {
       if (!Object.prototype.hasOwnProperty.call(obj, k)) continue;
       // Nunca incluir campos sensíveis por nome
       const lk = k.toLowerCase();
-      if (lk === 'pass' || lk === 'password' || lk === 'pwd' || lk === 'secret' ||
-          lk === 'token' || lk === 'credentials' || lk === 'cookie' || lk === 'cookies' ||
-          lk === 'loginkey' || lk === 'oas_user' || lk === 'vault') {
+      if (
+        lk === 'pass' ||
+        lk === 'password' ||
+        lk === 'pwd' ||
+        lk === 'secret' ||
+        lk === 'token' ||
+        lk === 'credentials' ||
+        lk === 'cookie' ||
+        lk === 'cookies' ||
+        lk === 'loginkey' ||
+        lk === 'oas_user' ||
+        lk === 'vault'
+      ) {
         out[k] = '[redacted]';
       } else {
         out[k] = _sanitizeObj(obj[k], depth + 1);
@@ -85,27 +98,27 @@ function _collectSystemInfo() {
     app: {
       name: pkg.name,
       version: pkg.version,
-      electronVersion: pkg.devDependencies && pkg.devDependencies.electron,
+      electronVersion: pkg.devDependencies && pkg.devDependencies.electron
     },
     runtime: {
       electron: process.versions.electron,
       chrome: process.versions.chrome,
       node: process.versions.node,
-      v8: process.versions.v8,
+      v8: process.versions.v8
     },
     os: {
       platform: process.platform,
       arch: process.arch,
       release: _sanitize(os.release()),
       hostname: 'redacted',
-      totalRAM_GB: Math.round(os.totalmem() / 1024 / 1024 / 1024 * 10) / 10,
-      freeRAM_GB: Math.round(os.freemem() / 1024 / 1024 / 1024 * 10) / 10,
+      totalRAM_GB: Math.round((os.totalmem() / 1024 / 1024 / 1024) * 10) / 10,
+      freeRAM_GB: Math.round((os.freemem() / 1024 / 1024 / 1024) * 10) / 10,
       cpuCores: cpus.length,
       cpuModel: _sanitize((cpus[0] && cpus[0].model) || 'unknown'),
-      uptime_min: Math.round(os.uptime() / 60),
+      uptime_min: Math.round(os.uptime() / 60)
     },
     timestamp: new Date().toISOString(),
-    timestamp_epoch: Date.now(),
+    timestamp_epoch: Date.now()
   };
 }
 
@@ -135,7 +148,7 @@ function _collectProfiles() {
         stats: p.stats || null,
         createdAt: p.createdAt,
         lastUsedAt: p.lastUsedAt,
-        launchCount: p.launchCount || 0,
+        launchCount: p.launchCount || 0
       };
     });
   } catch (e) {
@@ -148,7 +161,11 @@ function _readLogs() {
   try {
     // electron-log salva em app.getPath('logs') ou app.getPath('userData')/logs
     let logsDir = null;
-    try { logsDir = app.getPath('logs'); } catch (_) { /* fallback */ }
+    try {
+      logsDir = app.getPath('logs');
+    } catch (_) {
+      /* fallback */
+    }
     if (!logsDir || !fs.existsSync(logsDir)) {
       logsDir = path.join(app.getPath('userData'), 'logs');
     }
@@ -188,7 +205,9 @@ function _readLegacyCrashReports() {
       const raw = fs.readFileSync(file, 'utf8');
       return _sanitize(raw);
     }
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
   return null;
 }
 
@@ -197,14 +216,14 @@ function _readLegacyCrashReports() {
 // adicionar dependência (adm-zip/jszip) ao launcher.
 
 function _crc32(buf) {
-  let crc = 0xFFFFFFFF;
+  let crc = 0xffffffff;
   for (let i = 0; i < buf.length; i++) {
     crc = crc ^ buf[i];
     for (let j = 0; j < 8; j++) {
-      crc = (crc & 1) ? (0xEDB88320 ^ (crc >>> 1)) : (crc >>> 1);
+      crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
     }
   }
-  return (crc ^ 0xFFFFFFFF) >>> 0;
+  return (crc ^ 0xffffffff) >>> 0;
 }
 
 function _makeZipFile(entries) {
@@ -220,17 +239,17 @@ function _makeZipFile(entries) {
     const crc = _crc32(data);
     // Store (sem compressão) — simplicidade + logs já são texto
     const local = Buffer.alloc(30 + nameBuf.length);
-    local.writeUInt32LE(0x04034b50, 0);   // signature
-    local.writeUInt16LE(20, 4);            // version needed
-    local.writeUInt16LE(0, 6);             // flags
-    local.writeUInt16LE(0, 8);             // compression: store
-    local.writeUInt16LE(0, 10);            // mod time
-    local.writeUInt16LE(0, 12);            // mod date
-    local.writeUInt32LE(crc, 14);          // crc32
-    local.writeUInt32LE(data.length, 18);  // compressed size
-    local.writeUInt32LE(data.length, 22);  // uncompressed size
+    local.writeUInt32LE(0x04034b50, 0); // signature
+    local.writeUInt16LE(20, 4); // version needed
+    local.writeUInt16LE(0, 6); // flags
+    local.writeUInt16LE(0, 8); // compression: store
+    local.writeUInt16LE(0, 10); // mod time
+    local.writeUInt16LE(0, 12); // mod date
+    local.writeUInt32LE(crc, 14); // crc32
+    local.writeUInt32LE(data.length, 18); // compressed size
+    local.writeUInt32LE(data.length, 22); // uncompressed size
     local.writeUInt16LE(nameBuf.length, 26);
-    local.writeUInt16LE(0, 28);            // extra field length
+    local.writeUInt16LE(0, 28); // extra field length
     nameBuf.copy(local, 30);
 
     const localWithFile = Buffer.concat([local, data]);
@@ -238,23 +257,23 @@ function _makeZipFile(entries) {
 
     // Central directory entry
     const central = Buffer.alloc(46 + nameBuf.length);
-    central.writeUInt32LE(0x02014b50, 0);  // signature
-    central.writeUInt16LE(20, 4);           // version made by
-    central.writeUInt16LE(20, 6);           // version needed
-    central.writeUInt16LE(0, 8);            // flags
-    central.writeUInt16LE(0, 10);           // compression
-    central.writeUInt16LE(0, 12);           // mod time
-    central.writeUInt16LE(0, 14);           // mod date
+    central.writeUInt32LE(0x02014b50, 0); // signature
+    central.writeUInt16LE(20, 4); // version made by
+    central.writeUInt16LE(20, 6); // version needed
+    central.writeUInt16LE(0, 8); // flags
+    central.writeUInt16LE(0, 10); // compression
+    central.writeUInt16LE(0, 12); // mod time
+    central.writeUInt16LE(0, 14); // mod date
     central.writeUInt32LE(crc, 16);
     central.writeUInt32LE(data.length, 20);
     central.writeUInt32LE(data.length, 24);
     central.writeUInt16LE(nameBuf.length, 28);
-    central.writeUInt16LE(0, 30);           // extra
-    central.writeUInt16LE(0, 32);           // comment
-    central.writeUInt16LE(0, 34);           // disk number
-    central.writeUInt16LE(0, 36);           // internal attrs
-    central.writeUInt32LE(0, 38);           // external attrs
-    central.writeUInt32LE(offset, 42);      // offset of local header
+    central.writeUInt16LE(0, 30); // extra
+    central.writeUInt16LE(0, 32); // comment
+    central.writeUInt16LE(0, 34); // disk number
+    central.writeUInt16LE(0, 36); // internal attrs
+    central.writeUInt32LE(0, 38); // external attrs
+    central.writeUInt32LE(offset, 42); // offset of local header
     nameBuf.copy(central, 46);
     centralParts.push(central);
 
@@ -263,14 +282,14 @@ function _makeZipFile(entries) {
 
   const centralBuf = Buffer.concat(centralParts);
   const end = Buffer.alloc(22);
-  end.writeUInt32LE(0x06054b50, 0);        // EOCD signature
-  end.writeUInt16LE(0, 4);                  // disk number
-  end.writeUInt16LE(0, 6);                  // disk with central dir
-  end.writeUInt16LE(centralParts.length, 8);  // entries on disk
+  end.writeUInt32LE(0x06054b50, 0); // EOCD signature
+  end.writeUInt16LE(0, 4); // disk number
+  end.writeUInt16LE(0, 6); // disk with central dir
+  end.writeUInt16LE(centralParts.length, 8); // entries on disk
   end.writeUInt16LE(centralParts.length, 10); // total entries
-  end.writeUInt32LE(centralBuf.length, 12);   // central dir size
-  end.writeUInt32LE(offset, 16);              // offset of central dir
-  end.writeUInt16LE(0, 20);                   // comment length
+  end.writeUInt32LE(centralBuf.length, 12); // central dir size
+  end.writeUInt32LE(offset, 16); // offset of central dir
+  end.writeUInt16LE(0, 20); // comment length
 
   return Buffer.concat([Buffer.concat(localParts), centralBuf, end]);
 }
@@ -294,9 +313,18 @@ async function exportZip(parentWindow) {
 
     // Monta entradas do zip
     const entries = [];
-    entries.push({ name: 'system-info.json', data: Buffer.from(JSON.stringify(sysInfo, null, 2), 'utf8') });
-    entries.push({ name: 'config.json', data: Buffer.from(JSON.stringify(config, null, 2), 'utf8') });
-    entries.push({ name: 'profiles.json', data: Buffer.from(JSON.stringify(profiles, null, 2), 'utf8') });
+    entries.push({
+      name: 'system-info.json',
+      data: Buffer.from(JSON.stringify(sysInfo, null, 2), 'utf8')
+    });
+    entries.push({
+      name: 'config.json',
+      data: Buffer.from(JSON.stringify(config, null, 2), 'utf8')
+    });
+    entries.push({
+      name: 'profiles.json',
+      data: Buffer.from(JSON.stringify(profiles, null, 2), 'utf8')
+    });
     if (legacyCrash) {
       entries.push({ name: 'crash-reports-legacy.json', data: Buffer.from(legacyCrash, 'utf8') });
     }
@@ -323,7 +351,7 @@ async function exportZip(parentWindow) {
       '',
       '## Como usar',
       'Anexe este .zip num GitHub Issue em:',
-      'https://github.com/Chrispsz/naruto-online-launcher/issues',
+      'https://github.com/Chrispsz/naruto-online-launcher/issues'
     ].join('\n');
     entries.push({ name: 'README.md', data: Buffer.from(readme, 'utf8') });
 
@@ -336,7 +364,7 @@ async function exportZip(parentWindow) {
     const result = await dialog.showSaveDialog(parentWindow, {
       title: 'Exportar diagnóstico',
       defaultPath: defaultName,
-      filters: [{ name: 'ZIP', extensions: ['zip'] }],
+      filters: [{ name: 'ZIP', extensions: ['zip'] }]
     });
 
     if (result.canceled || !result.filePath) {
@@ -345,7 +373,15 @@ async function exportZip(parentWindow) {
 
     fs.writeFileSync(result.filePath, zipBuf);
     const sizeKB = Math.round(zipBuf.length / 1024);
-    logger.info('Diagnostics: .zip salvo em ' + result.filePath + ' (' + sizeKB + 'KB, ' + entries.length + ' arquivos)');
+    logger.info(
+      'Diagnostics: .zip salvo em ' +
+        result.filePath +
+        ' (' +
+        sizeKB +
+        'KB, ' +
+        entries.length +
+        ' arquivos)'
+    );
     return { ok: true, path: result.filePath, size: zipBuf.length, entries: entries.length };
   } catch (e) {
     logger.error('Diagnostics: falha ao exportar — ' + e.message);
@@ -358,5 +394,5 @@ module.exports = {
   // expostos pra testes
   _sanitize: _sanitize,
   _sanitizeObj: _sanitizeObj,
-  _collectSystemInfo: _collectSystemInfo,
+  _collectSystemInfo: _collectSystemInfo
 };

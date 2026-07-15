@@ -10,17 +10,25 @@ jest.mock('https', () => {
   const handlers = {};
   return {
     get: jest.fn((url, opts, cb) => {
-      if (typeof opts === 'function') { cb = opts; opts = {}; }
+      if (typeof opts === 'function') {
+        cb = opts;
+        opts = {};
+      }
       const key = typeof url === 'string' ? url : url.href || url.path;
       const h = handlers[key] || handlers['*'];
-      if (!h) { cb({ on: () => {} }); return { on: () => {} }; }
+      if (!h) {
+        cb({ on: () => {} });
+        return { on: () => {} };
+      }
       return h(cb);
     }),
     request: jest.fn((opts, cb) => {
       cb({ on: () => {} });
       return { on: () => {}, write: () => {}, end: () => {} };
     }),
-    _setHandler: (key, fn) => { handlers[key] = fn; }
+    _setHandler: (key, fn) => {
+      handlers[key] = fn;
+    }
   };
 });
 

@@ -25,7 +25,7 @@ function setPlatform(p) {
   Object.defineProperty(process, 'platform', {
     value: p,
     configurable: true,
-    writable: true,
+    writable: true
   });
 }
 
@@ -33,7 +33,7 @@ function setResourcesPath(p) {
   Object.defineProperty(process, 'resourcesPath', {
     value: p,
     configurable: true,
-    writable: true,
+    writable: true
   });
 }
 
@@ -54,29 +54,35 @@ describe('plugin.js', () => {
     test('retorna manifest.linux_version quando presente (linux)', () => {
       setPlatform('linux');
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-      jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
-        version: '34.0.0.300',
-        linux_version: '34.0.0.137',
-      }));
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        JSON.stringify({
+          version: '34.0.0.300',
+          linux_version: '34.0.0.137'
+        })
+      );
       expect(plugin.getFlashVersion('/flash/dir')).toBe('34.0.0.137');
     });
 
     test('retorna manifest.version quando linux_version ausente (linux)', () => {
       setPlatform('linux');
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-      jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
-        version: '34.0.0.300',
-      }));
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        JSON.stringify({
+          version: '34.0.0.300'
+        })
+      );
       expect(plugin.getFlashVersion('/flash/dir')).toBe('34.0.0.300');
     });
 
     test('retorna manifest.version no win32 (ignora linux_version)', () => {
       setPlatform('win32');
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-      jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
-        version: '34.0.0.376',
-        linux_version: '34.0.0.137',
-      }));
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        JSON.stringify({
+          version: '34.0.0.376',
+          linux_version: '34.0.0.137'
+        })
+      );
       expect(plugin.getFlashVersion('/flash/dir')).toBe('34.0.0.376');
     });
 
@@ -190,7 +196,9 @@ describe('plugin.js', () => {
       setPlatform('linux');
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
       const statSync = jest.spyOn(fs, 'statSync');
-      statSync.mockImplementationOnce(() => { throw new Error('EACCES'); });
+      statSync.mockImplementationOnce(() => {
+        throw new Error('EACCES');
+      });
       statSync.mockReturnValueOnce({ size: 2 * 1024 * 1024 });
       const result = plugin.findFlashPlugin();
       expect(result).not.toBeNull();
@@ -198,7 +206,7 @@ describe('plugin.js', () => {
 
     test('procura no cache on-demand (userData/flash-cache/)', () => {
       setPlatform('linux');
-      jest.spyOn(fs, 'existsSync').mockImplementation((p) => {
+      jest.spyOn(fs, 'existsSync').mockImplementation(p => {
         return typeof p === 'string' && p.indexOf('flash-cache') !== -1;
       });
       jest.spyOn(fs, 'statSync').mockReturnValue({ size: 2 * 1024 * 1024 });
@@ -243,10 +251,12 @@ describe('plugin.js', () => {
       const result = plugin.configureFlash('/flash/libpepflashplayer.so');
       expect(result).toBe(true);
       expect(electron.app.commandLine.appendSwitch).toHaveBeenCalledWith(
-        'ppapi-flash-path', '/flash/libpepflashplayer.so'
+        'ppapi-flash-path',
+        '/flash/libpepflashplayer.so'
       );
       expect(electron.app.commandLine.appendSwitch).toHaveBeenCalledWith(
-        'ppapi-flash-version', '34.0.0.137' // linux fallback
+        'ppapi-flash-version',
+        '34.0.0.137' // linux fallback
       );
     });
 
@@ -256,37 +266,45 @@ describe('plugin.js', () => {
       const result = plugin.configureFlash('/flash/pepflashplayer.dll');
       expect(result).toBe(true);
       expect(electron.app.commandLine.appendSwitch).toHaveBeenCalledWith(
-        'ppapi-flash-path', '/flash/pepflashplayer.dll'
+        'ppapi-flash-path',
+        '/flash/pepflashplayer.dll'
       );
       expect(electron.app.commandLine.appendSwitch).toHaveBeenCalledWith(
-        'ppapi-flash-version', '34.0.0.376' // win32 fallback
+        'ppapi-flash-version',
+        '34.0.0.376' // win32 fallback
       );
     });
 
     test('usa versão do manifest quando disponível', () => {
       setPlatform('win32');
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-      jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
-        version: '34.0.0.377',
-      }));
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        JSON.stringify({
+          version: '34.0.0.377'
+        })
+      );
       const result = plugin.configureFlash('/flash/pepflashplayer.dll');
       expect(result).toBe(true);
       expect(electron.app.commandLine.appendSwitch).toHaveBeenCalledWith(
-        'ppapi-flash-version', '34.0.0.377'
+        'ppapi-flash-version',
+        '34.0.0.377'
       );
     });
 
     test('usa linux_version do manifest no linux quando disponível', () => {
       setPlatform('linux');
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-      jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
-        version: '34.0.0.300',
-        linux_version: '34.0.0.140',
-      }));
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        JSON.stringify({
+          version: '34.0.0.300',
+          linux_version: '34.0.0.140'
+        })
+      );
       const result = plugin.configureFlash('/flash/libpepflashplayer.so');
       expect(result).toBe(true);
       expect(electron.app.commandLine.appendSwitch).toHaveBeenCalledWith(
-        'ppapi-flash-version', '34.0.0.140'
+        'ppapi-flash-version',
+        '34.0.0.140'
       );
     });
   });

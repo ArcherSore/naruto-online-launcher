@@ -19,12 +19,12 @@ const os = require('os');
 const logger = require('../utils/logger');
 
 const TOTAL_RAM_GB = os.totalmem() / (1024 * 1024 * 1024);
-const IS_LOW_SPEC = TOTAL_RAM_GB < 4;   // Modo Batata auto-detect
-const IS_RAMEN = TOTAL_RAM_GB < 2;       // Ramen Mode — manager-only (sem UI)
+const IS_LOW_SPEC = TOTAL_RAM_GB < 4; // Modo Batata auto-detect
+const IS_RAMEN = TOTAL_RAM_GB < 2; // Ramen Mode — manager-only (sem UI)
 
 const CONFIG = {
   normal: { intervalMs: 5 * 60 * 1000, thresholdMB: 700, preventiveGC: false },
-  batata: { intervalMs: 2 * 60 * 1000, thresholdMB: 450, preventiveGC: true },
+  batata: { intervalMs: 2 * 60 * 1000, thresholdMB: 450, preventiveGC: true }
 };
 const MODE = IS_LOW_SPEC ? CONFIG.batata : CONFIG.normal;
 
@@ -57,7 +57,7 @@ function registerGameWebContents(profileId, webContents) {
     webContents: webContents,
     lastGC: 0,
     collected: 0,
-    registeredAt: Date.now(),
+    registeredAt: Date.now()
   });
   logger.info('MemoryGuard: webview registrada — ' + profileId);
   try {
@@ -65,7 +65,9 @@ function registerGameWebContents(profileId, webContents) {
       _webviewRegistry.delete(profileId);
       logger.info('MemoryGuard: webview removida (destroyed) — ' + profileId);
     });
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 function unregisterGameWebContents(profileId) {
@@ -86,11 +88,21 @@ function getActiveProfileIds() {
 
 // ── Modo Batata / Ramen ──
 
-function isBatata() { return _forceBatata || IS_LOW_SPEC; }
-function isRamen() { return IS_RAMEN; }
-function getThreshold() { return _thresholdMB; }
-function getIntervalMs() { return _intervalMs; }
-function isPreventive() { return _preventive; }
+function isBatata() {
+  return _forceBatata || IS_LOW_SPEC;
+}
+function isRamen() {
+  return IS_RAMEN;
+}
+function getThreshold() {
+  return _thresholdMB;
+}
+function getIntervalMs() {
+  return _intervalMs;
+}
+function isPreventive() {
+  return _preventive;
+}
 
 function setThreshold(mb) {
   _thresholdMB = Math.max(200, Math.min(4096, Math.floor(mb)));
@@ -106,8 +118,18 @@ function setForceBatata(force) {
   try {
     const partition = require('../profiles/partition');
     partition.setBatataMode(isBatata());
-  } catch (_) { /* partition module may not be loaded yet — ok */ }
-  logger.info('MemoryGuard: Modo Batata = ' + isBatata() + ' (interval ' + _intervalMs + 'ms, threshold ' + _thresholdMB + 'MB)');
+  } catch (_) {
+    /* partition module may not be loaded yet — ok */
+  }
+  logger.info(
+    'MemoryGuard: Modo Batata = ' +
+      isBatata() +
+      ' (interval ' +
+      _intervalMs +
+      'ms, threshold ' +
+      _thresholdMB +
+      'MB)'
+  );
 }
 
 // ── Stats ──
@@ -131,12 +153,12 @@ function getStats() {
     systemRAM: Math.round(TOTAL_RAM_GB * 10) / 10,
     timestamp: Date.now(),
     uptimeMs: uptimeMs,
-    uptimeHours: Math.round(uptimeMs / 3600000 * 10) / 10,
+    uptimeHours: Math.round((uptimeMs / 3600000) * 10) / 10,
     crashCount: _crashCount,
     manualGCCount: _manualGCCount,
     autoGCCount: _autoGCCount,
     totalGCCount: _manualGCCount + _autoGCCount,
-    startedAt: _startedAt,
+    startedAt: _startedAt
   };
 }
 
@@ -147,12 +169,22 @@ function reportCrash() {
 
 // ── Listeners (GcDaemon dispara onGC; este módulo dispara onMemoryUpdate) ──
 
-function onMemoryUpdate(cb) { if (typeof cb === 'function') _memListeners.push(cb); }
-function onGC(cb) { if (typeof cb === 'function') _gcListeners.push(cb); }
+function onMemoryUpdate(cb) {
+  if (typeof cb === 'function') _memListeners.push(cb);
+}
+function onGC(cb) {
+  if (typeof cb === 'function') _gcListeners.push(cb);
+}
 
 function _notify() {
   const stats = getStats();
-  _memListeners.forEach(function (cb) { try { cb(stats); } catch (_) { /* ignore */ } });
+  _memListeners.forEach(function (cb) {
+    try {
+      cb(stats);
+    } catch (_) {
+      /* ignore */
+    }
+  });
 }
 
 /**
@@ -162,8 +194,15 @@ function _notify() {
  * @param {Object} result
  */
 function _recordGC(isManual, result) {
-  if (isManual) _manualGCCount++; else _autoGCCount++;
-  _gcListeners.forEach(function (cb) { try { cb(result); } catch (_) { /* ignore */ } });
+  if (isManual) _manualGCCount++;
+  else _autoGCCount++;
+  _gcListeners.forEach(function (cb) {
+    try {
+      cb(result);
+    } catch (_) {
+      /* ignore */
+    }
+  });
 }
 
 // ── Webview GC no-ops (v4.9.1: DESATIVADO — causava tela preta no Flash) ──
@@ -199,7 +238,9 @@ function getWebviewStats() {
     active: _webviewRegistry.size,
     totalGCs: totalGCs,
     lastGCAt: lastGCAt || null,
-    intervalMin: Math.round((isBatata() ? WEBVIEW_GC_INTERVAL_BATATA : WEBVIEW_GC_INTERVAL_NORMAL) / 60000),
+    intervalMin: Math.round(
+      (isBatata() ? WEBVIEW_GC_INTERVAL_BATATA : WEBVIEW_GC_INTERVAL_NORMAL) / 60000
+    )
   };
 }
 
@@ -232,5 +273,5 @@ module.exports = {
   // constants
   IS_LOW_SPEC: IS_LOW_SPEC,
   IS_RAMEN: IS_RAMEN,
-  SYSTEM_RAM_GB: Math.round(TOTAL_RAM_GB * 10) / 10,
+  SYSTEM_RAM_GB: Math.round(TOTAL_RAM_GB * 10) / 10
 };

@@ -6,17 +6,17 @@
 'use strict';
 
 const HARDWARE_PROFILES = {
-  'modern': {
+  modern: {
     name: 'Moderno',
     description: 'RX 6000+, RTX 3000+, GTX 1600+',
     icon: '\u{1F680}'
   },
-  'legacy': {
+  legacy: {
     name: 'Antigo',
     description: 'GTX 900/1000, Radeon HD/RX 500, Intel HD',
     icon: '\u{1F527}'
   },
-  'cpu': {
+  cpu: {
     name: 'CPU Only',
     description: 'Sem GPU dedicada ou problemas de GPU',
     icon: '\u{1F4BB}'

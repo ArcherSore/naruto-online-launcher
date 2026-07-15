@@ -41,5 +41,5 @@ module.exports = {
   encrypt: encrypt,
   decrypt: decrypt,
   exportEncryptedBackup: CryptoService.exportEncryptedBackup,
-  importEncryptedBackup: CryptoService.importEncryptedBackup,
+  importEncryptedBackup: CryptoService.importEncryptedBackup
 };

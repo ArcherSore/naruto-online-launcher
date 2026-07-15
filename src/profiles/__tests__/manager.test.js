@@ -12,50 +12,78 @@
 // Mock all submodules that manager.js depends on
 jest.mock('../store', function () {
   return {
-    getAll: jest.fn(function () { return []; }),
+    getAll: jest.fn(function () {
+      return [];
+    }),
     get: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
     touch: jest.fn(),
-    exportJSON: jest.fn(function () { return '[]'; }),
-    importJSON: jest.fn(function () { return { imported: 0, skipped: 0 }; }),
+    exportJSON: jest.fn(function () {
+      return '[]';
+    }),
+    importJSON: jest.fn(function () {
+      return { imported: 0, skipped: 0 };
+    }),
     MAX_PROFILES: 12,
-    PALETTE: ['#e74c3c', '#3498db'],
+    PALETTE: ['#e74c3c', '#3498db']
   };
 });
 
 jest.mock('../partition', function () {
   return {
     setBatataMode: jest.fn(),
-    shouldUseShadow: jest.fn(function () { return false; }),
+    shouldUseShadow: jest.fn(function () {
+      return false;
+    }),
     getPartitionName: jest.fn(function (p) {
       var id = (p && p.id) || p;
       return 'persist:profile-' + id;
     }),
-    ensurePartitionDir: jest.fn(function () { return true; }),
-    snapshotCookies: jest.fn(function () { return Promise.resolve(true); }),
-    restoreCookies: jest.fn(function () { return Promise.resolve(0); }),
-    removeSnapshot: jest.fn(),
+    ensurePartitionDir: jest.fn(function () {
+      return true;
+    }),
+    snapshotCookies: jest.fn(function () {
+      return Promise.resolve(true);
+    }),
+    restoreCookies: jest.fn(function () {
+      return Promise.resolve(0);
+    }),
+    removeSnapshot: jest.fn()
   };
 });
 
 jest.mock('../vault', function () {
   return {
     getCredentials: jest.fn(),
-    setCredentials: jest.fn(function () { return true; }),
-    removeCredentials: jest.fn(function () { return true; }),
-    hasCredentials: jest.fn(function () { return false; }),
+    setCredentials: jest.fn(function () {
+      return true;
+    }),
+    removeCredentials: jest.fn(function () {
+      return true;
+    }),
+    hasCredentials: jest.fn(function () {
+      return false;
+    })
   };
 });
 
 jest.mock('../../ui/game-launcher', function () {
   return {
     launchProfile: jest.fn(),
-    closeProfile: jest.fn(function () { return true; }),
-    isProfileOpen: jest.fn(function () { return false; }),
-    getWebContents: jest.fn(function () { return null; }),
-    hasOpenWindows: jest.fn(function () { return false; }),
+    closeProfile: jest.fn(function () {
+      return true;
+    }),
+    isProfileOpen: jest.fn(function () {
+      return false;
+    }),
+    getWebContents: jest.fn(function () {
+      return null;
+    }),
+    hasOpenWindows: jest.fn(function () {
+      return false;
+    })
   };
 });
 
@@ -64,7 +92,7 @@ jest.mock('../../utils/logger', function () {
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    debug: jest.fn(),
+    debug: jest.fn()
   };
 });
 
@@ -161,7 +189,11 @@ describe('manager.js', function () {
 
   describe('setMemoryGuard', function () {
     test('stores memory guard reference', function () {
-      var mg = { reportCrash: jest.fn(), registerGameWebContents: jest.fn(), unregisterGameWebContents: jest.fn() };
+      var mg = {
+        reportCrash: jest.fn(),
+        registerGameWebContents: jest.fn(),
+        unregisterGameWebContents: jest.fn()
+      };
       manager.setMemoryGuard(mg);
       // Can verify indirectly through launch (which uses mg)
     });
@@ -177,9 +209,7 @@ describe('manager.js', function () {
     });
 
     test('enriches profiles with runtime state', function () {
-      store.getAll.mockReturnValue([
-        { id: 'p_001', name: 'Main', server: 's1', region: 'br' },
-      ]);
+      store.getAll.mockReturnValue([{ id: 'p_001', name: 'Main', server: 's1', region: 'br' }]);
       vault.hasCredentials.mockReturnValue(true);
       partition.shouldUseShadow.mockReturnValue(false);
       gameLauncher.isProfileOpen.mockReturnValue(false);
@@ -195,9 +225,7 @@ describe('manager.js', function () {
     });
 
     test('marks profile as open when gameLauncher reports it open', function () {
-      store.getAll.mockReturnValue([
-        { id: 'p_002', name: 'Alt', server: 's2', region: 'na' },
-      ]);
+      store.getAll.mockReturnValue([{ id: 'p_002', name: 'Alt', server: 's2', region: 'na' }]);
       gameLauncher.isProfileOpen.mockReturnValue(true);
 
       var result = manager.list();
@@ -323,7 +351,10 @@ describe('manager.js', function () {
       partition.getPartitionName.mockReturnValue('partition:profile-p_shadow');
 
       manager.launch('p_shadow');
-      expect(partition.restoreCookies).toHaveBeenCalledWith('partition:profile-p_shadow', 'p_shadow');
+      expect(partition.restoreCookies).toHaveBeenCalledWith(
+        'partition:profile-p_shadow',
+        'p_shadow'
+      );
     });
 
     test('does not call restoreCookies for non-shadow profile', function () {
@@ -353,7 +384,7 @@ describe('manager.js', function () {
       gameLauncher.getWebContents.mockReturnValue(mockWC);
       var mg = {
         registerGameWebContents: jest.fn(),
-        unregisterGameWebContents: jest.fn(),
+        unregisterGameWebContents: jest.fn()
       };
       manager.setMemoryGuard(mg);
 
@@ -373,7 +404,7 @@ describe('manager.js', function () {
       partition.getPartitionName.mockReturnValue('partition:profile-p_close');
       var mg = {
         registerGameWebContents: jest.fn(),
-        unregisterGameWebContents: jest.fn(),
+        unregisterGameWebContents: jest.fn()
       };
       manager.setMemoryGuard(mg);
 
@@ -383,7 +414,10 @@ describe('manager.js', function () {
       });
 
       manager.launch('p_close');
-      expect(partition.snapshotCookies).toHaveBeenCalledWith('partition:profile-p_close', 'p_close');
+      expect(partition.snapshotCookies).toHaveBeenCalledWith(
+        'partition:profile-p_close',
+        'p_close'
+      );
       expect(mg.unregisterGameWebContents).toHaveBeenCalledWith('p_close');
     });
 
@@ -431,12 +465,16 @@ describe('manager.js', function () {
       // Verify via list
       store.getAll.mockReturnValue([profile]);
       var listed = manager.list();
-      var crashedProfile = listed.find(function (p) { return p.id === 'p_crash'; });
+      var crashedProfile = listed.find(function (p) {
+        return p.id === 'p_crash';
+      });
       expect(crashedProfile.crashCount).toBeGreaterThan(0);
     });
 
     test('is no-op for profile with no runtime entry', function () {
-      expect(function () { manager.reportCrash('p_no_runtime'); }).not.toThrow();
+      expect(function () {
+        manager.reportCrash('p_no_runtime');
+      }).not.toThrow();
     });
   });
 
@@ -527,9 +565,9 @@ describe('manager.js', function () {
       store.getAll.mockReturnValue([profile]);
       manager.create({ name: 'SN', server: 's1', region: 'br' });
 
-      expect(cb).toHaveBeenCalledWith(expect.arrayContaining([
-        expect.objectContaining({ id: 'p_snap_notify' }),
-      ]));
+      expect(cb).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ id: 'p_snap_notify' })])
+      );
     });
   });
 });

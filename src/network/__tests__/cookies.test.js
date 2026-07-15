@@ -20,13 +20,13 @@ function makeSession() {
       on: jest.fn(),
       set: jest.fn(() => Promise.resolve()),
       remove: jest.fn(() => Promise.resolve()),
-      get: jest.fn(() => Promise.resolve([])),
+      get: jest.fn(() => Promise.resolve([]))
     },
     webRequest: {
-      onHeadersReceived: jest.fn(),
+      onHeadersReceived: jest.fn()
     },
     clearCache: jest.fn(() => Promise.resolve()),
-    clearStorageData: jest.fn(() => Promise.resolve()),
+    clearStorageData: jest.fn(() => Promise.resolve())
   };
 }
 
@@ -72,7 +72,9 @@ describe('cookies.js', () => {
     });
 
     test('configura com options.csp fornecido', () => {
-      expect(() => cookies.setupPersistentCookies(session, { csp: 'default-src self' })).not.toThrow();
+      expect(() =>
+        cookies.setupPersistentCookies(session, { csp: 'default-src self' })
+      ).not.toThrow();
       expect(session.webRequest.onHeadersReceived).toHaveBeenCalled();
     });
   });
@@ -82,7 +84,7 @@ describe('cookies.js', () => {
 
     beforeEach(() => {
       cookies.setupPersistentCookies(session);
-      const call = session.cookies.on.mock.calls.find((c) => c[0] === 'changed');
+      const call = session.cookies.on.mock.calls.find(c => c[0] === 'changed');
       changedListener = call ? call[1] : null;
       expect(changedListener).toBeInstanceOf(Function);
     });
@@ -95,16 +97,18 @@ describe('cookies.js', () => {
         path: '/',
         httpOnly: true,
         secure: false,
-        expirationDate: Math.floor(Date.now() / 1000) + 100, // 100s restantes
+        expirationDate: Math.floor(Date.now() / 1000) + 100 // 100s restantes
       };
       changedListener({}, cookie, 'explicit', false);
-      expect(session.cookies.set).toHaveBeenCalledWith(expect.objectContaining({
-        name: 'session_id',
-        value: 'abc',
-        domain: '.narutowebgame.com',
-        secure: false,
-        sameSite: 'no_restriction',
-      }));
+      expect(session.cookies.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'session_id',
+          value: 'abc',
+          domain: '.narutowebgame.com',
+          secure: false,
+          sameSite: 'no_restriction'
+        })
+      );
     });
 
     test('estende cookie de subdomínio do jogo (oasgames.com)', () => {
@@ -115,7 +119,7 @@ describe('cookies.js', () => {
         path: '/',
         httpOnly: false,
         secure: true,
-        expirationDate: Math.floor(Date.now() / 1000) + 50,
+        expirationDate: Math.floor(Date.now() / 1000) + 50
       };
       changedListener({}, cookie, 'explicit', false);
       expect(session.cookies.set).toHaveBeenCalled();
@@ -129,7 +133,7 @@ describe('cookies.js', () => {
         path: '/',
         httpOnly: true,
         secure: false,
-        expirationDate: Math.floor(Date.now() / 1000) + 30 * 86400, // 30 dias
+        expirationDate: Math.floor(Date.now() / 1000) + 30 * 86400 // 30 dias
       };
       changedListener({}, cookie, 'explicit', false);
       expect(session.cookies.set).not.toHaveBeenCalled();
@@ -142,7 +146,7 @@ describe('cookies.js', () => {
         value: 'y',
         path: '/',
         secure: false,
-        expirationDate: 1,
+        expirationDate: 1
       };
       changedListener({}, cookie, 'explicit', true);
       expect(session.cookies.set).not.toHaveBeenCalled();
@@ -156,7 +160,7 @@ describe('cookies.js', () => {
         value: 'y',
         path: '/',
         secure: false,
-        expirationDate: 1,
+        expirationDate: 1
       };
       changedListener({}, cookie, 'overwrite', false);
       expect(session.cookies.set).not.toHaveBeenCalled();
@@ -168,13 +172,10 @@ describe('cookies.js', () => {
         name: '_ga',
         value: 'GA1.2.x',
         path: '/',
-        secure: false,
+        secure: false
       };
       changedListener({}, cookie, 'explicit', false);
-      expect(session.cookies.remove).toHaveBeenCalledWith(
-        'http://google-analytics.com/',
-        '_ga'
-      );
+      expect(session.cookies.remove).toHaveBeenCalledWith('http://google-analytics.com/', '_ga');
     });
 
     test('remove cookie de subdomínio de tracking (collect.mdata.cool)', () => {
@@ -183,13 +184,10 @@ describe('cookies.js', () => {
         name: 'tid',
         value: 'xyz',
         path: '/',
-        secure: false,
+        secure: false
       };
       changedListener({}, cookie, 'explicit', false);
-      expect(session.cookies.remove).toHaveBeenCalledWith(
-        'http://collect.mdata.cool/',
-        'tid'
-      );
+      expect(session.cookies.remove).toHaveBeenCalledWith('http://collect.mdata.cool/', 'tid');
     });
 
     test('não faz nada para cookie de domínio desconhecido (não game, não tracking)', () => {
@@ -198,7 +196,7 @@ describe('cookies.js', () => {
         name: 'foo',
         value: 'bar',
         path: '/',
-        secure: false,
+        secure: false
       };
       changedListener({}, cookie, 'explicit', false);
       expect(session.cookies.set).not.toHaveBeenCalled();
@@ -211,7 +209,7 @@ describe('cookies.js', () => {
         name: '_ga',
         value: 'x',
         path: '/path',
-        secure: true,
+        secure: true
       };
       changedListener({}, cookie, 'explicit', false);
       expect(session.cookies.remove).toHaveBeenCalledWith(
@@ -233,7 +231,7 @@ describe('cookies.js', () => {
       const callback = jest.fn();
       const details = {
         url: 'https://www.google-analytics.com/collect',
-        responseHeaders: { 'set-cookie': ['_ga=GA1.2.x; path=/'] },
+        responseHeaders: { 'set-cookie': ['_ga=GA1.2.x; path=/'] }
       };
       headersHandler(details, callback);
       expect(callback).toHaveBeenCalledTimes(1);
@@ -245,7 +243,7 @@ describe('cookies.js', () => {
       const callback = jest.fn();
       const details = {
         url: 'https://naruto.narutowebgame.com/game',
-        responseHeaders: { 'set-cookie': ['oas_user=jwt; path=/'] },
+        responseHeaders: { 'set-cookie': ['oas_user=jwt; path=/'] }
       };
       headersHandler(details, callback);
       const arg = callback.mock.calls[0][0];
@@ -257,7 +255,7 @@ describe('cookies.js', () => {
       const originalCookie = 'oas_user=jwt; Expires=Wed, 01 Jan 2025 00:00:00 GMT';
       const details = {
         url: 'https://naruto.narutowebgame.com/game',
-        responseHeaders: { 'set-cookie': [originalCookie] },
+        responseHeaders: { 'set-cookie': [originalCookie] }
       };
       headersHandler(details, callback);
       const arg = callback.mock.calls[0][0];
@@ -269,7 +267,7 @@ describe('cookies.js', () => {
       const originalCookie = 'oas_user=jwt; max-age=3600';
       const details = {
         url: 'https://naruto.narutowebgame.com/game',
-        responseHeaders: { 'set-cookie': [originalCookie] },
+        responseHeaders: { 'set-cookie': [originalCookie] }
       };
       headersHandler(details, callback);
       const arg = callback.mock.calls[0][0];
@@ -280,7 +278,7 @@ describe('cookies.js', () => {
       const callback = jest.fn();
       const details = {
         url: 'https://odp3.oasgames.com/api/game',
-        responseHeaders: { 'set-cookie': ['sess=abc'] },
+        responseHeaders: { 'set-cookie': ['sess=abc'] }
       };
       headersHandler(details, callback);
       const arg = callback.mock.calls[0][0];
@@ -291,7 +289,7 @@ describe('cookies.js', () => {
       const callback = jest.fn();
       const details = {
         url: 'not-a-url',
-        responseHeaders: {},
+        responseHeaders: {}
       };
       headersHandler(details, callback);
       expect(callback).toHaveBeenCalledWith({});
@@ -301,7 +299,7 @@ describe('cookies.js', () => {
       const callback = jest.fn();
       const details = {
         url: 'https://naruto.narutowebgame.com/game',
-        responseHeaders: { 'content-type': ['text/html'] },
+        responseHeaders: { 'content-type': ['text/html'] }
       };
       headersHandler(details, callback);
       const arg = callback.mock.calls[0][0];
@@ -314,7 +312,7 @@ describe('cookies.js', () => {
       const original = ['random=v'];
       const details = {
         url: 'https://example.com/page',
-        responseHeaders: { 'set-cookie': original },
+        responseHeaders: { 'set-cookie': original }
       };
       headersHandler(details, callback);
       const arg = callback.mock.calls[0][0];
@@ -323,10 +321,13 @@ describe('cookies.js', () => {
 
     test('não injeta CSP quando options.csp não fornecido (default)', () => {
       const callback = jest.fn();
-      headersHandler({
-        url: 'https://naruto.narutowebgame.com/game',
-        responseHeaders: {},
-      }, callback);
+      headersHandler(
+        {
+          url: 'https://naruto.narutowebgame.com/game',
+          responseHeaders: {}
+        },
+        callback
+      );
       const arg = callback.mock.calls[0][0];
       expect(arg.responseHeaders['Content-Security-Policy']).toBeUndefined();
     });
@@ -338,10 +339,13 @@ describe('cookies.js', () => {
       cookies.setupPersistentCookies(s2, { csp: 'default-src self' });
       const handler = s2.webRequest.onHeadersReceived.mock.calls[0][0];
       const callback = jest.fn();
-      handler({
-        url: 'https://naruto.narutowebgame.com/game',
-        responseHeaders: {},
-      }, callback);
+      handler(
+        {
+          url: 'https://naruto.narutowebgame.com/game',
+          responseHeaders: {}
+        },
+        callback
+      );
       const arg = callback.mock.calls[0][0];
       expect(arg.responseHeaders['Content-Security-Policy']).toEqual(['default-src self']);
     });
@@ -351,10 +355,13 @@ describe('cookies.js', () => {
       cookies.setupPersistentCookies(s2, { csp: 'default-src self' });
       const handler = s2.webRequest.onHeadersReceived.mock.calls[0][0];
       const callback = jest.fn();
-      handler({
-        url: 'file:///local/index.html',
-        responseHeaders: {},
-      }, callback);
+      handler(
+        {
+          url: 'file:///local/index.html',
+          responseHeaders: {}
+        },
+        callback
+      );
       const arg = callback.mock.calls[0][0];
       expect(arg.responseHeaders['Content-Security-Policy']).toBeUndefined();
     });
@@ -364,7 +371,7 @@ describe('cookies.js', () => {
     test('remove todos os cookies e limpa cache + storage', async () => {
       session.cookies.get.mockResolvedValue([
         { domain: '.narutowebgame.com', name: 'a', path: '/', secure: true },
-        { domain: '.oasgames.com', name: 'b', path: '/', secure: false },
+        { domain: '.oasgames.com', name: 'b', path: '/', secure: false }
       ]);
       const result = await cookies.clearAllCookies(session);
       expect(result).toBe(true);
@@ -375,24 +382,18 @@ describe('cookies.js', () => {
 
     test('usa buildCookieUrl pra construir URL de remoção (https quando secure)', async () => {
       session.cookies.get.mockResolvedValue([
-        { domain: '.narutowebgame.com', name: 'a', path: '/game', secure: true },
+        { domain: '.narutowebgame.com', name: 'a', path: '/game', secure: true }
       ]);
       await cookies.clearAllCookies(session);
-      expect(session.cookies.remove).toHaveBeenCalledWith(
-        'https://narutowebgame.com/game',
-        'a'
-      );
+      expect(session.cookies.remove).toHaveBeenCalledWith('https://narutowebgame.com/game', 'a');
     });
 
     test('usa http quando secure=false', async () => {
       session.cookies.get.mockResolvedValue([
-        { domain: '.oasgames.com', name: 'b', path: '/', secure: false },
+        { domain: '.oasgames.com', name: 'b', path: '/', secure: false }
       ]);
       await cookies.clearAllCookies(session);
-      expect(session.cookies.remove).toHaveBeenCalledWith(
-        'http://oasgames.com/',
-        'b'
-      );
+      expect(session.cookies.remove).toHaveBeenCalledWith('http://oasgames.com/', 'b');
     });
 
     test('retorna true mesmo sem cookies', async () => {
@@ -407,11 +408,9 @@ describe('cookies.js', () => {
     test('continua removendo outros cookies se um falha (catch silencioso)', async () => {
       session.cookies.get.mockResolvedValue([
         { domain: '.narutowebgame.com', name: 'a', path: '/', secure: true },
-        { domain: '.oasgames.com', name: 'b', path: '/', secure: false },
+        { domain: '.oasgames.com', name: 'b', path: '/', secure: false }
       ]);
-      session.cookies.remove
-        .mockResolvedValueOnce()
-        .mockRejectedValueOnce(new Error('boom'));
+      session.cookies.remove.mockResolvedValueOnce().mockRejectedValueOnce(new Error('boom'));
       const result = await cookies.clearAllCookies(session);
       expect(result).toBe(true);
       expect(session.cookies.remove).toHaveBeenCalledTimes(2);

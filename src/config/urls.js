@@ -35,7 +35,7 @@ const REGION_URLS = {
   de: 'https://naruto.narutowebgame.com/de/serverlist',
   es: 'https://naruto.narutowebgame.com/es/serverlist',
   pl: 'https://naruto.narutowebgame.com/pl/serverlist',
-  fr: 'https://naruto.narutowebgame.com/fr/serverlist',
+  fr: 'https://naruto.narutowebgame.com/fr/serverlist'
 };
 
 // GameCode por região (usado pela API passport.oasgames.com)
@@ -47,7 +47,7 @@ const REGION_GAME_CODES = {
   de: 'narutode',
   es: 'narutoes',
   pl: 'narutopl',
-  fr: 'narutofr',
+  fr: 'narutofr'
 };
 
 // Parâmetros de identificação do launcher (reconhecimento pelo servidor)
@@ -123,5 +123,5 @@ module.exports = {
   getGameUrl: getGameUrl,
   getServerlistUrl: getServerlistUrl,
   getGameCode: getGameCode,
-  getLauncherParams: getLauncherParams,
+  getLauncherParams: getLauncherParams
 };

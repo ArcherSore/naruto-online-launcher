@@ -52,7 +52,9 @@ let _batataMode = false;
  */
 function setBatataMode(batata) {
   _batataMode = !!batata;
-  logger.info('partition: Modo Batata = ' + _batataMode + ' → shadow default = ' + shouldUseShadow(null));
+  logger.info(
+    'partition: Modo Batata = ' + _batataMode + ' → shadow default = ' + shouldUseShadow(null)
+  );
 }
 
 /**
@@ -111,7 +113,10 @@ function _persistSnapshots() {
       logger.warn('partition: snapshots excedem 512KB — truncando antigos');
       // Drop oldest entries
       const keys = Object.keys(_snapshots);
-      while (Buffer.byteLength(JSON.stringify(_snapshots), 'utf8') > MAX_SNAPSHOTS_BYTES * 0.8 && keys.length > 1) {
+      while (
+        Buffer.byteLength(JSON.stringify(_snapshots), 'utf8') > MAX_SNAPSHOTS_BYTES * 0.8 &&
+        keys.length > 1
+      ) {
         delete _snapshots[keys.shift()];
       }
     }
@@ -119,7 +124,11 @@ function _persistSnapshots() {
     fs.renameSync(tmp, file);
   } catch (e) {
     logger.error('partition: falha ao salvar snapshots: ' + e.message);
-    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) { /* ignore */ }
+    try {
+      if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+    } catch (_) {
+      /* ignore */
+    }
   }
 }
 
@@ -131,7 +140,9 @@ function _persistSnapshots() {
 function _filterAuthCookies(cookies) {
   return cookies.filter(function (c) {
     const domain = (c.domain || '').toLowerCase();
-    return AUTH_DOMAINS.some(function (d) { return domain.includes(d); });
+    return AUTH_DOMAINS.some(function (d) {
+      return domain.includes(d);
+    });
   });
 }
 
@@ -177,7 +188,9 @@ async function restoreCookies(partitionName, profileId) {
         const url = (c.secure ? 'https://' : 'http://') + (c.domain || '').replace(/^\./, '');
         await ses.cookies.set(Object.assign({}, c, { url: url }));
         restored++;
-      } catch (_) { /* individual cookie failure is ok */ }
+      } catch (_) {
+        /* individual cookie failure is ok */
+      }
     }
     logger.info('partition: restaurados ' + restored + ' cookies para ' + profileId);
     return restored;
@@ -240,5 +253,5 @@ module.exports = {
   restoreCookies: restoreCookies,
   removeSnapshot: removeSnapshot,
   ensurePartitionDir: ensurePartitionDir,
-  AUTH_DOMAINS: AUTH_DOMAINS,
+  AUTH_DOMAINS: AUTH_DOMAINS
 };

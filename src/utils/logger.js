@@ -11,7 +11,9 @@ const log = require('electron-log');
 // v5.0 (Fase 3, Decisão B): quando SHINOBI_DEBUG=1, sobe console level pra debug.
 const __SHINOBI_DEBUG = process.env.SHINOBI_DEBUG === '1' || process.env.SHINOBI_DEBUG === 'true';
 log.transports.file.level = 'info';
-log.transports.console.level = (process.env.LOG_LEVEL || (__SHINOBI_DEBUG ? 'debug' : 'info')).toLowerCase();
+log.transports.console.level = (
+  process.env.LOG_LEVEL || (__SHINOBI_DEBUG ? 'debug' : 'info')
+).toLowerCase();
 log.transports.file.maxSize = 5 * 1024 * 1024; // 5MB rotation
 log.transports.file.maxFiles = 3;
 
@@ -41,7 +43,7 @@ const logger = {
    * @param {string} msg - Message
    * @param {*} [data] - Optional data
    */
-  debug: function(msg, data) {
+  debug: function (msg, data) {
     if (data !== undefined) {
       log.debug(formatMessage('debug', msg), data);
     } else {
@@ -54,7 +56,7 @@ const logger = {
    * @param {string} msg - Message
    * @param {*} [data] - Optional data
    */
-  info: function(msg, data) {
+  info: function (msg, data) {
     if (data !== undefined) {
       log.info(formatMessage('info', msg), data);
     } else {
@@ -67,7 +69,7 @@ const logger = {
    * @param {string} msg - Message
    * @param {*} [data] - Optional data
    */
-  warn: function(msg, data) {
+  warn: function (msg, data) {
     if (data !== undefined) {
       log.warn(formatMessage('warn', msg), data);
     } else {
@@ -80,7 +82,7 @@ const logger = {
    * @param {string} msg - Message
    * @param {*} [data] - Optional data
    */
-  error: function(msg, data) {
+  error: function (msg, data) {
     if (data !== undefined) {
       log.error(formatMessage('error', msg), data);
     } else {

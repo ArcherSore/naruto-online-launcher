@@ -62,9 +62,17 @@ function getSalt() {
 function getMachineKey() {
   if (_cachedKey) return _cachedKey;
   let userDataPath = '';
-  try { userDataPath = app.getPath('userData'); } catch (_) { /* before ready */ }
+  try {
+    userDataPath = app.getPath('userData');
+  } catch (_) {
+    /* before ready */
+  }
   let username = '';
-  try { username = os.userInfo().username; } catch (_) { /* ignore */ }
+  try {
+    username = os.userInfo().username;
+  } catch (_) {
+    /* ignore */
+  }
   const machineSeed = os.hostname() + '|' + username + '|' + userDataPath + '|shinobi-vault-v2';
   const salt = getSalt();
   // 100k iters para a chave de máquina (diferente das 200k do backup c/ senha)
@@ -96,5 +104,5 @@ module.exports = {
   getMachineKey: getMachineKey,
   deriveMasterKey: deriveMasterKey,
   _resetCache: _resetCache,
-  VAULT_SALT_FILE: VAULT_SALT_FILE,
+  VAULT_SALT_FILE: VAULT_SALT_FILE
 };

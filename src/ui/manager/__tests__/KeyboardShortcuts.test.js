@@ -8,14 +8,16 @@ const KeyboardShortcuts = require('../KeyboardShortcuts');
 function makeMockWin() {
   let handler = null;
   const wc = {
-    on: jest.fn((evt, fn) => { if (evt === 'before-input-event') handler = fn; }),
+    on: jest.fn((evt, fn) => {
+      if (evt === 'before-input-event') handler = fn;
+    }),
     reload: jest.fn(),
-    toggleDevTools: jest.fn(),
+    toggleDevTools: jest.fn()
   };
   const win = {
     webContents: wc,
     close: jest.fn(),
-    isDestroyed: jest.fn(() => false),
+    isDestroyed: jest.fn(() => false)
   };
   return { win, wc, getHandler: () => handler };
 }

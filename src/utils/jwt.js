@@ -68,7 +68,7 @@ function summarize(token) {
   lines.push('ID: ' + (p.playerId || p.uuid || '?'));
   lines.push('Emitido: ' + (d.iat ? d.iat.toISOString() : '?'));
   lines.push('Expira: ' + (d.exp ? d.exp.toISOString() : '?') + (d.expired ? ' [EXPIRADO]' : ''));
-  lines.push('Lifetime: ' + (d.lifetime ? (d.lifetime / 60) + ' min' : '?'));
+  lines.push('Lifetime: ' + (d.lifetime ? d.lifetime / 60 + ' min' : '?'));
   lines.push('Roles: ' + JSON.stringify(p.roles || []));
   lines.push('GrantType: ' + (p.loginGrantType || '?'));
   return lines.join('\n');

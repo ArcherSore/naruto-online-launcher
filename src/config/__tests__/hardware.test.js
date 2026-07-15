@@ -2,7 +2,12 @@
  * Testes para src/config/hardware.js
  */
 
-const { HARDWARE_PROFILES, PROFILE_CODES, isValidProfile, getDefaultProfile } = require('../hardware');
+const {
+  HARDWARE_PROFILES,
+  PROFILE_CODES,
+  isValidProfile,
+  getDefaultProfile
+} = require('../hardware');
 
 describe('hardware.js', () => {
   describe('HARDWARE_PROFILES', () => {

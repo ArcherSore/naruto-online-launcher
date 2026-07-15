@@ -17,20 +17,20 @@ const BLOCKED_DOMAINS = new Set([
   'google-analytics.com',
   'googletagmanager.com',
   'analytics.google.com',
-  
+
   // Ads
   'doubleclick.net',
   'googlesyndication.com',
   'googleadservices.com',
   'adservice.google.com',
-  
+
   // Social tracking
   // NOTE: connect.facebook.net is NOT blocked — the game's Facebook tools
   // (oas_facebook_tools.js) require the real SDK to avoid infinite retry loops.
   // Only the tracking pixel endpoint is blocked.
   'pixel.facebook.net',
   'pixel.facebook.com',
-  
+
   // OAS Games tracking ONLY
   // WARNING: odp3.oasgames.com is the GAME API (servers, VIP) — DO NOT BLOCK
   // WARNING: vipsac.oasgames.com is needed for VIP store features
@@ -44,15 +44,15 @@ const BLOCKED_DOMAINS = new Set([
   // 'odp3.oasgames.com'  ← GAME API: get-user-servers, getvip — CRITICAL
   // 'vipsac.oasgames.com' ← VIP store — needed for purchase features
   'dmp.oasgames.com',
-  
+
   // NOTE: huoying.qq.com (Tencent CDN) is NOT blocked — the game loads
   // critical SWF files from res.huoying.qq.com (UI, empty.swf, etc.)
   // Previously blocked due to timeouts, but that was caused by Mixed Content
   // policy — now fixed with --allow-running-insecure-content.
-  
+
   // Telemetry
   'sentry.io',
-  
+
   // General
   'hotjar.com',
   'clarity.ms',
@@ -100,7 +100,7 @@ function setupBlocker(session) {
   }
   _configuredSessions.add(session);
 
-  session.webRequest.onBeforeRequest(function(details, callback) {
+  session.webRequest.onBeforeRequest(function (details, callback) {
     if (shouldBlock(details.url)) {
       logger.debug('Bloqueado: ' + details.url);
       return callback({ cancel: true });

@@ -46,7 +46,7 @@ const gameLauncher = require('../ui/game-launcher');
 // Map: profileId -> { openedAt, lastSeenMb, crashCount }
 const _runtime = new Map();
 
-let _memoryGuard = null;        // injetado via setMemoryGuard()
+let _memoryGuard = null; // injetado via setMemoryGuard()
 let _listeners = [];
 
 /**
@@ -71,7 +71,7 @@ function list() {
       shadow: partition.shouldUseShadow(p),
       isOpen: gameLauncher.isProfileOpen(p.id),
       openedAt: rt.openedAt || 0,
-      crashCount: rt.crashCount || 0,
+      crashCount: rt.crashCount || 0
     });
   });
 }
@@ -116,13 +116,25 @@ function update(id, updates) {
  */
 function remove(id) {
   // 1. Fecha a janela se aberta
-  try { gameLauncher.closeProfile(id); } catch (_) { /* ignore */ }
+  try {
+    gameLauncher.closeProfile(id);
+  } catch (_) {
+    /* ignore */
+  }
 
   // 2. Remove vault
-  try { vault.removeCredentials(id); } catch (_) { /* ignore */ }
+  try {
+    vault.removeCredentials(id);
+  } catch (_) {
+    /* ignore */
+  }
 
   // 3. Remove snapshot de cookies (shadow mode)
-  try { partition.removeSnapshot(id); } catch (_) { /* ignore */ }
+  try {
+    partition.removeSnapshot(id);
+  } catch (_) {
+    /* ignore */
+  }
 
   // 4. Remove do store (store.remove também wipe a partition dir em disco)
   const ok = store.remove(id);
@@ -172,29 +184,35 @@ function launch(profileId, onOpened, onClosed) {
 
   // Despacha para o game-launcher com wrappers que adicionam GC + crash handler
   try {
-    gameLauncher.launchProfile(profileId, function onOpenedInternal() {
-      // Registra webContents no MemoryGuard para injeção periódica de window.gc()
-      if (_memoryGuard && typeof _memoryGuard.registerGameWebContents === 'function') {
-        try {
-          const wc = gameLauncher.getWebContents(profileId);
-          if (wc) _memoryGuard.registerGameWebContents(profileId, wc);
-        } catch (e) {
-          logger.debug('ProfileManager: registerGameWebContents falhou: ' + e.message);
+    gameLauncher.launchProfile(
+      profileId,
+      function onOpenedInternal() {
+        // Registra webContents no MemoryGuard para injeção periódica de window.gc()
+        if (_memoryGuard && typeof _memoryGuard.registerGameWebContents === 'function') {
+          try {
+            const wc = gameLauncher.getWebContents(profileId);
+            if (wc) _memoryGuard.registerGameWebContents(profileId, wc);
+          } catch (e) {
+            logger.debug('ProfileManager: registerGameWebContents falhou: ' + e.message);
+          }
         }
+        if (onOpened) onOpened();
+      },
+      function onClosedInternal() {
+        // Snapshot de cookies antes de fechar (apenas shadow)
+        if (partition.shouldUseShadow(profile)) {
+          partition.snapshotCookies(partName, profileId).catch(function () {
+            /* ignore */
+          });
+        }
+        // Desregistra webContents do MemoryGuard
+        if (_memoryGuard && typeof _memoryGuard.unregisterGameWebContents === 'function') {
+          _memoryGuard.unregisterGameWebContents(profileId);
+        }
+        _runtime.delete(profileId);
+        if (onClosed) onClosed();
       }
-      if (onOpened) onOpened();
-    }, function onClosedInternal() {
-      // Snapshot de cookies antes de fechar (apenas shadow)
-      if (partition.shouldUseShadow(profile)) {
-        partition.snapshotCookies(partName, profileId).catch(function () { /* ignore */ });
-      }
-      // Desregistra webContents do MemoryGuard
-      if (_memoryGuard && typeof _memoryGuard.unregisterGameWebContents === 'function') {
-        _memoryGuard.unregisterGameWebContents(profileId);
-      }
-      _runtime.delete(profileId);
-      if (onClosed) onClosed();
-    });
+    );
     return true;
   } catch (e) {
     logger.error('ProfileManager: launch falhou — ' + e.message);
@@ -221,7 +239,9 @@ function reportCrash(profileId) {
   if (rt) {
     rt.crashCount = (rt.crashCount || 0) + 1;
     rt.lastCrashAt = Date.now();
-    logger.warn('ProfileManager: crash reportado em ' + profileId + ' (total: ' + rt.crashCount + ')');
+    logger.warn(
+      'ProfileManager: crash reportado em ' + profileId + ' (total: ' + rt.crashCount + ')'
+    );
   }
 }
 
@@ -288,7 +308,10 @@ function importAll(jsonStr) {
  * @returns {{total:number, open:number, withVault:number, shadow:number, crashes:number}}
  */
 function getStats() {
-  let open = 0, withVault = 0, shadow = 0, crashes = 0;
+  let open = 0,
+    withVault = 0,
+    shadow = 0,
+    crashes = 0;
   const all = store.getAll();
   for (let i = 0; i < all.length; i++) {
     const p = all[i];
@@ -304,7 +327,7 @@ function getStats() {
     withVault: withVault,
     shadow: shadow,
     crashes: crashes,
-    max: store.MAX_PROFILES,
+    max: store.MAX_PROFILES
   };
 }
 
@@ -313,9 +336,14 @@ function getStats() {
  * @returns {Array<string>}
  */
 function getOpenProfileIds() {
-  return store.getAll()
-    .filter(function (p) { return gameLauncher.isProfileOpen(p.id); })
-    .map(function (p) { return p.id; });
+  return store
+    .getAll()
+    .filter(function (p) {
+      return gameLauncher.isProfileOpen(p.id);
+    })
+    .map(function (p) {
+      return p.id;
+    });
 }
 
 /**
@@ -329,7 +357,11 @@ function onChange(cb) {
 function _notify() {
   const snapshot = list();
   _listeners.forEach(function (cb) {
-    try { cb(snapshot); } catch (_) { /* ignore */ }
+    try {
+      cb(snapshot);
+    } catch (_) {
+      /* ignore */
+    }
   });
 }
 
@@ -360,5 +392,5 @@ module.exports = {
   onChange: onChange,
   // Constants
   MAX_PROFILES: store.MAX_PROFILES,
-  PALETTE: store.PALETTE,
+  PALETTE: store.PALETTE
 };

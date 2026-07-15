@@ -22,8 +22,10 @@ const DICTIONARY = {
     'setup.subtitle': 'Configure sua experiência em 30 segundos',
     'setup.language.label': 'Idioma',
     'setup.mode.title': 'Modo de Desempenho',
-    'setup.mode.default.body': 'Recomendado para todos — máxima otimização segura. Sempre benéfico.',
-    'setup.mode.lowpc.body': 'Apenas para PCs fracos (GPU antiga ou menos de 4GB RAM). Reduz qualidade visual do Flash para ganhar FPS. Pode ser prejudicial em PCs modernos.',
+    'setup.mode.default.body':
+      'Recomendado para todos — máxima otimização segura. Sempre benéfico.',
+    'setup.mode.lowpc.body':
+      'Apenas para PCs fracos (GPU antiga ou menos de 4GB RAM). Reduz qualidade visual do Flash para ganhar FPS. Pode ser prejudicial em PCs modernos.',
     'setup.save': 'Começar a jogar',
     'mode.default': 'Padrão Otimizado',
     'mode.lowpc': 'Modo PC Fraco',
@@ -80,7 +82,8 @@ const DICTIONARY = {
     'modal.vault_user_ph': 'Login da conta',
     'modal.vault_pass_ph': 'Senha',
     'modal.vault_remove': 'Remover',
-    'modal.vault_hint': 'Criptografado com AES-256-GCM. Auto-login injeta no formulário quando os cookies expiram.',
+    'modal.vault_hint':
+      'Criptografado com AES-256-GCM. Auto-login injeta no formulário quando os cookies expiram.',
     'toast.creds_saved': 'Credenciais salvas',
     'toast.creds_removed': 'Credenciais removidas',
     'toast.server_changed': 'Servidor trocado para',
@@ -110,8 +113,8 @@ const DICTIONARY = {
     'settings.preferences': 'Preferências',
     'settings.notifications': 'Notificações',
     'settings.notifications_desc': 'Alertas de eventos do jogo',
-    'delete_confirm': 'Excluir esta conta? Cookies e credenciais serão apagados.',
-    'vault_remove_confirm': 'Remover credenciais?',
+    delete_confirm: 'Excluir esta conta? Cookies e credenciais serão apagados.',
+    vault_remove_confirm: 'Remover credenciais?'
   },
 
   en: {
@@ -119,8 +122,10 @@ const DICTIONARY = {
     'setup.subtitle': 'Set up your experience in 30 seconds',
     'setup.language.label': 'Language',
     'setup.mode.title': 'Performance Mode',
-    'setup.mode.default.body': 'Recommended for everyone — maximum safe optimization. Always beneficial.',
-    'setup.mode.lowpc.body': 'Only for low-end PCs (old GPU or less than 4GB RAM). Reduces Flash visual quality to gain FPS. May be harmful on modern PCs.',
+    'setup.mode.default.body':
+      'Recommended for everyone — maximum safe optimization. Always beneficial.',
+    'setup.mode.lowpc.body':
+      'Only for low-end PCs (old GPU or less than 4GB RAM). Reduces Flash visual quality to gain FPS. May be harmful on modern PCs.',
     'setup.save': 'Start playing',
     'mode.default': 'Optimized Default',
     'mode.lowpc': 'Low-end PC Mode',
@@ -177,7 +182,8 @@ const DICTIONARY = {
     'modal.vault_user_ph': 'Account login',
     'modal.vault_pass_ph': 'Password',
     'modal.vault_remove': 'Remove',
-    'modal.vault_hint': 'Encrypted with AES-256-GCM. Auto-login injects into the form when cookies expire.',
+    'modal.vault_hint':
+      'Encrypted with AES-256-GCM. Auto-login injects into the form when cookies expire.',
     'toast.creds_saved': 'Credentials saved',
     'toast.creds_removed': 'Credentials removed',
     'toast.server_changed': 'Server changed to',
@@ -207,8 +213,8 @@ const DICTIONARY = {
     'settings.preferences': 'Preferences',
     'settings.notifications': 'Notifications',
     'settings.notifications_desc': 'Game event alerts',
-    'delete_confirm': 'Delete this account? Cookies and credentials will be cleared.',
-    'vault_remove_confirm': 'Remove credentials?',
+    delete_confirm: 'Delete this account? Cookies and credentials will be cleared.',
+    vault_remove_confirm: 'Remove credentials?'
   },
 
   de: {
@@ -216,8 +222,10 @@ const DICTIONARY = {
     'setup.subtitle': 'Richten Sie Ihre Erfahrung in 30 Sekunden ein',
     'setup.language.label': 'Sprache',
     'setup.mode.title': 'Leistungsmodus',
-    'setup.mode.default.body': 'Für alle empfohlen — maximale sichere Optimierung. Immer vorteilhaft.',
-    'setup.mode.lowpc.body': 'Nur für schwache PCs (alte GPU oder weniger als 4GB RAM). Reduziert Flash-Visualqualität für mehr FPS. Kann auf modernen PCs schädlich sein.',
+    'setup.mode.default.body':
+      'Für alle empfohlen — maximale sichere Optimierung. Immer vorteilhaft.',
+    'setup.mode.lowpc.body':
+      'Nur für schwache PCs (alte GPU oder weniger als 4GB RAM). Reduziert Flash-Visualqualität für mehr FPS. Kann auf modernen PCs schädlich sein.',
     'setup.save': 'Spielen starten',
     'mode.default': 'Optimierter Standard',
     'mode.lowpc': 'Schwacher PC Modus',
@@ -235,7 +243,7 @@ const DICTIONARY = {
     'profile.color': 'Farbe',
     'profile.new': 'Neues Konto',
     'profile.empty': 'Keine Konten registriert',
-    'profile.empty.hint': 'Klicken Sie auf "Neues Konto", um Ihr erstes Profil zu erstellen.',
+    'profile.empty.hint': 'Klicken Sie auf "Neues Konto", um Ihr erstes Profil zu erstellen.'
   },
 
   es: {
@@ -243,8 +251,10 @@ const DICTIONARY = {
     'setup.subtitle': 'Configura tu experiencia en 30 segundos',
     'setup.language.label': 'Idioma',
     'setup.mode.title': 'Modo de Rendimiento',
-    'setup.mode.default.body': 'Recomendado para todos — máxima optimización segura. Siempre beneficioso.',
-    'setup.mode.lowpc.body': 'Solo para PCs débiles (GPU antigua o menos de 4GB RAM). Reduce la calidad visual de Flash para ganar FPS. Puede ser perjudicial en PCs modernos.',
+    'setup.mode.default.body':
+      'Recomendado para todos — máxima optimización segura. Siempre beneficioso.',
+    'setup.mode.lowpc.body':
+      'Solo para PCs débiles (GPU antigua o menos de 4GB RAM). Reduce la calidad visual de Flash para ganar FPS. Puede ser perjudicial en PCs modernos.',
     'setup.save': 'Empezar a jugar',
     'mode.default': 'Predeterminado Optimizado',
     'mode.lowpc': 'Modo PC Débil',
@@ -262,7 +272,7 @@ const DICTIONARY = {
     'profile.color': 'Color',
     'profile.new': 'Nueva cuenta',
     'profile.empty': 'Sin cuentas registradas',
-    'profile.empty.hint': 'Haz clic en "Nueva cuenta" para crear tu primer perfil.',
+    'profile.empty.hint': 'Haz clic en "Nueva cuenta" para crear tu primer perfil.'
   },
 
   pl: {
@@ -270,8 +280,10 @@ const DICTIONARY = {
     'setup.subtitle': 'Skonfiguruj swoje doświadczenie w 30 sekund',
     'setup.language.label': 'Język',
     'setup.mode.title': 'Tryb Wydajności',
-    'setup.mode.default.body': 'Zalecane dla wszystkich — maksymalna bezpieczna optymalizacja. Zawsze korzystne.',
-    'setup.mode.lowpc.body': 'Tylko dla słabych PC (stary GPU lub mniej niż 4GB RAM). Redukuje jakość wizualną Flash, aby zyskać FPS. Może być szkodliwe na nowoczesnych PC.',
+    'setup.mode.default.body':
+      'Zalecane dla wszystkich — maksymalna bezpieczna optymalizacja. Zawsze korzystne.',
+    'setup.mode.lowpc.body':
+      'Tylko dla słabych PC (stary GPU lub mniej niż 4GB RAM). Redukuje jakość wizualną Flash, aby zyskać FPS. Może być szkodliwe na nowoczesnych PC.',
     'setup.save': 'Rozpocznij grę',
     'mode.default': 'Optymalny Domyślny',
     'mode.lowpc': 'Tryb Słabego PC',
@@ -289,7 +301,7 @@ const DICTIONARY = {
     'profile.color': 'Kolor',
     'profile.new': 'Nowe konto',
     'profile.empty': 'Brak zarejestrowanych kont',
-    'profile.empty.hint': 'Kliknij "Nowe konto", aby utworzyć swój pierwszy profil.',
+    'profile.empty.hint': 'Kliknij "Nowe konto", aby utworzyć swój pierwszy profil.'
   },
 
   fr: {
@@ -297,8 +309,10 @@ const DICTIONARY = {
     'setup.subtitle': 'Configurez votre expérience en 30 secondes',
     'setup.language.label': 'Langue',
     'setup.mode.title': 'Mode de Performance',
-    'setup.mode.default.body': 'Recommandé pour tous — optimisation sécurisée maximale. Toujours bénéfique.',
-    'setup.mode.lowpc.body': 'Uniquement pour PC faibles (ancien GPU ou moins de 4GB RAM). Réduit la qualité visuelle de Flash pour gagner en FPS. Peut être nuisible sur PC modernes.',
+    'setup.mode.default.body':
+      'Recommandé pour tous — optimisation sécurisée maximale. Toujours bénéfique.',
+    'setup.mode.lowpc.body':
+      'Uniquement pour PC faibles (ancien GPU ou moins de 4GB RAM). Réduit la qualité visuelle de Flash pour gagner en FPS. Peut être nuisible sur PC modernes.',
     'setup.save': 'Commencer à jouer',
     'mode.default': 'Défaut Optimisé',
     'mode.lowpc': 'Mode PC Faible',
@@ -316,8 +330,8 @@ const DICTIONARY = {
     'profile.color': 'Couleur',
     'profile.new': 'Nouveau compte',
     'profile.empty': 'Aucun compte enregistré',
-    'profile.empty.hint': 'Cliquez sur "Nouveau compte" pour créer votre premier profil.',
-  },
+    'profile.empty.hint': 'Cliquez sur "Nouveau compte" pour créer votre premier profil.'
+  }
 };
 
 let _currentLang = 'pt';
@@ -353,5 +367,5 @@ module.exports = {
   t: t,
   tl: tl,
   getAll: getAll,
-  SUPPORTED: ['pt', 'en', 'de', 'es', 'pl', 'fr'],
+  SUPPORTED: ['pt', 'en', 'de', 'es', 'pl', 'fr']
 };

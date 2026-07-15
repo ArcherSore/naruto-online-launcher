@@ -30,10 +30,7 @@ const TRACKING_DOMAINS = [
 ];
 
 // Allowed domains (never strip cookies)
-const ALLOWED_DOMAINS = [
-  'narutowebgame.com',
-  'oasgames.com'
-];
+const ALLOWED_DOMAINS = ['narutowebgame.com', 'oasgames.com'];
 
 /**
  * Check if a domain matches or is a subdomain of a base domain
@@ -51,7 +48,7 @@ function domainMatch(domain, base) {
  * @returns {boolean}
  */
 function isGameDomain(hostname) {
-  return ALLOWED_DOMAINS.some(function(d) {
+  return ALLOWED_DOMAINS.some(function (d) {
     return domainMatch(hostname, d);
   });
 }
@@ -62,7 +59,7 @@ function isGameDomain(hostname) {
  * @returns {boolean}
  */
 function isTrackingDomain(hostname) {
-  return TRACKING_DOMAINS.some(function(d) {
+  return TRACKING_DOMAINS.some(function (d) {
     return domainMatch(hostname, d);
   });
 }
@@ -94,7 +91,7 @@ function setupPersistentCookies(session, options) {
   const csp = opts.csp || null;
   const convertingCookies = new Set();
 
-  session.cookies.on('changed', function(event, cookie, cause, removed) {
+  session.cookies.on('changed', function (event, cookie, cause, removed) {
     if (removed) return;
 
     // Guard: skip API-caused overwrites to prevent infinite loops
@@ -102,7 +99,11 @@ function setupPersistentCookies(session, options) {
     // 'explicit' = cookie set by renderer JS (document.cookie) — these we DO process
 
     // Don't strip cookies from allowed domains
-    if (ALLOWED_DOMAINS.some(function(d) { return domainMatch(cookie.domain, d); })) {
+    if (
+      ALLOWED_DOMAINS.some(function (d) {
+        return domainMatch(cookie.domain, d);
+      })
+    ) {
       const key = cookie.domain + '|' + cookie.name;
       if (convertingCookies.has(key)) return;
 
@@ -113,21 +114,26 @@ function setupPersistentCookies(session, options) {
 
         const url = buildCookieUrl(cookie);
 
-        session.cookies.set({
-          url: url,
-          name: cookie.name,
-          value: cookie.value,
-          domain: cookie.domain,
-          path: cookie.path,
-          // Force secure=false — some game endpoints use HTTP
-          // and secure cookies won't be sent over HTTP, breaking login/session
-          secure: false,
-          httpOnly: cookie.httpOnly,
-          expirationDate: Math.floor(Date.now() / 1000) + COOKIE_EXPIRY,
-          sameSite: 'no_restriction'
-        })
-          .catch(function(err) { logger.debug('Cookie set failed: ' + err.message); })
-          .finally(function() { convertingCookies.delete(key); });
+        session.cookies
+          .set({
+            url: url,
+            name: cookie.name,
+            value: cookie.value,
+            domain: cookie.domain,
+            path: cookie.path,
+            // Force secure=false — some game endpoints use HTTP
+            // and secure cookies won't be sent over HTTP, breaking login/session
+            secure: false,
+            httpOnly: cookie.httpOnly,
+            expirationDate: Math.floor(Date.now() / 1000) + COOKIE_EXPIRY,
+            sameSite: 'no_restriction'
+          })
+          .catch(function (err) {
+            logger.debug('Cookie set failed: ' + err.message);
+          })
+          .finally(function () {
+            convertingCookies.delete(key);
+          });
       }
       return;
     }
@@ -135,13 +141,13 @@ function setupPersistentCookies(session, options) {
     // Strip tracking cookies directly
     if (isTrackingDomain(cookie.domain.replace(/^\./, ''))) {
       const url2 = buildCookieUrl(cookie);
-      session.cookies.remove(url2, cookie.name).catch(function() {});
+      session.cookies.remove(url2, cookie.name).catch(function () {});
     }
   });
 
   // ── ÚNICO onHeadersReceived: CSP + cookie extension + tracking block ──
   // (Electron só permite UM handler por session/evento — mesclar aqui é OBRIGATÓRIO)
-  session.webRequest.onHeadersReceived(function(details, callback) {
+  session.webRequest.onHeadersReceived(function (details, callback) {
     const setCookie = details.responseHeaders && details.responseHeaders['set-cookie'];
 
     let hostname;
@@ -165,8 +171,11 @@ function setupPersistentCookies(session, options) {
         delete responseHeaders['set-cookie'];
       } else if (isGameDomain(hostname)) {
         // Extend game cookies to 1 year
-        responseHeaders['set-cookie'] = setCookie.map(function(cookie) {
-          if (!cookie.toLowerCase().includes('expires=') && !cookie.toLowerCase().includes('max-age=')) {
+        responseHeaders['set-cookie'] = setCookie.map(function (cookie) {
+          if (
+            !cookie.toLowerCase().includes('expires=') &&
+            !cookie.toLowerCase().includes('max-age=')
+          ) {
             return cookie + '; Max-Age=' + COOKIE_EXPIRY;
           }
           return cookie;
@@ -211,15 +220,17 @@ function buildCookieUrl(cookie) {
 async function clearAllCookies(session) {
   try {
     const cookies = await session.cookies.get({});
-    
+
     // Remove all cookies in parallel for speed
-    await Promise.all(cookies.map(function(c) {
-      return session.cookies.remove(buildCookieUrl(c), c.name).catch(function() {});
-    }));
-    
+    await Promise.all(
+      cookies.map(function (c) {
+        return session.cookies.remove(buildCookieUrl(c), c.name).catch(function () {});
+      })
+    );
+
     await session.clearCache();
     await session.clearStorageData();
-    
+
     logger.info('Cookies e cache limpos');
     return true;
   } catch (e) {

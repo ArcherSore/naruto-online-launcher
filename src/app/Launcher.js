@@ -27,7 +27,8 @@ const SessionLifecycle = require('./SessionLifecycle');
 const KeyboardShortcuts = require('../ui/manager/KeyboardShortcuts');
 
 const WINDOW_TITLE = 'Naruto Online';
-const CSP = "default-src 'self' * data: blob: http: https:; " +
+const CSP =
+  "default-src 'self' * data: blob: http: https:; " +
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https:; " +
   "object-src 'self' * data: blob: http: https:; " +
   "style-src 'self' 'unsafe-inline' *; " +
@@ -65,7 +66,11 @@ function hasOpenWindows() {
 function resolveIconPath() {
   const fs = require('fs');
   const packaged = path.join(process.resourcesPath, 'icon.png');
-  try { if (fs.existsSync(packaged)) return packaged; } catch (_) { /* ignore */ }
+  try {
+    if (fs.existsSync(packaged)) return packaged;
+  } catch (_) {
+    /* ignore */
+  }
   return path.join(__dirname, '..', '..', 'assets', 'icon.png');
 }
 
@@ -95,9 +100,17 @@ function launchProfile(profileId, onOpened, onClosed) {
 
   const partName = partition.getPartitionName(profile);
   const isShadow = partition.shouldUseShadow(profile);
-  logger.info('Abrindo perfil "' + profile.name + '" • ' + (isShadow ? 'shadow' : 'persist') + ' partition ' + partName);
+  logger.info(
+    'Abrindo perfil "' +
+      profile.name +
+      '" • ' +
+      (isShadow ? 'shadow' : 'persist') +
+      ' partition ' +
+      partName
+  );
 
-  const LAUNCHER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 ShinobiLauncher/3.5';
+  const LAUNCHER_UA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 ShinobiLauncher/3.5';
 
   const win = new BrowserWindow({
     width: 1280,
@@ -110,16 +123,16 @@ function launchProfile(profileId, onOpened, onClosed) {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      plugins: true,                  // Flash PPAPI
+      plugins: true, // Flash PPAPI
       nodeIntegration: false,
       contextIsolation: true,
       backgroundThrottling: false,
       webSecurity: false,
       allowRunningInsecureContent: true,
-      partition: partName,           // <- ISOLAMENTO TOTAL por perfil
+      partition: partName, // <- ISOLAMENTO TOTAL por perfil
       preload: path.join(__dirname, '..', 'preload.js'),
-      userAgent: LAUNCHER_UA,
-    },
+      userAgent: LAUNCHER_UA
+    }
   });
 
   win.webContents.session.setUserAgent(LAUNCHER_UA);
@@ -146,7 +159,7 @@ function launchProfile(profileId, onOpened, onClosed) {
     failLoadRetry: false,
     failLoadTimer: null,
     bypassAttempts: 0,
-    formInjectAttempts: 0,
+    formInjectAttempts: 0
   };
   gameWindows.set(profileId, entry);
 
@@ -162,27 +175,34 @@ function launchProfile(profileId, onOpened, onClosed) {
       if (onClosed) onClosed();
     },
     getGameUrl: getGameUrl,
-    LAUNCHER_PARAMS: LAUNCHER_PARAMS,
+    LAUNCHER_PARAMS: LAUNCHER_PARAMS
   });
   KeyboardShortcuts.attach(win, profile.name);
 
   // Loading screen (spinner SVG/CSS, sem emoji — fontconfig-safe)
-  win.loadURL('data:text/html,' + encodeURIComponent(
-    '<html><head><meta charset="utf-8"><style>' +
-    '*{margin:0;padding:0;box-sizing:border-box}' +
-    'body{background:#0f0f14;display:flex;align-items:center;justify-content:center;height:100vh;' +
-    'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;flex-direction:column;color:#FF8C00}' +
-    '.spin{width:34px;height:34px;border:3px solid rgba(255,140,0,.18);border-top-color:#FF8C00;' +
-    'border-radius:50%;animation:sp 1s linear infinite;margin-bottom:18px}' +
-    '@keyframes sp{to{transform:rotate(360deg)}}' +
-    '.t{font-size:15px;font-weight:600;letter-spacing:.2px;color:#f0ede6}' +
-    '.s{font-size:12px;color:#6a6a78;margin-top:6px}' +
-    '</style></head><body>' +
-    '<div class="spin"></div>' +
-    '<div class="t">Carregando ' + String(profile.name).replace(/</g, '&lt;') + '</div>' +
-    '<div class="s">' + (isShadow ? 'Sessão efêmera (shadow)' : 'Sessão isolada por perfil') + '</div>' +
-    '</body></html>'
-  ));
+  win.loadURL(
+    'data:text/html,' +
+      encodeURIComponent(
+        '<html><head><meta charset="utf-8"><style>' +
+          '*{margin:0;padding:0;box-sizing:border-box}' +
+          'body{background:#0f0f14;display:flex;align-items:center;justify-content:center;height:100vh;' +
+          'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;flex-direction:column;color:#FF8C00}' +
+          '.spin{width:34px;height:34px;border:3px solid rgba(255,140,0,.18);border-top-color:#FF8C00;' +
+          'border-radius:50%;animation:sp 1s linear infinite;margin-bottom:18px}' +
+          '@keyframes sp{to{transform:rotate(360deg)}}' +
+          '.t{font-size:15px;font-weight:600;letter-spacing:.2px;color:#f0ede6}' +
+          '.s{font-size:12px;color:#6a6a78;margin-top:6px}' +
+          '</style></head><body>' +
+          '<div class="spin"></div>' +
+          '<div class="t">Carregando ' +
+          String(profile.name).replace(/</g, '&lt;') +
+          '</div>' +
+          '<div class="s">' +
+          (isShadow ? 'Sessão efêmera (shadow)' : 'Sessão isolada por perfil') +
+          '</div>' +
+          '</body></html>'
+      )
+  );
 }
 
 function focusProfile(profileId) {
@@ -220,5 +240,5 @@ module.exports = {
   isProfileOpen: isProfileOpen,
   getWebContents: getWebContents,
   hasOpenWindows: hasOpenWindows,
-  getGameUrl: getGameUrl,
+  getGameUrl: getGameUrl
 };

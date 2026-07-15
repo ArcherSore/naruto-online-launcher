@@ -309,7 +309,7 @@ describe('EventTimers.js', () => {
     test('starts with enabled profile regions', () => {
       const profiles = [
         { region: 'br', notificationsEnabled: true },
-        { region: 'na', notificationsEnabled: true },
+        { region: 'na', notificationsEnabled: true }
       ];
       expect(() => et.startWithProfiles(profiles)).not.toThrow();
     });
@@ -319,9 +319,7 @@ describe('EventTimers.js', () => {
     });
 
     test('does nothing when no profiles have notifications enabled', () => {
-      const profiles = [
-        { region: 'br', notificationsEnabled: false },
-      ];
+      const profiles = [{ region: 'br', notificationsEnabled: false }];
       // Should not throw and should not start the timer
       expect(() => et.startWithProfiles(profiles)).not.toThrow();
     });
@@ -329,15 +327,13 @@ describe('EventTimers.js', () => {
     test('filters out profiles with notificationsEnabled=false', () => {
       const profiles = [
         { region: 'br', notificationsEnabled: false },
-        { region: 'na', notificationsEnabled: true },
+        { region: 'na', notificationsEnabled: true }
       ];
       expect(() => et.startWithProfiles(profiles)).not.toThrow();
     });
 
     test('handles profiles without region field', () => {
-      const profiles = [
-        { notificationsEnabled: true },
-      ];
+      const profiles = [{ notificationsEnabled: true }];
       expect(() => et.startWithProfiles(profiles)).not.toThrow();
     });
   });

@@ -49,9 +49,9 @@ describe('settings.js - validateConfig', () => {
   });
 
   test('mantém ambos valores válidos', () => {
-    const result = validateConfig({ 
-      region: 'de', 
-      hardwareProfile: 'cpu' 
+    const result = validateConfig({
+      region: 'de',
+      hardwareProfile: 'cpu'
     });
     expect(result.region).toBe('de');
     expect(result.hardwareProfile).toBe('cpu');
@@ -68,9 +68,9 @@ describe('settings.js - validateConfig', () => {
   });
 
   test('ignora propriedades desconhecidas', () => {
-    const result = validateConfig({ 
+    const result = validateConfig({
       region: 'fr',
-      unknownProp: 'should be ignored' 
+      unknownProp: 'should be ignored'
     });
     expect(result.region).toBe('fr');
     expect(result).not.toHaveProperty('unknownProp');

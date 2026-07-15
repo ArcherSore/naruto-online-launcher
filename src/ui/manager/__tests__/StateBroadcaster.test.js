@@ -14,31 +14,31 @@
 // Mock all dependencies before requiring the module
 jest.mock('../../../profiles/store', () => ({
   getAll: jest.fn(() => []),
-  onChange: jest.fn(),
+  onChange: jest.fn()
 }));
 
 jest.mock('../../../memory/guard', () => ({
   getStats: jest.fn(() => ({ totalMB: 100, thresholdMB: 700, isBatata: false })),
   onMemoryUpdate: jest.fn(),
-  onGC: jest.fn(),
+  onGC: jest.fn()
 }));
 
 jest.mock('../../../utils/EventTimers', () => ({
   getUpcoming: jest.fn(() => []),
   getUserOffsetHours: jest.fn(() => -3),
-  onRemind: jest.fn(),
+  onRemind: jest.fn()
 }));
 
 jest.mock('../../../profiles/vault', () => ({
-  hasCredentials: jest.fn(() => false),
+  hasCredentials: jest.fn(() => false)
 }));
 
 jest.mock('../../../profiles/partition', () => ({
-  shouldUseShadow: jest.fn(() => false),
+  shouldUseShadow: jest.fn(() => false)
 }));
 
 jest.mock('../ManagerWindow', () => ({
-  send: jest.fn(),
+  send: jest.fn()
 }));
 
 const StateBroadcaster = require('../StateBroadcaster');
@@ -82,9 +82,7 @@ describe('StateBroadcaster.js', () => {
 
   describe('pushProfiles', () => {
     test('sends profiles:updated via ManagerWindow.send', () => {
-      store.getAll.mockReturnValue([
-        { id: 'p_abc123', name: 'Test', region: 'br', server: 's1' },
-      ]);
+      store.getAll.mockReturnValue([{ id: 'p_abc123', name: 'Test', region: 'br', server: 's1' }]);
       vault.hasCredentials.mockReturnValue(true);
       partition.shouldUseShadow.mockReturnValue(false);
 
@@ -94,9 +92,7 @@ describe('StateBroadcaster.js', () => {
     });
 
     test('enriches profiles with hasVault from vault.hasCredentials', () => {
-      store.getAll.mockReturnValue([
-        { id: 'p_abc123', name: 'Test', region: 'br', server: 's1' },
-      ]);
+      store.getAll.mockReturnValue([{ id: 'p_abc123', name: 'Test', region: 'br', server: 's1' }]);
       vault.hasCredentials.mockReturnValue(true);
 
       StateBroadcaster.pushProfiles();
@@ -106,9 +102,7 @@ describe('StateBroadcaster.js', () => {
     });
 
     test('enriches profiles with shadow from partition.shouldUseShadow', () => {
-      store.getAll.mockReturnValue([
-        { id: 'p_abc123', name: 'Test', region: 'br', server: 's1' },
-      ]);
+      store.getAll.mockReturnValue([{ id: 'p_abc123', name: 'Test', region: 'br', server: 's1' }]);
       partition.shouldUseShadow.mockReturnValue(true);
 
       StateBroadcaster.pushProfiles();
@@ -139,9 +133,11 @@ describe('StateBroadcaster.js', () => {
     test('enriches multiple profiles independently', () => {
       store.getAll.mockReturnValue([
         { id: 'p_001', name: 'A', region: 'br', server: 's1' },
-        { id: 'p_002', name: 'B', region: 'na', server: 's2' },
+        { id: 'p_002', name: 'B', region: 'na', server: 's2' }
       ]);
-      vault.hasCredentials.mockImplementation(function (id) { return id === 'p_001'; });
+      vault.hasCredentials.mockImplementation(function (id) {
+        return id === 'p_001';
+      });
 
       StateBroadcaster.pushProfiles();
 
@@ -188,14 +184,14 @@ describe('StateBroadcaster.js', () => {
 
       expect(ManagerWindow.send).toHaveBeenCalledWith('events:update', {
         byRegion: { br: [{ id: 'br-boss', name: 'Boss' }] },
-        userOffset: -3,
+        userOffset: -3
       });
     });
 
     test('when called without region, uses _activeRegions from store profiles', () => {
       store.getAll.mockReturnValue([
         { id: 'p_1', name: 'A', region: 'na' },
-        { id: 'p_2', name: 'B', region: 'eu' },
+        { id: 'p_2', name: 'B', region: 'eu' }
       ]);
       et.getUpcoming.mockReturnValue([]);
 
@@ -206,9 +202,7 @@ describe('StateBroadcaster.js', () => {
     });
 
     test('defaults to ["br"] when no profiles have region', () => {
-      store.getAll.mockReturnValue([
-        { id: 'p_1', name: 'A' },
-      ]);
+      store.getAll.mockReturnValue([{ id: 'p_1', name: 'A' }]);
       et.getUpcoming.mockReturnValue([]);
 
       StateBroadcaster.pushEvents();
@@ -220,15 +214,19 @@ describe('StateBroadcaster.js', () => {
       store.getAll.mockReturnValue([
         { id: 'p_1', name: 'A', region: 'br' },
         { id: 'p_2', name: 'B', region: 'br' },
-        { id: 'p_3', name: 'C', region: 'na' },
+        { id: 'p_3', name: 'C', region: 'na' }
       ]);
       et.getUpcoming.mockReturnValue([]);
 
       StateBroadcaster.pushEvents();
 
-      const regions = et.getUpcoming.mock.calls.map(function (c) { return c[0]; });
+      const regions = et.getUpcoming.mock.calls.map(function (c) {
+        return c[0];
+      });
       expect(regions).toEqual(expect.arrayContaining(['br', 'na']));
-      const brCallCount = regions.filter(function (r) { return r === 'br'; }).length;
+      const brCallCount = regions.filter(function (r) {
+        return r === 'br';
+      }).length;
       expect(brCallCount).toBe(1);
     });
 
@@ -305,7 +303,9 @@ describe('StateBroadcaster.js', () => {
 
       // Simulate a memory update by invoking the callback registered with mg.onMemoryUpdate
       // We need to find the callback that was registered
-      const memCallbacks = mg.onMemoryUpdate.mock.calls.map(function (c) { return c[0]; });
+      const memCallbacks = mg.onMemoryUpdate.mock.calls.map(function (c) {
+        return c[0];
+      });
       if (memCallbacks.length > 0) {
         const latestCb = memCallbacks[memCallbacks.length - 1];
         jest.clearAllMocks();
@@ -318,7 +318,9 @@ describe('StateBroadcaster.js', () => {
       StateBroadcaster.stopAutoRefresh();
       StateBroadcaster.startAutoRefresh();
 
-      const gcCallbacks = mg.onGC.mock.calls.map(function (c) { return c[0]; });
+      const gcCallbacks = mg.onGC.mock.calls.map(function (c) {
+        return c[0];
+      });
       if (gcCallbacks.length > 0) {
         const latestCb = gcCallbacks[gcCallbacks.length - 1];
         jest.clearAllMocks();
@@ -331,7 +333,9 @@ describe('StateBroadcaster.js', () => {
       StateBroadcaster.stopAutoRefresh();
       StateBroadcaster.startAutoRefresh();
 
-      const remindCallbacks = et.onRemind.mock.calls.map(function (c) { return c[0]; });
+      const remindCallbacks = et.onRemind.mock.calls.map(function (c) {
+        return c[0];
+      });
       if (remindCallbacks.length > 0) {
         const latestCb = remindCallbacks[remindCallbacks.length - 1];
         jest.clearAllMocks();
@@ -346,7 +350,9 @@ describe('StateBroadcaster.js', () => {
       StateBroadcaster.stopAutoRefresh();
       StateBroadcaster.startAutoRefresh();
 
-      const changeCallbacks = store.onChange.mock.calls.map(function (c) { return c[0]; });
+      const changeCallbacks = store.onChange.mock.calls.map(function (c) {
+        return c[0];
+      });
       if (changeCallbacks.length > 0) {
         const latestCb = changeCallbacks[changeCallbacks.length - 1];
         jest.clearAllMocks();

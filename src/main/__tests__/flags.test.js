@@ -70,69 +70,93 @@ describe('flags.js', () => {
     });
 
     test('applies no-sandbox flag', () => {
-      const hasFlag = switchCalls.some(function (c) { return c[0] === 'no-sandbox'; });
+      const hasFlag = switchCalls.some(function (c) {
+        return c[0] === 'no-sandbox';
+      });
       expect(hasFlag).toBe(true);
     });
 
     test('applies disable-gpu-sandbox flag', () => {
-      const hasFlag = switchCalls.some(function (c) { return c[0] === 'disable-gpu-sandbox'; });
+      const hasFlag = switchCalls.some(function (c) {
+        return c[0] === 'disable-gpu-sandbox';
+      });
       expect(hasFlag).toBe(true);
     });
 
     test('applies always-authorize-plugins flag', () => {
-      const hasFlag = switchCalls.some(function (c) { return c[0] === 'always-authorize-plugins'; });
+      const hasFlag = switchCalls.some(function (c) {
+        return c[0] === 'always-authorize-plugins';
+      });
       expect(hasFlag).toBe(true);
     });
 
     test('applies allow-outdated-plugins flag', () => {
-      const hasFlag = switchCalls.some(function (c) { return c[0] === 'allow-outdated-plugins'; });
+      const hasFlag = switchCalls.some(function (c) {
+        return c[0] === 'allow-outdated-plugins';
+      });
       expect(hasFlag).toBe(true);
     });
 
     test('applies ignore-gpu-blocklist flag', () => {
-      const hasFlag = switchCalls.some(function (c) { return c[0] === 'ignore-gpu-blocklist'; });
+      const hasFlag = switchCalls.some(function (c) {
+        return c[0] === 'ignore-gpu-blocklist';
+      });
       expect(hasFlag).toBe(true);
     });
 
     test('applies js-flags with --expose-gc and --max-old-space-size', () => {
-      const jsFlagsCall = switchCalls.find(function (c) { return c[0] === 'js-flags'; });
+      const jsFlagsCall = switchCalls.find(function (c) {
+        return c[0] === 'js-flags';
+      });
       expect(jsFlagsCall).toBeDefined();
       expect(jsFlagsCall[1]).toContain('--expose-gc');
       expect(jsFlagsCall[1]).toContain('--max-old-space-size=');
     });
 
     test('applies disable-features flag', () => {
-      const flagCall = switchCalls.find(function (c) { return c[0] === 'disable-features'; });
+      const flagCall = switchCalls.find(function (c) {
+        return c[0] === 'disable-features';
+      });
       expect(flagCall).toBeDefined();
       expect(flagCall[1]).toContain('IsolateOrigins');
       expect(flagCall[1]).toContain('site-per-process');
     });
 
     test('applies enable-features flag', () => {
-      const flagCall = switchCalls.find(function (c) { return c[0] === 'enable-features'; });
+      const flagCall = switchCalls.find(function (c) {
+        return c[0] === 'enable-features';
+      });
       expect(flagCall).toBeDefined();
       expect(flagCall[1]).toContain('VizDisplayCompositor');
     });
 
     test('applies disk-cache-size flag', () => {
-      const flagCall = switchCalls.find(function (c) { return c[0] === 'disk-cache-size'; });
+      const flagCall = switchCalls.find(function (c) {
+        return c[0] === 'disk-cache-size';
+      });
       expect(flagCall).toBeDefined();
       // Should be either '134217728' (low spec) or '268435456' (normal)
       expect(['134217728', '268435456']).toContain(flagCall[1]);
     });
 
     test('applies disable-setuid-sandbox flag', () => {
-      const hasFlag = switchCalls.some(function (c) { return c[0] === 'disable-setuid-sandbox'; });
+      const hasFlag = switchCalls.some(function (c) {
+        return c[0] === 'disable-setuid-sandbox';
+      });
       expect(hasFlag).toBe(true);
     });
 
     test('applies disable-renderer-backgrounding flag', () => {
-      const hasFlag = switchCalls.some(function (c) { return c[0] === 'disable-renderer-backgrounding'; });
+      const hasFlag = switchCalls.some(function (c) {
+        return c[0] === 'disable-renderer-backgrounding';
+      });
       expect(hasFlag).toBe(true);
     });
 
     test('applies disable-background-timer-throttling flag', () => {
-      const hasFlag = switchCalls.some(function (c) { return c[0] === 'disable-background-timer-throttling'; });
+      const hasFlag = switchCalls.some(function (c) {
+        return c[0] === 'disable-background-timer-throttling';
+      });
       expect(hasFlag).toBe(true);
     });
   });

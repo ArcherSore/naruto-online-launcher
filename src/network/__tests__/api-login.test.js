@@ -11,7 +11,7 @@
 // Mock tempmail (api-login faz require('./tempmail'); do test file, '../tempmail' resolve)
 jest.mock('../tempmail', () => ({
   login: jest.fn(),
-  _decode: jest.fn(),
+  _decode: jest.fn()
 }));
 
 const tempmail = require('../tempmail');
@@ -25,8 +25,8 @@ describe('api-login.js', () => {
     session = {
       cookies: {
         set: jest.fn(() => Promise.resolve()),
-        get: jest.fn(() => Promise.resolve([])),
-      },
+        get: jest.fn(() => Promise.resolve([]))
+      }
     };
   });
 
@@ -42,7 +42,7 @@ describe('api-login.js', () => {
         loginKey: 'JWT_TOKEN_123',
         playerId: 'player-1',
         nickname: 'shinobi',
-        expiresAt: 1700000000000,
+        expiresAt: 1700000000000
       });
 
       const result = await apiLogin.loginAndInject(session, 'user@x.com', 'pass');
@@ -59,7 +59,7 @@ describe('api-login.js', () => {
         secure: true,
         httpOnly: false,
         sameSite: 'no_restriction',
-        expirationDate: Math.floor(1700000000000 / 1000),
+        expirationDate: Math.floor(1700000000000 / 1000)
       });
 
       // Cookie de idioma (pl)
@@ -71,7 +71,7 @@ describe('api-login.js', () => {
         path: '/',
         secure: true,
         httpOnly: false,
-        sameSite: 'no_restriction',
+        sameSite: 'no_restriction'
       });
 
       // Retorno repassa auth
@@ -79,7 +79,7 @@ describe('api-login.js', () => {
         loginKey: 'JWT_TOKEN_123',
         playerId: 'player-1',
         nickname: 'shinobi',
-        expiresAt: 1700000000000,
+        expiresAt: 1700000000000
       });
     });
 
@@ -88,7 +88,7 @@ describe('api-login.js', () => {
         loginKey: 'JWT',
         playerId: 'p',
         nickname: 'n',
-        expiresAt: 1,
+        expiresAt: 1
       });
 
       await apiLogin.loginAndInject(session, 'a@b.com', 'pw', { remember: true });
@@ -101,7 +101,7 @@ describe('api-login.js', () => {
         loginKey: 'JWT',
         playerId: 'p',
         nickname: 'n',
-        expiresAt: 1,
+        expiresAt: 1
       });
 
       await apiLogin.loginAndInject(session, 'a@b.com', 'pw', { remember: false });
@@ -121,7 +121,7 @@ describe('api-login.js', () => {
         loginKey: 'JWT',
         playerId: 'p',
         nickname: 'n',
-        expiresAt: 1,
+        expiresAt: 1
       });
       session.cookies.set.mockRejectedValue(new Error('cookie blocked'));
 
@@ -135,7 +135,7 @@ describe('api-login.js', () => {
       await apiLogin.checkSession(session);
       expect(session.cookies.get).toHaveBeenCalledWith({
         name: 'oas_user',
-        domain: '.narutowebgame.com',
+        domain: '.narutowebgame.com'
       });
     });
 
@@ -158,7 +158,7 @@ describe('api-login.js', () => {
       const decoded = {
         expired: false,
         expiresInSeconds: 6000,
-        payload: { playerId: 'p1' },
+        payload: { playerId: 'p1' }
       };
       tempmail._decode.mockReturnValue(decoded);
       const result = await apiLogin.checkSession(session);
@@ -172,7 +172,7 @@ describe('api-login.js', () => {
       tempmail._decode.mockReturnValue({
         expired: true,
         expiresInSeconds: 0,
-        payload: {},
+        payload: {}
       });
       const result = await apiLogin.checkSession(session);
       expect(result.valid).toBe(false);
@@ -180,7 +180,7 @@ describe('api-login.js', () => {
       expect(result.jwtDecoded).toEqual({
         expired: true,
         expiresInSeconds: 0,
-        payload: {},
+        payload: {}
       });
     });
   });
@@ -191,7 +191,7 @@ describe('api-login.js', () => {
       tempmail._decode.mockReturnValue({
         expired: false,
         expiresInSeconds: 3600,
-        payload: {},
+        payload: {}
       });
       const result = await apiLogin.renewIfNeeded(session, 'e', 'p');
       expect(result).toEqual({ renewed: false, loginKey: null, expiresAt: 0 });
@@ -203,13 +203,13 @@ describe('api-login.js', () => {
       tempmail._decode.mockReturnValue({
         expired: false,
         expiresInSeconds: 100, // < 300 default
-        payload: {},
+        payload: {}
       });
       tempmail.login.mockResolvedValue({
         loginKey: 'NEW',
         playerId: 'p',
         nickname: 'n',
-        expiresAt: 1,
+        expiresAt: 1
       });
       const result = await apiLogin.renewIfNeeded(session, 'e', 'p');
       expect(result.renewed).toBe(true);
@@ -222,13 +222,13 @@ describe('api-login.js', () => {
       tempmail._decode.mockReturnValue({
         expired: true,
         expiresInSeconds: 0,
-        payload: {},
+        payload: {}
       });
       tempmail.login.mockResolvedValue({
         loginKey: 'NEW_JWT',
         playerId: 'p1',
         nickname: 'n',
-        expiresAt: 1700000000000,
+        expiresAt: 1700000000000
       });
       const result = await apiLogin.renewIfNeeded(session, 'e', 'p');
       expect(result.renewed).toBe(true);
@@ -242,7 +242,7 @@ describe('api-login.js', () => {
         loginKey: 'NEW',
         playerId: 'p',
         nickname: 'n',
-        expiresAt: 1,
+        expiresAt: 1
       });
       const result = await apiLogin.renewIfNeeded(session, 'e', 'p');
       expect(result.renewed).toBe(true);
@@ -253,13 +253,13 @@ describe('api-login.js', () => {
       tempmail._decode.mockReturnValue({
         expired: false,
         expiresInSeconds: 500, // > 300 default, < 600 custom
-        payload: {},
+        payload: {}
       });
       tempmail.login.mockResolvedValue({
         loginKey: 'NEW',
         playerId: 'p',
         nickname: 'n',
-        expiresAt: 1,
+        expiresAt: 1
       });
       const result = await apiLogin.renewIfNeeded(session, 'e', 'p', 600);
       expect(result.renewed).toBe(true);
@@ -270,7 +270,7 @@ describe('api-login.js', () => {
       tempmail._decode.mockReturnValue({
         expired: false,
         expiresInSeconds: 1000, // > 600 custom
-        payload: {},
+        payload: {}
       });
       const result = await apiLogin.renewIfNeeded(session, 'e', 'p', 600);
       expect(result.renewed).toBe(false);

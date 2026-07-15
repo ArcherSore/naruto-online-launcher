@@ -11,23 +11,23 @@
 jest.mock('../../profiles/vault', () => ({
   hasCredentials: jest.fn(() => false),
   getCredentials: jest.fn(() => null),
-  buildAutoLoginScript: jest.fn(() => '(function(){return "not-found";})()'),
+  buildAutoLoginScript: jest.fn(() => '(function(){return "not-found";})()')
 }));
 
 jest.mock('../../ui/manager/ManagerWindow', () => ({
-  send: jest.fn(),
+  send: jest.fn()
 }));
 
 jest.mock('../../profiles/manager', () => ({
-  reportCrash: jest.fn(),
+  reportCrash: jest.fn()
 }));
 
 jest.mock('../../memory/guard', () => ({
-  reportCrash: jest.fn(),
+  reportCrash: jest.fn()
 }));
 
 jest.mock('../../network/api-login', () => ({
-  renewIfNeeded: jest.fn(() => Promise.resolve({ renewed: false })),
+  renewIfNeeded: jest.fn(() => Promise.resolve({ renewed: false }))
 }));
 
 const SessionLifecycle = require('../SessionLifecycle');
@@ -42,46 +42,57 @@ function makeMockWin() {
   const wcHandlers = {};
 
   const wc = {
-    on: jest.fn((evt, fn) => { wcHandlers[evt] = fn; }),
+    on: jest.fn((evt, fn) => {
+      wcHandlers[evt] = fn;
+    }),
     once: jest.fn(),
     insertCSS: jest.fn(() => Promise.resolve()),
     executeJavaScript: jest.fn(() => Promise.resolve('not-found')),
     stop: jest.fn(),
     loadURL: jest.fn(),
     session: {
-      cookies: { flushStore: jest.fn(() => Promise.resolve()) },
-    },
+      cookies: { flushStore: jest.fn(() => Promise.resolve()) }
+    }
   };
 
   const win = {
-    on: jest.fn((evt, fn) => { handlers[evt] = fn; }),
-    once: jest.fn((evt, fn) => { handlers[evt] = fn; }),
+    on: jest.fn((evt, fn) => {
+      handlers[evt] = fn;
+    }),
+    once: jest.fn((evt, fn) => {
+      handlers[evt] = fn;
+    }),
     isDestroyed: jest.fn(() => false),
     show: jest.fn(),
     destroy: jest.fn(),
     webContents: wc,
-    loadURL: jest.fn(),
+    loadURL: jest.fn()
   };
 
   return { win, wc, handlers, wcHandlers };
 }
 
 function makeCtx(overrides) {
-  return Object.assign({
-    profileId: 'p_001',
-    profile: { id: 'p_001', name: 'TestProfile', region: 'br', language: 'pt' },
-    entry: {
-      autoLoginTimer: null,
-      failLoadRetry: false,
-      failLoadTimer: null,
-      formInjectAttempts: 0,
+  return Object.assign(
+    {
+      profileId: 'p_001',
+      profile: { id: 'p_001', name: 'TestProfile', region: 'br', language: 'pt' },
+      entry: {
+        autoLoginTimer: null,
+        failLoadRetry: false,
+        failLoadTimer: null,
+        formInjectAttempts: 0
+      },
+      ses: { cookies: { flushStore: jest.fn(() => Promise.resolve()) } },
+      onOpened: jest.fn(),
+      onClosed: jest.fn(),
+      getGameUrl: jest.fn(
+        () => 'https://naruto.narutowebgame.com/pt/serverlist?logintype=4&launcher=shinobi'
+      ),
+      LAUNCHER_PARAMS: 'logintype=4&leftbar_collapse=Yes&launcher=shinobi'
     },
-    ses: { cookies: { flushStore: jest.fn(() => Promise.resolve()) } },
-    onOpened: jest.fn(),
-    onClosed: jest.fn(),
-    getGameUrl: jest.fn(() => 'https://naruto.narutowebgame.com/pt/serverlist?logintype=4&launcher=shinobi'),
-    LAUNCHER_PARAMS: 'logintype=4&leftbar_collapse=Yes&launcher=shinobi',
-  }, overrides);
+    overrides
+  );
 }
 
 describe('SessionLifecycle.js', () => {
@@ -108,40 +119,69 @@ describe('SessionLifecycle.js', () => {
   describe('_sendAutoLoginResult', () => {
     test('result=filled envia status=success', () => {
       SessionLifecycle._sendAutoLoginResult('p1', 'filled');
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:result', { profileId: 'p1', result: 'filled' });
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', { profileId: 'p1', status: 'success', result: 'filled' });
+      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:result', {
+        profileId: 'p1',
+        result: 'filled'
+      });
+      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', {
+        profileId: 'p1',
+        status: 'success',
+        result: 'filled'
+      });
     });
 
     test('result=clicked envia status=success', () => {
       SessionLifecycle._sendAutoLoginResult('p1', 'clicked');
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', { profileId: 'p1', status: 'success', result: 'clicked' });
+      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', {
+        profileId: 'p1',
+        status: 'success',
+        result: 'clicked'
+      });
     });
 
     test('result=waiting envia status=loading', () => {
       SessionLifecycle._sendAutoLoginResult('p1', 'waiting');
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', { profileId: 'p1', status: 'loading', result: 'waiting' });
+      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', {
+        profileId: 'p1',
+        status: 'loading',
+        result: 'waiting'
+      });
     });
 
     test('result=error envia status=error', () => {
       SessionLifecycle._sendAutoLoginResult('p1', 'error');
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', { profileId: 'p1', status: 'error', result: 'error' });
+      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', {
+        profileId: 'p1',
+        status: 'error',
+        result: 'error'
+      });
     });
 
     test('result=not-found envia status=idle', () => {
       SessionLifecycle._sendAutoLoginResult('p1', 'not-found');
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', { profileId: 'p1', status: 'idle', result: 'not-found' });
+      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', {
+        profileId: 'p1',
+        status: 'idle',
+        result: 'not-found'
+      });
     });
   });
 
   describe('_sendWindowStatus', () => {
     test('envia game-window:status com open=true', () => {
       SessionLifecycle._sendWindowStatus('p1', true);
-      expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', { profileId: 'p1', open: true });
+      expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
+        profileId: 'p1',
+        open: true
+      });
     });
 
     test('envia game-window:status com open=false', () => {
       SessionLifecycle._sendWindowStatus('p1', false);
-      expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', { profileId: 'p1', open: false });
+      expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
+        profileId: 'p1',
+        open: false
+      });
     });
   });
 
@@ -184,7 +224,12 @@ describe('SessionLifecycle.js', () => {
 
       test('reseta entry.failLoadRetry para false', () => {
         const { win, wcHandlers } = makeMockWin();
-        const entry = { failLoadRetry: true, formInjectAttempts: 0, autoLoginTimer: null, failLoadTimer: null };
+        const entry = {
+          failLoadRetry: true,
+          formInjectAttempts: 0,
+          autoLoginTimer: null,
+          failLoadTimer: null
+        };
         const ctx = makeCtx({ entry });
         SessionLifecycle.attach(win, ctx);
 
@@ -214,7 +259,12 @@ describe('SessionLifecycle.js', () => {
       test('primeira falha: tenta novamente com delay (setTimeout)', () => {
         jest.useFakeTimers();
         const { win, wcHandlers } = makeMockWin();
-        const entry = { failLoadRetry: false, formInjectAttempts: 0, autoLoginTimer: null, failLoadTimer: null };
+        const entry = {
+          failLoadRetry: false,
+          formInjectAttempts: 0,
+          autoLoginTimer: null,
+          failLoadTimer: null
+        };
         const ctx = makeCtx({ entry });
         SessionLifecycle.attach(win, ctx);
 
@@ -234,7 +284,12 @@ describe('SessionLifecycle.js', () => {
 
       test('ignora data: URLs', () => {
         const { win, wcHandlers } = makeMockWin();
-        const entry = { failLoadRetry: false, formInjectAttempts: 0, autoLoginTimer: null, failLoadTimer: null };
+        const entry = {
+          failLoadRetry: false,
+          formInjectAttempts: 0,
+          autoLoginTimer: null,
+          failLoadTimer: null
+        };
         const ctx = makeCtx({ entry });
         SessionLifecycle.attach(win, ctx);
 
@@ -246,7 +301,12 @@ describe('SessionLifecycle.js', () => {
 
       test('ignora ERR_ABORTED (code -3)', () => {
         const { win, wcHandlers } = makeMockWin();
-        const entry = { failLoadRetry: false, formInjectAttempts: 0, autoLoginTimer: null, failLoadTimer: null };
+        const entry = {
+          failLoadRetry: false,
+          formInjectAttempts: 0,
+          autoLoginTimer: null,
+          failLoadTimer: null
+        };
         const ctx = makeCtx({ entry });
         SessionLifecycle.attach(win, ctx);
 
@@ -258,7 +318,12 @@ describe('SessionLifecycle.js', () => {
 
       test('segunda falha (alreadyRetried): exibe tela de erro', () => {
         const { win, wc, wcHandlers } = makeMockWin();
-        const entry = { failLoadRetry: true, formInjectAttempts: 0, autoLoginTimer: null, failLoadTimer: null };
+        const entry = {
+          failLoadRetry: true,
+          formInjectAttempts: 0,
+          autoLoginTimer: null,
+          failLoadTimer: null
+        };
         const ctx = makeCtx({ entry });
         SessionLifecycle.attach(win, ctx);
 
@@ -289,7 +354,12 @@ describe('SessionLifecycle.js', () => {
         const { win, handlers } = makeMockWin();
         const fakeTimer1 = setTimeout(() => {}, 99999);
         const fakeTimer2 = setTimeout(() => {}, 99999);
-        const entry = { failLoadRetry: false, formInjectAttempts: 0, autoLoginTimer: fakeTimer1, failLoadTimer: fakeTimer2 };
+        const entry = {
+          failLoadRetry: false,
+          formInjectAttempts: 0,
+          autoLoginTimer: fakeTimer1,
+          failLoadTimer: fakeTimer2
+        };
         const ctx = makeCtx({ entry });
         SessionLifecycle.attach(win, ctx);
 
@@ -330,7 +400,10 @@ describe('SessionLifecycle.js', () => {
         const closedHandler = handlers['closed'];
         closedHandler();
 
-        expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', { profileId: 'p_001', open: false });
+        expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
+          profileId: 'p_001',
+          open: false
+        });
         expect(onClosed).toHaveBeenCalled();
       });
     });
@@ -348,7 +421,10 @@ describe('SessionLifecycle.js', () => {
         readyHandler();
 
         expect(win.show).toHaveBeenCalled();
-        expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', { profileId: 'p_001', open: true });
+        expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
+          profileId: 'p_001',
+          open: true
+        });
         expect(onOpened).toHaveBeenCalled();
 
         // setImmediate: loadURL acontece após o handler

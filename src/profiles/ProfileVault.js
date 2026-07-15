@@ -70,7 +70,7 @@ function _ensureLoaded() {
       if (stat.size > MAX_VAULT_BYTES) throw new Error('oversized');
       const raw = fs.readFileSync(file, 'utf8');
       const parsed = JSON.parse(raw);
-      _store = (parsed && typeof parsed === 'object') ? parsed : {};
+      _store = parsed && typeof parsed === 'object' ? parsed : {};
     } else {
       _store = {};
     }
@@ -92,11 +92,21 @@ function _persist() {
     }
     fs.writeFileSync(tmp, json, 'utf8');
     fs.renameSync(tmp, file);
-    _listeners.forEach(function (cb) { try { cb(); } catch (_) { /* ignore */ } });
+    _listeners.forEach(function (cb) {
+      try {
+        cb();
+      } catch (_) {
+        /* ignore */
+      }
+    });
     return true;
   } catch (e) {
     logger.error('ProfileVault: falha ao salvar: ' + e.message);
-    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) { /* ignore */ }
+    try {
+      if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+    } catch (_) {
+      /* ignore */
+    }
     return false;
   }
 }
@@ -113,7 +123,7 @@ function setCredentials(profileId, user, pass) {
   _store[profileId] = {
     user: _encryptWithMachineKey(user || ''),
     pass: _encryptWithMachineKey(pass || ''),
-    updatedAt: Date.now(),
+    updatedAt: Date.now()
   };
   logger.info('ProfileVault: credenciais salvas para ' + profileId);
   return _persist();
@@ -130,7 +140,7 @@ function getCredentials(profileId) {
   if (!entry) return null;
   return {
     user: _decryptWithMachineKey(entry.user),
-    pass: _decryptWithMachineKey(entry.pass),
+    pass: _decryptWithMachineKey(entry.pass)
   };
 }
 
@@ -170,10 +180,14 @@ function removeCredentials(profileId) {
 function buildAutoLoginScript(user, pass) {
   const u = JSON.stringify(String(user));
   const p = JSON.stringify(String(pass));
-  return '(function(){try{' +
-    'var u=' + u + ',p=' + p + ';' +
+  return (
+    '(function(){try{' +
+    'var u=' +
+    u +
+    ',p=' +
+    p +
+    ';' +
     'var attempts=0,maxAttempts=60;' +
-
     'var setVal=function(el,v){try{' +
     '  var proto=window.HTMLInputElement&&HTMLInputElement.prototype;' +
     '  var desc=proto&&Object.getOwnPropertyDescriptor(proto,"value");' +
@@ -182,7 +196,6 @@ function buildAutoLoginScript(user, pass) {
     '  el.dispatchEvent(new Event("input",{bubbles:true}));' +
     '  el.dispatchEvent(new Event("change",{bubbles:true}));' +
     '}catch(e){el.value=v;}};' +
-
     'var doLogin=function(){' +
     '  try{' +
     '    var unames=document.querySelectorAll("input[name=oasun],input[name=hd_oasun],input[name=user_email],input#user_email");' +
@@ -204,10 +217,8 @@ function buildAutoLoginScript(user, pass) {
     '    return "filled";' +
     '  }catch(err){try{console.error("[doLogin]",err);}catch(_){}return "not-found";}' +
     '};' +
-
     'var r=doLogin();' +
     'if(r!=="not-found")return r;' +
-
     'var obs=new MutationObserver(function(_m,o){' +
     '  attempts++;' +
     '  var res=doLogin();' +
@@ -215,7 +226,6 @@ function buildAutoLoginScript(user, pass) {
     '  if(attempts>=maxAttempts)o.disconnect();' +
     '});' +
     'obs.observe(document.documentElement||document.body,{childList:true,subtree:true});' +
-
     'var poll=setInterval(function(){' +
     '  attempts++;' +
     '  var res=doLogin();' +
@@ -232,7 +242,6 @@ function buildAutoLoginScript(user, pass) {
     '    },3000);' +
     '  }' +
     '},250);' +
-
     'var verifyLogin=function(){' +
     '  var startUrl=window.location.href;' +
     '  setTimeout(function(){' +
@@ -249,14 +258,15 @@ function buildAutoLoginScript(user, pass) {
     '    }catch(e){try{console.error("[auto-login] verification error:",e);}catch(_){}}' +
     '  },5000);' +
     '};' +
-
     'if(r==="filled"){verifyLogin();} ' +
-
     'return "waiting";' +
-    '}catch(e){return "error:"+e.message;}})()';
+    '}catch(e){return "error:"+e.message;}})()'
+  );
 }
 
-function onChange(cb) { if (typeof cb === 'function') _listeners.push(cb); }
+function onChange(cb) {
+  if (typeof cb === 'function') _listeners.push(cb);
+}
 
 module.exports = {
   setCredentials: setCredentials,
@@ -267,5 +277,5 @@ module.exports = {
   onChange: onChange,
   // exposto p/ testes
   _getVaultPath: _getVaultPath,
-  MAX_VAULT_BYTES: MAX_VAULT_BYTES,
+  MAX_VAULT_BYTES: MAX_VAULT_BYTES
 };

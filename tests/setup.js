@@ -20,17 +20,17 @@ jest.mock('electron-log', () => ({
   verbose: jest.fn(),
   transports: {
     file: { level: 'info', fileName: 'main.log', format: null },
-    console: { level: 'debug', format: null },
+    console: { level: 'debug', format: null }
   },
   level: 'info',
-  log: jest.fn(),
+  log: jest.fn()
 }));
 
 jest.mock('electron', () => {
   const fn = jest.fn();
   return {
     app: {
-      getPath: jest.fn((p) => '/tmp/naruto-test/' + p),
+      getPath: jest.fn(p => '/tmp/naruto-test/' + p),
       getAppPath: jest.fn(() => '/tmp/naruto-test'),
       getName: jest.fn(() => 'Naruto Online'),
       getVersion: jest.fn(() => '4.9.2'),
@@ -43,7 +43,7 @@ jest.mock('electron', () => {
       requestSingleInstanceLock: jest.fn(() => true),
       quit: jest.fn(),
       exit: jest.fn(),
-      relaunch: jest.fn(),
+      relaunch: jest.fn()
     },
     BrowserWindow: fn,
     Notification: fn,
@@ -54,24 +54,32 @@ jest.mock('electron', () => {
       showMessageBoxSync: jest.fn(),
       showOpenDialog: jest.fn(),
       showSaveDialog: jest.fn(),
-      showErrorBox: jest.fn(),
+      showErrorBox: jest.fn()
     },
     session: {
       defaultSession: {
         clearCache: jest.fn(() => Promise.resolve()),
         clearStorageData: jest.fn(() => Promise.resolve()),
-        cookies: { get: jest.fn(() => Promise.resolve([])), set: jest.fn(() => Promise.resolve()), remove: jest.fn(() => Promise.resolve()) },
+        cookies: {
+          get: jest.fn(() => Promise.resolve([])),
+          set: jest.fn(() => Promise.resolve()),
+          remove: jest.fn(() => Promise.resolve())
+        }
       },
       fromPartition: jest.fn(() => ({
         clearCache: jest.fn(() => Promise.resolve()),
         clearStorageData: jest.fn(() => Promise.resolve()),
-        cookies: { get: jest.fn(() => Promise.resolve([])), set: jest.fn(() => Promise.resolve()), remove: jest.fn(() => Promise.resolve()) },
-      })),
+        cookies: {
+          get: jest.fn(() => Promise.resolve([])),
+          set: jest.fn(() => Promise.resolve()),
+          remove: jest.fn(() => Promise.resolve())
+        }
+      }))
     },
     webContents: { getAllWebContents: jest.fn(() => []) },
     Menu: { buildFromTemplate: jest.fn(), setApplicationMenu: jest.fn() },
     shell: { openExternal: jest.fn(), openPath: jest.fn(), showItemInFolder: jest.fn() },
     screen: { getPrimaryDisplay: jest.fn(() => ({ workAreaSize: { width: 1920, height: 1080 } })) },
-    nativeImage: { createFromPath: jest.fn() },
+    nativeImage: { createFromPath: jest.fn() }
   };
 });

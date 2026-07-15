@@ -6,7 +6,8 @@
 const jwt = require('../jwt');
 
 // JWT real capturado do passport.oasgames.com (conta tempmail de teste)
-const SAMPLE_JWT = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjbGllbnRUeXBlIjoiYXBwIiwiY2xpZW50SWQiOjk5OSwidXVpZCI6IjM4ODAwMDI5Mjg1MDA4OCIsInBsYXllcklkIjoiMzg4MDAwMjkyODUwMDg4Iiwibmlja25hbWUiOiI5ODMxOCIsInVzZXJuYW1lIjoic2hpbm9iaWxzNjM0MGt6QHdlYi1saWJyYXJ5Lm5ldCIsImxvZ2luR3JhbnRUeXBlIjoicmVnaXN0ZXJBbmRMb2dpbiIsInBsYXllckxhc3RBY3RpdmVUaW1lIjoxNzg0MDY1NTgyLCJsYXRlc3REZXZpY2UiOiIiLCJpc01haW5CdW5kbGVTd2l0Y2hlZCI6ZmFsc2UsImlzTmV3UmVnaXN0ZXJQbGF5ZXIiOmZhbHNlLCJpYXQiOjE3ODQwNjU1ODIsImV4cCI6MTc4NDA3Mjc4MiwibGlmZXRpbWUiOjcyMDAsInJvbGVzIjpbIlJPTEVfVVNFUiJdfQ.fake_signature_for_test';
+const SAMPLE_JWT =
+  'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjbGllbnRUeXBlIjoiYXBwIiwiY2xpZW50SWQiOjk5OSwidXVpZCI6IjM4ODAwMDI5Mjg1MDA4OCIsInBsYXllcklkIjoiMzg4MDAwMjkyODUwMDg4Iiwibmlja25hbWUiOiI5ODMxOCIsInVzZXJuYW1lIjoic2hpbm9iaWxzNjM0MGt6QHdlYi1saWJyYXJ5Lm5ldCIsImxvZ2luR3JhbnRUeXBlIjoicmVnaXN0ZXJBbmRMb2dpbiIsInBsYXllckxhc3RBY3RpdmVUaW1lIjoxNzg0MDY1NTgyLCJsYXRlc3REZXZpY2UiOiIiLCJpc01haW5CdW5kbGVTd2l0Y2hlZCI6ZmFsc2UsImlzTmV3UmVnaXN0ZXJQbGF5ZXIiOmZhbHNlLCJpYXQiOjE3ODQwNjU1ODIsImV4cCI6MTc4NDA3Mjc4MiwibGlmZXRpbWUiOjcyMDAsInJvbGVzIjpbIlJPTEVfVVNFUiJdfQ.fake_signature_for_test';
 
 describe('jwt.js', () => {
   describe('decode', () => {
@@ -40,12 +41,16 @@ describe('jwt.js', () => {
 
     test('marca expired=true quando exp no passado', () => {
       // Cria JWT expirado (exp = 1 hora atrás)
-      const payload = Buffer.from(JSON.stringify({
-        iat: Math.floor(Date.now()/1000) - 7200,
-        exp: Math.floor(Date.now()/1000) - 3600,
-        playerId: 'test'
-      })).toString('base64url');
-      const header = Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url');
+      const payload = Buffer.from(
+        JSON.stringify({
+          iat: Math.floor(Date.now() / 1000) - 7200,
+          exp: Math.floor(Date.now() / 1000) - 3600,
+          playerId: 'test'
+        })
+      ).toString('base64url');
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString(
+        'base64url'
+      );
       const expiredJwt = header + '.' + payload + '.sig';
       const d = jwt.decode(expiredJwt);
       expect(d.expired).toBe(true);

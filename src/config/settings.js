@@ -12,7 +12,6 @@ const logger = require('../utils/logger');
 const { isValidRegion, getDefaultRegion } = require('./regions');
 const { isValidProfile, getDefaultProfile } = require('./hardware');
 
-
 /**
  * Get the configuration file path
  * @returns {string} Absolute path to config.json
@@ -34,23 +33,27 @@ function validateConfig(rawConfig) {
   const validated = {
     region: isValidRegion(region) ? region : getDefaultRegion(),
     hardwareProfile: isValidProfile(hardwareProfile) ? hardwareProfile : getDefaultProfile(),
-    forceBatata: forceBatata === true ? true : (forceBatata === false ? false : undefined),
+    forceBatata: forceBatata === true ? true : forceBatata === false ? false : undefined,
     mutedEvents: rawConfig && rawConfig.mutedEvents === true,
-    windowBounds: rawConfig && rawConfig.windowBounds || null,
+    windowBounds: (rawConfig && rawConfig.windowBounds) || null,
     // v3.5: onboarding + i18n + Modo Leve Avançado
     firstBoot: rawConfig && rawConfig.firstBoot === false ? false : true, // default true até concluir setup
     // v4.0.1 FIX: antes só aceitava pt/en, mas i18n suporta 6 idiomas (pt/en/de/es/pl/fr).
     // Usuários que escolhiam de/es/pl/fr no setup tinham a escolha silenciosamente ignorada.
-    language: (rawConfig && ['pt', 'en', 'de', 'es', 'pl', 'fr'].indexOf(rawConfig.language) !== -1)
-      ? rawConfig.language : 'pt',
-    advancedMode: rawConfig && rawConfig.advancedMode === true, // Modo Leve Avançado (Flash low quality)
+    language:
+      rawConfig && ['pt', 'en', 'de', 'es', 'pl', 'fr'].indexOf(rawConfig.language) !== -1
+        ? rawConfig.language
+        : 'pt',
+    advancedMode: rawConfig && rawConfig.advancedMode === true // Modo Leve Avançado (Flash low quality)
   };
 
   if (region !== undefined && !isValidRegion(region)) {
     logger.warn('Região inválida: ' + region + ', usando padrão: ' + validated.region);
   }
   if (hardwareProfile !== undefined && !isValidProfile(hardwareProfile)) {
-    logger.warn('Perfil inválido: ' + hardwareProfile + ', usando padrão: ' + validated.hardwareProfile);
+    logger.warn(
+      'Perfil inválido: ' + hardwareProfile + ', usando padrão: ' + validated.hardwareProfile
+    );
   }
 
   return validated;
@@ -97,17 +100,21 @@ function loadConfig() {
 function saveConfig(config) {
   try {
     const configPath = getConfigPath();
-    const content = JSON.stringify({
-      region: config.region,
-      hardwareProfile: config.hardwareProfile,
-      forceBatata: config.forceBatata,
-      mutedEvents: config.mutedEvents,
-      windowBounds: config.windowBounds || null,
-      // v3.5
-      firstBoot: config.firstBoot === false ? false : true,
-      language: config.language || 'pt',
-      advancedMode: config.advancedMode === true,
-    }, null, 2);
+    const content = JSON.stringify(
+      {
+        region: config.region,
+        hardwareProfile: config.hardwareProfile,
+        forceBatata: config.forceBatata,
+        mutedEvents: config.mutedEvents,
+        windowBounds: config.windowBounds || null,
+        // v3.5
+        firstBoot: config.firstBoot === false ? false : true,
+        language: config.language || 'pt',
+        advancedMode: config.advancedMode === true
+      },
+      null,
+      2
+    );
 
     const tmpPath = configPath + '.tmp';
     fs.writeFileSync(tmpPath, content, 'utf8');

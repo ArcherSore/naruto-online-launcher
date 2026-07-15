@@ -49,7 +49,8 @@ const logger = require('../utils/logger');
 
 const API_HOST = 'api.github.com';
 const API_PATH = '/repos/darktohka/clean-flash-builds/releases/latest';
-const USER_AGENT = 'Shinobi-Launcher-FlashUpdater/1.0 (+https://github.com/Chrispsz/naruto-online-launcher)';
+const USER_AGENT =
+  'Shinobi-Launcher-FlashUpdater/1.0 (+https://github.com/Chrispsz/naruto-online-launcher)';
 
 const CACHE_SUBDIR = 'flash-cache';
 const CACHE_MANIFEST = 'cache-manifest.json';
@@ -58,7 +59,7 @@ const DOWNLOAD_TIMEOUT_MS = 120000; // 2 min p/ asset de 17MB em rede lenta
 
 const PLUGIN_NAMES = {
   linux: 'libpepflashplayer.so',
-  win32: 'pepflashplayer.dll',
+  win32: 'pepflashplayer.dll'
 };
 
 // ── Path helpers ─────────────────────────────────────────────────────────────
@@ -140,40 +141,62 @@ function isCacheStale() {
  */
 function fetchLatestRelease() {
   return new Promise(function (resolve, reject) {
-    const req = https.get({
-      host: API_HOST,
-      path: API_PATH,
-      headers: {
-        'User-Agent': USER_AGENT,
-        'Accept': 'application/vnd.github+json',
+    const req = https.get(
+      {
+        host: API_HOST,
+        path: API_PATH,
+        headers: {
+          'User-Agent': USER_AGENT,
+          Accept: 'application/vnd.github+json'
+        },
+        timeout: 30000
       },
-      timeout: 30000,
-    }, function (res) {
-      // Follow redirect (GitHub API occasionally 302s)
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        https.get(res.headers.location, { headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/vnd.github+json' }, timeout: 30000 }, function (r2) {
-          _readJson(r2, resolve, reject);
-        }).on('error', reject).on('timeout', function () { reject(new Error('GitHub API redirect timeout')); });
-        return;
+      function (res) {
+        // Follow redirect (GitHub API occasionally 302s)
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          https
+            .get(
+              res.headers.location,
+              {
+                headers: { 'User-Agent': USER_AGENT, Accept: 'application/vnd.github+json' },
+                timeout: 30000
+              },
+              function (r2) {
+                _readJson(r2, resolve, reject);
+              }
+            )
+            .on('error', reject)
+            .on('timeout', function () {
+              reject(new Error('GitHub API redirect timeout'));
+            });
+          return;
+        }
+        if (res.statusCode !== 200) {
+          reject(new Error('GitHub API HTTP ' + res.statusCode));
+          return;
+        }
+        _readJson(res, resolve, reject);
       }
-      if (res.statusCode !== 200) {
-        reject(new Error('GitHub API HTTP ' + res.statusCode));
-        return;
-      }
-      _readJson(res, resolve, reject);
-    });
+    );
     req.on('error', reject);
-    req.on('timeout', function () { req.destroy(new Error('GitHub API timeout')); });
+    req.on('timeout', function () {
+      req.destroy(new Error('GitHub API timeout'));
+    });
   });
 }
 
 function _readJson(stream, resolve, reject) {
   let body = '';
   stream.setEncoding('utf8');
-  stream.on('data', function (c) { body += c; });
+  stream.on('data', function (c) {
+    body += c;
+  });
   stream.on('end', function () {
-    try { resolve(JSON.parse(body)); }
-    catch (e) { reject(new Error('GitHub API JSON inválido: ' + e.message)); }
+    try {
+      resolve(JSON.parse(body));
+    } catch (e) {
+      reject(new Error('GitHub API JSON inválido: ' + e.message));
+    }
   });
   stream.on('error', reject);
 }
@@ -207,7 +230,8 @@ function pickAsset(release, platform) {
       if (name.indexOf('ppapi') !== -1 && name.endsWith('.zip')) return a;
     } else if (plat === 'linux') {
       // Reserva: se um dia houver asset linux (.tar.xz ou .zip), casa aqui.
-      if (name.indexOf('linux') !== -1 && (name.endsWith('.tar.xz') || name.endsWith('.zip'))) return a;
+      if (name.indexOf('linux') !== -1 && (name.endsWith('.tar.xz') || name.endsWith('.zip')))
+        return a;
     }
   }
   return null;
@@ -230,35 +254,52 @@ function downloadAsset(url, destPath, onProgress) {
     let lastReport = 0;
 
     function doRequest(targetUrl) {
-      const req = https.get(targetUrl, {
-        headers: { 'User-Agent': USER_AGENT },
-        timeout: DOWNLOAD_TIMEOUT_MS,
-      }, function (res) {
-        // Follow redirects (GitHub releases redirect to S3/codeload)
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          res.resume(); // drain
-          return doRequest(res.headers.location);
+      const req = https.get(
+        targetUrl,
+        {
+          headers: { 'User-Agent': USER_AGENT },
+          timeout: DOWNLOAD_TIMEOUT_MS
+        },
+        function (res) {
+          // Follow redirects (GitHub releases redirect to S3/codeload)
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            res.resume(); // drain
+            return doRequest(res.headers.location);
+          }
+          if (res.statusCode !== 200) {
+            file.close(function () {
+              try {
+                fs.unlinkSync(destPath);
+              } catch (_) {
+                /* ignore */
+              }
+            });
+            reject(new Error('Download HTTP ' + res.statusCode));
+            return;
+          }
+          contentLength = parseInt(res.headers['content-length'] || '0', 10);
+          res.on('data', function (chunk) {
+            total += chunk.length;
+            const now = Date.now();
+            // Throttle progress reports to 4/s
+            if (onProgress && (now - lastReport > 250 || total === contentLength)) {
+              lastReport = now;
+              const pct =
+                contentLength > 0 ? Math.min(100, Math.round((total / contentLength) * 100)) : 0;
+              onProgress(pct, (total / 1048576).toFixed(1), (contentLength / 1048576).toFixed(1));
+            }
+          });
+          res.pipe(file);
         }
-        if (res.statusCode !== 200) {
-          file.close(function () { try { fs.unlinkSync(destPath); } catch (_) { /* ignore */ } });
-          reject(new Error('Download HTTP ' + res.statusCode));
-          return;
-        }
-        contentLength = parseInt(res.headers['content-length'] || '0', 10);
-        res.on('data', function (chunk) {
-          total += chunk.length;
-          const now = Date.now();
-          // Throttle progress reports to 4/s
-          if (onProgress && (now - lastReport > 250 || total === contentLength)) {
-            lastReport = now;
-            const pct = contentLength > 0 ? Math.min(100, Math.round((total / contentLength) * 100)) : 0;
-            onProgress(pct, (total / 1048576).toFixed(1), (contentLength / 1048576).toFixed(1));
+      );
+      req.on('error', function (err) {
+        file.close(function () {
+          try {
+            fs.unlinkSync(destPath);
+          } catch (_) {
+            /* ignore */
           }
         });
-        res.pipe(file);
-      });
-      req.on('error', function (err) {
-        file.close(function () { try { fs.unlinkSync(destPath); } catch (_) { /* ignore */ } });
         reject(err);
       });
       req.on('timeout', function () {
@@ -266,9 +307,17 @@ function downloadAsset(url, destPath, onProgress) {
       });
     }
 
-    file.on('finish', function () { file.close(function () { resolve(destPath); }); });
+    file.on('finish', function () {
+      file.close(function () {
+        resolve(destPath);
+      });
+    });
     file.on('error', function (err) {
-      try { fs.unlinkSync(destPath); } catch (_) { /* ignore */ }
+      try {
+        fs.unlinkSync(destPath);
+      } catch (_) {
+        /* ignore */
+      }
       reject(err);
     });
 
@@ -295,20 +344,24 @@ function extractAsset(archivePath, destDir) {
       // 7-zip archive (formato atual do darktohka Windows). Extrai e depois
       // localiza pepflashplayer.dll recursivamente (a estrutura interna varia).
       execFile('7z', ['x', '-o' + destDir, '-y', archivePath], { timeout: 60000 }, function (err) {
-        if (err) reject(new Error('7z extraction failed: ' + (err.message || err))); else resolve();
+        if (err) reject(new Error('7z extraction failed: ' + (err.message || err)));
+        else resolve();
       });
     } else if (lower.endsWith('.exe')) {
       // InnoSetup installer (legacy) — innoextract | 7z
       _tryExtractWin(archivePath, destDir, function (err) {
-        if (err) reject(err); else resolve();
+        if (err) reject(err);
+        else resolve();
       });
     } else if (lower.endsWith('.tar.xz')) {
       execFile('tar', ['-xJf', archivePath, '-C', destDir], { timeout: 60000 }, function (err) {
-        if (err) reject(new Error('tar extraction failed: ' + (err.message || err))); else resolve();
+        if (err) reject(new Error('tar extraction failed: ' + (err.message || err)));
+        else resolve();
       });
     } else if (lower.endsWith('.zip')) {
       execFile('unzip', ['-o', archivePath, '-d', destDir], { timeout: 60000 }, function (err) {
-        if (err) reject(new Error('unzip failed: ' + (err.message || err))); else resolve();
+        if (err) reject(new Error('unzip failed: ' + (err.message || err)));
+        else resolve();
       });
     } else {
       reject(new Error('Formato de archive não suportado: ' + archivePath));
@@ -329,8 +382,11 @@ function _findFileRecursive(dir, targetName) {
   function walk(d) {
     if (found) return;
     let entries;
-    try { entries = fs.readdirSync(d, { withFileTypes: true }); }
-    catch (_) { return; }
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch (_) {
+      return;
+    }
     for (let i = 0; i < entries.length; i++) {
       if (found) return;
       const e = entries[i];
@@ -353,7 +409,9 @@ function _tryExtractWin(archivePath, destDir, cb) {
     // 2. 7z x -o<dest> <archive>
     execFile('7z', ['x', '-o' + destDir, '-y', archivePath], { timeout: 60000 }, function (err2) {
       if (!err2) return cb(null);
-      cb(new Error('Windows extraction failed (innoextract/7z ausentes): ' + (err2.message || err2)));
+      cb(
+        new Error('Windows extraction failed (innoextract/7z ausentes): ' + (err2.message || err2))
+      );
     });
   });
 }
@@ -379,9 +437,11 @@ async function ensureLatest(platform, onProgress) {
   if (plat === 'linux') {
     throw new Error(
       'Clean Flash PPAPI para Linux não está disponível no repositório ' +
-      'darktohka/clean-flash-builds (apenas Windows/Mac). Para usar o launcher ' +
-      'em Linux, obtenha libpepflashplayer.so manualmente (ex.: de um build ' +
-      'Chromium 87 ou do Clean Flash Linux) e coloque em: ' + cacheDir + '/'
+        'darktohka/clean-flash-builds (apenas Windows/Mac). Para usar o launcher ' +
+        'em Linux, obtenha libpepflashplayer.so manualmente (ex.: de um build ' +
+        'Chromium 87 ou do Clean Flash Linux) e coloque em: ' +
+        cacheDir +
+        '/'
     );
   }
 
@@ -390,9 +450,22 @@ async function ensureLatest(platform, onProgress) {
   const release = await fetchLatestRelease();
   const asset = pickAsset(release, plat);
   if (!asset) {
-    throw new Error('Nenhum asset Flash encontrado para plataforma "' + plat + '" no release ' + (release.tag_name || '?'));
+    throw new Error(
+      'Nenhum asset Flash encontrado para plataforma "' +
+        plat +
+        '" no release ' +
+        (release.tag_name || '?')
+    );
   }
-  logger.info('FlashUpdater: release ' + (release.tag_name || '?') + ' → asset "' + asset.name + '" (' + (asset.size / 1048576).toFixed(1) + 'MB)');
+  logger.info(
+    'FlashUpdater: release ' +
+      (release.tag_name || '?') +
+      ' → asset "' +
+      asset.name +
+      '" (' +
+      (asset.size / 1048576).toFixed(1) +
+      'MB)'
+  );
 
   if (onProgress) onProgress(0, '0', (asset.size / 1048576).toFixed(1), 'download');
 
@@ -401,29 +474,53 @@ async function ensureLatest(platform, onProgress) {
     if (onProgress) onProgress(pct, dl, tot, 'download');
   });
 
-  if (onProgress) onProgress(100, (asset.size / 1048576).toFixed(1), (asset.size / 1048576).toFixed(1), 'extract');
+  if (onProgress)
+    onProgress(
+      100,
+      (asset.size / 1048576).toFixed(1),
+      (asset.size / 1048576).toFixed(1),
+      'extract'
+    );
 
   // Extrai para um subdiretório temporário (o .7z do Windows espalha muitos arquivos)
   const extractDir = path.join(cacheDir, '_extract');
-  try { fs.rmSync(extractDir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+  try {
+    fs.rmSync(extractDir, { recursive: true, force: true });
+  } catch (_) {
+    /* ignore */
+  }
   fs.mkdirSync(extractDir, { recursive: true });
   await extractAsset(archivePath, extractDir);
 
   // Limpa o archive temporário
-  try { fs.unlinkSync(archivePath); } catch (_) { /* ignore */ }
+  try {
+    fs.unlinkSync(archivePath);
+  } catch (_) {
+    /* ignore */
+  }
 
   // Localiza o plugin PPAPI extraído (estrutura interna do .7z varia) e move
   // para a raiz do cache, onde getCachedPluginPath() espera encontrá-lo.
   const pluginName = PLUGIN_NAMES[plat] || PLUGIN_NAMES.win32;
   const found = _findFileRecursive(extractDir, pluginName);
   if (!found) {
-    throw new Error('Extração concluída mas ' + pluginName + ' não encontrado dentro do archive ' + asset.name);
+    throw new Error(
+      'Extração concluída mas ' + pluginName + ' não encontrado dentro do archive ' + asset.name
+    );
   }
   const pluginPath = path.join(cacheDir, pluginName);
-  try { fs.copyFileSync(found, pluginPath); } catch (_) { /* ignore */ }
+  try {
+    fs.copyFileSync(found, pluginPath);
+  } catch (_) {
+    /* ignore */
+  }
 
   // Limpa o subdiretório de extração (mantém só o plugin + manifest no cache)
-  try { fs.rmSync(extractDir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+  try {
+    fs.rmSync(extractDir, { recursive: true, force: true });
+  } catch (_) {
+    /* ignore */
+  }
 
   if (!fs.existsSync(pluginPath)) {
     throw new Error('Falha ao mover ' + pluginName + ' para o cache (' + pluginPath + ')');
@@ -436,7 +533,7 @@ async function ensureLatest(platform, onProgress) {
     downloadDate: new Date().toISOString(),
     assetName: asset.name,
     releaseTag: release.tag_name || null,
-    source: 'darktohka/clean-flash-builds',
+    source: 'darktohka/clean-flash-builds'
   };
   fs.writeFileSync(getCacheManifestPath(), JSON.stringify(manifest, null, 2), 'utf8');
 
@@ -460,7 +557,9 @@ function _extractVersion(release, cacheDir) {
       if (process.platform === 'linux' && data.linux_version) return data.linux_version;
       if (data.version) return data.version;
     }
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
   // Fallback: parse do tag name (ex: "v34.0.0.137")
   const tag = (release && release.tag_name) || '';
   const match = tag.match(/(\d+(?:\.\d+)+)/);
@@ -481,7 +580,9 @@ async function refreshIfStale(platform) {
     await ensureLatest(platform);
     logger.info('FlashUpdater: cache atualizado em background (válido para próximo boot)');
   } catch (e) {
-    logger.warn('FlashUpdater: refresh background falhou (' + e.message + ') — mantendo cache atual');
+    logger.warn(
+      'FlashUpdater: refresh background falhou (' + e.message + ') — mantendo cache atual'
+    );
   }
 }
 
@@ -499,5 +600,5 @@ module.exports = {
   _findFileRecursive: _findFileRecursive,
   // constants (p/ testes)
   CACHE_SUBDIR: CACHE_SUBDIR,
-  STALE_DAYS: STALE_DAYS,
+  STALE_DAYS: STALE_DAYS
 };

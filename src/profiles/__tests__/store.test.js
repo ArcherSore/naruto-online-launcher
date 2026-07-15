@@ -20,7 +20,11 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+  try {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  } catch (_) {
+    /* ignore */
+  }
 });
 
 // Must require store AFTER jest setup (electron mock from tests/setup.js)
@@ -32,17 +36,25 @@ const electron = require('electron');
 describe('store.js', () => {
   beforeEach(() => {
     // Point the store at our temp dir
-    electron.app.getPath.mockImplementation((p) => {
+    electron.app.getPath.mockImplementation(p => {
       if (p === 'userData') return tmpDir;
       return '/tmp/naruto-test/' + p;
     });
     // Clear any cached profiles from previous tests
     // We force a fresh load by deleting the profiles file on disk
     const profilesDir = path.join(tmpDir, 'profiles');
-    try { fs.rmSync(profilesDir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+    try {
+      fs.rmSync(profilesDir, { recursive: true, force: true });
+    } catch (_) {
+      /* ignore */
+    }
     // v5.5: Clear launch log file from previous tests (no-op for non-launch-log tests)
     const launchLogFile = path.join(tmpDir, 'launch-log.json');
-    try { fs.rmSync(launchLogFile, { force: true }); } catch (_) { /* ignore */ }
+    try {
+      fs.rmSync(launchLogFile, { force: true });
+    } catch (_) {
+      /* ignore */
+    }
     // Force reload from disk (clears in-memory cache)
     store.load();
   });
@@ -121,7 +133,13 @@ describe('store.js', () => {
     });
 
     test('creates a profile with provided options', () => {
-      const p = store.create({ name: 'MyAccount', server: 's799', region: 'na', language: 'en', notificationsEnabled: false });
+      const p = store.create({
+        name: 'MyAccount',
+        server: 's799',
+        region: 'na',
+        language: 'en',
+        notificationsEnabled: false
+      });
       expect(p.name).toBe('MyAccount');
       expect(p.server).toBe('s799');
       expect(p.region).toBe('na');
@@ -176,7 +194,9 @@ describe('store.js', () => {
       const result = store.create({ name: 'Overflow' });
       expect(result).toBeNull();
       // Clean up so subsequent tests can create profiles
-      created.forEach(function (p) { store.remove(p.id); });
+      created.forEach(function (p) {
+        store.remove(p.id);
+      });
     });
   });
 
@@ -279,7 +299,9 @@ describe('store.js', () => {
       const all = store.getAll();
       expect(all[0].id).toBe(p3.id);
       // p1 and p2 come after in their original relative order
-      const remaining = all.slice(1).map(function (x) { return x.id; });
+      const remaining = all.slice(1).map(function (x) {
+        return x.id;
+      });
       expect(remaining).toContain(p1.id);
       expect(remaining).toContain(p2.id);
     });
@@ -420,21 +442,23 @@ describe('store.js', () => {
       store.create({ name: 'Dup', server: 's1' });
       const exportData = JSON.stringify({
         version: 2,
-        profiles: [{
-          id: 'p_ffffffff',
-          name: 'Dup',
-          server: 's1',
-          region: 'br',
-          language: 'pt',
-          notificationsEnabled: true,
-          color: '#FF8C00',
-          createdAt: Date.now(),
-          lastUsed: 0,
-          notes: '',
-          launchCount: 0,
-          totalPlayMs: 0,
-          favorite: false,
-        }],
+        profiles: [
+          {
+            id: 'p_ffffffff',
+            name: 'Dup',
+            server: 's1',
+            region: 'br',
+            language: 'pt',
+            notificationsEnabled: true,
+            color: '#FF8C00',
+            createdAt: Date.now(),
+            lastUsed: 0,
+            notes: '',
+            launchCount: 0,
+            totalPlayMs: 0,
+            favorite: false
+          }
+        ]
       });
       const result = store.importJSON(exportData);
       expect(result.skipped).toBeGreaterThan(0);
@@ -444,7 +468,9 @@ describe('store.js', () => {
   describe('onChange', () => {
     test('onChange registers a callback that fires on persist', () => {
       let called = false;
-      store.onChange(function () { called = true; });
+      store.onChange(function () {
+        called = true;
+      });
       store.create({ name: 'Trigger' });
       // onChange may have been called during create → persist
       // Note: the listener list grows across tests, but we just verify it fires
@@ -649,7 +675,7 @@ describe('store.js', () => {
           { id: p.id, ts: 1000 },
           { id: p.id, ts: 5000 },
           { id: p.id, ts: 3000 },
-          { id: p.id, ts: 8000 },
+          { id: p.id, ts: 8000 }
         ];
         fs.writeFileSync(file, JSON.stringify(entries), 'utf8');
         store.load(); // reload to pick up the file
@@ -717,7 +743,11 @@ describe('store.js', () => {
         expect(stats.total).toBe(5000);
         // Oldest 5 entries (ts 1..5) should be dropped
         const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-        const tsSet = new Set(data.map(function (e) { return e.ts; }));
+        const tsSet = new Set(
+          data.map(function (e) {
+            return e.ts;
+          })
+        );
         expect(tsSet.has(1)).toBe(false);
         expect(tsSet.has(5)).toBe(false);
         expect(tsSet.has(6)).toBe(true); // ts 6 is the oldest surviving

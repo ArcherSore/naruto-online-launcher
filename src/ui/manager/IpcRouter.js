@@ -29,9 +29,15 @@ let _inspectors = new Map(); // profileId -> inspector instance
 const _launchTimes = new Map();
 let _registered = false;
 
-function _send(channel, payload) { ManagerWindow.send(channel, payload); }
-function _pushProfiles() { StateBroadcaster.pushProfiles(); }
-function _pushEvents() { StateBroadcaster.pushEvents(); }
+function _send(channel, payload) {
+  ManagerWindow.send(channel, payload);
+}
+function _pushProfiles() {
+  StateBroadcaster.pushProfiles();
+}
+function _pushEvents() {
+  StateBroadcaster.pushEvents();
+}
 
 /**
  * Registra TODOS os handlers IPC. Idempotente (guard _registered).
@@ -42,7 +48,9 @@ function registerIpcHandlers(handlers) {
   if (_registered) return; // v3.6.2: anti-duplicação
   _registered = true;
 
-  ipcMain.on('manager:ready', function () { StateBroadcaster.pushAll(); });
+  ipcMain.on('manager:ready', function () {
+    StateBroadcaster.pushAll();
+  });
 
   // ── v5.8: Window Always-on-Top toggle ──
   ipcMain.handle('window:toggle-always-on-top', function (_e, on) {
@@ -67,8 +75,12 @@ function registerIpcHandlers(handlers) {
   ipcMain.handle('window:toggle-maximize', function () {
     const win = ManagerWindow.getManagerWindow();
     if (!win || win.isDestroyed()) return null;
-    if (win.isMaximized()) { win.unmaximize(); return false; }
-    win.maximize(); return true;
+    if (win.isMaximized()) {
+      win.unmaximize();
+      return false;
+    }
+    win.maximize();
+    return true;
   });
 
   // ── Profile CRUD ──
@@ -78,11 +90,16 @@ function registerIpcHandlers(handlers) {
       _pushProfiles();
       _pushEvents();
     } else {
-      _send('profile:toast', { type: 'error', msg: 'Limite de ' + store.MAX_PROFILES + ' contas atingido' });
+      _send('profile:toast', {
+        type: 'error',
+        msg: 'Limite de ' + store.MAX_PROFILES + ' contas atingido'
+      });
     }
   });
 
-  ipcMain.handle('profile:get', function (_e, id) { return store.get(id); });
+  ipcMain.handle('profile:get', function (_e, id) {
+    return store.get(id);
+  });
 
   ipcMain.on('profile:update', function (_e, data) {
     store.update(data.id, data);
@@ -135,7 +152,8 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.on('profile:update-notes', function (_e, data) {
-    if (typeof data !== 'object' || typeof data.id !== 'string' || typeof data.notes !== 'string') return;
+    if (typeof data !== 'object' || typeof data.id !== 'string' || typeof data.notes !== 'string')
+      return;
     store.update(data.id, { notes: data.notes.slice(0, 200) });
     _pushProfiles();
   });
@@ -151,7 +169,7 @@ function registerIpcHandlers(handlers) {
       language: src.language,
       color: src.color,
       notes: src.notes || '',
-      tags: src.tags || [],  // v5.3: copy tags
+      tags: src.tags || [] // v5.3: copy tags
     });
     if (!copy) return { ok: false, error: 'Max profiles reached' };
     logger.info('Profile duplicated: ' + src.name + ' → ' + copy.name);
@@ -192,7 +210,8 @@ function registerIpcHandlers(handlers) {
     return vault.getCredentials(id);
   });
   ipcMain.handle('vault:set', function (_e, id, user, pass) {
-    if (typeof id !== 'string' || typeof user !== 'string' || typeof pass !== 'string') return false;
+    if (typeof id !== 'string' || typeof user !== 'string' || typeof pass !== 'string')
+      return false;
     return vault.setCredentials(id, user, pass);
   });
   ipcMain.handle('vault:remove', function (_e, id) {
@@ -205,9 +224,15 @@ function registerIpcHandlers(handlers) {
   });
 
   // ── Memory ──
-  ipcMain.handle('memory:stats', function () { return mg.getStats(); });
-  ipcMain.handle('memory:force-gc', function () { return mg.collect({ manual: true }); });
-  ipcMain.handle('memory:webview-stats', function () { return mg.getWebviewStats(); });
+  ipcMain.handle('memory:stats', function () {
+    return mg.getStats();
+  });
+  ipcMain.handle('memory:force-gc', function () {
+    return mg.collect({ manual: true });
+  });
+  ipcMain.handle('memory:webview-stats', function () {
+    return mg.getWebviewStats();
+  });
 
   // ── Diagnostics exporter (v4.9.2) ──
   const diagnostics = require('../../utils/diagnostics');
@@ -217,7 +242,12 @@ function registerIpcHandlers(handlers) {
       if (result.ok) {
         _send('profile:toast', {
           type: 'success',
-          msg: 'Diagnóstico exportado (' + Math.round(result.size / 1024) + 'KB, ' + result.entries + ' arquivos)'
+          msg:
+            'Diagnóstico exportado (' +
+            Math.round(result.size / 1024) +
+            'KB, ' +
+            result.entries +
+            ' arquivos)'
         });
       } else if (!result.canceled) {
         _send('profile:toast', { type: 'error', msg: 'Falha ao exportar: ' + result.error });
@@ -254,21 +284,31 @@ function registerIpcHandlers(handlers) {
       // Antes o tempmail criava o JWT mas não o Profile — o usuário tinha que
       // criar o perfil manualmente e colar as credenciais. Agora é automático.
       const profile = store.create({
-        name: opts.name || ('Player ' + result.game.nickname),
+        name: opts.name || 'Player ' + result.game.nickname,
         server: opts.server || '',
         region: opts.region || 'br',
         language: opts.language || 'pt',
-        notificationsEnabled: opts.notificationsEnabled !== false,
+        notificationsEnabled: opts.notificationsEnabled !== false
       });
       let vaultStored = false;
       if (profile) {
-        vaultStored = vault.setCredentials(profile.id, result.tempmail.address, result.tempmail.password);
+        vaultStored = vault.setCredentials(
+          profile.id,
+          result.tempmail.address,
+          result.tempmail.password
+        );
         _pushProfiles();
       }
 
       _send('profile:toast', {
         type: 'success',
-        msg: 'Conta criada: ' + result.tempmail.address + ' (player ' + result.game.nickname + (profile ? ' + perfil auto-criado' : '') + ')'
+        msg:
+          'Conta criada: ' +
+          result.tempmail.address +
+          ' (player ' +
+          result.game.nickname +
+          (profile ? ' + perfil auto-criado' : '') +
+          ')'
       });
       return { ok: true, data: result, profile: profile, vaultStored: vaultStored };
     } catch (e) {
@@ -286,7 +326,12 @@ function registerIpcHandlers(handlers) {
       const result = await apiLogin.loginAndInject(ses, email, password);
       _send('profile:toast', {
         type: 'success',
-        msg: 'Login API OK — ' + result.nickname + ' (expira em ' + Math.round(result.expiresAt / 1000 - Date.now() / 1000) + 's)'
+        msg:
+          'Login API OK — ' +
+          result.nickname +
+          ' (expira em ' +
+          Math.round(result.expiresAt / 1000 - Date.now() / 1000) +
+          's)'
       });
       return { ok: true, data: result };
     } catch (e) {
@@ -371,9 +416,13 @@ function registerIpcHandlers(handlers) {
       if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
       const source = await wc.executeJavaScript('document.documentElement.outerHTML');
       const url = wc.getURL();
-      const title = await wc.executeJavaScript('document.title').catch(function () { return ''; });
+      const title = await wc.executeJavaScript('document.title').catch(function () {
+        return '';
+      });
       return { ok: true, data: { url: url, title: title, source: source, size: source.length } };
-    } catch (e) { return { ok: false, error: e.message }; }
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
   });
 
   ipcMain.handle('dev:get-cookies', async function (_e, profileId) {
@@ -383,10 +432,22 @@ function registerIpcHandlers(handlers) {
       const partName = partition.getPartitionName(profile);
       const ses = session.fromPartition(partName);
       const cookies = await ses.cookies.get({});
-      return { ok: true, data: cookies.map(function (c) {
-        return { name: c.name, value: (c.value || '').slice(0, 80), domain: c.domain, path: c.path, secure: c.secure, httpOnly: c.httpOnly };
-      }) };
-    } catch (e) { return { ok: false, error: e.message }; }
+      return {
+        ok: true,
+        data: cookies.map(function (c) {
+          return {
+            name: c.name,
+            value: (c.value || '').slice(0, 80),
+            domain: c.domain,
+            path: c.path,
+            secure: c.secure,
+            httpOnly: c.httpOnly
+          };
+        })
+      };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
   });
 
   ipcMain.handle('dev:reload-game', function (_e, profileId) {
@@ -395,7 +456,9 @@ function registerIpcHandlers(handlers) {
       if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
       wc.reload();
       return { ok: true };
-    } catch (e) { return { ok: false, error: e.message }; }
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
   });
 
   ipcMain.handle('dev:toggle-devtools', function (_e, profileId) {
@@ -404,21 +467,31 @@ function registerIpcHandlers(handlers) {
       if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
       wc.toggleDevTools();
       return { ok: true };
-    } catch (e) { return { ok: false, error: e.message }; }
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
   });
 
   // ── i18n ──
   const i18n = require('../../config/i18n');
-  ipcMain.handle('i18n:get-lang', function () { return i18n.getLanguage(); });
+  ipcMain.handle('i18n:get-lang', function () {
+    return i18n.getLanguage();
+  });
   ipcMain.handle('i18n:set-lang', function (_e, lang) {
     i18n.setLanguage(lang);
     return i18n.getLanguage();
   });
-  ipcMain.handle('i18n:get-all', function () { return i18n.getAll(); });
-  ipcMain.handle('i18n:t', function (_e, key) { return i18n.t(key); });
+  ipcMain.handle('i18n:get-all', function () {
+    return i18n.getAll();
+  });
+  ipcMain.handle('i18n:t', function (_e, key) {
+    return i18n.t(key);
+  });
 
   // ── Events ──
-  ipcMain.handle('events:get', function (_e, region) { return et.getUpcoming(region || 'br'); });
+  ipcMain.handle('events:get', function (_e, region) {
+    return et.getUpcoming(region || 'br');
+  });
   ipcMain.on('events:set-muted', function (_e, m) {
     if (_handlers.setMuted) {
       _handlers.setMuted(m);
@@ -428,7 +501,9 @@ function registerIpcHandlers(handlers) {
   });
 
   // ── Export / Import ──
-  ipcMain.handle('profiles:export', function () { return store.exportJSON(); });
+  ipcMain.handle('profiles:export', function () {
+    return store.exportJSON();
+  });
 
   ipcMain.handle('profiles:import', function (_e, jsonStr) {
     const res = store.importJSON(jsonStr);
@@ -453,12 +528,14 @@ function registerIpcHandlers(handlers) {
       const result = await dialog.showSaveDialog(win, {
         title: 'Exportar backup criptografado',
         defaultPath: 'shinobi-backup-' + new Date().toISOString().slice(0, 10) + '.enc',
-        filters: [{ name: 'Shinobi Backup', extensions: ['enc'] }],
+        filters: [{ name: 'Shinobi Backup', extensions: ['enc'] }]
       });
       if (result.canceled || !result.filePath) return { ok: false, canceled: true };
 
       fs.writeFileSync(result.filePath, encrypted, 'utf8');
-      logger.info('Backup criptografado salvo: ' + result.filePath + ' (' + profiles.length + ' perfis)');
+      logger.info(
+        'Backup criptografado salvo: ' + result.filePath + ' (' + profiles.length + ' perfis)'
+      );
       return { ok: true, path: result.filePath, count: profiles.length };
     } catch (e) {
       logger.error('Export backup falhou: ' + e.message);
@@ -473,14 +550,15 @@ function registerIpcHandlers(handlers) {
       const result = await dialog.showOpenDialog(win, {
         title: 'Importar backup criptografado',
         filters: [{ name: 'Shinobi Backup', extensions: ['enc'] }],
-        properties: ['openFile'],
+        properties: ['openFile']
       });
       if (result.canceled || result.filePaths.length === 0) return { ok: false, canceled: true };
 
       const encrypted = fs.readFileSync(result.filePaths[0], 'utf8');
       const payload = vault.importEncryptedBackup(encrypted, password);
 
-      let imported = 0, skipped = 0;
+      let imported = 0,
+        skipped = 0;
       payload.profiles.forEach(function (p) {
         if (!store.get(p.id)) {
           const newProfile = store.create({
@@ -489,7 +567,7 @@ function registerIpcHandlers(handlers) {
             region: p.region,
             language: p.language,
             notificationsEnabled: p.notificationsEnabled,
-            color: p.color,
+            color: p.color
           });
           if (newProfile) {
             imported++;
@@ -522,7 +600,7 @@ function registerIpcHandlers(handlers) {
     const result = await dialog.showSaveDialog(win, {
       title: 'Exportar perfis',
       defaultPath: 'shinobi-profiles.json',
-      filters: [{ name: 'JSON', extensions: ['json'] }],
+      filters: [{ name: 'JSON', extensions: ['json'] }]
     });
     if (result.canceled || !result.filePath) return { ok: false };
     try {
@@ -539,7 +617,7 @@ function registerIpcHandlers(handlers) {
     const result = await dialog.showOpenDialog(win, {
       title: 'Importar perfis',
       filters: [{ name: 'JSON', extensions: ['json'] }],
-      properties: ['openFile'],
+      properties: ['openFile']
     });
     if (result.canceled || result.filePaths.length === 0) return { ok: false, imported: 0 };
     try {
@@ -566,30 +644,34 @@ function registerIpcHandlers(handlers) {
  */
 function launchProfile(profileId, onOpened, onClosed) {
   const gameLauncher = require('../game-launcher');
-  gameLauncher.launchProfile(profileId, function () {
-    store.incrementLaunch(profileId);
-    // v5.5: registra no launch log para timeline (não pode quebrar o launch)
-    try {
-      store.recordLaunch(profileId);
-    } catch (e) {
-      logger.warn('IpcRouter: recordLaunch falhou: ' + e.message);
+  gameLauncher.launchProfile(
+    profileId,
+    function () {
+      store.incrementLaunch(profileId);
+      // v5.5: registra no launch log para timeline (não pode quebrar o launch)
+      try {
+        store.recordLaunch(profileId);
+      } catch (e) {
+        logger.warn('IpcRouter: recordLaunch falhou: ' + e.message);
+      }
+      _launchTimes.set(profileId, Date.now());
+      _pushProfiles();
+      if (onOpened) onOpened();
+    },
+    function () {
+      const startTime = _launchTimes.get(profileId);
+      if (startTime) {
+        const playMs = Date.now() - startTime;
+        store.addPlayTime(profileId, playMs);
+        _launchTimes.delete(profileId);
+      }
+      _pushProfiles();
+      if (onClosed) onClosed();
     }
-    _launchTimes.set(profileId, Date.now());
-    _pushProfiles();
-    if (onOpened) onOpened();
-  }, function () {
-    const startTime = _launchTimes.get(profileId);
-    if (startTime) {
-      const playMs = Date.now() - startTime;
-      store.addPlayTime(profileId, playMs);
-      _launchTimes.delete(profileId);
-    }
-    _pushProfiles();
-    if (onClosed) onClosed();
-  });
+  );
 }
 
 module.exports = {
   registerIpcHandlers: registerIpcHandlers,
-  launchProfile: launchProfile,
+  launchProfile: launchProfile
 };

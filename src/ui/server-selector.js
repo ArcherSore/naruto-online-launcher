@@ -34,8 +34,14 @@ const FETCH_TIMEOUT_MS = 10000;
  */
 function _regionToLocale(region) {
   const map = {
-    br: 'pt', na: 'en', eu: 'en', hk: 'zh',
-    de: 'de', es: 'es', pl: 'pl', fr: 'fr',
+    br: 'pt',
+    na: 'en',
+    eu: 'en',
+    hk: 'zh',
+    de: 'de',
+    es: 'es',
+    pl: 'pl',
+    fr: 'fr'
   };
   return map[region] || 'pt';
 }
@@ -61,12 +67,14 @@ function _parseServersFromHtml(html, locale) {
       servers.push({
         id: 's' + num,
         number: num,
-        url: '/' + locale + '/serverlist/s' + num,
+        url: '/' + locale + '/serverlist/s' + num
       });
     }
   }
   // Ordena por número decrescente (servidores mais novos primeiro)
-  servers.sort(function (a, b) { return b.number - a.number; });
+  servers.sort(function (a, b) {
+    return b.number - a.number;
+  });
   return servers;
 }
 
@@ -82,8 +90,10 @@ function fetchServers(region) {
 
     // Verifica cache
     const cached = _cache.get(region);
-    if (cached && (Date.now() - cached.fetchedAt) < CACHE_TTL_MS) {
-      logger.debug('server-selector: cache hit para ' + region + ' (' + cached.servers.length + ' servers)');
+    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+      logger.debug(
+        'server-selector: cache hit para ' + region + ' (' + cached.servers.length + ' servers)'
+      );
       resolve(cached.servers);
       return;
     }
@@ -97,7 +107,7 @@ function fetchServers(region) {
     try {
       const request = net.request({
         method: 'GET',
-        url: serverlistUrl,
+        url: serverlistUrl
       });
 
       request.setHeader('User-Agent', 'shinobi-launcher/3.5 (server-selector)');
@@ -105,7 +115,11 @@ function fetchServers(region) {
       const timer = setTimeout(function () {
         if (!settled) {
           settled = true;
-          try { request.cancel(); } catch (_) { /* ignore — socket pode já estar fechado */ }
+          try {
+            request.cancel();
+          } catch (_) {
+            /* ignore — socket pode já estar fechado */
+          }
           logger.warn('server-selector: timeout para ' + region);
           resolve([]);
         }
@@ -128,7 +142,9 @@ function fetchServers(region) {
 
           const servers = _parseServersFromHtml(html, locale);
           _cache.set(region, { servers: servers, fetchedAt: Date.now() });
-          logger.info('server-selector: ' + servers.length + ' servidores encontrados para ' + region);
+          logger.info(
+            'server-selector: ' + servers.length + ' servidores encontrados para ' + region
+          );
           resolve(servers);
         });
       });
@@ -166,5 +182,5 @@ function clearCache(region) {
 
 module.exports = {
   fetchServers: fetchServers,
-  clearCache: clearCache,
+  clearCache: clearCache
 };

@@ -28,10 +28,10 @@ const logger = require('../utils/logger');
 // Offsets UTC aproximados por região (sem libs de TZ).
 // DST é auto-detectado comparando o offset atual do Date com o offset base.
 const REGION_TZ = {
-  br: { name: 'Brasil',   flag: '🇧🇷', baseOffset: -3 },  // UTC-3, sem DST
+  br: { name: 'Brasil', flag: '🇧🇷', baseOffset: -3 }, // UTC-3, sem DST
   na: { name: 'América do Norte', flag: '🇺🇸', baseOffset: -5 }, // UTC-5, DST -4
-  eu: { name: 'Europa',   flag: '🇪🇺', baseOffset: 1 },   // UTC+1, DST +2
-  hk: { name: 'Hong Kong', flag: '🇭🇰', baseOffset: 8 },   // UTC+8, sem DST
+  eu: { name: 'Europa', flag: '🇪🇺', baseOffset: 1 }, // UTC+1, DST +2
+  hk: { name: 'Hong Kong', flag: '🇭🇰', baseOffset: 8 } // UTC+8, sem DST
 };
 
 // Catálogo de eventos por região (horários no fuso do SERVIDOR)
@@ -46,13 +46,37 @@ const REGION_TZ = {
 // Eventos especiais (Bond, Treasure, Rebate) seguem calendário semanal no portal oficial.
 const EVENTS_BY_REGION = {
   br: [
-    { id: 'br-boss-mundial', name: 'Boss Mundial', hours: [12, 20], category: 'boss', remindMin: 5 },
+    {
+      id: 'br-boss-mundial',
+      name: 'Boss Mundial',
+      hours: [12, 20],
+      category: 'boss',
+      remindMin: 5
+    },
     { id: 'br-arena-3v3', name: 'Arena 3v3 (PvP)', hours: [18], category: 'arena', remindMin: 10 },
-    { id: 'br-dungeon-team', name: 'Dungeon em Time', hours: [14, 21], category: 'dungeon', remindMin: 5 },
+    {
+      id: 'br-dungeon-team',
+      name: 'Dungeon em Time',
+      hours: [14, 21],
+      category: 'dungeon',
+      remindMin: 5
+    },
     { id: 'br-guerra-cla', name: 'Guerra de Clã', hours: [20], category: 'social', remindMin: 30 },
-    { id: 'br-arena-guild', name: 'Arena de Guildas', hours: [19], category: 'arena', remindMin: 15 },
-    { id: 'br-bond-checkin', name: 'Bond / Check-in Diário', hours: [5], category: 'social', remindMin: 0 },
-    { id: 'br-reset', name: 'Reset Diário (5AM)', hours: [5], category: 'reset', remindMin: 0 },
+    {
+      id: 'br-arena-guild',
+      name: 'Arena de Guildas',
+      hours: [19],
+      category: 'arena',
+      remindMin: 15
+    },
+    {
+      id: 'br-bond-checkin',
+      name: 'Bond / Check-in Diário',
+      hours: [5],
+      category: 'social',
+      remindMin: 0
+    },
+    { id: 'br-reset', name: 'Reset Diário (5AM)', hours: [5], category: 'reset', remindMin: 0 }
   ],
   na: [
     { id: 'na-boss-world', name: 'World Boss', hours: [11, 19], category: 'boss', remindMin: 5 },
@@ -60,8 +84,14 @@ const EVENTS_BY_REGION = {
     { id: 'na-dungeon', name: 'Team Dungeon', hours: [13, 20], category: 'dungeon', remindMin: 5 },
     { id: 'na-clan-war', name: 'Clan War', hours: [19], category: 'social', remindMin: 30 },
     { id: 'na-guild-arena', name: 'Guild Arena', hours: [18], category: 'arena', remindMin: 15 },
-    { id: 'na-bond-checkin', name: 'Bond / Daily Check-in', hours: [5], category: 'social', remindMin: 0 },
-    { id: 'na-reset', name: 'Daily Reset (5AM)', hours: [5], category: 'reset', remindMin: 0 },
+    {
+      id: 'na-bond-checkin',
+      name: 'Bond / Daily Check-in',
+      hours: [5],
+      category: 'social',
+      remindMin: 0
+    },
+    { id: 'na-reset', name: 'Daily Reset (5AM)', hours: [5], category: 'reset', remindMin: 0 }
   ],
   eu: [
     { id: 'eu-boss-world', name: 'World Boss', hours: [12, 20], category: 'boss', remindMin: 5 },
@@ -69,8 +99,14 @@ const EVENTS_BY_REGION = {
     { id: 'eu-dungeon', name: 'Team Dungeon', hours: [14, 21], category: 'dungeon', remindMin: 5 },
     { id: 'eu-clan-war', name: 'Clan War', hours: [20], category: 'social', remindMin: 30 },
     { id: 'eu-guild-arena', name: 'Guild Arena', hours: [19], category: 'arena', remindMin: 15 },
-    { id: 'eu-bond-checkin', name: 'Bond / Daily Check-in', hours: [5], category: 'social', remindMin: 0 },
-    { id: 'eu-reset', name: 'Daily Reset (5AM)', hours: [5], category: 'reset', remindMin: 0 },
+    {
+      id: 'eu-bond-checkin',
+      name: 'Bond / Daily Check-in',
+      hours: [5],
+      category: 'social',
+      remindMin: 0
+    },
+    { id: 'eu-reset', name: 'Daily Reset (5AM)', hours: [5], category: 'reset', remindMin: 0 }
   ],
   hk: [
     { id: 'hk-boss-world', name: 'World Boss', hours: [12, 20], category: 'boss', remindMin: 5 },
@@ -78,9 +114,15 @@ const EVENTS_BY_REGION = {
     { id: 'hk-dungeon', name: 'Team Dungeon', hours: [14, 21], category: 'dungeon', remindMin: 5 },
     { id: 'hk-clan-war', name: 'Clan War', hours: [20], category: 'social', remindMin: 30 },
     { id: 'hk-guild-arena', name: 'Guild Arena', hours: [19], category: 'arena', remindMin: 15 },
-    { id: 'hk-bond-checkin', name: 'Bond / Daily Check-in', hours: [5], category: 'social', remindMin: 0 },
-    { id: 'hk-reset', name: 'Daily Reset (5AM)', hours: [5], category: 'reset', remindMin: 0 },
-  ],
+    {
+      id: 'hk-bond-checkin',
+      name: 'Bond / Daily Check-in',
+      hours: [5],
+      category: 'social',
+      remindMin: 0
+    },
+    { id: 'hk-reset', name: 'Daily Reset (5AM)', hours: [5], category: 'reset', remindMin: 0 }
+  ]
 };
 
 let _muted = false;
@@ -111,7 +153,7 @@ function getServerOffsetHours(region) {
   const now = new Date();
   const month = now.getUTCMonth(); // 0-11
   // NA DST: mar-nov. EU DST: mar-out.
-  const inDST = region === 'na' ? (month >= 2 && month <= 10) : (month >= 2 && month <= 9);
+  const inDST = region === 'na' ? month >= 2 && month <= 10 : month >= 2 && month <= 9;
   return r.baseOffset + (inDST ? 1 : 0);
 }
 
@@ -154,28 +196,32 @@ function nextOccurrenceMs(region, serverHour) {
  */
 function getUpcoming(region) {
   const events = EVENTS_BY_REGION[region] || EVENTS_BY_REGION.br;
-  return events.map(function (ev) {
-    // Pega a próxima ocorrência entre as horas do evento
-    let soonest = Infinity;
-    for (let i = 0; i < ev.hours.length; i++) {
-      const occ = nextOccurrenceMs(region, ev.hours[i]);
-      if (occ < soonest) soonest = occ;
-    }
-    const fireAt = soonest - ev.remindMin * 60 * 1000;
-    const ms = fireAt - Date.now();
-    return {
-      id: ev.id,
-      name: ev.name,
-      hours: ev.hours,
-      category: ev.category,
-      remindMin: ev.remindMin,
-      region: region,
-      nextFireMs: ms,
-      nextFireLabel: formatCountdown(ms),
-      // Hora no fuso do usuário (para display)
-      userTimeLabel: formatUserTime(soonest),
-    };
-  }).sort(function (a, b) { return a.nextFireMs - b.nextFireMs; });
+  return events
+    .map(function (ev) {
+      // Pega a próxima ocorrência entre as horas do evento
+      let soonest = Infinity;
+      for (let i = 0; i < ev.hours.length; i++) {
+        const occ = nextOccurrenceMs(region, ev.hours[i]);
+        if (occ < soonest) soonest = occ;
+      }
+      const fireAt = soonest - ev.remindMin * 60 * 1000;
+      const ms = fireAt - Date.now();
+      return {
+        id: ev.id,
+        name: ev.name,
+        hours: ev.hours,
+        category: ev.category,
+        remindMin: ev.remindMin,
+        region: region,
+        nextFireMs: ms,
+        nextFireLabel: formatCountdown(ms),
+        // Hora no fuso do usuário (para display)
+        userTimeLabel: formatUserTime(soonest)
+      };
+    })
+    .sort(function (a, b) {
+      return a.nextFireMs - b.nextFireMs;
+    });
 }
 
 function formatCountdown(ms) {
@@ -196,13 +242,17 @@ function formatUserTime(ms) {
   return h + ':' + m;
 }
 
-function isMuted() { return _muted; }
+function isMuted() {
+  return _muted;
+}
 function setMuted(m) {
   _muted = !!m;
   logger.info('EventTimers: notificações ' + (_muted ? 'MUTADAS' : 'ativas'));
 }
 
-function onRemind(cb) { if (typeof cb === 'function') _remindListeners.push(cb); }
+function onRemind(cb) {
+  if (typeof cb === 'function') _remindListeners.push(cb);
+}
 
 function showNotification(event, region) {
   if (_muted) return;
@@ -214,13 +264,19 @@ function showNotification(event, region) {
       title: r.flag + ' ' + event.name + ' em ' + event.remindMin + 'min',
       body: 'Começa às ' + event.hours.join('h e ') + 'h (' + r.name + ')',
       icon: iconPath,
-      silent: false,
+      silent: false
     });
     n.show();
   } catch (e) {
     logger.debug('EventTimers: notificação falhou: ' + e.message);
   }
-  _remindListeners.forEach(function (cb) { try { cb({ event: event, region: region }); } catch (_) { /* ignore */ } });
+  _remindListeners.forEach(function (cb) {
+    try {
+      cb({ event: event, region: region });
+    } catch (_) {
+      /* ignore */
+    }
+  });
 }
 
 /**
@@ -247,7 +303,14 @@ function startWithProfiles(profiles) {
     if (p.region && regions.indexOf(p.region) === -1) regions.push(p.region);
   });
   if (regions.length === 0) regions.push('br');
-  logger.info('EventTimers: iniciado (v3.4) — ' + enabledProfiles.length + '/' + profiles.length + ' perfil(is) com notificações, regiões: ' + regions.join(', '));
+  logger.info(
+    'EventTimers: iniciado (v3.4) — ' +
+      enabledProfiles.length +
+      '/' +
+      profiles.length +
+      ' perfil(is) com notificações, regiões: ' +
+      regions.join(', ')
+  );
   start(regions);
 }
 
@@ -258,7 +321,7 @@ function startWithProfiles(profiles) {
  */
 function start(activeRegions) {
   if (_timer) return;
-  const regions = (Array.isArray(activeRegions) && activeRegions.length > 0) ? activeRegions : ['br'];
+  const regions = Array.isArray(activeRegions) && activeRegions.length > 0 ? activeRegions : ['br'];
   logger.info('EventTimers: iniciado — regiões monitoradas: ' + regions.join(', '));
 
   // Estado: map region+eventId → já lembrou (evita duplo disparo)
@@ -310,5 +373,5 @@ module.exports = {
   EVENTS_BY_REGION: EVENTS_BY_REGION,
   getUserOffsetHours: getUserOffsetHours,
   getServerOffsetHours: getServerOffsetHours,
-  serverToUserOffsetHours: serverToUserOffsetHours,
+  serverToUserOffsetHours: serverToUserOffsetHours
 };

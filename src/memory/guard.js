@@ -24,5 +24,5 @@ module.exports = Object.assign({}, MemoryGuard, {
   stop: function () {
     GcDaemon.stop();
     MemoryGuard.stopWebviewGC();
-  },
+  }
 });

@@ -88,14 +88,31 @@ async function collect(opts) {
       logger.debug('GcDaemon: camada 2 (OS trim) erro: ' + e.message);
     }
 
-    await new Promise(function (r) { setTimeout(r, 200); });
+    await new Promise(function (r) {
+      setTimeout(r, 200);
+    });
     const after = MemoryGuard.getStats().totalMB;
     const saved = before - after;
 
-    var deltaStr = saved > 0 ? '(-' + saved + 'MB)' : saved < 0 ? '(+' + (-saved) + 'MB)' : '(±0MB)';
-    logger.info('GcDaemon: GC ' + before + 'MB → ' + after + 'MB ' + deltaStr + (MemoryGuard.isBatata() ? ' [BATATA]' : '') + (isManual ? ' [MANUAL]' : ''));
+    var deltaStr = saved > 0 ? '(-' + saved + 'MB)' : saved < 0 ? '(+' + -saved + 'MB)' : '(±0MB)';
+    logger.info(
+      'GcDaemon: GC ' +
+        before +
+        'MB → ' +
+        after +
+        'MB ' +
+        deltaStr +
+        (MemoryGuard.isBatata() ? ' [BATATA]' : '') +
+        (isManual ? ' [MANUAL]' : '')
+    );
 
-    const result = { beforeMB: before, afterMB: after, savedMB: saved, throttled: false, timestamp: now };
+    const result = {
+      beforeMB: before,
+      afterMB: after,
+      savedMB: saved,
+      throttled: false,
+      timestamp: now
+    };
     MemoryGuard._recordGC(isManual, result);
     return result;
   } finally {
@@ -111,8 +128,12 @@ async function collect(opts) {
  */
 async function _clearIdleSessions() {
   // Default session (nenhum jogo roda aqui — seguro limpar)
-  await session.defaultSession.clearCache().catch(function () { /* ignore */ });
-  await session.defaultSession.clearStorageData({ storages: ['cachestorage'] }).catch(function () { /* ignore */ });
+  await session.defaultSession.clearCache().catch(function () {
+    /* ignore */
+  });
+  await session.defaultSession.clearStorageData({ storages: ['cachestorage'] }).catch(function () {
+    /* ignore */
+  });
 
   const store = require('../profiles/store');
   const partition = require('../profiles/partition');
@@ -129,9 +150,15 @@ async function _clearIdleSessions() {
     try {
       const partName = partition.getPartitionName(profiles[i]);
       const ps = session.fromPartition(partName);
-      await ps.clearCache().catch(function () { /* ignore */ });
-      await ps.clearStorageData({ storages: ['cachestorage'] }).catch(function () { /* ignore */ });
-    } catch (_) { /* partition não carregada — ok */ }
+      await ps.clearCache().catch(function () {
+        /* ignore */
+      });
+      await ps.clearStorageData({ storages: ['cachestorage'] }).catch(function () {
+        /* ignore */
+      });
+    } catch (_) {
+      /* partition não carregada — ok */
+    }
   }
 }
 
@@ -144,10 +171,16 @@ function _emptyWorkingSetWindows() {
     const child = exec(
       'powershell -NoProfile -Command "[psapi]::EmptyWorkingSet([diagnostics.process]::GetCurrentProcess().Handle)"',
       { timeout: 5000, windowsHide: true },
-      function () { resolve(); }
+      function () {
+        resolve();
+      }
     );
     setTimeout(function () {
-      try { child.kill(); } catch (_) { /* ignore */ }
+      try {
+        child.kill();
+      } catch (_) {
+        /* ignore */
+      }
       resolve();
     }, 6000);
   });
@@ -161,12 +194,23 @@ function start() {
   if (_timer) return;
   const intervalMs = MemoryGuard.getIntervalMs();
   const thresholdMB = MemoryGuard.getThreshold();
-  logger.info('GcDaemon: daemon iniciado — interval ' + (intervalMs / 1000) + 's, threshold ' + thresholdMB + 'MB, batata=' + MemoryGuard.isBatata() + ', ramen=' + MemoryGuard.isRamen());
+  logger.info(
+    'GcDaemon: daemon iniciado — interval ' +
+      intervalMs / 1000 +
+      's, threshold ' +
+      thresholdMB +
+      'MB, batata=' +
+      MemoryGuard.isBatata() +
+      ', ramen=' +
+      MemoryGuard.isRamen()
+  );
 
   _timer = setInterval(function () {
     const stats = MemoryGuard.getStats();
     MemoryGuard._notify();
-    const shouldGC = stats.totalMB > MemoryGuard.getThreshold() || (MemoryGuard.isBatata() && MemoryGuard.isPreventive());
+    const shouldGC =
+      stats.totalMB > MemoryGuard.getThreshold() ||
+      (MemoryGuard.isBatata() && MemoryGuard.isPreventive());
     if (shouldGC) {
       collect().catch(function (e) {
         logger.error('GcDaemon: auto-collect falhou: ' + e.message);
@@ -191,5 +235,5 @@ module.exports = {
   stop: stop,
   // exposto p/ testes
   _clearIdleSessions: _clearIdleSessions,
-  THROTTLE_MS: THROTTLE_MS,
+  THROTTLE_MS: THROTTLE_MS
 };

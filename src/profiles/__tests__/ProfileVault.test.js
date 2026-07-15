@@ -17,7 +17,7 @@ const electron = require('electron');
 const mockMachineKey = crypto.randomBytes(32);
 jest.mock('../PasswordManager', () => ({
   getMachineKey: jest.fn(() => mockMachineKey),
-  _resetCache: jest.fn(),
+  _resetCache: jest.fn()
 }));
 
 const PasswordManager = require('../PasswordManager');
@@ -41,7 +41,9 @@ afterAll(function () {
     const vaultFile = path.join(tmpDir, 'vault.json');
     if (fs.existsSync(vaultFile)) fs.unlinkSync(vaultFile);
     fs.rmdirSync(tmpDir);
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 });
 
 describe('ProfileVault.js', () => {
@@ -49,7 +51,11 @@ describe('ProfileVault.js', () => {
     jest.clearAllMocks();
     // Reset internal state by deleting vault.json and clearing the module cache
     const vaultFile = path.join(tmpDir, 'vault.json');
-    try { if (fs.existsSync(vaultFile)) fs.unlinkSync(vaultFile); } catch (_) { /* ignore */ }
+    try {
+      if (fs.existsSync(vaultFile)) fs.unlinkSync(vaultFile);
+    } catch (_) {
+      /* ignore */
+    }
     // Force reload of ProfileVault to reset _store
     delete require.cache[require.resolve('../ProfileVault')];
   });
@@ -170,7 +176,7 @@ describe('ProfileVault.js', () => {
     });
 
     test('escapa aspas no user/pass', () => {
-      const script = ProfileVault.buildAutoLoginScript('user"test', 'pass\'123');
+      const script = ProfileVault.buildAutoLoginScript('user"test', "pass'123");
       // JSON.stringify will handle escaping
       expect(typeof script).toBe('string');
       // Should not throw when used
@@ -224,7 +230,11 @@ describe('ProfileVault.js', () => {
     test('vault vazio (sem arquivo) inicia com _store vazio', () => {
       // Remove vault.json if it exists
       const vaultPath = path.join(tmpDir, 'vault.json');
-      try { fs.unlinkSync(vaultPath); } catch (_) { /* ignore */ }
+      try {
+        fs.unlinkSync(vaultPath);
+      } catch (_) {
+        /* ignore */
+      }
 
       delete require.cache[require.resolve('../ProfileVault')];
       const FreshVault = require('../ProfileVault');

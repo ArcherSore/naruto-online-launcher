@@ -20,24 +20,19 @@ describe('logger.js', () => {
 
     test('inclui prefixo [Launcher] na mensagem', () => {
       logger.info('test message');
-      expect(electronLog.info).toHaveBeenCalledWith(
-        expect.stringContaining('[Launcher]')
-      );
+      expect(electronLog.info).toHaveBeenCalledWith(expect.stringContaining('[Launcher]'));
     });
 
     test('inclui a mensagem original', () => {
       logger.info('test message');
-      expect(electronLog.info).toHaveBeenCalledWith(
-        expect.stringContaining('test message')
-      );
+      expect(electronLog.info).toHaveBeenCalledWith(expect.stringContaining('test message'));
     });
 
     test('aceita dados adicionais', () => {
       logger.info('test message', { key: 'value' });
-      expect(electronLog.info).toHaveBeenCalledWith(
-        expect.stringContaining('test message'),
-        { key: 'value' }
-      );
+      expect(electronLog.info).toHaveBeenCalledWith(expect.stringContaining('test message'), {
+        key: 'value'
+      });
     });
   });
 
@@ -49,9 +44,7 @@ describe('logger.js', () => {
 
     test('inclui ícone de aviso', () => {
       logger.warn('warning message');
-      expect(electronLog.warn).toHaveBeenCalledWith(
-        expect.stringContaining('[Launcher]')
-      );
+      expect(electronLog.warn).toHaveBeenCalledWith(expect.stringContaining('[Launcher]'));
     });
   });
 

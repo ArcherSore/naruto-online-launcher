@@ -39,8 +39,9 @@ var KNOWN_ENDPOINTS = {
  * @returns {Object} inspector instance
  */
 function create(session, profileId) {
-  var entries = [];          // últimas N capturas
-  var stats = {              // agregados
+  var entries = []; // últimas N capturas
+  var stats = {
+    // agregados
     totalRequests: 0,
     byDomain: {},
     byType: { auth: 0, api: 0, game: 0, site: 0, parent: 0, other: 0 },
@@ -105,7 +106,7 @@ function create(session, profileId) {
       id: details.id,
       url: details.url,
       method: details.method || 'GET',
-      kind: kind,                 // 'request' or 'response'
+      kind: kind, // 'request' or 'response'
       type: info.type,
       label: info.label,
       domain: info.domain,
@@ -125,7 +126,11 @@ function create(session, profileId) {
     if (entries.length > maxEntries) entries.shift();
 
     listeners.onCapture.forEach(function (cb) {
-      try { cb(entry); } catch (_) { /* ignore */ }
+      try {
+        cb(entry);
+      } catch (_) {
+        /* ignore */
+      }
     });
   }
 
@@ -153,7 +158,9 @@ function create(session, profileId) {
     try {
       session.webRequest.onBeforeRequest(null);
       session.webRequest.onResponseStarted(null);
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
     logger.info('Inspector: captura desativada para ' + profileId);
   }
 
@@ -194,7 +201,9 @@ function create(session, profileId) {
   return {
     enable: enable,
     disable: disable,
-    isEnabled: function () { return enabled; },
+    isEnabled: function () {
+      return enabled;
+    },
     getEntries: getEntries,
     getStats: getStats,
     on: on,

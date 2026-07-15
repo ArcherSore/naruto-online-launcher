@@ -79,7 +79,7 @@ function findFlashPlugin() {
     path.join(process.cwd(), 'flash', pluginName),
     path.join(__dirname, '..', '..', 'flash', pluginName),
     // v4.9.3 (Fase 2): cache on-demand (FlashUpdater)
-    path.join(app.getPath('userData'), 'flash-cache', pluginName),
+    path.join(app.getPath('userData'), 'flash-cache', pluginName)
   ];
 
   const uniquePaths = [];
@@ -98,7 +98,13 @@ function findFlashPlugin() {
       if (fs.existsSync(uniquePaths[j])) {
         const stats = fs.statSync(uniquePaths[j]);
         if (stats.size > MIN_FLASH_SIZE) {
-          logger.info('✅ Flash encontrado: ' + uniquePaths[j] + ' (' + (stats.size / 1024 / 1024).toFixed(1) + 'MB)');
+          logger.info(
+            '✅ Flash encontrado: ' +
+              uniquePaths[j] +
+              ' (' +
+              (stats.size / 1024 / 1024).toFixed(1) +
+              'MB)'
+          );
           return uniquePaths[j];
         } else {
           logger.warn('Arquivo muito pequeno: ' + uniquePaths[j] + ' (' + stats.size + ' bytes)');

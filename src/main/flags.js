@@ -14,7 +14,13 @@ const TOTAL_RAM_GB = os.totalmem() / (1024 * 1024 * 1024);
 const CPU_CORES = os.cpus().length;
 const IS_WAYLAND = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
 
-const _disabled = new Set(['IsolateOrigins', 'site-per-process', 'Translate', 'MediaRouter', 'BackForwardCache']);
+const _disabled = new Set([
+  'IsolateOrigins',
+  'site-per-process',
+  'Translate',
+  'MediaRouter',
+  'BackForwardCache'
+]);
 const _enabled = new Set(['VizDisplayCompositor']);
 const _jsFlags = ['--expose-gc'];
 let _applied = false;
@@ -48,12 +54,21 @@ function applyAll(opts) {
   app.commandLine.appendSwitch('allow-outdated-plugins');
 
   // Background throttling off
-  ['disable-background-timer-throttling', 'disable-renderer-backgrounding',
-   'disable-backgrounding-occluded-windows', 'disable-hang-monitor',
-   'disable-background-networking', 'disable-component-update',
-   'disable-default-apps', 'disable-extensions', 'disable-translate',
-   'disable-domain-reliability', 'disable-client-side-phishing-detection',
-  ].forEach(function (f) { app.commandLine.appendSwitch(f); });
+  [
+    'disable-background-timer-throttling',
+    'disable-renderer-backgrounding',
+    'disable-backgrounding-occluded-windows',
+    'disable-hang-monitor',
+    'disable-background-networking',
+    'disable-component-update',
+    'disable-default-apps',
+    'disable-extensions',
+    'disable-translate',
+    'disable-domain-reliability',
+    'disable-client-side-phishing-detection'
+  ].forEach(function (f) {
+    app.commandLine.appendSwitch(f);
+  });
 
   // GPU
   app.commandLine.appendSwitch('ignore-gpu-blocklist');
@@ -92,4 +107,9 @@ function applyAll(opts) {
   app.name = 'Naruto Online';
 }
 
-module.exports = { applyAll, IS_LOW_SPEC: TOTAL_RAM_GB < 4, IS_RAMEN: TOTAL_RAM_GB < 2, SYSTEM_RAM_GB: Math.round(TOTAL_RAM_GB * 10) / 10 };
+module.exports = {
+  applyAll,
+  IS_LOW_SPEC: TOTAL_RAM_GB < 4,
+  IS_RAMEN: TOTAL_RAM_GB < 2,
+  SYSTEM_RAM_GB: Math.round(TOTAL_RAM_GB * 10) / 10
+};
