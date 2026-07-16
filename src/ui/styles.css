@@ -183,21 +183,6 @@
           box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
         }
       }
-      @keyframes bellSway {
-        0%,
-        100% {
-          transform: rotate(0);
-        }
-        30% {
-          transform: rotate(6deg);
-        }
-        60% {
-          transform: rotate(-4deg);
-        }
-        80% {
-          transform: rotate(2deg);
-        }
-      }
       @keyframes toastIn {
         from {
           opacity: 0;
@@ -241,42 +226,6 @@
         }
         50% {
           box-shadow: 0 0 14px rgba(255, 140, 0, 0.2);
-        }
-      }
-      @keyframes pulseRing {
-        0% {
-          transform: scale(0.9);
-          opacity: 0.6;
-        }
-        50% {
-          transform: scale(1.1);
-          opacity: 1;
-        }
-        100% {
-          transform: scale(0.9);
-          opacity: 0.6;
-        }
-      }
-      @keyframes sessionGlow {
-        0%,
-        100% {
-          box-shadow: 0 0 4px rgba(255, 140, 0, 0.15);
-        }
-        50% {
-          box-shadow: 0 0 8px rgba(255, 140, 0, 0.3);
-        }
-      }
-      @keyframes tagPop {
-        0% {
-          transform: scale(0.7);
-          opacity: 0;
-        }
-        60% {
-          transform: scale(1.1);
-        }
-        100% {
-          transform: scale(1);
-          opacity: 1;
         }
       }
 
@@ -509,12 +458,6 @@
         display: flex;
         gap: var(--space-2);
         align-items: center;
-      }
-
-      /* Notification bell sway when active */
-      #muteBtn:not(.on) svg {
-        animation: bellSway 4s ease-in-out infinite;
-        transform-origin: 12px 2px;
       }
 
       /* ── Buttons ── */
@@ -1868,51 +1811,6 @@
         margin-bottom: 0.6rem;
       }
 
-      /* ── v4.6: Connection Health Badge ── */
-      .health-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.2rem;
-        font-size: var(--font-xs);
-        padding: 0.1rem 0.35rem;
-        border-radius: var(--radius-sm);
-        font-weight: var(--weight-medium);
-        font-variant-numeric: tabular-nums;
-      }
-      .health-badge .dot {
-        width: 0.3rem;
-        height: 0.3rem;
-        border-radius: 50%;
-      }
-      .health-badge.good {
-        color: var(--ok);
-        background: rgba(16, 185, 129, 0.08);
-      }
-      .health-badge.good .dot {
-        background: var(--ok);
-      }
-      .health-badge.medium {
-        color: var(--warn);
-        background: rgba(245, 158, 11, 0.08);
-      }
-      .health-badge.medium .dot {
-        background: var(--warn);
-      }
-      .health-badge.bad {
-        color: var(--danger);
-        background: rgba(220, 38, 38, 0.08);
-      }
-      .health-badge.bad .dot {
-        background: var(--danger);
-      }
-      .health-badge.unknown {
-        color: var(--text-faint);
-        background: var(--bg-elev-2);
-      }
-      .health-badge.unknown .dot {
-        background: var(--text-faint);
-      }
-
       /* ── v4.6: Account Toolbar (search + sort + count) ── */
       .account-toolbar {
         display: flex;
@@ -2207,78 +2105,6 @@
       }
       .dev-btn-group .btn.sm {
         font-size: var(--font-xs);
-      }
-
-      /* ── v5.1: Profile Health Check ── */
-      .health-check-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.2rem;
-        padding: 0.1rem var(--space-2);
-        border-radius: var(--radius-sm);
-        font-size: var(--font-xs);
-        font-weight: var(--weight-medium);
-        background: transparent;
-        border: 1px solid var(--border);
-        color: var(--text-dim);
-        cursor: pointer;
-        transition: var(--transition);
-      }
-      .health-check-btn:hover {
-        border-color: var(--accent);
-        color: var(--accent);
-        background: rgba(255, 140, 0, 0.06);
-      }
-      .health-check-btn.checking {
-        border-color: var(--warn);
-        color: var(--warn);
-        pointer-events: none;
-      }
-      .health-check-btn.healthy {
-        border-color: var(--ok);
-        color: var(--ok);
-      }
-      .health-check-btn.unhealthy {
-        border-color: var(--danger);
-        color: var(--danger);
-      }
-      .health-check-btn svg {
-        width: 0.7rem;
-        height: 0.7rem;
-      }
-      .health-result {
-        font-size: var(--font-xs);
-        margin-top: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        border-radius: var(--radius-sm);
-        border: 1px solid var(--border);
-        background: var(--bg-elev);
-        display: none;
-        animation: slideUp 200ms ease;
-      }
-      .health-result.show {
-        display: block;
-      }
-      .health-result .hr-item {
-        display: flex;
-        align-items: center;
-        gap: 0.3rem;
-        padding: 0.15rem 0;
-        font-size: var(--font-xs);
-      }
-      .health-result .hr-item svg {
-        width: 0.7rem;
-        height: 0.7rem;
-        flex-shrink: 0;
-      }
-      .health-result .hr-item.pass {
-        color: var(--ok);
-      }
-      .health-result .hr-item.fail {
-        color: var(--danger);
-      }
-      .health-result .hr-item.warn {
-        color: var(--warn);
       }
 
       /* ── v5.1: Settings Row Icons ── */

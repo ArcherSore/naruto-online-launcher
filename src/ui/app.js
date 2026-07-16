@@ -139,7 +139,6 @@
         loadLastProfile();
         populateDevProfileSelects();
       });
-      ipcRenderer.on('memory:update', (_e, s) => renderMemory(s));
       ipcRenderer.on('events:update', (_e, data) => renderEvents(data));
       ipcRenderer.on('profile:toast', (_e, t) => toast(t.msg, t.type));
       ipcRenderer.on('auto-login:result', (_e, data) => {
@@ -418,13 +417,6 @@
             '<button class="btn sm btn-icon-only dup-action" data-act="dup" data-tip="Duplicar" title="Duplicar">' +
             '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
             '</button>';
-          // v5.1: Health check button
-          var healthBtnHtml =
-            '<button class="health-check-btn" data-health-id="' +
-            p.id +
-            '" data-act="health" title="Verificar saúde do perfil">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Verificar' +
-            '</button>';
           // v5.1: Batch checkbox
           var batchCheckHtml =
             '<div class="card-batch-check" data-batch-id="' +
@@ -448,10 +440,8 @@
         ${p.hasVault ? '<span class="badge ok">auto-login</span>' : ''}
         ${autoLoginBadgeHtml}
         ${windowBadgeHtml}
-        ${healthBtnHtml}
       </div>
       ${statsHtml}
-      <div class="health-result" id="healthResult-${p.id}"></div>
       <div class="card-actions">
         <button class="btn sm btn-play" data-act="launch"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play</button>
         <div class="secondary-actions">
@@ -473,10 +463,7 @@
               else if (act === 'del') del(p.id);
               else if (act === 'fav') toggleFavorite(p.id);
               else if (act === 'dup') duplicateProfile(p.id);
-              else if (act === 'health') {
-                var resultEl = document.getElementById('healthResult-' + p.id);
-                if (resultEl) runHealthCheck(p.id, resultEl);
-              } else if (act === 'switch-server') {
+              else if (act === 'switch-server') {
                 /* handled by onchange */
               }
             });
@@ -656,73 +643,6 @@
           html = '<option value="" selected>sem servidor</option>' + html;
         }
         return html;
-      }
-
-      function renderMemory(s) {
-        if (!s) return;
-        const el = document.getElementById('memVal');
-        const dot = document.getElementById('ramDot');
-        if (el) el.textContent = s.totalMB + ' MB';
-        if (dot) {
-          const r = s.thresholdMB > 0 ? s.totalMB / s.thresholdMB : 0;
-          dot.style.background = r > 1 ? 'var(--danger)' : r > 0.8 ? 'var(--warn)' : 'var(--ok)';
-        }
-        renderPerf(s);
-      }
-
-      // v4.8: Painel de Desempenho (consolidado do antigo sidebar Sistema)
-      function renderPerf(s) {
-        if (!s) return;
-        const ram = document.getElementById('perfRam');
-        if (ram) {
-          ram.textContent = s.totalMB + ' MB';
-          const r = s.thresholdMB > 0 ? s.totalMB / s.thresholdMB : 0;
-          ram.style.color = r > 1 ? 'var(--danger)' : r > 0.8 ? 'var(--warn)' : 'var(--text-dim)';
-        }
-        const fill = document.getElementById('perfRamFill');
-        if (fill && s.thresholdMB > 0) {
-          const pct = Math.min(100, (s.totalMB / s.thresholdMB) * 100);
-          fill.style.width = pct + '%';
-          fill.style.background =
-            pct < 50
-              ? 'linear-gradient(90deg,#10B981,#34D399)'
-              : pct < 75
-                ? 'linear-gradient(90deg,#F59E0B,#FBBF24)'
-                : pct < 90
-                  ? 'linear-gradient(90deg,#F59E0B,#F97316)'
-                  : 'linear-gradient(90deg,#EF4444,#DC2626)';
-        }
-        const th = document.getElementById('perfThreshold');
-        if (th) th.textContent = s.thresholdMB + ' MB';
-        const gm = document.getElementById('perfGcManual');
-        if (gm) gm.textContent = String(s.manualGCCount || 0);
-        const ga = document.getElementById('perfGcAuto');
-        if (ga) ga.textContent = String(s.autoGCCount || 0);
-      }
-
-      function initPerfPanel() {
-        const btn = document.getElementById('perfForceGc');
-        if (!btn || btn.dataset.bound) return;
-        btn.dataset.bound = '1';
-        btn.addEventListener('click', function () {
-          btn.disabled = true;
-          const orig = btn.textContent;
-          btn.textContent = 'Limpando...';
-          window.api
-            .forceGC()
-            .then(function () {
-              btn.textContent = 'Limpo!';
-              setTimeout(function () {
-                btn.disabled = false;
-                btn.textContent = orig;
-                window.api.getMemoryStats().then(renderMemory);
-              }, 700);
-            })
-            .catch(function () {
-              btn.disabled = false;
-              btn.textContent = orig;
-            });
-        });
       }
 
       // ── Render: Events ──
@@ -1757,8 +1677,6 @@
         localStorage.setItem(LAST_SESSION_KEY, JSON.stringify(lastSession));
       });
 
-      // del is redefined below in v5.2 with custom confirm dialog + activity logging
-
       // Track auto-login results as activities
       ipcRenderer.on('auto-login:result', function (_e, data) {
         var p = profiles.find(function (x) {
@@ -1856,95 +1774,6 @@
           toast('Erro: ' + e.message, 'err');
         }
       };
-
-      // ── v5.1: Profile Health Check ──
-      async function runHealthCheck(profileId, resultEl) {
-        var btn = document.querySelector('[data-health-id="' + profileId + '"]');
-        if (btn) {
-          btn.classList.add('checking');
-          btn.innerHTML =
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:shurikenSpin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Verificando';
-        }
-        var checks = [];
-        var p = profiles.find(function (x) {
-          return x.id === profileId;
-        });
-        if (!p) {
-          if (btn) btn.classList.remove('checking');
-          return;
-        }
-
-        // Check 1: Vault credentials exist
-        try {
-          var creds = await ipcRenderer.invoke('vault:get', profileId);
-          checks.push({ name: 'Credenciais salvas', pass: !!(creds && creds.user && creds.pass) });
-        } catch (e) {
-          checks.push({ name: 'Credenciais salvas', pass: false });
-        }
-
-        // Check 2: Session validity (JWT check)
-        try {
-          var session = await ipcRenderer.invoke('session:check', profileId);
-          if (session && session.ok && session.data && session.data.valid) {
-            checks.push({
-              name: 'Sessão JWT válida',
-              pass: true,
-              detail: Math.round(session.data.expiresInSeconds / 60) + ' min restantes'
-            });
-          } else {
-            checks.push({ name: 'Sessão JWT válida', pass: false, warn: true });
-          }
-        } catch (e) {
-          checks.push({ name: 'Sessão JWT válida', pass: false, warn: true });
-        }
-
-        // Check 3: Server configured
-        checks.push({ name: 'Servidor configurado', pass: !!(p.server && p.server.length > 0) });
-
-        // Check 4: Region valid
-        var validRegions = ['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'];
-        checks.push({ name: 'Região válida', pass: validRegions.indexOf(p.region) !== -1 });
-
-        // Render results
-        var allPass = checks.every(function (c) {
-          return c.pass;
-        });
-        var resultHtml = checks
-          .map(function (c) {
-            var cls = c.pass ? 'pass' : c.warn ? 'warn' : 'fail';
-            var icon = c.pass
-              ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
-              : c.warn
-                ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
-                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-            return (
-              '<div class="hr-item ' +
-              cls +
-              '">' +
-              icon +
-              ' ' +
-              c.name +
-              (c.detail ? ' (' + c.detail + ')' : '') +
-              '</div>'
-            );
-          })
-          .join('');
-        resultEl.innerHTML = resultHtml;
-        resultEl.classList.add('show');
-
-        if (btn) {
-          btn.classList.remove('checking');
-          btn.classList.add(allPass ? 'healthy' : 'unhealthy');
-          btn.innerHTML = allPass
-            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Saudável'
-            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Problemas';
-          setTimeout(function () {
-            btn.classList.remove('healthy', 'unhealthy');
-            btn.innerHTML =
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Verificar';
-          }, 4000);
-        }
-      }
 
       // ── v5.9.3: Keyboard handler simplificado ──
       // Atalhos de navegação (1/2/3, Ctrl+N, Ctrl+F, /, ?) e overlay de ajuda
@@ -2049,10 +1878,6 @@
         document.getElementById('profileGrid').classList.remove('batch-mode');
       };
 
-      // ── v5.2: Vault remove uses custom confirm ──
-      // Already handled above by overriding removeVault onclick
-
-
       // ── v5.3: Enhanced Event Rendering ──
       renderEventsSingle = function (list) {
         var el = document.getElementById('eventList');
@@ -2135,7 +1960,6 @@
       ipcRenderer.send('manager:ready');
       loadLastProfile();
       initI18n();
-      initPerfPanel();
       initDevTools();
       initDebugFlag();
       initDragDrop();
@@ -2150,18 +1974,6 @@
           renderProfiles();
         }
       }, 60000);
-
-      // ════════════════════════════════════════════════════════════════════
-      // v5.5: Theme Variants · Notifications Center · Command Palette · Timeline
-      // ════════════════════════════════════════════════════════════════════
-
-      // v5.6: Onboarding Tour · Profile Comparison · Drag-Drop Import · Badge Animations
-      // ════════════════════════════════════════════════════════════════════
-
-      // ── v5.6: Init sequence ──
-      // ════════════════════════════════════════════════════════════════════
-      // v5.7: Status Bar · Profile Search Filters · Loading Skeletons · Card Expand · New Profile Animation
-      // ════════════════════════════════════════════════════════════════════
 
       // ── v5.7: Advanced Profile Search Filters ──
       var searchFilterRegion = '';
@@ -2344,10 +2156,6 @@
         if (profiles.length > 0) renderProfiles();
       }, 300);
 
-      // ════════════════════════════════════════════════════════════════════
-      // v5.8: Statistics Dashboard · Activity Heatmap · Alt+1..9 Hotkeys · Always-on-Top · Count-up · Polish
-      // ════════════════════════════════════════════════════════════════════
-
       // ── v5.8: Window Controls (always-on-top + minimize + maximize) ──
       async function initWindowControls() {
         var aotBtn = document.getElementById('wcAlwaysOnTop');
@@ -2487,20 +2295,6 @@
               withButtonLoading(importBtn, orig2);
             };
         }
-        // Health check buttons (delegated) — add a one-shot loading class
-        document.addEventListener(
-          'click',
-          function (e) {
-            var t = e.target.closest('[data-health-id]');
-            if (!t) return;
-            // The original handler is wired via addEventListener, so we just add a loading state
-            t.classList.add('loading');
-            setTimeout(function () {
-              t.classList.remove('loading');
-            }, 4000);
-          },
-          true
-        );
       })();
 
       // ── v5.8: Replace sidebar version text with a version pill ──
@@ -2510,15 +2304,6 @@
         var txt = versionEl.textContent.trim();
         if (txt.indexOf('v5.') === 0 || txt.indexOf('v4.') === 0) {
           versionEl.innerHTML = '<span class="version-pill">' + txt + '</span>';
-        }
-        // Status bar version
-        var sbVersion = document.querySelectorAll('#statusBar .sb-right span:last-child');
-        if (sbVersion.length) {
-          var last = sbVersion[sbVersion.length - 1];
-          var t = last.textContent.trim();
-          if (t.indexOf('v') === 0) {
-            last.innerHTML = '<span class="version-pill">' + t + '</span>';
-          }
         }
       })();
 
