@@ -14,10 +14,11 @@ jest.mock('electron', () => ({
 jest.mock('fs', () => ({
   existsSync: jest.fn(() => false),
   readFileSync: jest.fn(),
-  writeFileSync: jest.fn()
+  writeFileSync: jest.fn(),
+  renameSync: jest.fn()
 }));
 
-const { validateConfig } = require('../settings');
+const { validateConfig, loadConfig, saveConfig } = require('../settings');
 
 describe('settings.js - validateConfig', () => {
   test('retorna defaults para config vazia', () => {
@@ -74,5 +75,62 @@ describe('settings.js - validateConfig', () => {
     });
     expect(result.region).toBe('fr');
     expect(result).not.toHaveProperty('unknownProp');
+  });
+});
+
+describe('settings.js - loadConfig', () => {
+  const fs = require('fs');
+
+  beforeEach(() => {
+    fs.existsSync.mockReset();
+    fs.readFileSync.mockReset();
+  });
+
+  test('retorna defaults quando arquivo não existe', () => {
+    fs.existsSync.mockReturnValue(false);
+    const config = loadConfig();
+    expect(config.region).toBe('pt');
+    expect(fs.readFileSync).not.toHaveBeenCalled();
+  });
+
+  test('parseia JSON válido do arquivo', () => {
+    fs.existsSync.mockReturnValue(true);
+    fs.readFileSync.mockReturnValue('{"region":"en","hardwareProfile":"legacy"}');
+    const config = loadConfig();
+    expect(config.region).toBe('en');
+    expect(config.hardwareProfile).toBe('legacy');
+  });
+
+  test('retorna defaults quando JSON é inválido', () => {
+    fs.existsSync.mockReturnValue(true);
+    fs.readFileSync.mockReturnValue('not-json{{{');
+    const config = loadConfig();
+    expect(config.region).toBe('pt');
+  });
+});
+
+describe('settings.js - saveConfig', () => {
+  const fs = require('fs');
+
+  beforeEach(() => {
+    fs.writeFileSync.mockReset();
+    fs.renameSync.mockReset();
+  });
+
+  test('escreve e renomeia arquivo tmp → config', () => {
+    const result = saveConfig({ region: 'de', hardwareProfile: 'cpu' });
+    expect(result).toBe(true);
+    expect(fs.writeFileSync).toHaveBeenCalledTimes(1);
+    expect(fs.renameSync).toHaveBeenCalledTimes(1);
+    // tmp path ends with .tmp
+    var tmpArg = fs.writeFileSync.mock.calls[0][0];
+    expect(tmpArg).toMatch(/\.tmp$/);
+  });
+
+  test('retorna false quando write falha', () => {
+    fs.writeFileSync.mockImplementation(function () { throw new Error('EACCES'); });
+    const result = saveConfig({ region: 'pt' });
+    expect(result).toBe(false);
+    expect(fs.renameSync).not.toHaveBeenCalled();
   });
 });
