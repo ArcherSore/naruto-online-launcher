@@ -46,7 +46,13 @@ function attach(win, profileName, ses) {
         ])
           .then(function () {
             logger.info('F5: login limpo, recarregando — ' + profileName);
-            wc.reload();
+            wc.executeJavaScript('window.onbeforeunload = null; window.onunload = null;')
+              .then(function () {
+                wc.reload();
+              })
+              .catch(function () {
+                wc.reload();
+              });
           })
           .catch(function (e) {
             logger.warn('F5: erro ao limpar login — ' + e.message + ' (reload forçado)');

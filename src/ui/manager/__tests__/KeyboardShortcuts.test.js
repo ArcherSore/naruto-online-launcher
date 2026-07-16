@@ -12,7 +12,8 @@ function makeMockWin() {
       if (evt === 'before-input-event') handler = fn;
     }),
     reload: jest.fn(),
-    toggleDevTools: jest.fn()
+    toggleDevTools: jest.fn(),
+    executeJavaScript: jest.fn(() => Promise.resolve())
   };
   const win = {
     webContents: wc,
@@ -61,6 +62,10 @@ describe('KeyboardShortcuts.js', () => {
       await new Promise(function (r) {
         setTimeout(r, 10);
       });
+      // F5 agora limpa onbeforeunload antes de recarregar
+      expect(wc.executeJavaScript).toHaveBeenCalledWith(
+        'window.onbeforeunload = null; window.onunload = null;'
+      );
       expect(wc.reload).toHaveBeenCalled();
     });
 
