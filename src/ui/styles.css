@@ -243,16 +243,6 @@
           box-shadow: 0 0 14px rgba(255, 140, 0, 0.2);
         }
       }
-      @keyframes countUp {
-        from {
-          opacity: 0;
-          transform: translateY(8px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
       @keyframes pulseRing {
         0% {
           transform: scale(0.9);
@@ -2656,11 +2646,6 @@
         filter: brightness(1.1);
       }
 
-      /* ── v5.3: Animated Analytics Counters ── */
-      .ac-value.animating {
-        animation: countUp 400ms ease;
-      }
-
       /* ── v5.3: Connection Health Indicator ── */
       .conn-indicator {
         display: inline-flex;
@@ -3183,33 +3168,6 @@
         outline-offset: 2px;
       }
 
-      /* ── v5.5: Glass morphism cards ── */
-      .card.glass-card {
-        background: rgba(15, 15, 15, 0.72);
-        backdrop-filter: blur(12px) saturate(140%);
-        -webkit-backdrop-filter: blur(12px) saturate(140%);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        box-shadow:
-          0 8px 32px rgba(0, 0, 0, 0.4),
-          inset 0 1px 0 rgba(255, 255, 255, 0.04);
-      }
-      .card.glass-card:hover {
-        background: rgba(26, 26, 26, 0.78);
-        border-color: rgba(255, 140, 0, 0.35);
-        box-shadow:
-          0 12px 36px rgba(0, 0, 0, 0.5),
-          0 0 0 1px rgba(255, 140, 0, 0.12),
-          inset 0 1px 0 rgba(255, 255, 255, 0.06);
-      }
-
-      /* ── v5.5: 3D card tilt on hover ── */
-      .card {
-        transform-style: preserve-3d;
-        will-change: transform;
-      }
-      .card:hover {
-        transform: perspective(800px) rotateX(2deg) translateY(-3px);
-      }
       /* ── v5.5: View transition ── */
       @keyframes viewEnter {
         from {

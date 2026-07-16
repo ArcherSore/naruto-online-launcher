@@ -321,7 +321,7 @@
           card.setAttribute('data-card-color', p.color);
           var favClass = p.favorite ? ' fav-card' : '';
           card.className =
-            'card glass-card shine' +
+            'card' +
             (p.hasVault ? ' has-vault' : '') +
             favClass +
             (batchSelected.has(p.id) ? ' batch-selected' : '');
@@ -2809,16 +2809,6 @@
         );
       }
 
-      // ── v5.5: Glass morphism init (apply to profile cards) ──
-      function initGlassMorphism() {
-        // Toggle via localStorage (default ON for v5.5)
-        var enabled = true;
-        try {
-          enabled = localStorage.getItem('shinobi-glass') !== 'off';
-        } catch (_) {}
-        if (enabled) document.body.classList.add('glass-cards-on');
-      }
-
       // ── v5.5: Hook toast() to also push to notifications center ──
       var _origToast = toast;
       toast = function (msg, type) {
@@ -2829,7 +2819,6 @@
       // ── v5.5: init sequence ──
       initNotificationCenter();
       initViewTransitions();
-      initGlassMorphism();
 
       // ════════════════════════════════════════════════════════════════════
       // v5.6: Onboarding Tour · Profile Comparison · Drag-Drop Import · Badge Animations
@@ -3041,29 +3030,6 @@
         }
       };
 
-      // ── v5.6: Card parallax tilt on mousemove ──
-      function initCardParallax() {
-        document.getElementById('profileGrid').addEventListener('mousemove', function (e) {
-          var card = e.target.closest('.card');
-          if (!card) return;
-          var rect = card.getBoundingClientRect();
-          var x = (e.clientX - rect.left) / rect.width - 0.5;
-          var y = (e.clientY - rect.top) / rect.height - 0.5;
-          card.style.transform =
-            'perspective(800px) rotateX(' +
-            -y * 4 +
-            'deg) rotateY(' +
-            x * 4 +
-            'deg) translateY(-3px)';
-        });
-        document.getElementById('profileGrid').addEventListener('mouseleave', function (e) {
-          var cards = document.querySelectorAll('.card');
-          cards.forEach(function (c) {
-            c.style.transform = '';
-          });
-        });
-      }
-
       // ── v5.6: Context menu keyboard support ──
       function initCardKeyboardMenu() {
         document.addEventListener('keydown', function (e) {
@@ -3087,7 +3053,6 @@
       // ── v5.6: Init sequence ──
       initCompare();
       initDragDropImport();
-      initCardParallax();
       initCardKeyboardMenu();
 
       // ════════════════════════════════════════════════════════════════════
