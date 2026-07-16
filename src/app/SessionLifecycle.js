@@ -167,8 +167,8 @@ function attach(win, ctx) {
     }
     try {
       require('../memory/guard').reportCrash();
-    } catch (_) {
-      /* ignore */
+    } catch (e) {
+      logger.debug('render-process-gone: reportCrash(memory) falhou: ' + e.message);
     }
 
     // Auto-recovery: reload se webContents ainda válido e dentro do backoff.
