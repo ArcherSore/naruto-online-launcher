@@ -3122,34 +3122,6 @@
         color: var(--text-faint);
       }
 
-      /* ── v5.4: Card Shine Entrance ── */
-      @keyframes cardShine {
-        0% {
-          background-position: -200% 0;
-        }
-        60% {
-          background-position: 200% 0;
-        }
-        100% {
-          background-position: 200% 0;
-        }
-      }
-      .card.shine::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(
-          110deg,
-          transparent 35%,
-          rgba(255, 255, 255, 0.04) 50%,
-          transparent 65%
-        );
-        background-size: 200% 100%;
-        animation: cardShine 800ms ease-out;
-        pointer-events: none;
-        border-radius: inherit;
-      }
-
       /* ── v5.4: Search Focus Glow ── */
       .search-wrap {
         transition: var(--transition);
@@ -7672,15 +7644,6 @@
         });
       }
 
-      // Auto-remove card shine class after animation completes (avoid re-trigger on re-render)
-      function cleanupShine() {
-        document.querySelectorAll('.card.shine').forEach(function (c) {
-          setTimeout(function () {
-            c.classList.remove('shine');
-          }, 900);
-        });
-      }
-
       // ── Init ──
       ipcRenderer.send('manager:ready');
       loadLastProfile();
@@ -7695,7 +7658,6 @@
       updateSessionOverview();
       setTimeout(function () {
         initCopyButtons();
-        cleanupShine();
       }, 1000);
       // Session overview refresh timer
       setInterval(updateSessionOverview, 10000);
@@ -7703,7 +7665,6 @@
       setInterval(function () {
         if (profiles.length) {
           renderProfiles();
-          cleanupShine();
         }
       }, 60000);
 
