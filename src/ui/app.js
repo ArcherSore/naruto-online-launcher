@@ -1,0 +1,3562 @@
+      // v4.9.2: Dynamic scale — set <html> font-size based on screen width so the
+      // whole UI (built in rem) grows on larger/higher-DPI displays. Mirrors the
+      // @media breakpoints in CSS as a JS fallback (window.screen.width is the
+      // physical display width, more reliable than innerWidth for an Electron window).
+      (function applyDynamicScale() {
+        var w = window.screen && window.screen.width ? window.screen.width : window.innerWidth;
+        var base = 14;
+        if (w >= 2560) base = 18;
+        else if (w >= 1920) base = 16;
+        else if (w >= 1366) base = 15;
+        document.documentElement.style.fontSize = base + 'px';
+      })();
+
+      const { ipcRenderer } = require('electron');
+      const PALETTE = [
+        '#FF8C00',
+        '#DC2626',
+        '#10B981',
+        '#F59E0B',
+        '#8B5CF6',
+        '#06B6D4',
+        '#EC4899',
+        '#84CC16',
+        '#F97316',
+        '#14B8A6',
+        '#A855F7',
+        '#EAB308'
+      ];
+      const REGIONS = {
+        br: 'BR',
+        na: 'NA',
+        eu: 'EU',
+        hk: 'HK',
+        de: 'DE',
+        es: 'ES',
+        pl: 'PL',
+        fr: 'FR'
+      };
+
+      window.api = {
+        getMemoryStats: () => ipcRenderer.invoke('memory:stats'),
+        forceGC: () => ipcRenderer.invoke('memory:force-gc'),
+        getWebviewStats: () => ipcRenderer.invoke('memory:webview-stats'),
+        fetchServers: r => ipcRenderer.invoke('servers:fetch', r),
+        // v4.9: Tempmail + API Login + Network Inspector
+        createTempmail: (opts) => ipcRenderer.invoke('tempmail:create', opts),
+        apiLogin: (pid, email, pwd) => ipcRenderer.invoke('tempmail:login', pid, email, pwd),
+        getServers: (uid, gc) => ipcRenderer.invoke('tempmail:servers', uid, gc),
+        checkSession: pid => ipcRenderer.invoke('session:check', pid),
+        inspectorEnable: pid => ipcRenderer.invoke('inspector:enable', pid),
+        inspectorDisable: pid => ipcRenderer.invoke('inspector:disable', pid),
+        inspectorEntries: (pid, filter) => ipcRenderer.invoke('inspector:entries', pid, filter),
+        inspectorClear: pid => ipcRenderer.invoke('inspector:clear', pid),
+        // v4.9.1: DevTools helpers
+        getPageSource: pid => ipcRenderer.invoke('dev:get-page-source', pid),
+        getCookies: pid => ipcRenderer.invoke('dev:get-cookies', pid),
+        reloadGame: pid => ipcRenderer.invoke('dev:reload-game', pid),
+        toggleDevTools: pid => ipcRenderer.invoke('dev:toggle-devtools', pid),
+        // v4.9.2: Export diagnostics zip (logs + config + system info, sanitized)
+        exportDiag: () => ipcRenderer.invoke('diagnostics:export')
+      };
+
+      let profiles = [];
+      let selectedRegion = 'br';
+      let editingId = null;
+      let vaultId = null;
+      let selectedColor = PALETTE[0];
+      let notificationsMuted = false;
+      let searchQuery = '';
+      // v4.5: View mode (grid/list), persisted in localStorage
+      let viewMode = localStorage.getItem('shinobi-view-mode') || 'grid';
+      // v4.5: Track open game windows and auto-login status per profile (real-time)
+      let openWindows = {}; // { profileId: true }
+      let autoLoginStatus = {}; // { profileId: 'idle'|'loading'|'success'|'error' }
+      // v4.6: Sort mode, persisted in localStorage
+      let sortMode = localStorage.getItem('shinobi-sort-mode') || 'favorite';
+      // v5.4: Compact mode (slimmer cards), persisted in localStorage
+      let compactMode = localStorage.getItem('shinobi-compact-mode') === 'true';
+      // v4.6: i18n strings (loaded from main process on init)
+      let i18nStrings = {};
+      let currentLang = 'pt';
+
+      // v4.6: i18n helper — t(key) returns translated string
+      function t(key) {
+        return i18nStrings[key] || key;
+      }
+
+      // v4.6: Apply i18n to all elements with data-i18n attribute
+      function applyI18n() {
+        document.querySelectorAll('[data-i18n]').forEach(function (el) {
+          var key = el.getAttribute('data-i18n');
+          el.textContent = t(key);
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+          var key = el.getAttribute('data-i18n-placeholder');
+          el.placeholder = t(key);
+        });
+        document.querySelectorAll('[data-i18n-title]').forEach(function (el) {
+          var key = el.getAttribute('data-i18n-title');
+          el.title = t(key);
+        });
+      }
+
+      const LAST_PROFILE_KEY = 'shinobi-last-profile';
+
+      // ── Last Profile (Quick Re-launch) ──
+      // v5.9.3: lastProfileBtn removido do topbar. Função vira no-op seguro.
+      function loadLastProfile() {
+        var btn = document.getElementById('lastProfileBtn');
+        if (!btn) return;
+        var id = localStorage.getItem(LAST_PROFILE_KEY);
+        if (!id) {
+          btn.style.display = 'none';
+          return;
+        }
+        var p = profiles.find(function (x) {
+          return x.id === id;
+        });
+        if (!p) {
+          btn.style.display = 'none';
+          return;
+        }
+        document.getElementById('lastProfileName').textContent = p.name;
+        btn.style.display = 'inline-flex';
+      }
+
+      (function () {
+        var btn = document.getElementById('lastProfileBtn');
+        if (btn)
+          btn.onclick = function () {
+            var id = localStorage.getItem(LAST_PROFILE_KEY);
+            if (id) launch(id);
+          };
+      })();
+
+      // ── IPC ──
+      ipcRenderer.on('profiles:updated', (_e, list) => {
+        profiles = list;
+        renderProfiles();
+        renderRegionTabs();
+        loadLastProfile();
+        populateDevProfileSelects();
+        renderTagFilterBar();
+      });
+      ipcRenderer.on('memory:update', (_e, s) => renderMemory(s));
+      ipcRenderer.on('events:update', (_e, data) => renderEvents(data));
+      ipcRenderer.on('profile:toast', (_e, t) => toast(t.msg, t.type));
+      ipcRenderer.on('auto-login:result', (_e, data) => {
+        var p = profiles.find(function (x) {
+          return x.id === data.profileId;
+        });
+        var name = p ? p.name : data.profileId;
+        if (data.result === 'filled') {
+          toast('Auto-login: credenciais injetadas (' + name + ')', 'ok');
+        } else if (data.result === 'clicked') {
+          toast('Auto-login: botão clicado (' + name + ')', 'ok');
+        } else if (data.result === 'error') {
+          toast('Auto-login: erro (' + name + ')', 'err');
+        }
+      });
+      // v4.5: Real-time status updates for auto-login and window open state
+      ipcRenderer.on('auto-login:status', (_e, data) => {
+        if (!data || !data.profileId) return;
+        autoLoginStatus[data.profileId] = data.status || 'idle';
+        // Update only the affected card's badge (no full re-render needed)
+        var badge = document.querySelector(
+          '[data-card-id="' + data.profileId + '"] .autologin-badge'
+        );
+        if (badge) updateStatusBadge(badge, data.status, getStatusLabel(data.status));
+      });
+      ipcRenderer.on('game-window:status', (_e, data) => {
+        if (!data || !data.profileId) return;
+        if (data.open) openWindows[data.profileId] = true;
+        else {
+          delete openWindows[data.profileId];
+          delete autoLoginStatus[data.profileId];
+        }
+        // Update the affected card's window badge
+        var card = document.querySelector('[data-card-id="' + data.profileId + '"]');
+        if (card) {
+          var winBadge = card.querySelector('.window-badge');
+          if (winBadge) {
+            if (data.open) {
+              winBadge.style.display = 'inline-flex';
+              winBadge.className = 'status-badge open window-badge';
+              winBadge.innerHTML = '<span class="dot"></span> aberta';
+            } else {
+              winBadge.style.display = 'none';
+            }
+          }
+        }
+      });
+
+      // ── Navigation ──
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+          item.classList.add('active');
+          const view = item.dataset.view;
+          document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+          document.getElementById('view-' + view).classList.add('active');
+          document.getElementById('viewTitle').textContent = item.textContent.trim();
+          if (view === 'settings') loadSettings();
+        });
+      });
+
+      // ── Search ──
+      document.getElementById('searchInput').oninput = function () {
+        searchQuery = this.value.trim().toLowerCase();
+        document.getElementById('searchClear').style.display = searchQuery ? 'flex' : 'none';
+        renderProfiles();
+      };
+
+      document.getElementById('searchClear').onclick = function () {
+        document.getElementById('searchInput').value = '';
+        searchQuery = '';
+        this.style.display = 'none';
+        renderProfiles();
+      };
+
+      // v4.5: View mode toggle (grid/list) — persisted in localStorage
+      // v5.9.3: view-toggle removido do topbar. Handlers viram no-op seguros.
+      (function initViewToggle() {
+        var vg = document.getElementById('viewGrid');
+        var vl = document.getElementById('viewList');
+        if (vg)
+          vg.onclick = function () {
+            if (viewMode === 'grid') return;
+            viewMode = 'grid';
+            localStorage.setItem('shinobi-view-mode', 'grid');
+            this.classList.add('active');
+            if (vl) vl.classList.remove('active');
+            renderProfiles();
+          };
+        if (vl)
+          vl.onclick = function () {
+            if (viewMode === 'list') return;
+            viewMode = 'list';
+            localStorage.setItem('shinobi-view-mode', 'list');
+            this.classList.add('active');
+            if (vg) vg.classList.remove('active');
+            renderProfiles();
+          };
+        if (viewMode === 'list') {
+          if (vl) vl.classList.add('active');
+          if (vg) vg.classList.remove('active');
+        }
+      })();
+
+      // ── Render: Profiles ──
+      function renderProfiles() {
+        const grid = document.getElementById('profileGrid');
+        // v4.5: Apply view mode class
+        grid.className =
+          'grid' + (viewMode === 'list' ? ' list-view' : '') + (compactMode ? ' compact' : '');
+        let filtered = profiles;
+        if (searchQuery) {
+          filtered = profiles.filter(function (p) {
+            var name = (p.name || '').toLowerCase();
+            var server = (p.server || '').toLowerCase();
+            var regionCode = (REGIONS[p.region] || '').toLowerCase();
+            var regionKey = (p.region || '').toLowerCase();
+            var notes = (p.notes || '').toLowerCase();
+            return (
+              name.indexOf(searchQuery) !== -1 ||
+              server.indexOf(searchQuery) !== -1 ||
+              regionCode.indexOf(searchQuery) !== -1 ||
+              regionKey.indexOf(searchQuery) !== -1 ||
+              notes.indexOf(searchQuery) !== -1
+            );
+          });
+        }
+        // v5.3: Filter by active tag
+        if (activeTagFilter) {
+          filtered = filtered.filter(function (p) {
+            return (p.tags || []).indexOf(activeTagFilter) !== -1;
+          });
+        }
+        // v4.6: Apply sorting
+        filtered = applySorting(filtered);
+        // v4.6: Update account count
+        var countEl = document.getElementById('accountCount');
+        if (countEl) {
+          var total = profiles.length;
+          var shown = filtered.length;
+          countEl.textContent = searchQuery
+            ? shown + '/' + total
+            : total + (total === 1 ? ' conta' : ' contas');
+        }
+        if (!profiles.length) {
+          grid.innerHTML =
+            '<div class="empty">' +
+            '<div class="empty-shuriken"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1"><path d="M24 2L27 18Q24 20 24 20Q24 20 21 18Z" fill="currentColor" opacity=".7"/><path d="M24 2L27 18Q24 20 24 20Q24 20 21 18Z" fill="currentColor" opacity=".7" transform="rotate(90 24 24)"/><path d="M24 2L27 18Q24 20 24 20Q24 20 21 18Z" fill="currentColor" opacity=".7" transform="rotate(180 24 24)"/><path d="M24 2L27 18Q24 20 24 20Q24 20 21 18Z" fill="currentColor" opacity=".7" transform="rotate(270 24 24)"/></svg></div>' +
+            '<h3>Nenhuma conta</h3>' +
+            '<p>Crie sua primeira conta para começar a jogar.</p>' +
+            '<button class="btn primary" id="emptyNewBtn">Nova conta</button>' +
+            '</div>';
+          var emptyBtn = document.getElementById('emptyNewBtn');
+          if (emptyBtn)
+            emptyBtn.addEventListener('click', function () {
+              document.getElementById('newBtn').click();
+            });
+          return;
+        }
+        if (!filtered.length) {
+          grid.innerHTML =
+            '<div class="no-results">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>' +
+            '<p>Nenhum resultado para "' +
+            esc(searchQuery) +
+            '"</p>' +
+            '</div>';
+          return;
+        }
+        grid.innerHTML = '';
+        filtered.forEach(function (p, idx) {
+          const card = document.createElement('div');
+          card.tabIndex = 0;
+          card.style.setProperty('--accent', p.color);
+          card.style.animationDelay = idx * 60 + 'ms';
+          card.setAttribute('data-card-color', p.color);
+          var favClass = p.favorite ? ' fav-card' : '';
+          card.className =
+            'card glass-card shine' +
+            (p.hasVault ? ' has-vault' : '') +
+            favClass +
+            (batchSelected.has(p.id) ? ' batch-selected' : '');
+          card.setAttribute('data-card-id', p.id);
+          // v4.5: Build stats display (launch count, play time, last used)
+          var launchCount = p.launchCount || 0;
+          var playMs = p.totalPlayMs || 0;
+          var lastUsed = p.lastUsed || 0;
+          var statsHtml = '';
+          if (launchCount > 0 || playMs > 0) {
+            statsHtml = '<div class="card-stats">';
+            if (launchCount > 0) {
+              statsHtml +=
+                '<div class="stat-item" title="Número de vezes que esta conta foi lançada">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>' +
+                '<span class="val">' +
+                launchCount +
+                'x</span>' +
+                '</div>';
+            }
+            if (playMs > 0) {
+              statsHtml +=
+                '<div class="stat-item" title="Tempo total de jogo">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+                '<span class="val">' +
+                formatPlayTime(playMs) +
+                '</span>' +
+                '</div>';
+            }
+            // v5.4: Last played relative time chip
+            if (lastUsed > 0) {
+              var rel = formatRelativeTime(lastUsed);
+              statsHtml +=
+                '<div class="stat-item last-played-chip ' +
+                (rel.recent ? 'recent' : 'stale') +
+                '" title="Última vez jogada: ' +
+                new Date(lastUsed).toLocaleString('pt-BR') +
+                '">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+                '<span class="val">' +
+                rel.label +
+                '</span>' +
+                '</div>';
+            }
+            statsHtml += '</div>';
+          }
+          // v4.5: Build server dropdown (quick switcher)
+          var serverOptionsHtml = buildServerOptions(p.server);
+          var serverHtml =
+            '<div class="server-switch" title="Trocar servidor rapidamente">' +
+            '<select data-act="switch-server" onclick="event.stopPropagation()">' +
+            serverOptionsHtml +
+            '</select>' +
+            '</div>';
+          // v4.5: Build notes display (if exists)
+          var notesHtml = '';
+          if (p.notes) {
+            notesHtml =
+              '<div class="card-notes" title="' +
+              esc(p.notes) +
+              '">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+              esc(p.notes) +
+              '</div>';
+          }
+          // v4.5: Build auto-login status badge (only if vault enabled)
+          var autoLoginBadgeHtml = '';
+          if (p.hasVault) {
+            var currentStatus = autoLoginStatus[p.id] || 'idle';
+            var label = getStatusLabel(currentStatus);
+            autoLoginBadgeHtml =
+              '<span class="status-badge ' +
+              currentStatus +
+              ' autologin-badge" title="Status do auto-login">' +
+              '<span class="dot"></span> ' +
+              label +
+              '</span>';
+          }
+          // v4.5: Build window-open badge (only if window is open)
+          var windowBadgeHtml = '';
+          if (openWindows[p.id]) {
+            windowBadgeHtml =
+              '<span class="status-badge open window-badge"><span class="dot"></span> aberta</span>';
+          } else {
+            windowBadgeHtml =
+              '<span class="status-badge open window-badge" style="display:none"><span class="dot"></span> aberta</span>';
+          }
+          // v4.6: Favorite button (star)
+          var favBtnHtml =
+            '<button class="btn sm btn-icon-only fav-action' +
+            (p.favorite ? ' fav' : '') +
+            '" data-act="fav" data-tip="' +
+            (p.favorite ? 'Desfavoritar' : 'Favoritar') +
+            '" title="' +
+            (p.favorite ? 'Desfavoritar' : 'Favoritar') +
+            '">' +
+            '<svg width="12" height="12" viewBox="0 0 24 24" fill="' +
+            (p.favorite ? 'currentColor' : 'none') +
+            '" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
+            '</button>';
+          // v4.6: Duplicate button
+          var dupBtnHtml =
+            '<button class="btn sm btn-icon-only dup-action" data-act="dup" data-tip="Duplicar" title="Duplicar">' +
+            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+            '</button>';
+          // v5.1: Health check button
+          var healthBtnHtml =
+            '<button class="health-check-btn" data-health-id="' +
+            p.id +
+            '" data-act="health" title="Verificar saúde do perfil">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Verificar' +
+            '</button>';
+          // v5.1: Batch checkbox
+          var batchCheckHtml =
+            '<div class="card-batch-check" data-batch-id="' +
+            p.id +
+            '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>';
+          card.innerHTML = `
+      ${batchCheckHtml}
+      <div class="card-head">
+        <div class="card-avatar" style="background:${p.color}">${esc(p.name.charAt(0).toUpperCase())}</div>
+        <div style="flex:1;min-width:0">
+          <div class="name">${esc(p.name)}${p.hasVault ? '<span class="lock" title="Auto-login ativo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>' : ''}</div>
+          <div class="region" style="margin-top:.1rem">${REGIONS[p.region] || '—'}</div>
+        </div>
+        <div class="color-tag" style="background:${p.color}"></div>
+      </div>
+      <div class="card-body">
+        ${serverHtml}
+      </div>
+      ${buildTagsHtml(p.tags)}
+      ${notesHtml}
+      <div class="card-badges">
+        ${p.hasVault ? '<span class="badge ok">auto-login</span>' : ''}
+        ${autoLoginBadgeHtml}
+        ${windowBadgeHtml}
+        ${healthBtnHtml}
+      </div>
+      ${statsHtml}
+      <div class="health-result" id="healthResult-${p.id}"></div>
+      <div class="card-actions">
+        <button class="btn sm btn-play" data-act="launch"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play</button>
+        <div class="secondary-actions">
+          ${favBtnHtml}
+          ${dupBtnHtml}
+          <button class="btn sm btn-icon-only" data-act="edit" data-tip="Editar" title="Editar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          <button class="btn sm btn-icon-only" data-act="vault" data-tip="Credenciais" title="Credenciais"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+          <button class="btn sm btn-icon-only" data-act="del" data-tip="Excluir" title="Excluir"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+        </div>
+      </div>`;
+          card.addEventListener('click', () => launch(p.id));
+          card.querySelectorAll('[data-act]').forEach(btn => {
+            btn.addEventListener('click', e => {
+              e.stopPropagation();
+              const act = btn.dataset.act;
+              if (act === 'launch') launch(p.id);
+              else if (act === 'edit') edit(p.id);
+              else if (act === 'vault') openVault(p.id);
+              else if (act === 'del') del(p.id);
+              else if (act === 'fav') toggleFavorite(p.id);
+              else if (act === 'dup') duplicateProfile(p.id);
+              else if (act === 'health') {
+                var resultEl = document.getElementById('healthResult-' + p.id);
+                if (resultEl) runHealthCheck(p.id, resultEl);
+              } else if (act === 'switch-server') {
+                /* handled by onchange */
+              }
+            });
+          });
+          // v5.3: Tag remove handler on profile cards
+          card.querySelectorAll('[data-remove-tag]').forEach(function (tagEl) {
+            tagEl.addEventListener('click', function (e) {
+              e.stopPropagation();
+              var tag = tagEl.getAttribute('data-remove-tag');
+              var currentTags = (p.tags || []).filter(function (t) {
+                return t !== tag;
+              });
+              ipcRenderer.send('profile:update', { id: p.id, tags: currentTags });
+            });
+          });
+          // v5.1: Batch checkbox handler
+          var batchCheck = card.querySelector('.card-batch-check');
+          if (batchCheck) {
+            batchCheck.addEventListener('click', function (e) {
+              e.stopPropagation();
+              if (batchSelected.has(p.id)) {
+                batchSelected.delete(p.id);
+                batchCheck.classList.remove('checked');
+              } else {
+                batchSelected.add(p.id);
+                batchCheck.classList.add('checked');
+              }
+              updateBatchBar();
+            });
+            if (batchSelected.has(p.id)) batchCheck.classList.add('checked');
+          }
+          // v4.5: Server switcher handler
+          var serverSelect = card.querySelector('select[data-act="switch-server"]');
+          if (serverSelect) {
+            serverSelect.addEventListener('change', function (e) {
+              e.stopPropagation();
+              var newServer = this.value;
+              ipcRenderer.send('profile:update', { id: p.id, server: newServer });
+              toast('Servidor trocado para ' + newServer, 'ok');
+            });
+            serverSelect.addEventListener('click', function (e) {
+              e.stopPropagation();
+            });
+          }
+          grid.appendChild(card);
+        });
+      }
+
+      // v4.6: Apply sorting to filtered profiles list
+      function applySorting(list) {
+        var sorted = list.slice(); // clone to avoid mutating original
+        switch (sortMode) {
+          case 'favorite':
+            sorted.sort(function (a, b) {
+              if (!!a.favorite !== !!b.favorite) return b.favorite ? 1 : -1;
+              // Favorites first, then by name as tiebreaker
+              return (a.name || '').localeCompare(b.name || '');
+            });
+            break;
+          case 'name':
+            sorted.sort(function (a, b) {
+              return (a.name || '').localeCompare(b.name || '');
+            });
+            break;
+          case 'lastUsed':
+            sorted.sort(function (a, b) {
+              return (b.lastUsed || 0) - (a.lastUsed || 0);
+            });
+            break;
+          case 'launchCount':
+            sorted.sort(function (a, b) {
+              return (b.launchCount || 0) - (a.launchCount || 0);
+            });
+            break;
+          case 'totalPlayMs':
+            sorted.sort(function (a, b) {
+              return (b.totalPlayMs || 0) - (a.totalPlayMs || 0);
+            });
+            break;
+          case 'region':
+            sorted.sort(function (a, b) {
+              var r = (a.region || '').localeCompare(b.region || '');
+              return r !== 0 ? r : (a.name || '').localeCompare(b.name || '');
+            });
+            break;
+          case 'createdAt':
+            sorted.sort(function (a, b) {
+              return (b.createdAt || 0) - (a.createdAt || 0);
+            });
+            break;
+          default:
+            // No sort — keep original order
+            break;
+        }
+        return sorted;
+      }
+
+      // v4.6: Toggle favorite status of a profile
+      async function toggleFavorite(id) {
+        var p = profiles.find(function (x) {
+          return x.id === id;
+        });
+        if (!p) return;
+        var newState = !p.favorite;
+        await ipcRenderer.invoke('profile:set-favorite', id, newState);
+        // Optimistic UI: update local state immediately
+        p.favorite = newState;
+        renderProfiles();
+        toast(newState ? 'Perfil favoritado' : 'Perfil desfavoritado', 'ok');
+      }
+
+      // v4.6: Duplicate a profile (without credentials)
+      async function duplicateProfile(id) {
+        var p = profiles.find(function (x) {
+          return x.id === id;
+        });
+        var pName = p ? p.name : id;
+        var r = await ipcRenderer.invoke('profile:duplicate', id);
+        if (r.ok) {
+          toast('Perfil duplicado: ' + pName + ' (cópia)', 'ok');
+        } else {
+          toast('Erro ao duplicar: ' + (r.error || 'desconhecido'), 'err');
+        }
+      }
+
+      // v4.5: Helper — format play time (ms → human readable)
+      function formatPlayTime(ms) {
+        if (!ms || ms < 1000) return '0s';
+        var seconds = Math.floor(ms / 1000);
+        var hours = Math.floor(seconds / 3600);
+        var minutes = Math.floor((seconds % 3600) / 60);
+        if (hours > 0) return hours + 'h ' + (minutes > 0 ? minutes + 'm' : '');
+        if (minutes > 0) return minutes + 'm';
+        return seconds + 's';
+      }
+
+      // v4.5: Helper — get human label for auto-login status
+      function getStatusLabel(status) {
+        switch (status) {
+          case 'loading':
+            return 'preenchendo';
+          case 'success':
+            return 'logado';
+          case 'error':
+            return 'falhou';
+          case 'idle':
+          default:
+            return 'pronto';
+        }
+      }
+
+      // v4.5: Helper — update a status badge element in place (no re-render)
+      function updateStatusBadge(el, status, label) {
+        if (!el) return;
+        el.className = 'status-badge ' + (status || 'idle') + ' autologin-badge';
+        el.innerHTML = '<span class="dot"></span> ' + (label || getStatusLabel(status));
+      }
+
+      // v4.5: Helper — build <option> list for server dropdown (S1-S50 + custom)
+      function buildServerOptions(currentServer) {
+        var current = (currentServer || '').toUpperCase().replace(/^S/i, '');
+        var currentNum = parseInt(current, 10);
+        var html = '';
+        var common = [
+          1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 100, 200, 500, 799, 999, 9999
+        ];
+        var seen = {};
+        // If current server is not in the common list, add it first
+        if (currentNum && common.indexOf(currentNum) === -1) {
+          html += '<option value="S' + currentNum + '">S' + currentNum + ' (atual)</option>';
+          seen[currentNum] = true;
+        }
+        common.forEach(function (n) {
+          var isCurrent = n === currentNum;
+          html +=
+            '<option value="S' +
+            n +
+            '"' +
+            (isCurrent ? ' selected' : '') +
+            '>S' +
+            n +
+            (isCurrent ? ' (atual)' : '') +
+            '</option>';
+          seen[n] = true;
+        });
+        // If no current server, show placeholder
+        if (!currentNum) {
+          html = '<option value="" selected>sem servidor</option>' + html;
+        }
+        return html;
+      }
+
+      function renderMemory(s) {
+        if (!s) return;
+        const el = document.getElementById('memVal');
+        const dot = document.getElementById('ramDot');
+        if (el) el.textContent = s.totalMB + ' MB';
+        if (dot) {
+          const r = s.thresholdMB > 0 ? s.totalMB / s.thresholdMB : 0;
+          dot.style.background = r > 1 ? 'var(--danger)' : r > 0.8 ? 'var(--warn)' : 'var(--ok)';
+        }
+        renderPerf(s);
+      }
+
+      // v4.8: Painel de Desempenho (consolidado do antigo sidebar Sistema)
+      function renderPerf(s) {
+        if (!s) return;
+        const ram = document.getElementById('perfRam');
+        if (ram) {
+          ram.textContent = s.totalMB + ' MB';
+          const r = s.thresholdMB > 0 ? s.totalMB / s.thresholdMB : 0;
+          ram.style.color = r > 1 ? 'var(--danger)' : r > 0.8 ? 'var(--warn)' : 'var(--text-dim)';
+        }
+        const fill = document.getElementById('perfRamFill');
+        if (fill && s.thresholdMB > 0) {
+          const pct = Math.min(100, (s.totalMB / s.thresholdMB) * 100);
+          fill.style.width = pct + '%';
+          fill.style.background =
+            pct < 50
+              ? 'linear-gradient(90deg,#10B981,#34D399)'
+              : pct < 75
+                ? 'linear-gradient(90deg,#F59E0B,#FBBF24)'
+                : pct < 90
+                  ? 'linear-gradient(90deg,#F59E0B,#F97316)'
+                  : 'linear-gradient(90deg,#EF4444,#DC2626)';
+        }
+        const th = document.getElementById('perfThreshold');
+        if (th) th.textContent = s.thresholdMB + ' MB';
+        const gm = document.getElementById('perfGcManual');
+        if (gm) gm.textContent = String(s.manualGCCount || 0);
+        const ga = document.getElementById('perfGcAuto');
+        if (ga) ga.textContent = String(s.autoGCCount || 0);
+      }
+
+      function initPerfPanel() {
+        const btn = document.getElementById('perfForceGc');
+        if (!btn || btn.dataset.bound) return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', function () {
+          btn.disabled = true;
+          const orig = btn.textContent;
+          btn.textContent = 'Limpando...';
+          window.api
+            .forceGC()
+            .then(function () {
+              btn.textContent = 'Limpo!';
+              setTimeout(function () {
+                btn.disabled = false;
+                btn.textContent = orig;
+                window.api.getMemoryStats().then(renderMemory);
+              }, 700);
+            })
+            .catch(function () {
+              btn.disabled = false;
+              btn.textContent = orig;
+            });
+        });
+      }
+
+      // ── Render: Events ──
+      function renderRegionTabs() {
+        const tabs = document.getElementById('regionTabs');
+        const active = [...new Set(profiles.map(p => p.region))];
+        const regions = active.length ? active : ['br'];
+        if (!regions.includes(selectedRegion)) selectedRegion = regions[0];
+        tabs.innerHTML = '';
+        regions.forEach(r => {
+          const t = document.createElement('span');
+          t.className = 'tab' + (r === selectedRegion ? ' active' : '');
+          t.textContent = REGIONS[r] || r;
+          t.addEventListener('click', () => {
+            selectedRegion = r;
+            renderRegionTabs();
+            ipcRenderer.invoke('events:get', selectedRegion).then(renderEventsSingle);
+          });
+          tabs.appendChild(t);
+        });
+      }
+
+      function renderEvents(data) {
+        if (!data || !data.byRegion) return;
+        renderEventsSingle(data.byRegion[selectedRegion] || data.byRegion['br'] || []);
+      }
+
+      function renderEventsSingle(list) {
+        const el = document.getElementById('eventList');
+        if (!list || !list.length) {
+          el.innerHTML =
+            '<div style="color:var(--text-faint);text-align:center;padding:3rem;font-size:var(--font-sm)">Nenhum evento.</div>';
+          return;
+        }
+        el.innerHTML = '';
+        list.slice(0, 10).forEach(ev => {
+          const item = document.createElement('div');
+          item.className = 'event';
+          item.innerHTML = `<div class="info"><div class="n">${esc(ev.name)}</div><div class="t">${ev.userTimeLabel || ''}</div></div><div class="cd">${ev.nextFireLabel || ''}</div>`;
+          el.appendChild(item);
+        });
+      }
+
+      // ── Actions ──
+      function launch(id) {
+        ipcRenderer.send('profile:launch', id);
+        var p = profiles.find(function (x) {
+          return x.id === id;
+        });
+        if (p) {
+          localStorage.setItem(LAST_PROFILE_KEY, id);
+          loadLastProfile();
+        }
+      }
+      function edit(id) {
+        const p = profiles.find(x => x.id === id);
+        if (!p) return;
+        editingId = id;
+        editingTags = (p.tags || []).slice(); // v5.3: Copy tags for editing
+        document.getElementById('modalTitle').textContent = 'Editar conta';
+        document.getElementById('fName').value = p.name;
+        document.getElementById('fServer').value = p.server;
+        document.getElementById('fRegion').value = p.region;
+        // v4.5: load notes
+        var notesEl = document.getElementById('fNotes');
+        notesEl.value = p.notes || '';
+        updateNotesCounter();
+        selectedColor = p.color;
+        renderColors();
+        // v5.3: Load tags
+        if (window._renderTagsInput) window._renderTagsInput();
+        document.getElementById('fTags').value = '';
+        // v5.9.3: hide auto-create button in edit mode
+        document.getElementById('autoCreateBtn').style.display = 'none';
+        document.getElementById('profileModal').classList.add('show');
+      }
+      async function del(id) {
+        var p = profiles.find(function (x) {
+          return x.id === id;
+        });
+        var pName = p ? p.name : id;
+        if (!confirm('Excluir esta conta? Cookies e credenciais serão apagados.')) return;
+        ipcRenderer.send('profile:delete', id);
+        // If last profile was this one, clear
+        if (localStorage.getItem(LAST_PROFILE_KEY) === id) {
+          localStorage.removeItem(LAST_PROFILE_KEY);
+          loadLastProfile();
+        }
+      }
+      async function openVault(id) {
+        const p = profiles.find(x => x.id === id);
+        if (!p) return;
+        vaultId = id;
+        document.getElementById('vaultProfileName').textContent =
+          p.name + (p.server ? ' • ' + p.server : '');
+        const creds = await ipcRenderer.invoke('vault:get', id);
+        document.getElementById('fVaultUser').value = creds ? creds.user : '';
+        document.getElementById('fVaultPass').value = creds ? creds.pass : '';
+        // Reset password visibility
+        document.getElementById('fVaultPass').type = 'password';
+        document.getElementById('eyeIcon').innerHTML =
+          '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+        document.getElementById('vaultModal').classList.add('show');
+      }
+
+      // ── Modal: Profile ──
+      document.getElementById('newBtn').onclick = () => {
+        editingId = null;
+        editingTags = [];
+        document.getElementById('modalTitle').textContent = 'Nova conta';
+        document.getElementById('fName').value = '';
+        document.getElementById('fServer').value = '';
+        document.getElementById('fRegion').value = 'br';
+        // v4.5: clear notes
+        document.getElementById('fNotes').value = '';
+        updateNotesCounter();
+        selectedColor = PALETTE[profiles.length % PALETTE.length];
+        renderColors();
+        // v5.3: Clear tags input
+        if (window._renderTagsInput) window._renderTagsInput();
+        document.getElementById('fTags').value = '';
+        // v5.9.3: show auto-create button in create mode
+        document.getElementById('autoCreateBtn').style.display = '';
+        document.getElementById('profileModal').classList.add('show');
+      };
+      document.getElementById('cancelProfile').onclick = () =>
+        document.getElementById('profileModal').classList.remove('show');
+      document.getElementById('saveProfile').onclick = () => {
+        const opts = {
+          name: document.getElementById('fName').value.trim(),
+          server: document.getElementById('fServer').value.trim(),
+          region: document.getElementById('fRegion').value,
+          color: selectedColor,
+          notes: document.getElementById('fNotes').value.trim(), // v4.5: save notes
+          tags: editingTags.slice() // v5.3: save tags
+        };
+        if (!opts.name) {
+          toast('Informe um nome', 'err');
+          return;
+        }
+        if (editingId) {
+          ipcRenderer.send('profile:update', Object.assign({ id: editingId }, opts));
+        } else {
+          ipcRenderer.send('profile:create', opts);
+        }
+        document.getElementById('profileModal').classList.remove('show');
+      };
+
+      // v5.9.3: Auto-create account — tempmail + register + vault + auto-login
+      document.getElementById('autoCreateBtn').onclick = async function () {
+        var name = document.getElementById('fName').value.trim();
+        var server = document.getElementById('fServer').value.trim();
+        var region = document.getElementById('fRegion').value;
+        if (!name) {
+          toast('Informe um nome', 'err');
+          return;
+        }
+        if (!server) {
+          toast('Informe o servidor (ex.: S799)', 'err');
+          return;
+        }
+        if (editingId) {
+          toast('Use "Salvar" para editar perfis existentes', 'err');
+          return;
+        }
+        var btn = document.getElementById('autoCreateBtn');
+        var originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Criando…';
+        try {
+          var result = await window.api.createTempmail({
+            name: name,
+            server: server,
+            region: region,
+            language: currentLang || 'pt'
+          });
+          if (result && result.ok) {
+            document.getElementById('profileModal').classList.remove('show');
+          }
+        } catch (e) {
+          toast('Falha ao criar conta: ' + (e && e.message ? e.message : e), 'err');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      };
+
+      // v4.5: Notes char counter
+      function updateNotesCounter() {
+        var el = document.getElementById('fNotes');
+        var counter = document.getElementById('notesCounter');
+        if (!el || !counter) return;
+        var len = el.value.length;
+        counter.textContent = len + ' / 200';
+        counter.classList.toggle('warn', len > 180);
+      }
+      document.getElementById('fNotes').oninput = updateNotesCounter;
+
+      function renderColors() {
+        const row = document.getElementById('colorRow');
+        row.innerHTML = '';
+        PALETTE.forEach(c => {
+          const dot = document.createElement('span');
+          dot.className = 'color-dot' + (c === selectedColor ? ' sel' : '');
+          dot.style.background = c;
+          dot.addEventListener('click', () => {
+            selectedColor = c;
+            renderColors();
+          });
+          row.appendChild(dot);
+        });
+      }
+
+      // ── Modal: Vault ──
+      document.getElementById('cancelVault').onclick = () =>
+        document.getElementById('vaultModal').classList.remove('show');
+      document.getElementById('saveVault').onclick = async () => {
+        const u = document.getElementById('fVaultUser').value;
+        const p = document.getElementById('fVaultPass').value;
+        if (!u || !p) {
+          toast('Usuário e senha obrigatórios', 'err');
+          return;
+        }
+        await ipcRenderer.invoke('vault:set', vaultId, u, p);
+        toast('Credenciais salvas', 'ok');
+        document.getElementById('vaultModal').classList.remove('show');
+      };
+      document.getElementById('removeVault').onclick = async () => {
+        if (!confirm('Remover credenciais?')) return;
+        await ipcRenderer.invoke('vault:remove', vaultId);
+        toast('Credenciais removidas', 'ok');
+        document.getElementById('vaultModal').classList.remove('show');
+      };
+
+      // ── Password visibility toggle ──
+      document.getElementById('togglePass').onclick = function () {
+        const inp = document.getElementById('fVaultPass');
+        const icon = document.getElementById('eyeIcon');
+        if (inp.type === 'password') {
+          inp.type = 'text';
+          icon.innerHTML =
+            '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+        } else {
+          inp.type = 'password';
+          icon.innerHTML =
+            '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+        }
+      };
+
+      // ── Settings ──
+      async function loadSettings() {
+        document.getElementById('setNotifications').classList.toggle('on', !notificationsMuted);
+      }
+
+      // v4.7: Encrypted backup (uses existing IPC handlers from controller.js)
+      document.getElementById('advBackupExport').onclick = async function () {
+        var pwd = prompt('Digite uma senha para criptografar o backup (mín. 6 caracteres):');
+        if (!pwd) return;
+        if (pwd.length < 6) {
+          toast('Senha muito curta', 'err');
+          return;
+        }
+        this.disabled = true;
+        this.textContent = 'Exportando...';
+        try {
+          var res = await ipcRenderer.invoke('profiles:export-encrypted', pwd);
+          if (res && res.ok) {
+            toast('Backup salvo: ' + res.count + ' perfis', 'ok');
+          } else if (res && res.canceled) {
+            // user canceled save dialog
+          } else {
+            toast('Erro: ' + (res && res.error ? res.error : 'falha'), 'err');
+          }
+        } catch (e) {
+          toast('Erro: ' + e.message, 'err');
+        }
+        this.disabled = false;
+        this.textContent = 'Exportar';
+      };
+
+      document.getElementById('advBackupImport').onclick = async function () {
+        var pwd = prompt('Digite a senha do backup:');
+        if (!pwd) return;
+        this.disabled = true;
+        this.textContent = 'Importando...';
+        try {
+          var res = await ipcRenderer.invoke('profiles:import-encrypted', pwd);
+          if (res && res.ok) {
+            toast('Importados: ' + res.imported + ' | Ignorados: ' + res.skipped, 'ok');
+          } else if (res && res.canceled) {
+            // user canceled open dialog
+          } else {
+            toast('Erro: ' + (res && res.error ? res.error : 'falha'), 'err');
+          }
+        } catch (e) {
+          toast('Erro: ' + e.message, 'err');
+        }
+        this.disabled = false;
+        this.textContent = 'Importar';
+      };
+
+      // v4.9.2: Export diagnostics zip — controller handles save dialog + success/error toast
+      // (emitted via profile:toast IPC). Here we only guard the button state + catch unexpected errors.
+      document.getElementById('advExportDiag').onclick = async function () {
+        this.disabled = true;
+        this.textContent = 'Gerando .zip...';
+        try {
+          await window.api.exportDiag();
+        } catch (e) {
+          toast('Erro ao exportar diagnóstico: ' + e.message, 'err');
+        }
+        this.disabled = false;
+        this.textContent = 'Exportar .zip';
+      };
+
+      // v4.7: Open GitHub repo
+      document.getElementById('advAboutRepo').onclick = function (e) {
+        e.preventDefault();
+        try {
+          require('electron').shell.openExternal(
+            'https://github.com/Chrispsz/naruto-online-launcher'
+          );
+        } catch (_) {
+          toast('Abra: github.com/Chrispsz/naruto-online-launcher', 'ok');
+        }
+      };
+
+      document.getElementById('setNotifications').onclick = function () {
+        notificationsMuted = !notificationsMuted;
+        this.classList.toggle('on', !notificationsMuted);
+        ipcRenderer.send('events:set-muted', notificationsMuted);
+        var mb = document.getElementById('muteBtn');
+        if (mb) mb.classList.toggle('on', notificationsMuted);
+      };
+
+      document.getElementById('setMode').onchange = function () {
+        const desc = document.getElementById('modeDesc');
+        if (this.value === 'lowpc') {
+          desc.textContent = 'PC Fraco: reduz qualidade do Flash para ganhar FPS';
+          desc.style.color = 'var(--warn)';
+        } else {
+          desc.textContent = 'Padrão: máxima otimização segura';
+          desc.style.color = 'var(--text-faint)';
+        }
+      };
+
+      // ── Topbar buttons ──
+      // v5.9.3: muteBtn removido do topbar. Handler vira no-op se ausente.
+      (function () {
+        var mb = document.getElementById('muteBtn');
+        if (!mb) return;
+        mb.classList.toggle('on', notificationsMuted);
+        mb.onclick = function () {
+          notificationsMuted = !notificationsMuted;
+          this.classList.toggle('on', notificationsMuted);
+          var sn = document.getElementById('setNotifications');
+          if (sn) sn.classList.toggle('on', !notificationsMuted);
+          ipcRenderer.send('events:set-muted', notificationsMuted);
+          toast(notificationsMuted ? 'Notificações mutadas' : 'Notificações ativas', 'ok');
+        };
+      })();
+
+      // v5.9.3: sidebar-footer Importar/Exportar removidos (redundante c/ Settings → Avançado).
+      // Handlers viram no-op se ausentes.
+      (function () {
+        var ex = document.getElementById('exportBtn');
+        if (ex)
+          ex.onclick = async () => {
+            const r = await ipcRenderer.invoke('profiles:export-file');
+            if (r.ok) toast('Exportado', 'ok');
+            else if (r.error) toast('Erro: ' + r.error, 'err');
+          };
+      })();
+
+      (function () {
+        var im = document.getElementById('importBtn');
+        if (im)
+          im.onclick = async () => {
+            const r = await ipcRenderer.invoke('profiles:import-file');
+            if (r.ok) toast('Importados ' + r.imported + ' perfis', 'ok');
+            else if (r.error) toast('Erro: ' + r.error, 'err');
+          };
+      })();
+
+      // ── Server Selector ──
+      document.getElementById('btnPickServer').onclick = async () => {
+        const region = document.getElementById('fRegion').value;
+        const btn = document.getElementById('btnPickServer');
+        const hint = document.getElementById('serverHint');
+        btn.disabled = true;
+        btn.textContent = 'Buscando...';
+        hint.textContent = 'Carregando servidores...';
+        try {
+          const servers = await window.api.fetchServers(region);
+          if (!servers || !servers.length) {
+            hint.textContent = 'Nenhum servidor encontrado.';
+          } else {
+            const recent = servers
+              .slice(0, 20)
+              .map(s => 'S' + s.number)
+              .join(' ');
+            hint.innerHTML =
+              '<strong>Recentes:</strong> ' +
+              esc(recent) +
+              '<br><span style="color:var(--text-faint);font-size:var(--font-xs)">' +
+              servers.length +
+              ' servidores total</span>';
+          }
+        } catch (e) {
+          hint.textContent = 'Erro: ' + e.message;
+        }
+        btn.disabled = false;
+        btn.textContent = 'Buscar';
+      };
+
+      // ── Keyboard: replaced by v5.1 extended shortcuts handler (see below) ──
+      // Old v4.8 Esc-only handler removed — all shortcuts now in the unified handler.
+
+      // ── Utils ──
+      function esc(s) {
+        return String(s || '').replace(
+          /[&<>"']/g,
+          c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+        );
+      }
+      let toastT;
+      function toast(msg, type) {
+        const t = document.getElementById('toast');
+        const iconSvg =
+          type === 'ok'
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+            : type === 'err'
+              ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+              : '';
+        t.innerHTML =
+          (iconSvg ? '<span class="toast-icon">' + iconSvg + '</span>' : '') +
+          '<span class="toast-msg">' +
+          esc(msg) +
+          '</span>' +
+          '<div class="toast-progress"></div>';
+        t.className = 'toast show ' + (type || '');
+        clearTimeout(toastT);
+        toastT = setTimeout(function () {
+          t.classList.remove('show');
+          t.classList.add('hiding');
+          setTimeout(function () {
+            t.classList.remove('hiding');
+          }, 200);
+        }, 2800);
+      }
+
+      // ── v4.6: Sort dropdown handler ──
+      document.getElementById('sortSelect').onchange = function () {
+        sortMode = this.value;
+        localStorage.setItem('shinobi-sort-mode', sortMode);
+        renderProfiles();
+      };
+      // Apply initial sort mode on load
+      (function initSortMode() {
+        var sel = document.getElementById('sortSelect');
+        if (sel) sel.value = sortMode;
+      })();
+
+      // ── v4.6: i18n initialization (load strings from main process) ──
+      async function initI18n() {
+        try {
+          currentLang = await ipcRenderer.invoke('i18n:get-lang');
+          i18nStrings = (await ipcRenderer.invoke('i18n:get-all')) || {};
+          // Apply translations to elements with data-i18n attributes
+          applyI18n();
+          // Update language selector in settings
+          var setLang = document.getElementById('setLang');
+          if (setLang) setLang.value = currentLang;
+        } catch (e) {
+          // Fallback: use empty strings (keys will show as-is)
+          i18nStrings = {};
+        }
+      }
+
+      // v4.6: Language change handler in settings
+      document.getElementById('setLang').onchange = async function () {
+        var newLang = this.value;
+        await ipcRenderer.invoke('i18n:set-lang', newLang);
+        currentLang = newLang;
+        i18nStrings = (await ipcRenderer.invoke('i18n:get-all')) || {};
+        applyI18n();
+        toast('Idioma: ' + (newLang === 'pt' ? 'Português' : newLang.toUpperCase()), 'ok');
+      };
+
+      // ── v4.9: Dev Tools (tempmail + API login + inspector) ──
+      function populateDevProfileSelects() {
+        const opts = profiles
+          .map(p => '<option value="' + p.id + '">' + p.name + ' (' + p.username + ')</option>')
+          .join('');
+        document.getElementById('devApiLoginProfile').innerHTML =
+          opts || '<option>(nenhum perfil)</option>';
+        document.getElementById('devInspectorProfile').innerHTML =
+          opts || '<option>(nenhum perfil)</option>';
+        document.getElementById('devSourceProfile').innerHTML =
+          opts || '<option>(nenhum perfil)</option>';
+      }
+
+      function initDevTools() {
+        populateDevProfileSelects();
+
+        // Tempmail create
+        document.getElementById('devTempmailCreate').onclick = async function () {
+          const btn = this;
+          btn.disabled = true;
+          btn.textContent = 'Criando...';
+          const out = document.getElementById('devTempmailResult');
+          out.style.display = 'block';
+          out.textContent = 'Criando conta tempmail + registrando no Naruto Online...';
+          try {
+            const r = await window.api.createTempmail();
+            if (r.ok) {
+              const d = r.data;
+              out.textContent =
+                '✓ CONTA CRIADA\n' +
+                '═══════════════════════════════════\n' +
+                'Email:    ' +
+                d.tempmail.address +
+                '\n' +
+                'Senha:    ' +
+                d.tempmail.password +
+                '\n' +
+                'PlayerID: ' +
+                d.game.playerId +
+                '\n' +
+                'Nickname: ' +
+                d.game.nickname +
+                '\n' +
+                'JWT expira: ' +
+                new Date(d.game.expiresAt).toLocaleString('pt-BR') +
+                '\n' +
+                '═══════════════════════════════════\n' +
+                'LoginKey (JWT):\n' +
+                d.game.loginKey;
+            } else {
+              out.textContent = '✗ ERRO: ' + r.error;
+            }
+          } catch (e) {
+            out.textContent = '✗ ERRO: ' + e.message;
+          }
+          btn.disabled = false;
+          btn.textContent = 'Criar conta tempmail';
+        };
+
+        // API login
+        document.getElementById('devApiLoginBtn').onclick = async function () {
+          const pid = document.getElementById('devApiLoginProfile').value;
+          const email = document.getElementById('devApiLoginEmail').value.trim();
+          const pwd = document.getElementById('devApiLoginPass').value;
+          const out = document.getElementById('devApiLoginResult');
+          if (!pid) {
+            toast('Selecione um perfil', 'error');
+            return;
+          }
+          if (!email || !pwd) {
+            toast('Email e senha obrigatórios', 'error');
+            return;
+          }
+          out.style.display = 'block';
+          out.textContent = 'Autenticando via passport.oasgames.com...';
+          try {
+            const r = await window.api.apiLogin(pid, email, pwd);
+            if (r.ok) {
+              out.textContent =
+                '✓ LOGIN OK — cookie oas_user injetado\n' +
+                '═══════════════════════════════════\n' +
+                'PlayerID: ' +
+                r.data.playerId +
+                '\n' +
+                'Nickname: ' +
+                r.data.nickname +
+                '\n' +
+                'Expira em: ' +
+                new Date(r.data.expiresAt).toLocaleString('pt-BR') +
+                '\n' +
+                '═══════════════════════════════════\n' +
+                'Agora clique Play no perfil — a sessão já estará autenticada.';
+            } else {
+              out.textContent = '✗ ERRO: ' + r.error;
+            }
+          } catch (e) {
+            out.textContent = '✗ ERRO: ' + e.message;
+          }
+        };
+
+        // Session check
+        document.getElementById('devSessionCheck').onclick = async function () {
+          const pid = document.getElementById('devApiLoginProfile').value;
+          const out = document.getElementById('devApiLoginResult');
+          if (!pid) {
+            toast('Selecione um perfil', 'error');
+            return;
+          }
+          out.style.display = 'block';
+          out.textContent = 'Verificando cookie oas_user...';
+          try {
+            const r = await window.api.checkSession(pid);
+            if (r.ok && r.data.valid) {
+              const p = r.data.jwtDecoded.payload;
+              out.textContent =
+                '✓ SESSÃO VÁLIDA\n' +
+                'PlayerID: ' +
+                p.playerId +
+                '\n' +
+                'Nickname: ' +
+                p.nickname +
+                '\n' +
+                'Expira em: ' +
+                r.data.expiresInSeconds +
+                's (' +
+                Math.round(r.data.expiresInSeconds / 60) +
+                ' min)';
+            } else if (r.ok) {
+              out.textContent = '✗ Sem sessão válida (cookie ausente ou JWT expirado)';
+            } else {
+              out.textContent = '✗ ERRO: ' + r.error;
+            }
+          } catch (e) {
+            out.textContent = '✗ ERRO: ' + e.message;
+          }
+        };
+
+        // Inspector
+        let inspectorPoll = null;
+        async function refreshInspector() {
+          const pid = document.getElementById('devInspectorProfile').value;
+          if (!pid) return;
+          const r = await window.api.inspectorEntries(pid);
+          if (!r.ok) return;
+          const statsEl = document.getElementById('devInspectorStats');
+          const entriesEl = document.getElementById('devInspectorEntries');
+          if (r.data.stats) {
+            const s = r.data.stats;
+            statsEl.style.display = 'block';
+            statsEl.textContent =
+              'Requisições: ' +
+              s.totalRequests +
+              ' (' +
+              s.requestsPerMin.toFixed(1) +
+              '/min)\n' +
+              'Uptime: ' +
+              s.uptime +
+              's\n' +
+              'JWTs capturados: ' +
+              s.capturedJwts.length +
+              '\n' +
+              'Por tipo: auth=' +
+              s.byType.auth +
+              ' api=' +
+              s.byType.api +
+              ' game=' +
+              s.byType.game +
+              ' site=' +
+              s.byType.site +
+              ' other=' +
+              s.byType.other;
+          }
+          if (r.data.entries.length) {
+            entriesEl.style.display = 'block';
+            entriesEl.innerHTML = r.data.entries
+              .slice(-100)
+              .reverse()
+              .map(
+                e =>
+                  '<div style="padding:.2rem 0;border-bottom:1px solid var(--border)">' +
+                  '<span style="color:' +
+                  (e.kind === 'request' ? 'var(--accent)' : 'var(--ok)') +
+                  '">[' +
+                  e.kind +
+                  ']</span> ' +
+                  '<span style="color:var(--text-faint)">' +
+                  new Date(e.timestamp).toLocaleTimeString('pt-BR') +
+                  '</span> ' +
+                  '<strong>' +
+                  e.method +
+                  '</strong> ' +
+                  '<span style="color:var(--warn)">' +
+                  e.type +
+                  '</span> ' +
+                  (e.statusCode
+                    ? '<span style="color:var(--text-faint)">' + e.statusCode + '</span> '
+                    : '') +
+                  '<div style="color:var(--text-muted);word-break:break-all">' +
+                  e.url +
+                  '</div>' +
+                  (e.jwt
+                    ? '<div style="color:var(--ok);font-size:10px">JWT: ' +
+                      e.jwt.payload.nickname +
+                      ' (player ' +
+                      e.jwt.payload.playerId +
+                      ')</div>'
+                    : '') +
+                  '</div>'
+              )
+              .join('');
+          } else {
+            entriesEl.style.display = 'block';
+            entriesEl.textContent = '(nenhuma captura ainda — abra o jogo neste perfil)';
+          }
+        }
+
+        document.getElementById('devInspectorEnable').onclick = async function () {
+          const pid = document.getElementById('devInspectorProfile').value;
+          if (!pid) {
+            toast('Selecione um perfil', 'error');
+            return;
+          }
+          const r = await window.api.inspectorEnable(pid);
+          if (r.ok) {
+            toast('Inspector ativo — abra o jogo', 'info');
+            document.getElementById('devInspectorEnable').disabled = true;
+            document.getElementById('devInspectorDisable').disabled = false;
+            refreshInspector();
+            inspectorPoll = setInterval(refreshInspector, 2000);
+          } else {
+            toast('Inspector falhou: ' + r.error, 'error');
+          }
+        };
+
+        document.getElementById('devInspectorDisable').onclick = async function () {
+          const pid = document.getElementById('devInspectorProfile').value;
+          await window.api.inspectorDisable(pid);
+          if (inspectorPoll) {
+            clearInterval(inspectorPoll);
+            inspectorPoll = null;
+          }
+          document.getElementById('devInspectorEnable').disabled = false;
+          document.getElementById('devInspectorDisable').disabled = true;
+          toast('Inspector desativado', 'info');
+        };
+
+        document.getElementById('devInspectorRefresh').onclick = refreshInspector;
+        document.getElementById('devInspectorClear').onclick = async function () {
+          const pid = document.getElementById('devInspectorProfile').value;
+          await window.api.inspectorClear(pid);
+          refreshInspector();
+        };
+
+        // v4.9.1: Source Extractor + DevTools + Reload
+        const srcOut = document.getElementById('devSourceResult');
+        function showSrc(text) {
+          srcOut.style.display = 'block';
+          srcOut.textContent = text;
+        }
+
+        document.getElementById('devExtractSource').onclick = async function () {
+          const pid = document.getElementById('devSourceProfile').value;
+          if (!pid) {
+            toast('Selecione um perfil', 'error');
+            return;
+          }
+          showSrc('Extraindo fonte da página...');
+          try {
+            const r = await window.api.getPageSource(pid);
+            if (r.ok) {
+              showSrc(
+                'URL: ' +
+                  r.data.url +
+                  '\nTitle: ' +
+                  r.data.title +
+                  '\nTamanho: ' +
+                  r.data.size +
+                  ' chars\n═══════════════════════════════════\n' +
+                  r.data.source.slice(0, 8000) +
+                  (r.data.size > 8000 ? '\n... (truncado, ' + r.data.size + ' chars total)' : '')
+              );
+            } else {
+              showSrc('✗ ERRO: ' + r.error);
+            }
+          } catch (e) {
+            showSrc('✗ ERRO: ' + e.message);
+          }
+        };
+
+        document.getElementById('devListCookies').onclick = async function () {
+          const pid = document.getElementById('devSourceProfile').value;
+          if (!pid) {
+            toast('Selecione um perfil', 'error');
+            return;
+          }
+          showSrc('Listando cookies...');
+          try {
+            const r = await window.api.getCookies(pid);
+            if (r.ok) {
+              showSrc(
+                'COOKIES (' +
+                  r.data.length +
+                  '):\n═══════════════════════════════════\n' +
+                  r.data
+                    .map(
+                      c =>
+                        c.name +
+                        '=' +
+                        c.value +
+                        (c.value.length >= 80 ? '...' : '') +
+                        '\n  domain=' +
+                        c.domain +
+                        ' path=' +
+                        c.path +
+                        ' secure=' +
+                        c.secure +
+                        ' httpOnly=' +
+                        c.httpOnly
+                    )
+                    .join('\n')
+              );
+            } else {
+              showSrc('✗ ERRO: ' + r.error);
+            }
+          } catch (e) {
+            showSrc('✗ ERRO: ' + e.message);
+          }
+        };
+
+        document.getElementById('devReloadGame').onclick = async function () {
+          const pid = document.getElementById('devSourceProfile').value;
+          if (!pid) {
+            toast('Selecione um perfil', 'error');
+            return;
+          }
+          const r = await window.api.reloadGame(pid);
+          toast(r.ok ? 'Sessão Flash recarregada (F5)' : 'Erro: ' + r.error, r.ok ? 'ok' : 'error');
+        };
+
+        document.getElementById('devToggleDt').onclick = async function () {
+          const pid = document.getElementById('devSourceProfile').value;
+          if (!pid) {
+            toast('Selecione um perfil', 'error');
+            return;
+          }
+          const r = await window.api.toggleDevTools(pid);
+          if (!r.ok) toast('Erro: ' + r.error, 'error');
+        };
+      }
+
+      // ── SHINOBI_DEBUG feature flag ──
+      // v5.9.3: Ativação APENAS via env var (boot-time), lida pelo preload.
+      // O atalho Ctrl+Shift+D e o toggle localStorage foram REMOVIDOS — debug
+      // agora é opt-in via scripts/debug.sh (abre terminal + seta SHINOBI_DEBUG=1).
+      // Zero complexidade de UI em launches normais.
+      function isDebugActive() {
+        return window.__SHINOBI_DEBUG__ === true;
+      }
+      function applyDebugVisibility() {
+        const sec = document.getElementById('devToolsSection');
+        if (!sec) return;
+        sec.style.display = isDebugActive() ? '' : 'none';
+      }
+      function initDebugFlag() {
+        applyDebugVisibility();
+      }
+
+      // ── v5.0: Activity Log (persisted in localStorage) ──
+      var ACTIVITY_KEY = 'shinobi-activity-log';
+      var MAX_ACTIVITIES = 50;
+
+      function getActivityLog() {
+        try {
+          return JSON.parse(localStorage.getItem(ACTIVITY_KEY) || '[]');
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function addActivity(type, text) {
+        var log = getActivityLog();
+        log.unshift({ type: type, text: text, time: Date.now() });
+        if (log.length > MAX_ACTIVITIES) log = log.slice(0, MAX_ACTIVITIES);
+        localStorage.setItem(ACTIVITY_KEY, JSON.stringify(log));
+        updateEventBadge();
+      }
+
+      // ── v5.0: Notification Badge on Events ──
+      function updateEventBadge() {
+        var badge = document.getElementById('eventBadge');
+        if (!badge) return;
+        var log = getActivityLog();
+        var unread = log.filter(function (item) {
+          return Date.now() - item.time < 3600000;
+        }).length; // last hour
+        if (unread > 0 && !notificationsMuted) {
+          badge.textContent = unread > 9 ? '9+' : unread;
+          badge.classList.add('show');
+        } else {
+          badge.classList.remove('show');
+        }
+      }
+
+      // ── v5.0: JWT Decoder Widget ──
+      function decodeJWT(token) {
+        var parts = token.trim().split('.');
+        if (parts.length !== 3)
+          return { error: 'Token inválido — JWT deve ter 3 partes separadas por ponto.' };
+        try {
+          var header = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')));
+          var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+          var exp = payload.exp ? new Date(payload.exp * 1000) : null;
+          var iat = payload.iat ? new Date(payload.iat * 1000) : null;
+          return { header: header, payload: payload, exp: exp, iat: iat };
+        } catch (e) {
+          return { error: 'Falha ao decodificar: ' + e.message };
+        }
+      }
+
+      function syntaxHighlightJSON(obj) {
+        var json = JSON.stringify(obj, null, 2);
+        return json.replace(
+          /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
+          function (match) {
+            var cls = 'num';
+            if (/^"/.test(match)) {
+              if (/:$/.test(match)) cls = 'key';
+              else cls = 'str';
+            } else if (/true|false/.test(match)) cls = 'bool';
+            return '<span class="' + cls + '">' + match + '</span>';
+          }
+        );
+      }
+
+      document.getElementById('jwtDecodeBtn').onclick = function () {
+        var token = document.getElementById('jwtInput').value.trim();
+        var output = document.getElementById('jwtOutput');
+        if (!token) {
+          output.className = 'jwt-output show';
+          output.innerHTML = '<div class="jwt-error">Cole um token JWT para decodificar.</div>';
+          return;
+        }
+        var result = decodeJWT(token);
+        if (result.error) {
+          output.className = 'jwt-output show';
+          output.innerHTML = '<div class="jwt-error">' + esc(result.error) + '</div>';
+          return;
+        }
+        var now = Date.now();
+        var isExpired = result.exp && result.exp.getTime() < now;
+        var expiryHtml = '';
+        if (result.exp) {
+          var label = isExpired ? 'Expirado' : 'Válido';
+          var cls = isExpired ? 'expired' : 'valid';
+          var relExp = formatRelativeTime(result.exp);
+          var timeLeft = isExpired
+            ? 'expirou ' + relExp.label
+            : 'expira em ' + relExp.label;
+          expiryHtml =
+            '<div class="jwt-expiry ' +
+            cls +
+            '">' +
+            '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ' +
+            label +
+            ' — ' +
+            timeLeft +
+            '</div>';
+        }
+        output.className = 'jwt-output show';
+        output.innerHTML =
+          '<div class="jwt-section">' +
+          '<div class="jwt-section-header"><span class="jwt-section-title">Header</span><button class="jwt-copy-btn" data-copy="' +
+          esc(JSON.stringify(result.header)) +
+          '">Copiar</button></div>' +
+          '<div class="jwt-json">' +
+          syntaxHighlightJSON(result.header) +
+          '</div>' +
+          '</div>' +
+          '<div class="jwt-section">' +
+          '<div class="jwt-section-header"><span class="jwt-section-title">Payload</span><button class="jwt-copy-btn" data-copy="' +
+          esc(JSON.stringify(result.payload)) +
+          '">Copiar</button></div>' +
+          '<div class="jwt-json">' +
+          syntaxHighlightJSON(result.payload) +
+          '</div>' +
+          expiryHtml +
+          '</div>';
+        // Copy button handlers
+        output.querySelectorAll('.jwt-copy-btn').forEach(function (btn) {
+          btn.onclick = function () {
+            var text = btn.getAttribute('data-copy');
+            clipboardWrite(text);
+            toast('Copiado!', 'ok');
+          };
+        });
+      };
+
+      function clipboardWrite(text) {
+        try {
+          require('electron').clipboard.writeText(text);
+        } catch (e) {
+          // Fallback
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+      }
+
+      // ── v5.0: Copy-to-clipboard for dev result boxes ──
+      function initCopyButtons() {
+        document.querySelectorAll('.dev-result-box').forEach(function (box) {
+          if (box.querySelector('.copy-float')) return;
+          var btn = document.createElement('button');
+          btn.className = 'copy-float';
+          btn.textContent = 'Copiar';
+          btn.onclick = function () {
+            clipboardWrite(box.textContent || '');
+            toast('Conteúdo copiado!', 'ok');
+          };
+          box.style.position = 'relative';
+          box.insertBefore(btn, box.firstChild);
+        });
+      }
+
+      // ── v5.0: Activity tracking hooks ──
+      var origLaunch = launch;
+      launch = function (id) {
+        var p = profiles.find(function (x) {
+          return x.id === id;
+        });
+        if (p)
+          addActivity(
+            'launch',
+            'Jogo lançado: <strong>' + esc(p.name) + '</strong> (' + p.server + ')'
+          );
+        origLaunch(id);
+      };
+
+      // Track which profiles were open in last session for relaunch-all
+      var LAST_SESSION_KEY = 'shinobi-last-session';
+      ipcRenderer.on('game-window:status', function (_e, data) {
+        if (!data || !data.profileId) return;
+        var lastSession = JSON.parse(localStorage.getItem(LAST_SESSION_KEY) || '[]');
+        if (data.open) {
+          if (lastSession.indexOf(data.profileId) === -1) lastSession.push(data.profileId);
+        } else {
+          lastSession = lastSession.filter(function (id) {
+            return id !== data.profileId;
+          });
+        }
+        localStorage.setItem(LAST_SESSION_KEY, JSON.stringify(lastSession));
+        updateSessionOverview();
+      });
+
+      var origDel = del;
+      // del is redefined below in v5.2 with custom confirm dialog + activity logging
+
+      // Track auto-login results as activities
+      ipcRenderer.on('auto-login:result', function (_e, data) {
+        var p = profiles.find(function (x) {
+          return x.id === data.profileId;
+        });
+        var name = p ? p.name : data.profileId;
+        if (data.result === 'filled' || data.result === 'clicked') {
+          addActivity('login', 'Auto-login: <strong>' + esc(name) + '</strong> autenticado');
+        } else if (data.result === 'error') {
+          addActivity('error', 'Auto-login falhou: <strong>' + esc(name) + '</strong>');
+        }
+      });
+
+      // ── v5.1: Sidebar Memory Bar ──
+      function updateSidebarMemBar(s) {
+        if (!s) return;
+        var val = document.getElementById('sidebarMemVal');
+        var fill = document.getElementById('sidebarMemFill');
+        if (val) val.textContent = s.totalMB + ' MB';
+        if (fill && s.thresholdMB > 0) {
+          var pct = Math.min(100, (s.totalMB / s.thresholdMB) * 100);
+          fill.style.width = pct + '%';
+          fill.style.background =
+            pct < 50
+              ? 'var(--ok)'
+              : pct < 75
+                ? 'var(--warn)'
+                : pct < 90
+                  ? '#F97316'
+                  : 'var(--danger)';
+        }
+      }
+
+      // ── v5.1: Batch Operations ──
+      var batchMode = false;
+      var batchSelected = new Set();
+
+      document.getElementById('batchModeBtn').onclick = function () {
+        batchMode = !batchMode;
+        this.classList.toggle('on', batchMode);
+        document.getElementById('profileGrid').classList.toggle('batch-mode', batchMode);
+        if (!batchMode) {
+          batchSelected.clear();
+          updateBatchBar();
+        }
+        renderProfiles();
+      };
+
+      function updateBatchBar() {
+        var bar = document.getElementById('batchBar');
+        var count = document.getElementById('batchCount');
+        if (batchMode && batchSelected.size > 0) {
+          bar.classList.add('show');
+          count.textContent =
+            batchSelected.size + ' selecionado' + (batchSelected.size > 1 ? 's' : '');
+        } else {
+          bar.classList.remove('show');
+        }
+      }
+
+      document.getElementById('batchSelectAll').onclick = function () {
+        if (batchSelected.size === profiles.length) {
+          batchSelected.clear();
+        } else {
+          profiles.forEach(function (p) {
+            batchSelected.add(p.id);
+          });
+        }
+        updateBatchBar();
+        renderProfiles();
+      };
+
+      document.getElementById('batchCancelBtn').onclick = function () {
+        batchMode = false;
+        batchSelected.clear();
+        document.getElementById('batchModeBtn').classList.remove('on');
+        document.getElementById('profileGrid').classList.remove('batch-mode');
+        updateBatchBar();
+        renderProfiles();
+      };
+
+      document.getElementById('batchDeleteBtn').onclick = async function () {
+        if (!batchSelected.size) return;
+        if (
+          !confirm(
+            'Excluir ' + batchSelected.size + ' conta(s)? Cookies e credenciais serão apagados.'
+          )
+        )
+          return;
+        batchSelected.forEach(function (id) {
+          ipcRenderer.send('profile:delete', id);
+        });
+        addActivity('info', batchSelected.size + ' conta(s) excluída(s) em lote');
+        batchSelected.clear();
+        updateBatchBar();
+        batchMode = false;
+        document.getElementById('batchModeBtn').classList.remove('on');
+        document.getElementById('profileGrid').classList.remove('batch-mode');
+      };
+
+      document.getElementById('batchExportBtn').onclick = async function () {
+        if (!batchSelected.size) return;
+        // Export only selected profiles
+        var selectedProfiles = profiles.filter(function (p) {
+          return batchSelected.has(p.id);
+        });
+        var pwd = prompt('Digite uma senha para criptografar o backup (mín. 6 caracteres):');
+        if (!pwd) return;
+        if (pwd.length < 6) {
+          toast('Senha muito curta', 'err');
+          return;
+        }
+        try {
+          var res = await ipcRenderer.invoke('profiles:export-encrypted', pwd);
+          if (res && res.ok) toast('Backup exportado: ' + res.count + ' perfis', 'ok');
+          else if (res && res.error) toast('Erro: ' + res.error, 'err');
+        } catch (e) {
+          toast('Erro: ' + e.message, 'err');
+        }
+      };
+
+      // ── v5.1: Profile Health Check ──
+      async function runHealthCheck(profileId, resultEl) {
+        var btn = document.querySelector('[data-health-id="' + profileId + '"]');
+        if (btn) {
+          btn.classList.add('checking');
+          btn.innerHTML =
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:shurikenSpin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Verificando';
+        }
+        var checks = [];
+        var p = profiles.find(function (x) {
+          return x.id === profileId;
+        });
+        if (!p) {
+          if (btn) btn.classList.remove('checking');
+          return;
+        }
+
+        // Check 1: Vault credentials exist
+        try {
+          var creds = await ipcRenderer.invoke('vault:get', profileId);
+          checks.push({ name: 'Credenciais salvas', pass: !!(creds && creds.user && creds.pass) });
+        } catch (e) {
+          checks.push({ name: 'Credenciais salvas', pass: false });
+        }
+
+        // Check 2: Session validity (JWT check)
+        try {
+          var session = await ipcRenderer.invoke('session:check', profileId);
+          if (session && session.ok && session.data && session.data.valid) {
+            checks.push({
+              name: 'Sessão JWT válida',
+              pass: true,
+              detail: Math.round(session.data.expiresInSeconds / 60) + ' min restantes'
+            });
+          } else {
+            checks.push({ name: 'Sessão JWT válida', pass: false, warn: true });
+          }
+        } catch (e) {
+          checks.push({ name: 'Sessão JWT válida', pass: false, warn: true });
+        }
+
+        // Check 3: Server configured
+        checks.push({ name: 'Servidor configurado', pass: !!(p.server && p.server.length > 0) });
+
+        // Check 4: Region valid
+        var validRegions = ['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'];
+        checks.push({ name: 'Região válida', pass: validRegions.indexOf(p.region) !== -1 });
+
+        // Render results
+        var allPass = checks.every(function (c) {
+          return c.pass;
+        });
+        var resultHtml = checks
+          .map(function (c) {
+            var cls = c.pass ? 'pass' : c.warn ? 'warn' : 'fail';
+            var icon = c.pass
+              ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+              : c.warn
+                ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+            return (
+              '<div class="hr-item ' +
+              cls +
+              '">' +
+              icon +
+              ' ' +
+              c.name +
+              (c.detail ? ' (' + c.detail + ')' : '') +
+              '</div>'
+            );
+          })
+          .join('');
+        resultEl.innerHTML = resultHtml;
+        resultEl.classList.add('show');
+
+        if (btn) {
+          btn.classList.remove('checking');
+          btn.classList.add(allPass ? 'healthy' : 'unhealthy');
+          btn.innerHTML = allPass
+            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Saudável'
+            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Problemas';
+          setTimeout(function () {
+            btn.classList.remove('healthy', 'unhealthy');
+            btn.innerHTML =
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Verificar';
+          }, 4000);
+        }
+      }
+
+      // ── v5.9.3: Keyboard handler simplificado ──
+      // Atalhos de navegação (1/2/3, Ctrl+N, Ctrl+F, /, ?) e overlay de ajuda
+      // foram removidos — a sidebar + botões são suficientes. Apenas Esc fecha modais.
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          document.getElementById('profileModal').classList.remove('show');
+          document.getElementById('vaultModal').classList.remove('show');
+        }
+      });
+
+      // ── v5.1: Update sidebar membar on memory updates ──
+      var origRenderMemory = renderMemory;
+      renderMemory = function (s) {
+        origRenderMemory(s);
+        updateSidebarMemBar(s);
+      };
+
+      // ── v5.2: Custom Confirm Dialog ──
+      var _confirmResolve = null;
+      function customConfirm(title, message, opts) {
+        opts = opts || {};
+        var overlay = document.getElementById('confirmOverlay');
+        var iconEl = document.getElementById('confirmIcon');
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+        // Set icon type
+        iconEl.className = 'confirm-icon ' + (opts.type || 'danger');
+        var okBtn = document.getElementById('confirmOk');
+        okBtn.className = 'btn ' + (opts.type === 'warn' ? 'primary' : 'btn-danger');
+        okBtn.textContent = opts.okText || 'Confirmar';
+        overlay.classList.add('show');
+        return new Promise(function (resolve) {
+          _confirmResolve = resolve;
+        });
+      }
+      document.getElementById('confirmCancel').onclick = function () {
+        document.getElementById('confirmOverlay').classList.remove('show');
+        if (_confirmResolve) {
+          _confirmResolve(false);
+          _confirmResolve = null;
+        }
+      };
+      document.getElementById('confirmOk').onclick = function () {
+        document.getElementById('confirmOverlay').classList.remove('show');
+        if (_confirmResolve) {
+          _confirmResolve(true);
+          _confirmResolve = null;
+        }
+      };
+      document.getElementById('confirmOverlay').addEventListener('click', function (e) {
+        if (e.target === this) {
+          this.classList.remove('show');
+          if (_confirmResolve) {
+            _confirmResolve(false);
+            _confirmResolve = null;
+          }
+        }
+      });
+
+      // Replace browser confirm() calls with custom dialog (v5.2)
+      del = async function (id) {
+        var p = profiles.find(function (x) {
+          return x.id === id;
+        });
+        var pName = p ? p.name : id;
+        var confirmed = await customConfirm(
+          'Excluir conta',
+          'Excluir "' + pName + '"? Cookies e credenciais serão apagados permanentemente.',
+          { type: 'danger', okText: 'Excluir' }
+        );
+        if (!confirmed) return;
+        ipcRenderer.send('profile:delete', id);
+        addActivity('info', 'Conta excluída: <strong>' + esc(pName) + '</strong>');
+        if (localStorage.getItem(LAST_PROFILE_KEY) === id) {
+          localStorage.removeItem(LAST_PROFILE_KEY);
+          loadLastProfile();
+        }
+      };
+
+      var origRemoveVault = document.getElementById('removeVault').onclick;
+      document.getElementById('removeVault').onclick = async function () {
+        var confirmed = await customConfirm(
+          'Remover credenciais',
+          'Remover as credenciais salvas deste perfil? O auto-login será desativado.',
+          { type: 'warn', okText: 'Remover' }
+        );
+        if (!confirmed) return;
+        await ipcRenderer.invoke('vault:remove', vaultId);
+        toast('Credenciais removidas', 'ok');
+        document.getElementById('vaultModal').classList.remove('show');
+      };
+
+      // ── v5.2: Context Menu ──
+      var ctxMenu = document.getElementById('ctxMenu');
+      var ctxProfileId = null;
+
+      function showContextMenu(x, y, profileId) {
+        ctxProfileId = profileId;
+        var p = profiles.find(function (x) {
+          return x.id === profileId;
+        });
+        if (!p) return;
+        ctxMenu.innerHTML =
+          '<div class="ctx-menu-item" data-ctx="launch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Jogar<span class="shortcut">Play</span></div>' +
+          '<div class="ctx-menu-item" data-ctx="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Editar<span class="shortcut">E</span></div>' +
+          (p.hasVault
+            ? '<div class="ctx-menu-item" data-ctx="vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Credenciais</div>'
+            : '<div class="ctx-menu-item" data-ctx="vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Adicionar credenciais</div>') +
+          '<div class="ctx-menu-divider"></div>' +
+          '<div class="ctx-menu-item" data-ctx="health"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Verificar saúde</div>' +
+          '<div class="ctx-menu-item" data-ctx="dup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicar</div>' +
+          '<div class="ctx-menu-item" data-ctx="fav"><svg viewBox="0 0 24 24" fill="' +
+          (p.favorite ? 'currentColor' : 'none') +
+          '" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> ' +
+          (p.favorite ? 'Desfavoritar' : 'Favoritar') +
+          '</div>' +
+          '<div class="ctx-menu-divider"></div>' +
+          '<div class="ctx-menu-item danger" data-ctx="del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Excluir<span class="shortcut">Del</span></div>';
+        // Position
+        ctxMenu.style.left = Math.min(x, window.innerWidth - 200) + 'px';
+        ctxMenu.style.top = Math.min(y, window.innerHeight - 300) + 'px';
+        ctxMenu.classList.add('show');
+        // Handlers
+        ctxMenu.querySelectorAll('.ctx-menu-item').forEach(function (item) {
+          item.onclick = function () {
+            var act = item.getAttribute('data-ctx');
+            ctxMenu.classList.remove('show');
+            if (act === 'launch') launch(ctxProfileId);
+            else if (act === 'edit') edit(ctxProfileId);
+            else if (act === 'vault') openVault(ctxProfileId);
+            else if (act === 'fav') toggleFavorite(ctxProfileId);
+            else if (act === 'dup') duplicateProfile(ctxProfileId);
+            else if (act === 'health') {
+              var resultEl = document.getElementById('healthResult-' + ctxProfileId);
+              if (resultEl) runHealthCheck(ctxProfileId, resultEl);
+            } else if (act === 'del') del(ctxProfileId);
+          };
+        });
+      }
+
+      // Close context menu on click outside
+      document.addEventListener('click', function () {
+        ctxMenu.classList.remove('show');
+      });
+      document.addEventListener('contextmenu', function (e) {
+        // Only handle right-click on profile cards
+        var card = e.target.closest('.card[data-card-id]');
+        if (card) {
+          e.preventDefault();
+          showContextMenu(e.clientX, e.clientY, card.getAttribute('data-card-id'));
+        } else {
+          ctxMenu.classList.remove('show');
+        }
+      });
+
+      // ── v5.2: Drag-and-Drop Profile Reorder ──
+      var dragSrcId = null;
+
+      function initDragDrop() {
+        var grid = document.getElementById('profileGrid');
+        grid.addEventListener('dragstart', function (e) {
+          var card = e.target.closest('.card[data-card-id]');
+          if (!card || batchMode) {
+            e.preventDefault();
+            return;
+          }
+          dragSrcId = card.getAttribute('data-card-id');
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', dragSrcId);
+        });
+        grid.addEventListener('dragend', function (e) {
+          var card = e.target.closest('.card[data-card-id]');
+          if (card) card.classList.remove('dragging');
+          dragSrcId = null;
+          // Remove all drag-over states
+          grid.querySelectorAll('.drag-over').forEach(function (c) {
+            c.classList.remove('drag-over');
+          });
+        });
+        grid.addEventListener('dragover', function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          var card = e.target.closest('.card[data-card-id]');
+          if (card && card.getAttribute('data-card-id') !== dragSrcId) {
+            // Clear other drag-overs
+            grid.querySelectorAll('.drag-over').forEach(function (c) {
+              c.classList.remove('drag-over');
+            });
+            card.classList.add('drag-over');
+          }
+        });
+        grid.addEventListener('dragleave', function (e) {
+          var card = e.target.closest('.card[data-card-id]');
+          if (card) card.classList.remove('drag-over');
+        });
+        grid.addEventListener('drop', function (e) {
+          e.preventDefault();
+          var targetCard = e.target.closest('.card[data-card-id]');
+          if (!targetCard || !dragSrcId) return;
+          var targetId = targetCard.getAttribute('data-card-id');
+          if (targetId === dragSrcId) return;
+          // Reorder profiles array
+          var srcIdx = profiles.findIndex(function (p) {
+            return p.id === dragSrcId;
+          });
+          var tgtIdx = profiles.findIndex(function (p) {
+            return p.id === targetId;
+          });
+          if (srcIdx === -1 || tgtIdx === -1) return;
+          var moved = profiles.splice(srcIdx, 1)[0];
+          profiles.splice(tgtIdx, 0, moved);
+          // Persist order via IPC
+          var order = profiles.map(function (p) {
+            return p.id;
+          });
+          ipcRenderer.send('profile:reorder', order);
+          renderProfiles();
+          toast('Perfil reposicionado', 'ok');
+        });
+      }
+
+      // Make cards draggable after render
+      var origRenderProfiles = renderProfiles;
+      renderProfiles = function () {
+        origRenderProfiles();
+        if (!batchMode) {
+          document.querySelectorAll('.card[data-card-id]').forEach(function (card) {
+            card.setAttribute('draggable', 'true');
+          });
+        }
+      };
+
+      // ── v5.2: Batch delete uses custom confirm ──
+      var origBatchDelete = document.getElementById('batchDeleteBtn').onclick;
+      document.getElementById('batchDeleteBtn').onclick = async function () {
+        if (!batchSelected.size) return;
+        var confirmed = await customConfirm(
+          'Excluir ' + batchSelected.size + ' conta(s)',
+          'Esta ação é irreversível. Cookies e credenciais serão apagados permanentemente.',
+          { type: 'danger', okText: 'Excluir ' + batchSelected.size + ' conta(s)' }
+        );
+        if (!confirmed) return;
+        batchSelected.forEach(function (id) {
+          ipcRenderer.send('profile:delete', id);
+        });
+        addActivity('info', batchSelected.size + ' conta(s) excluída(s) em lote');
+        batchSelected.clear();
+        updateBatchBar();
+        batchMode = false;
+        document.getElementById('batchModeBtn').classList.remove('on');
+        document.getElementById('profileGrid').classList.remove('batch-mode');
+      };
+
+      // ── v5.2: Vault remove uses custom confirm ──
+      // Already handled above by overriding removeVault onclick
+
+      // ── v5.3: Connection Health Indicator ──
+      var connState = 'online'; // online | offline | checking
+      function updateConnectionState(state) {
+        connState = state;
+        var dot = document.getElementById('connDot');
+        var label = document.getElementById('connLabel');
+        if (!dot || !label) return;
+        dot.className =
+          'conn-dot' +
+          (state === 'offline' ? ' disconnected' : state === 'checking' ? ' checking' : '');
+        label.textContent =
+          state === 'online' ? 'Online' : state === 'offline' ? 'Offline' : 'Verificando';
+      }
+      // Check connectivity periodically
+      function checkConnection() {
+        updateConnectionState('checking');
+        var timeout = setTimeout(function () {
+          updateConnectionState('offline');
+        }, 5000);
+        try {
+          require('https')
+            .get('https://api.github.com', function (res) {
+              clearTimeout(timeout);
+              updateConnectionState(res.statusCode ? 'online' : 'offline');
+            })
+            .on('error', function () {
+              clearTimeout(timeout);
+              updateConnectionState('offline');
+            });
+        } catch (e) {
+          clearTimeout(timeout);
+          updateConnectionState('offline');
+        }
+      }
+      setInterval(checkConnection, 60000); // Check every 60s
+      setTimeout(checkConnection, 3000); // First check after 3s
+
+      // ── v5.3: Profile Tags System ──
+      var TAG_COLORS = {
+        main: '#FF8C00',
+        alt: '#06B6D4',
+        pvp: '#DC2626',
+        farm: '#10B981',
+        eventos: '#F59E0B',
+        evento: '#F59E0B',
+        events: '#F59E0B',
+        pve: '#8B5CF6',
+        ranked: '#EC4899',
+        test: '#84CC16'
+      };
+      var activeTagFilter = null;
+      var editingTags = []; // Tags being edited in modal
+
+      function getTagColor(tag) {
+        var lower = (tag || '').toLowerCase();
+        if (TAG_COLORS[lower]) return TAG_COLORS[lower];
+        // Generate consistent color from tag string
+        var hash = 0;
+        for (var i = 0; i < lower.length; i++) hash = lower.charCodeAt(i) + ((hash << 5) - hash);
+        var hue = Math.abs(hash) % 360;
+        return 'hsl(' + hue + ', 65%, 55%)';
+      }
+
+      function getAllTags() {
+        var tagMap = {};
+        profiles.forEach(function (p) {
+          (p.tags || []).forEach(function (tag) {
+            tagMap[tag] = (tagMap[tag] || 0) + 1;
+          });
+        });
+        return Object.keys(tagMap)
+          .sort()
+          .map(function (t) {
+            return { name: t, count: tagMap[t] };
+          });
+      }
+
+      function renderTagFilterBar() {
+        var bar = document.getElementById('tagFilterBar');
+        if (!bar) return;
+        var tags = getAllTags();
+        if (!tags.length) {
+          bar.innerHTML = '';
+          return;
+        }
+        var html =
+          '<span style="font-size:var(--font-xs);color:var(--text-faint);margin-right:.2rem">Tags:</span>';
+        // "All" chip
+        html +=
+          '<span class="tag-filter-chip' +
+          (!activeTagFilter ? ' active' : '') +
+          '" data-tag-filter="">Todas</span>';
+        tags.forEach(function (t) {
+          var color = getTagColor(t.name);
+          html +=
+            '<span class="tag-filter-chip' +
+            (activeTagFilter === t.name ? ' active' : '') +
+            '" data-tag-filter="' +
+            esc(t.name) +
+            '" style="' +
+            (activeTagFilter === t.name
+              ? 'border-color:' + color + ';color:' + color + ';background:' + color + '15'
+              : '') +
+            '">' +
+            '<span style="width:6px;height:6px;border-radius:50%;background:' +
+            color +
+            ';display:inline-block"></span> ' +
+            esc(t.name) +
+            '<span class="tag-count">' +
+            t.count +
+            '</span></span>';
+        });
+        bar.innerHTML = html;
+        // Handlers
+        bar.querySelectorAll('.tag-filter-chip').forEach(function (chip) {
+          chip.onclick = function () {
+            var tag = chip.getAttribute('data-tag-filter');
+            activeTagFilter = tag || null;
+            renderTagFilterBar();
+            renderProfiles();
+          };
+        });
+      }
+
+      function buildTagsHtml(tags) {
+        if (!tags || !tags.length) return '';
+        return (
+          '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:2px">' +
+          tags
+            .map(function (tag) {
+              var color = getTagColor(tag);
+              return (
+                '<span class="profile-tag" style="background:' +
+                color +
+                '18;color:' +
+                color +
+                ';border:1px solid ' +
+                color +
+                '30">' +
+                esc(tag) +
+                '<span class="tag-remove" data-remove-tag="' +
+                esc(tag) +
+                '">&times;</span>' +
+                '</span>'
+              );
+            })
+            .join('') +
+          '</div>'
+        );
+      }
+
+      function initTagsInput() {
+        var wrap = document.getElementById('tagsInputWrap');
+        var input = document.getElementById('fTags');
+        if (!wrap || !input) return;
+
+        function renderTagsInput() {
+          // Remove existing tags in the wrapper (keep the input)
+          wrap.querySelectorAll('.profile-tag').forEach(function (t) {
+            t.remove();
+          });
+          editingTags.forEach(function (tag) {
+            var span = document.createElement('span');
+            span.className = 'profile-tag';
+            span.style.background = getTagColor(tag) + '18';
+            span.style.color = getTagColor(tag);
+            span.style.border = '1px solid ' + getTagColor(tag) + '30';
+            span.innerHTML =
+              esc(tag) +
+              ' <span class="tag-remove" style="cursor:pointer;opacity:.6">&times;</span>';
+            span.querySelector('.tag-remove').onclick = function () {
+              editingTags = editingTags.filter(function (t) {
+                return t !== tag;
+              });
+              renderTagsInput();
+            };
+            wrap.insertBefore(span, input);
+          });
+        }
+
+        input.onkeydown = function (e) {
+          if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            var val = input.value.trim().replace(/,/g, '').toLowerCase();
+            if (!val || editingTags.indexOf(val) !== -1 || editingTags.length >= 5) return;
+            editingTags.push(val);
+            input.value = '';
+            renderTagsInput();
+          }
+          if (e.key === 'Backspace' && !input.value && editingTags.length) {
+            editingTags.pop();
+            renderTagsInput();
+          }
+        };
+        // Store reference for modal open/close
+        window._renderTagsInput = renderTagsInput;
+      }
+
+      // ── v5.3: Session Overview Panel ──
+      var sessionOpenTimes = {}; // { profileId: openTimestamp }
+
+      function updateSessionOverview() {
+        var listEl = document.getElementById('sessionList');
+        if (!listEl) return;
+        var openIds = Object.keys(openWindows);
+        if (!openIds.length) {
+          listEl.innerHTML = '<div class="session-empty">Nenhuma sessão ativa.</div>';
+          return;
+        }
+        listEl.innerHTML = openIds
+          .map(function (id) {
+            var p = profiles.find(function (x) {
+              return x.id === id;
+            });
+            var name = p ? p.name : id;
+            var uptime = sessionOpenTimes[id]
+              ? formatSessionUptime(Date.now() - sessionOpenTimes[id])
+              : '—';
+            return (
+              '<div class="session-item">' +
+              '<span class="session-dot"></span>' +
+              '<div class="session-info">' +
+              '<div class="session-name">' +
+              esc(name) +
+              '</div>' +
+              '<div class="session-uptime">Aberta há ' +
+              uptime +
+              '</div>' +
+              '</div>' +
+              '<button class="session-close" data-close-session="' +
+              id +
+              '" title="Fechar sessão">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+              '</button>' +
+              '</div>'
+            );
+          })
+          .join('');
+        // Close session handlers
+        listEl.querySelectorAll('.session-close').forEach(function (btn) {
+          btn.onclick = function (e) {
+            e.stopPropagation();
+            var id = btn.getAttribute('data-close-session');
+            ipcRenderer.send('profile:close', id);
+            addActivity('info', 'Sessão fechada: <strong>' + esc(id) + '</strong>');
+          };
+        });
+      }
+
+      function formatSessionUptime(ms) {
+        if (!ms || ms < 1000) return '0s';
+        var seconds = Math.floor(ms / 1000);
+        var hours = Math.floor(seconds / 3600);
+        var minutes = Math.floor((seconds % 3600) / 60);
+        var secs = seconds % 60;
+        if (hours > 0) return hours + 'h ' + minutes + 'm';
+        if (minutes > 0) return minutes + 'm ' + secs + 's';
+        return secs + 's';
+      }
+
+      // Track session open times
+      var origGameWindowStatus = null;
+      // We already have the game-window:status listener, let's add timing
+      ipcRenderer.on('game-window:status', function (_e, data) {
+        if (!data || !data.profileId) return;
+        if (data.open && !sessionOpenTimes[data.profileId]) {
+          sessionOpenTimes[data.profileId] = Date.now();
+        }
+        if (!data.open) {
+          delete sessionOpenTimes[data.profileId];
+        }
+      });
+
+      // ── v5.3: Quick Relaunch All ──
+      document.getElementById('relaunchAllBtn').onclick = function () {
+        var lastSession = JSON.parse(localStorage.getItem(LAST_SESSION_KEY) || '[]');
+        if (!lastSession.length) {
+          toast('Nenhuma sessão anterior encontrada', 'err');
+          return;
+        }
+        var launched = 0;
+        lastSession.forEach(function (id) {
+          // Only launch if not already open
+          if (!openWindows[id]) {
+            var p = profiles.find(function (x) {
+              return x.id === id;
+            });
+            if (p) {
+              origLaunch(id);
+              launched++;
+            }
+          }
+        });
+        if (launched > 0) toast('Relançando ' + launched + ' perfil(is)', 'ok');
+        else toast('Todos os perfis já estão abertos', 'ok');
+      };
+
+      // ── v5.3: Sidebar Uptime Counter ──
+      var appStartTime = Date.now();
+      function updateUptime() {
+        var el = document.getElementById('uptimeVal');
+        if (!el) return;
+        var ms = Date.now() - appStartTime;
+        var hours = Math.floor(ms / 3600000);
+        var minutes = Math.floor((ms % 3600000) / 60000);
+        if (hours > 0) el.textContent = hours + 'h ' + (minutes < 10 ? '0' : '') + minutes + 'm';
+        else el.textContent = minutes + 'm';
+      }
+      setInterval(updateUptime, 30000);
+      updateUptime();
+
+      // ── v5.3: Enhanced Event Rendering ──
+      var origRenderEventsSingle = renderEventsSingle;
+      renderEventsSingle = function (list) {
+        var el = document.getElementById('eventList');
+        if (!list || !list.length) {
+          el.innerHTML =
+            '<div style="color:var(--text-faint);text-align:center;padding:3rem;font-size:var(--font-sm)">Nenhum evento.</div>';
+          return;
+        }
+        el.innerHTML = '';
+        list.slice(0, 10).forEach(function (ev) {
+          var eventType = ev.type || 'daily'; // daily, timed, special, cycle
+          var iconSvg = '';
+          if (eventType === 'daily') {
+            iconSvg =
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+          } else if (eventType === 'timed') {
+            iconSvg =
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+          } else if (eventType === 'special') {
+            iconSvg =
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+          } else {
+            iconSvg =
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>';
+          }
+          var item = document.createElement('div');
+          item.className = 'event';
+          item.setAttribute('data-type', eventType);
+          item.innerHTML =
+            '<div class="event-icon ' +
+            eventType +
+            '">' +
+            iconSvg +
+            '</div>' +
+            '<div class="info"><div class="n">' +
+            esc(ev.name) +
+            '</div><div class="t">' +
+            (ev.userTimeLabel || '') +
+            '</div></div>' +
+            '<div class="cd">' +
+            (ev.nextFireLabel || '') +
+            '</div>';
+          el.appendChild(item);
+        });
+      };
+
+      // ── v5.4: Relative time helper ──
+      function formatRelativeTime(ts) {
+        if (!ts || ts <= 0) return { label: 'nunca', recent: false };
+        var diff = Date.now() - ts;
+        if (diff < 0) diff = 0;
+        var sec = Math.floor(diff / 1000);
+        var min = Math.floor(sec / 60);
+        var hr = Math.floor(min / 60);
+        var day = Math.floor(hr / 24);
+        var label;
+        if (sec < 60) label = 'agora';
+        else if (min < 60) label = min + 'min atrás';
+        else if (hr < 24) label = hr + 'h atrás';
+        else if (day === 1) label = 'ontem';
+        else if (day < 7) label = day + 'd atrás';
+        else if (day < 30) label = Math.floor(day / 7) + 'sem atrás';
+        else label = Math.floor(day / 30) + 'mês atrás';
+        return { label: label, recent: min < 30 };
+      }
+
+      // ── v5.4: Compact Mode Toggle ──
+      var compactToggleBtn = document.getElementById('compactToggle');
+      if (compactMode && compactToggleBtn) compactToggleBtn.classList.add('active');
+      if (compactToggleBtn) {
+        compactToggleBtn.onclick = function () {
+          compactMode = !compactMode;
+          localStorage.setItem('shinobi-compact-mode', String(compactMode));
+          compactToggleBtn.classList.toggle('active', compactMode);
+          renderProfiles();
+          toast(compactMode ? 'Modo compacto ativado' : 'Modo compacto desativado', 'ok');
+        };
+      }
+
+      // ── v5.4: Dev Tools Subsection Collapsible ──
+      function initDevSubsections() {
+        document.querySelectorAll('[data-dev-toggle]').forEach(function (header) {
+          header.onclick = function () {
+            var body = header.nextElementSibling;
+            if (!body) return;
+            var collapsed = body.classList.toggle('collapsed');
+            header.classList.toggle('collapsed', collapsed);
+          };
+        });
+      }
+
+      // ── Init ──
+      ipcRenderer.send('manager:ready');
+      loadLastProfile();
+      initI18n();
+      initPerfPanel();
+      initDevTools();
+      initDebugFlag();
+      initDragDrop();
+      initTagsInput();
+      initDevSubsections();
+      updateEventBadge();
+      updateSessionOverview();
+      setTimeout(function () {
+        initCopyButtons();
+      }, 1000);
+      // Session overview refresh timer
+      setInterval(updateSessionOverview, 10000);
+      // v5.4: Refresh relative times + active-7d every minute
+      setInterval(function () {
+        if (profiles.length) {
+          renderProfiles();
+        }
+      }, 60000);
+
+      // ════════════════════════════════════════════════════════════════════
+      // v5.5: Theme Variants · Notifications Center · Command Palette · Timeline
+      // ════════════════════════════════════════════════════════════════════
+
+      // ── v5.5: Notifications Center ──
+      var notifications = [];
+      var notifViewed = 0;
+      var NOTIF_MAX = 30;
+      function pushNotification(msg, type) {
+        if (!msg) return;
+        notifications.unshift({ msg: String(msg), type: type || 'info', ts: Date.now() });
+        if (notifications.length > NOTIF_MAX) notifications.length = NOTIF_MAX;
+        updateNotifBadge();
+        // Sway animation
+        var bell = document.getElementById('notifBell');
+        if (bell) {
+          bell.classList.remove('has-new');
+          void bell.offsetWidth; // reflow to restart animation
+          bell.classList.add('has-new');
+        }
+      }
+      function updateNotifBadge() {
+        var badge = document.getElementById('notifBadge');
+        if (!badge) return;
+        var unviewed = Math.max(0, notifications.length - notifViewed);
+        if (unviewed > 0) {
+          badge.textContent = unviewed > 9 ? '9+' : String(unviewed);
+          badge.hidden = false;
+        } else {
+          badge.hidden = true;
+        }
+      }
+      function renderNotifications() {
+        var list = document.getElementById('notifList');
+        var empty = document.getElementById('notifEmpty');
+        if (!list || !empty) return;
+        if (!notifications.length) {
+          list.innerHTML = '';
+          empty.style.display = 'block';
+          return;
+        }
+        empty.style.display = 'none';
+        list.innerHTML = notifications
+          .map(function (n) {
+            var icon =
+              n.type === 'ok'
+                ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+                : n.type === 'err'
+                  ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+                  : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+            var rel = formatRelativeTime(n.ts);
+            return (
+              '<div class="notif-item ' +
+              (n.type || 'info') +
+              '">' +
+              '<div class="ni-icon">' +
+              icon +
+              '</div>' +
+              '<div class="ni-body"><div class="ni-msg">' +
+              esc(n.msg) +
+              '</div>' +
+              '<div class="ni-time">' +
+              rel.label +
+              '</div></div>' +
+              '</div>'
+            );
+          })
+          .join('');
+      }
+      function initNotificationCenter() {
+        var bell = document.getElementById('notifBell');
+        var dropdown = document.getElementById('notifDropdown');
+        if (!bell || !dropdown) return;
+        bell.onclick = function (e) {
+          e.stopPropagation();
+          var isHidden = dropdown.hidden;
+          dropdown.hidden = !isHidden;
+          if (isHidden) {
+            notifViewed = notifications.length;
+            updateNotifBadge();
+            renderNotifications();
+          }
+        };
+        document.getElementById('notifClear').onclick = function (e) {
+          e.stopPropagation();
+          notifications = [];
+          notifViewed = 0;
+          updateNotifBadge();
+          renderNotifications();
+          toast('Notificações limpas', 'ok');
+        };
+        // Click outside closes dropdown
+        document.addEventListener('click', function (e) {
+          if (!dropdown.hidden && !bell.parentElement.contains(e.target)) {
+            dropdown.hidden = true;
+          }
+        });
+        // Auto-refresh relative times every 30s while open
+        setInterval(function () {
+          if (!dropdown.hidden) renderNotifications();
+        }, 30000);
+      }
+
+      // ── v5.5: View transitions (fade-slide) ──
+      var _origNavHandler = null;
+      function initViewTransitions() {
+        // Re-hook nav click to add view-enter animation
+        document.querySelectorAll('.nav-item').forEach(
+          function (item) {
+            // We can't easily remove the existing listener, so we hook via a wrapping event
+            item.addEventListener('click', function () {
+              var view = item.dataset.view;
+              var viewEl = document.getElementById('view-' + view);
+              if (viewEl) {
+                viewEl.classList.remove('view-enter');
+                void viewEl.offsetWidth; // reflow
+                viewEl.classList.add('view-enter');
+              }
+            });
+          },
+          { capture: false }
+        );
+      }
+
+      // ── v5.5: Glass morphism init (apply to profile cards) ──
+      function initGlassMorphism() {
+        // Toggle via localStorage (default ON for v5.5)
+        var enabled = true;
+        try {
+          enabled = localStorage.getItem('shinobi-glass') !== 'off';
+        } catch (_) {}
+        if (enabled) document.body.classList.add('glass-cards-on');
+      }
+
+      // ── v5.5: Hook toast() to also push to notifications center ──
+      var _origToast = toast;
+      toast = function (msg, type) {
+        _origToast(msg, type);
+        pushNotification(msg, type);
+      };
+
+      // ── v5.5: init sequence ──
+      initNotificationCenter();
+      initViewTransitions();
+      initGlassMorphism();
+
+      // ════════════════════════════════════════════════════════════════════
+      // v5.6: Onboarding Tour · Profile Comparison · Drag-Drop Import · Badge Animations
+      // ════════════════════════════════════════════════════════════════════
+
+      // ── v5.6: Profile Comparison Modal ──
+      function openCompare() {
+        var overlay = document.getElementById('compareOverlay');
+        if (!overlay || !profiles.length) return;
+        overlay.hidden = false;
+        populateCompareSelects();
+        renderComparison();
+      }
+      function populateCompareSelects() {
+        var opts = profiles
+          .map(function (p) {
+            return '<option value="' + p.id + '">' + esc(p.name) + ' (' + p.server + ')</option>';
+          })
+          .join('');
+        var left = document.getElementById('compareLeft');
+        var right = document.getElementById('compareRight');
+        if (left) left.innerHTML = opts;
+        if (right) {
+          right.innerHTML = opts;
+          // Default to second profile if available
+          if (profiles.length > 1) right.selectedIndex = 1;
+        }
+      }
+      function renderComparison() {
+        var leftId = document.getElementById('compareLeft');
+        var rightId = document.getElementById('compareRight');
+        if (!leftId || !rightId) return;
+        var pA = profiles.find(function (p) {
+          return p.id === leftId.value;
+        });
+        var pB = profiles.find(function (p) {
+          return p.id === rightId.value;
+        });
+        if (!pA || !pB) return;
+        var rows = [
+          { label: 'Nome', left: pA.name, right: pB.name },
+          { label: 'Servidor', left: pA.server, right: pB.server },
+          { label: 'Região', left: REGIONS[pA.region] || '—', right: REGIONS[pB.region] || '—' },
+          {
+            label: 'Lançamentos',
+            left: (pA.launchCount || 0) + 'x',
+            right: (pB.launchCount || 0) + 'x',
+            highlight: true,
+            compare: 'number'
+          },
+          {
+            label: 'Tempo de jogo',
+            left: formatPlayTime(pA.totalPlayMs || 0),
+            right: formatPlayTime(pB.totalPlayMs || 0),
+            highlight: true,
+            compare: 'time'
+          },
+          {
+            label: 'Último uso',
+            left: pA.lastUsed ? formatRelativeTime(pA.lastUsed).label : 'nunca',
+            right: pB.lastUsed ? formatRelativeTime(pB.lastUsed).label : 'nunca'
+          },
+          {
+            label: 'Auto-login',
+            left: pA.hasVault ? '✓ Ativo' : '✗ Inativo',
+            right: pB.hasVault ? '✓ Ativo' : '✗ Inativo'
+          },
+          {
+            label: 'Favorito',
+            left: pA.favorite ? '★ Sim' : '—',
+            right: pB.favorite ? '★ Sim' : '—'
+          },
+          {
+            label: 'Tags',
+            left: (pA.tags || []).join(', ') || '—',
+            right: (pB.tags || []).join(', ') || '—'
+          },
+          { label: 'Notas', left: pA.notes || '—', right: pB.notes || '—' }
+        ];
+        var grid = document.getElementById('compareGrid');
+        if (!grid) return;
+        grid.innerHTML = rows
+          .map(function (r) {
+            var leftClass = 'compare-cell left';
+            var rightClass = 'compare-cell right';
+            var leftVal = esc(String(r.left));
+            var rightVal = esc(String(r.right));
+            if (r.highlight && r.compare === 'number') {
+              var a = parseInt(String(r.left)) || 0;
+              var b = parseInt(String(r.right)) || 0;
+              if (a > b) {
+                leftVal += '<span class="badge-win">+</span>';
+                leftClass += ' highlight';
+              } else if (b > a) {
+                rightVal += '<span class="badge-win">+</span>';
+                rightClass += ' highlight';
+              }
+            }
+            return (
+              '<div class="compare-row">' +
+              '<div class="' +
+              leftClass +
+              '">' +
+              leftVal +
+              '</div>' +
+              '<div class="compare-cell label">' +
+              esc(r.label) +
+              '</div>' +
+              '<div class="' +
+              rightClass +
+              '">' +
+              rightVal +
+              '</div>' +
+              '</div>'
+            );
+          })
+          .join('');
+      }
+      function initCompare() {
+        document.getElementById('compareClose').onclick = function () {
+          document.getElementById('compareOverlay').hidden = true;
+        };
+        document.getElementById('compareLeft').onchange = renderComparison;
+        document.getElementById('compareRight').onchange = renderComparison;
+        document.getElementById('compareOverlay').addEventListener('click', function (e) {
+          if (e.target === this) this.hidden = true;
+        });
+      }
+
+      // ── v5.6: Drag-and-Drop File Import ──
+      function initDragDropImport() {
+        var dropZone = document.getElementById('dropZone');
+        if (!dropZone) return;
+        var dragCounter = 0;
+        document.addEventListener('dragenter', function (e) {
+          e.preventDefault();
+          dragCounter++;
+          dropZone.classList.add('active');
+        });
+        document.addEventListener('dragleave', function (e) {
+          e.preventDefault();
+          dragCounter--;
+          if (dragCounter <= 0) {
+            dragCounter = 0;
+            dropZone.classList.remove('active');
+          }
+        });
+        document.addEventListener('dragover', function (e) {
+          e.preventDefault();
+        });
+        document.addEventListener('drop', function (e) {
+          e.preventDefault();
+          dragCounter = 0;
+          dropZone.classList.remove('active');
+          var files = e.dataTransfer && e.dataTransfer.files;
+          if (!files || !files.length) return;
+          var file = files[0];
+          if (!file.name.endsWith('.json') && !file.name.endsWith('.enc')) {
+            toast('Formato não suportado. Use .json ou .enc', 'err');
+            return;
+          }
+          var reader = new FileReader();
+          reader.onload = function (ev) {
+            var content = ev.target.result;
+            if (file.name.endsWith('.enc')) {
+              // Encrypted backup — prompt for password
+              var pwd = prompt('Senha para descriptografar o backup:');
+              if (!pwd) return;
+              ipcRenderer
+                .invoke('profiles:import-encrypted', pwd)
+                .then(function (res) {
+                  if (res && res.ok) toast('Backup importado: ' + res.imported + ' perfis', 'ok');
+                  else toast('Erro: ' + (res.error || 'falha na importação'), 'err');
+                })
+                .catch(function (err) {
+                  toast('Erro: ' + err.message, 'err');
+                });
+            } else {
+              // Plain JSON
+              try {
+                ipcRenderer
+                  .invoke('profiles:import', content)
+                  .then(function (res) {
+                    if (res && res.imported)
+                      toast('Importados: ' + res.imported + ' | Ignorados: ' + res.skipped, 'ok');
+                    else toast('Nenhum perfil importado', 'err');
+                  })
+                  .catch(function (err) {
+                    toast('Erro: ' + err.message, 'err');
+                  });
+              } catch (err) {
+                toast('JSON inválido: ' + err.message, 'err');
+              }
+            }
+          };
+          reader.readAsText(file);
+        });
+      }
+
+      // ── v5.6: Badge pop animation on notification push ──
+      var _origPushNotification = pushNotification;
+      pushNotification = function (msg, type) {
+        _origPushNotification(msg, type);
+        var badge = document.getElementById('notifBadge');
+        if (badge) {
+          badge.classList.remove('pop');
+          void badge.offsetWidth;
+          badge.classList.add('pop');
+        }
+      };
+
+      // ── v5.6: Card parallax tilt on mousemove ──
+      function initCardParallax() {
+        document.getElementById('profileGrid').addEventListener('mousemove', function (e) {
+          var card = e.target.closest('.card');
+          if (!card) return;
+          var rect = card.getBoundingClientRect();
+          var x = (e.clientX - rect.left) / rect.width - 0.5;
+          var y = (e.clientY - rect.top) / rect.height - 0.5;
+          card.style.transform =
+            'perspective(800px) rotateX(' +
+            -y * 4 +
+            'deg) rotateY(' +
+            x * 4 +
+            'deg) translateY(-3px)';
+        });
+        document.getElementById('profileGrid').addEventListener('mouseleave', function (e) {
+          var cards = document.querySelectorAll('.card');
+          cards.forEach(function (c) {
+            c.style.transform = '';
+          });
+        });
+      }
+
+      // ── v5.6: Context menu keyboard support ──
+      function initCardKeyboardMenu() {
+        document.addEventListener('keydown', function (e) {
+          if (e.key !== 'ContextMenu' && e.key !== 'F10') return;
+          var card = document.activeElement && document.activeElement.closest('.card');
+          if (!card) return;
+          e.preventDefault();
+          // Simulate right-click on card
+          var cardId = card.getAttribute('data-card-id');
+          if (cardId) {
+            var evt = new MouseEvent('contextmenu', {
+              bubbles: true,
+              clientX: card.getBoundingClientRect().right - 10,
+              clientY: card.getBoundingClientRect().top + 10
+            });
+            card.dispatchEvent(evt);
+          }
+        });
+      }
+
+      // ── v5.6: Init sequence ──
+      initCompare();
+      initDragDropImport();
+      initCardParallax();
+      initCardKeyboardMenu();
+
+      // ════════════════════════════════════════════════════════════════════
+      // v5.7: Status Bar · Profile Search Filters · Loading Skeletons · Card Expand · New Profile Animation
+      // ════════════════════════════════════════════════════════════════════
+
+      // ── v5.7: Status Bar ──
+      var _appStartTime = Date.now();
+      function updateStatusBar() {
+        // Profile count
+        var countEl = document.getElementById('sbProfileCount');
+        if (countEl)
+          countEl.textContent = profiles.length + (profiles.length === 1 ? ' perfil' : ' perfis');
+        // Uptime
+        var uptimeEl = document.getElementById('sbUptime');
+        if (uptimeEl) {
+          var ms = Date.now() - _appStartTime;
+          var sec = Math.floor(ms / 1000) % 60;
+          var min = Math.floor(ms / 60000) % 60;
+          var hr = Math.floor(ms / 3600000);
+          uptimeEl.textContent =
+            (hr > 0 ? hr + ':' : '') +
+            String(min).padStart(2, '0') +
+            ':' +
+            String(sec).padStart(2, '0');
+        }
+        // Connection status (v5.8: read connState directly — avoids className mismatch bug
+        // where connDotTop.className is "conn-dot disconnected" not "red")
+        var connDot = document.getElementById('sbConnDot');
+        var connLabel = document.getElementById('sbConnLabel');
+        var CONN_COLOR_MAP = { online: 'green', offline: 'red', checking: 'amber' };
+        if (connDot) {
+          connDot.className = 'sb-dot ' + (CONN_COLOR_MAP[connState] || 'green');
+        }
+        if (connLabel) {
+          connLabel.textContent =
+            connState === 'online' ? 'Online' : connState === 'offline' ? 'Offline' : 'Verificando';
+        }
+        // Flash status (sync from flash indicator)
+        var flashDot = document.getElementById('sbFlashDot');
+        var flashLabel = document.getElementById('sbFlashLabel');
+        var flashStatusEl = document.getElementById('flashStatus');
+        if (flashDot && flashStatusEl) {
+          var flashOk = flashStatusEl.textContent.indexOf('✓') !== -1;
+          flashDot.className = 'sb-dot ' + (flashOk ? 'green' : 'amber');
+        }
+        if (flashLabel && flashStatusEl) {
+          flashLabel.textContent = flashStatusEl.textContent.replace(/[✓✗❌]/g, '').trim();
+        }
+      }
+      function initStatusBar() {
+        updateStatusBar();
+        setInterval(updateStatusBar, 5000);
+        // Also update on profile changes
+        ipcRenderer.on('profiles:updated', function () {
+          setTimeout(updateStatusBar, 100);
+        });
+      }
+
+      // ── v5.7: Advanced Profile Search Filters ──
+      var searchFilterRegion = '';
+      var searchFilterVault = '';
+      function initSearchFilters() {
+        // Add region filter dropdown next to sort
+        var toolbarRight = document.querySelector('.toolbar-right');
+        if (!toolbarRight) return;
+        var regionFilter = document.createElement('select');
+        regionFilter.id = 'filterRegion';
+        regionFilter.className = 'settings-select';
+        regionFilter.style.fontSize = 'var(--font-xs)';
+        regionFilter.style.padding = '.2rem .4rem';
+        regionFilter.innerHTML =
+          '<option value="">Todas regiões</option>' +
+          '<option value="br">🇧🇷 BR</option>' +
+          '<option value="na">🇺🇸 NA</option>' +
+          '<option value="eu">🇪🇺 EU</option>' +
+          '<option value="hk">🇭🇰 HK</option>';
+        regionFilter.onchange = function () {
+          searchFilterRegion = this.value;
+          renderProfiles();
+        };
+        var vaultFilter = document.createElement('select');
+        vaultFilter.id = 'filterVault';
+        vaultFilter.className = 'settings-select';
+        vaultFilter.style.fontSize = 'var(--font-xs)';
+        vaultFilter.style.padding = '.2rem .4rem';
+        vaultFilter.innerHTML =
+          '<option value="">Todos</option>' +
+          '<option value="yes">Com auto-login</option>' +
+          '<option value="no">Sem auto-login</option>';
+        vaultFilter.onchange = function () {
+          searchFilterVault = this.value;
+          renderProfiles();
+        };
+        toolbarRight.insertBefore(vaultFilter, toolbarRight.firstChild);
+        toolbarRight.insertBefore(regionFilter, toolbarRight.firstChild);
+      }
+      // v5.8: Single clean patch — apply region/vault filters as a post-render pass.
+      // (Previous v5.7 had a redundant no-op wrapper plus the real patch; consolidated here.)
+      var _origRenderProfiles = renderProfiles;
+      renderProfiles = function () {
+        _origRenderProfiles();
+        if (!searchFilterRegion && !searchFilterVault) return;
+        var grid = document.getElementById('profileGrid');
+        if (!grid) return;
+        grid.querySelectorAll('.card[data-card-id]').forEach(function (card) {
+          var id = card.getAttribute('data-card-id');
+          var p = profiles.find(function (x) {
+            return x.id === id;
+          });
+          if (!p) return;
+          var hide = false;
+          if (searchFilterRegion && p.region !== searchFilterRegion) hide = true;
+          if (searchFilterVault === 'yes' && !p.hasVault) hide = true;
+          if (searchFilterVault === 'no' && p.hasVault) hide = true;
+          card.style.display = hide ? 'none' : '';
+        });
+      };
+
+      // ── v5.7: Loading Skeleton ──
+      function showSkeletonLoader() {
+        var grid = document.getElementById('profileGrid');
+        if (!grid) return;
+        var skeletonHtml = '';
+        for (var i = 0; i < 6; i++) {
+          skeletonHtml +=
+            '<div class="skeleton-card">' +
+            '<div class="skel-row"><div class="skel-circle"></div><div style="flex:1"><div class="skel-line w60"></div><div class="skel-line w30"></div></div></div>' +
+            '<div class="skel-line w80"></div>' +
+            '<div class="skel-line w40"></div>' +
+            '</div>';
+        }
+        grid.innerHTML = '<div class="skeleton-grid">' + skeletonHtml + '</div>';
+      }
+
+      // ── v5.7: New profile bounce animation (v5.8: now actually wired) ──
+      function markNewProfile(profileId) {
+        setTimeout(function () {
+          var card = document.querySelector('.card[data-card-id="' + profileId + '"]');
+          if (card) {
+            card.classList.add('new-profile');
+            setTimeout(function () {
+              card.classList.remove('new-profile');
+            }, 500);
+          }
+        }, 100);
+      }
+
+      // ── v5.7: Patch profile creation to trigger bounce animation (v5.8: properly wired) ──
+      // Track the last-created profile name so we can detect it in the next profiles:updated event
+      // and trigger the bounce animation. The backend creates the profile asynchronously, so we
+      // can't know the ID at click time — we match by name + recency.
+      var _pendingNewProfileName = null;
+      var _pendingNewProfileTs = 0;
+      (function wireMarkNewProfile() {
+        var saveBtn = document.getElementById('saveProfile');
+        if (!saveBtn) return;
+        saveBtn.addEventListener(
+          'click',
+          function () {
+            // Capture name only if this is a create (not edit) operation
+            if (!editingId) {
+              var nameEl = document.getElementById('fName');
+              if (nameEl && nameEl.value.trim()) {
+                _pendingNewProfileName = nameEl.value.trim();
+                _pendingNewProfileTs = Date.now();
+              }
+            }
+          },
+          true
+        ); // capture phase so it runs before the existing handler
+      })();
+      // Hook profiles:updated to detect the new profile and animate it
+      (function hookProfilesUpdatedForNewProfile() {
+        ipcRenderer.on('profiles:updated', function () {
+          if (!_pendingNewProfileName) return;
+          // Only match within 5s of the save click
+          if (Date.now() - _pendingNewProfileTs > 5000) {
+            _pendingNewProfileName = null;
+            return;
+          }
+          var match = profiles.find(function (p) {
+            return p.name === _pendingNewProfileName;
+          });
+          if (match) {
+            markNewProfile(match.id);
+            _pendingNewProfileName = null;
+          }
+        });
+      })();
+
+      // ── v5.7: Add card-expand section to profile cards (v5.8: childList only — was subtree:true which over-fired) ──
+      // We patch the existing card innerHTML to add an expand section
+      // This is tricky since the card template is inline. We'll use a MutationObserver.
+      (function initCardExpandObserver() {
+        var grid = document.getElementById('profileGrid');
+        if (!grid) return;
+        var observer = new MutationObserver(function (mutations) {
+          grid.querySelectorAll('.card[data-card-id]').forEach(function (card) {
+            if (card.querySelector('.card-expand')) return; // already has expand
+            var id = card.getAttribute('data-card-id');
+            var p = profiles.find(function (x) {
+              return x.id === id;
+            });
+            if (!p) return;
+            var expandHtml = '<div class="card-expand">';
+            if (p.notes)
+              expandHtml +=
+                '<div style="font-size:var(--font-xs);color:var(--text-faint);margin-top:.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
+                esc(p.notes) +
+                '</div>';
+            if (p.launchCount > 0 || (p.totalPlayMs || 0) > 0) {
+              expandHtml +=
+                '<div style="display:flex;gap:var(--space-3);margin-top:.2rem;font-size:var(--font-xs);color:var(--text-dim)">';
+              if (p.launchCount > 0) expandHtml += '<span>🚀 ' + p.launchCount + 'x</span>';
+              if ((p.totalPlayMs || 0) > 0)
+                expandHtml += '<span>⏱ ' + formatPlayTime(p.totalPlayMs || 0) + '</span>';
+              expandHtml += '</div>';
+            }
+            expandHtml += '</div>';
+            // Insert before the card-actions area
+            var actions = card.querySelector('.card-actions');
+            if (actions) {
+              actions.insertAdjacentHTML('beforebegin', expandHtml);
+            } else {
+              card.insertAdjacentHTML('beforeend', expandHtml);
+            }
+          });
+        });
+        observer.observe(grid, { childList: true });
+      })();
+
+      // ── v5.7: Init sequence ──
+      initStatusBar();
+      initSearchFilters();
+      // Show skeleton briefly on first load
+      showSkeletonLoader();
+      setTimeout(function () {
+        if (profiles.length > 0) renderProfiles();
+      }, 300);
+
+      // ════════════════════════════════════════════════════════════════════
+      // v5.8: Statistics Dashboard · Activity Heatmap · Alt+1..9 Hotkeys · Always-on-Top · Count-up · Polish
+      // ════════════════════════════════════════════════════════════════════
+
+      // ── v5.8: Alt+1..9 Quick Launch Hotkeys + Alt+P Always-on-Top ──
+      function initAltNumberHotkeys() {
+        document.addEventListener('keydown', function (e) {
+          if (!e.altKey) return;
+          if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+          // Alt+P → toggle always-on-top
+          if (e.key.toLowerCase() === 'p') {
+            e.preventDefault();
+            var aotBtn = document.getElementById('wcAlwaysOnTop');
+            if (aotBtn) aotBtn.click();
+            return;
+          }
+          var n = parseInt(e.key, 10);
+          if (isNaN(n) || n < 1 || n > 9) return;
+          // Build ordered list: favorites first (by launchCount desc), then by name
+          var ordered = profiles.slice().sort(function (a, b) {
+            if (!!b.favorite - !!a.favorite !== 0) return !!b.favorite - !!a.favorite;
+            var ac = a.launchCount || 0;
+            var bc = b.launchCount || 0;
+            if (bc !== ac) return bc - ac;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+          if (n > ordered.length) {
+            toast('Alt+' + n + ' → sem perfil nesta posição', 'err');
+            return;
+          }
+          e.preventDefault();
+          var p = ordered[n - 1];
+          toast('Alt+' + n + ' → ' + p.name, 'info');
+          launch(p.id);
+        });
+      }
+
+      // ── v5.8: Window Controls (always-on-top + minimize + maximize) ──
+      async function initWindowControls() {
+        var aotBtn = document.getElementById('wcAlwaysOnTop');
+        var minBtn = document.getElementById('wcMinimize');
+        var maxBtn = document.getElementById('wcMaximize');
+        if (!aotBtn || !minBtn || !maxBtn) return;
+        // Restore always-on-top state from localStorage (UI hint only; actual state is verified via IPC)
+        var savedAot = localStorage.getItem('shinobi-aot') === '1';
+        if (savedAot) aotBtn.classList.add('active');
+        // Verify actual window state on init
+        try {
+          var actual = await ipcRenderer.invoke('window:get-always-on-top');
+          aotBtn.classList.toggle('active', !!actual);
+          if (actual) localStorage.setItem('shinobi-aot', '1');
+          else localStorage.removeItem('shinobi-aot');
+        } catch (_) {
+          /* ignore */
+        }
+        aotBtn.addEventListener('click', async function () {
+          try {
+            var res = await ipcRenderer.invoke('window:toggle-always-on-top');
+            if (res && res.ok) {
+              aotBtn.classList.toggle('active', !!res.alwaysOnTop);
+              if (res.alwaysOnTop) localStorage.setItem('shinobi-aot', '1');
+              else localStorage.removeItem('shinobi-aot');
+              toast(res.alwaysOnTop ? 'Janela fixada acima' : 'Fixação desativada', 'info');
+            }
+          } catch (e) {
+            toast('Erro: ' + e.message, 'err');
+          }
+        });
+        minBtn.addEventListener('click', function () {
+          ipcRenderer.send('window:minimize');
+        });
+        maxBtn.addEventListener('click', async function () {
+          try {
+            var isMax = await ipcRenderer.invoke('window:toggle-maximize');
+            maxBtn.classList.toggle('active', !!isMax);
+          } catch (_) {
+            /* ignore */
+          }
+        });
+      }
+
+      // ── v5.8: Favorite star pop animation ──
+      (function wireFavoritePop() {
+        // Wrap the existing toggleFavorite function to add the pop animation
+        if (typeof toggleFavorite !== 'function') return;
+        var _orig = toggleFavorite;
+        toggleFavorite = function (id) {
+          var btn = document.querySelector('.card[data-card-id="' + id + '"] .fav-action');
+          if (btn) {
+            btn.classList.remove('pop');
+            // Force reflow so the animation re-triggers
+            void btn.offsetWidth;
+            btn.classList.add('pop');
+          }
+          return _orig.apply(this, arguments);
+        };
+      })();
+
+      // ── v5.8: Refined view transition + lazy-load Events view data ──
+      (function wireViewTransitionsV58() {
+        var navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(function (item) {
+          item.addEventListener('click', function () {
+            var targetView = item.getAttribute('data-view');
+            var view = document.getElementById('view-' + targetView);
+            if (!view) return;
+            // Remove the v58 class, force reflow, then re-add (re-trigger animation)
+            view.classList.remove('view-enter-v58');
+            void view.offsetWidth;
+            view.classList.add('view-enter-v58');
+          });
+        });
+      })();
+
+      // ── v5.8: Toast slide-in with bounce (refined) ──
+      // NOTE: Use a unique var name (_origToastV58) — v5.5 already declared _origToast,
+      // and reusing the same name would cause infinite recursion (both wrappers would
+      // reference the same script-scope variable, with the later wrapper pointing back
+      // to itself via the earlier wrapper's closure).
+      (function wireToastEnterV58() {
+        if (typeof toast !== 'function') return;
+        var _origToastV58 = toast;
+        toast = function (msg, type) {
+          _origToastV58(msg, type);
+          // Find the most recent toast element and add the v58 enter class
+          var container =
+            document.getElementById('toastContainer') || document.querySelector('.toast-container');
+          if (!container) return;
+          var lastToast = container.lastElementChild;
+          if (lastToast) {
+            lastToast.classList.remove('toast-enter-v58');
+            void lastToast.offsetWidth;
+            lastToast.classList.add('toast-enter-v58');
+          }
+        };
+      })();
+
+      // ── v5.8: Button loading state helper (for async actions) ──
+      // Usage: withButtonLoading(btnEl, asyncFn) — disables btn, shows spinner, restores on settle
+      function withButtonLoading(btn, asyncFn) {
+        if (!btn || typeof asyncFn !== 'function') return Promise.resolve();
+        if (btn.classList.contains('loading')) return Promise.resolve(); // already loading
+        btn.classList.add('loading');
+        btn.disabled = true;
+        return Promise.resolve(asyncFn())
+          .then(function (r) {
+            return r;
+          })
+          .catch(function (e) {
+            throw e;
+          })
+          .finally(function () {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+          });
+      }
+
+      // ── v5.8: Wire button loading to key async actions ──
+      (function wireButtonLoading() {
+        // Export backup button
+        var exportBtn = document.getElementById('advBackupExport');
+        if (exportBtn) {
+          var orig = exportBtn.onclick;
+          if (orig)
+            exportBtn.onclick = function () {
+              withButtonLoading(exportBtn, orig);
+            };
+        }
+        var importBtn = document.getElementById('advBackupImport');
+        if (importBtn) {
+          var orig2 = importBtn.onclick;
+          if (orig2)
+            importBtn.onclick = function () {
+              withButtonLoading(importBtn, orig2);
+            };
+        }
+        // Health check buttons (delegated) — add a one-shot loading class
+        document.addEventListener(
+          'click',
+          function (e) {
+            var t = e.target.closest('[data-health-id]');
+            if (!t) return;
+            // The original handler is wired via addEventListener, so we just add a loading state
+            t.classList.add('loading');
+            setTimeout(function () {
+              t.classList.remove('loading');
+            }, 4000);
+          },
+          true
+        );
+      })();
+
+      // ── v5.8: Replace sidebar version text with a version pill ──
+      (function wireVersionPill() {
+        var versionEl = document.getElementById('version');
+        if (!versionEl) return;
+        var txt = versionEl.textContent.trim();
+        if (txt.indexOf('v5.') === 0 || txt.indexOf('v4.') === 0) {
+          versionEl.innerHTML = '<span class="version-pill">' + txt + '</span>';
+        }
+        // Status bar version
+        var sbVersion = document.querySelectorAll('#statusBar .sb-right span:last-child');
+        if (sbVersion.length) {
+          var last = sbVersion[sbVersion.length - 1];
+          var t = last.textContent.trim();
+          if (t.indexOf('v') === 0) {
+            last.innerHTML = '<span class="version-pill">' + t + '</span>';
+          }
+        }
+      })();
+
+      // ── v5.8: Card entrance stagger refinement (use the v58 keyframe) ──
+      (function wireCardEnterV58() {
+        // Hook renderProfiles to add the card-enter-v58 class on new cards
+        var orig = renderProfiles;
+        renderProfiles = function () {
+          orig.apply(this, arguments);
+          var cards = document.querySelectorAll('#profileGrid .card:not(.card-enter-v58)');
+          cards.forEach(function (card, idx) {
+            card.style.animationDelay = idx * 40 + 'ms';
+            card.classList.add('card-enter-v58');
+          });
+        };
+      })();
+
+      // ── v5.8: Init sequence ──
+      initWindowControls();

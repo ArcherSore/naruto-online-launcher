@@ -18,5 +18,17 @@
     "no-console": "off",
     "no-constant-condition": "off",
     "no-empty": "warn"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/ui/app.js"],
+      "parserOptions": {
+        "ecmaVersion": "latest",
+        "sourceType": "script"
+      },
+      "rules": {
+        "no-func-assign": "off"
+      }
+    }
+  ]
 }
