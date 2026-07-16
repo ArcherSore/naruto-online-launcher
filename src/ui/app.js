@@ -1757,7 +1757,6 @@
         localStorage.setItem(LAST_SESSION_KEY, JSON.stringify(lastSession));
       });
 
-      var origDel = del;
       // del is redefined below in v5.2 with custom confirm dialog + activity logging
 
       // Track auto-login results as activities
@@ -1843,9 +1842,6 @@
       document.getElementById('batchExportBtn').onclick = async function () {
         if (!batchSelected.size) return;
         // Export only selected profiles
-        var selectedProfiles = profiles.filter(function (p) {
-          return batchSelected.has(p.id);
-        });
         var pwd = prompt('Digite uma senha para criptografar o backup (mín. 6 caracteres):');
         if (!pwd) return;
         if (pwd.length < 6) {
@@ -2039,7 +2035,6 @@
       };
 
       // ── v5.2: Batch delete ──
-      var origBatchDelete = document.getElementById('batchDeleteBtn').onclick;
       document.getElementById('batchDeleteBtn').onclick = async function () {
         if (!batchSelected.size) return;
         if (!confirm('Excluir ' + batchSelected.size + ' conta(s)? Esta ação é irreversível. Cookies e credenciais serão apagados permanentemente.')) return;
@@ -2059,7 +2054,6 @@
 
 
       // ── v5.3: Enhanced Event Rendering ──
-      var origRenderEventsSingle = renderEventsSingle;
       renderEventsSingle = function (list) {
         var el = document.getElementById('eventList');
         if (!list || !list.length) {
@@ -2307,7 +2301,7 @@
       (function initCardExpandObserver() {
         var grid = document.getElementById('profileGrid');
         if (!grid) return;
-        var observer = new MutationObserver(function (mutations) {
+        var observer = new MutationObserver(function () {
           grid.querySelectorAll('.card[data-card-id]').forEach(function (card) {
             if (card.querySelector('.card-expand')) return; // already has expand
             var id = card.getAttribute('data-card-id');
@@ -2353,39 +2347,6 @@
       // ════════════════════════════════════════════════════════════════════
       // v5.8: Statistics Dashboard · Activity Heatmap · Alt+1..9 Hotkeys · Always-on-Top · Count-up · Polish
       // ════════════════════════════════════════════════════════════════════
-
-      // ── v5.8: Alt+1..9 Quick Launch Hotkeys + Alt+P Always-on-Top ──
-      function initAltNumberHotkeys() {
-        document.addEventListener('keydown', function (e) {
-          if (!e.altKey) return;
-          if (e.ctrlKey || e.metaKey || e.shiftKey) return;
-          // Alt+P → toggle always-on-top
-          if (e.key.toLowerCase() === 'p') {
-            e.preventDefault();
-            var aotBtn = document.getElementById('wcAlwaysOnTop');
-            if (aotBtn) aotBtn.click();
-            return;
-          }
-          var n = parseInt(e.key, 10);
-          if (isNaN(n) || n < 1 || n > 9) return;
-          // Build ordered list: favorites first (by launchCount desc), then by name
-          var ordered = profiles.slice().sort(function (a, b) {
-            if (!!b.favorite - !!a.favorite !== 0) return !!b.favorite - !!a.favorite;
-            var ac = a.launchCount || 0;
-            var bc = b.launchCount || 0;
-            if (bc !== ac) return bc - ac;
-            return (a.name || '').localeCompare(b.name || '');
-          });
-          if (n > ordered.length) {
-            toast('Alt+' + n + ' → sem perfil nesta posição', 'err');
-            return;
-          }
-          e.preventDefault();
-          var p = ordered[n - 1];
-          toast('Alt+' + n + ' → ' + p.name, 'info');
-          launch(p.id);
-        });
-      }
 
       // ── v5.8: Window Controls (always-on-top + minimize + maximize) ──
       async function initWindowControls() {
