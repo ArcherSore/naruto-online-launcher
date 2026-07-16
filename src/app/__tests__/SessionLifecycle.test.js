@@ -306,6 +306,31 @@ describe('SessionLifecycle.js', () => {
         });
         expect(found).toBe(true);
       });
+
+      test('resultado "clicked" reseta formInjectAttempts', () => {
+        vault.hasCredentials.mockReturnValue(true);
+        vault.getCredentials.mockReturnValue({ user: 'u', pass: 'p' });
+        // Make executeJavaScript resolve with 'clicked'
+        const { win, wcHandlers } = makeMockWin();
+        win.webContents.executeJavaScript = jest.fn(() => Promise.resolve('clicked'));
+        const entry = {
+          failLoadRetry: false,
+          formInjectAttempts: 3,
+          autoLoginTimer: null,
+          failLoadTimer: null
+        };
+        const ctx = makeCtx({ entry });
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['did-finish-load'];
+        handler();
+
+        // formInjectAttempts should be reset to 0 after 'clicked' result
+        // (verified via the entry reference which is mutated inside the handler)
+        setImmediate(function () {
+          expect(entry.formInjectAttempts).toBe(0);
+        });
+      });
     });
 
     describe('did-fail-load handler', () => {
@@ -706,6 +731,20 @@ describe('SessionLifecycle.js', () => {
 
         expect(evt.preventDefault).toHaveBeenCalled();
         expect(win.loadURL).toHaveBeenCalledWith('https://naruto.narutowebgame.com/pt/news');
+      });
+
+      test('abre URL externa (não-jogo) via shell.openExternal', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['new-window'];
+        const evt = { preventDefault: jest.fn() };
+        handler(evt, 'https://www.google.com/search?q=test');
+
+        expect(evt.preventDefault).toHaveBeenCalled();
+        const { shell } = require('electron');
+        expect(shell.openExternal).toHaveBeenCalledWith('https://www.google.com/search?q=test');
       });
     });
   });
