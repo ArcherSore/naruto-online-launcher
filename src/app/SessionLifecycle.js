@@ -162,8 +162,8 @@ function attach(win, ctx) {
     try {
       const manager = require('../profiles/manager');
       manager.reportCrash(profileId);
-    } catch (_) {
-      /* ignore circular */
+    } catch (e) {
+      logger.debug('render-process-gone: reportCrash(profile) falhou: ' + e.message);
     }
     try {
       require('../memory/guard').reportCrash();
@@ -224,8 +224,8 @@ function attach(win, ctx) {
         const sep = url.includes('?') ? '&' : '?';
         win.loadURL(url + sep + LAUNCHER_PARAMS);
       }
-    } catch (_) {
-      /* ignore */
+    } catch (e) {
+      logger.debug('will-navigate: URL parse falhou para ' + url);
     }
   });
 
