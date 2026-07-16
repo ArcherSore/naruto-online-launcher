@@ -8,28 +8,28 @@
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Colors: Base ── */
-  --bg: #0a0a0f;
-  --bg-elev: #13131a;
-  --bg-elev-2: #1c1c26;
-  --surface: #16161e;
-  --surface-hover: #1e1e28;
+  /* ── Colors: Base (v5.9.3 — paleta dourada unificada com o site) ── */
+  --bg: #070709;
+  --bg-elev: #0d0d12;
+  --bg-elev-2: #1a1a24;
+  --surface: #11111a;
+  --surface-hover: #1a1a24;
 
   /* ── Colors: Border ── */
-  --border: #252530;
-  --border-hover: #353542;
-  --border-focus: #ff8c00;
+  --border: #13131a;
+  --border-hover: #5c5c6f;
+  --border-focus: #c8a23d;
 
   /* ── Colors: Text ── */
-  --text: #e8e8f0;
-  --text-dim: #8a8a96;
-  --text-faint: #5a5a68;
+  --text: #f0ede6;
+  --text-dim: #9a9aab;
+  --text-faint: #5c5c6f;
 
-  /* ── Colors: Accent (Shinobi/Akatsuki) ── */
-  --accent: #ff8c00;
-  --accent-hover: #ffa033;
-  --accent-2: #dc2626;
-  --accent-2-hover: #e83838;
+  /* ── Colors: Accent (Shinobi/Akatsuki — gold #c8a23d) ── */
+  --accent: #c8a23d;
+  --accent-hover: #e2c66d;
+  --accent-2: #8b7230;
+  --accent-2-hover: #c8a23d;
 
   /* ── Colors: Semantic ── */
   --ok: #10b981;

@@ -15,21 +15,23 @@
         padding: 0;
       }
       :root {
-        /* v4.9.1: AMOLED puro (#000) + contrastes laranja vibrantes */
-        --bg: #000000;
-        --bg-elev: #0a0a0a;
-        --bg-elev-2: #141414;
-        --surface: #0f0f0f;
-        --surface-hover: #1a1a1a;
-        --border: #1f1f1f;
-        --border-hover: #2a2a2a;
-        --border-focus: #ff8c00;
-        --text: #f5f5f5;
-        --text-dim: #a0a0a0;
-        --text-faint: #606060;
-        --accent: #ff8c00;
-        --accent-hover: #ffa833;
-        --accent-2: #ff6b00;
+        /* v5.9.3: Paleta dourada — unificada com o site (naruto-online-launcher-site).
+           Gold #c8a23d no lugar do laranja, fundo levemente arroxeado (#070709),
+           cards #1a1a24, bordas #13131a. Identidade visual consistente. */
+        --bg: #070709;
+        --bg-elev: #0d0d12;
+        --bg-elev-2: #1a1a24;
+        --surface: #11111a;
+        --surface-hover: #1a1a24;
+        --border: #13131a;
+        --border-hover: #5c5c6f;
+        --border-focus: #c8a23d;
+        --text: #f0ede6;
+        --text-dim: #9a9aab;
+        --text-faint: #5c5c6f;
+        --accent: #c8a23d;
+        --accent-hover: #e2c66d;
+        --accent-2: #8b7230;
         --ok: #10b981;
         --warn: #f59e0b;
         --danger: #dc2626;
@@ -2439,139 +2441,7 @@
         font-weight: var(--weight-medium);
       }
 
-      /* ── v5.1: Keyboard Shortcuts Overlay ── */
-      .kb-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.75);
-        z-index: var(--z-modal);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        backdrop-filter: blur(6px);
-        animation: overlayIn 150ms ease;
-      }
-      .kb-overlay.show {
-        display: flex;
-      }
-      .kb-panel {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        width: 480px;
-        max-width: 92vw;
-        box-shadow:
-          var(--shadow-lg),
-          0 0 40px rgba(255, 140, 0, 0.06);
-        animation: modalIn 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
-        overflow: hidden;
-      }
-      .kb-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-4) var(--space-5);
-        border-bottom: 1px solid var(--border);
-        background: var(--bg-elev);
-      }
-      .kb-header h3 {
-        font-size: var(--font-md);
-        font-weight: var(--weight-semibold);
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-      }
-      .kb-header h3 svg {
-        width: 1rem;
-        height: 1rem;
-        color: var(--accent);
-      }
-      .kb-close {
-        background: transparent;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        color: var(--text-dim);
-        width: 1.6rem;
-        height: 1.6rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: var(--transition);
-        font-size: var(--font-md);
-      }
-      .kb-close:hover {
-        border-color: var(--border-hover);
-        color: var(--text);
-        background: var(--surface-hover);
-      }
-      .kb-body {
-        padding: var(--space-4) var(--space-5);
-        max-height: 60vh;
-        overflow-y: auto;
-      }
-      .kb-group {
-        margin-bottom: var(--space-4);
-      }
-      .kb-group:last-child {
-        margin-bottom: 0;
-      }
-      .kb-group-title {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        font-weight: var(--weight-semibold);
-        margin-bottom: var(--space-2);
-      }
-      .kb-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-2) 0;
-        border-bottom: 1px solid var(--border);
-      }
-      .kb-row:last-child {
-        border-bottom: none;
-      }
-      .kb-row .kb-action {
-        font-size: var(--font-sm);
-        color: var(--text);
-      }
-      .kb-row .kb-keys {
-        display: flex;
-        gap: 0.3rem;
-        align-items: center;
-      }
-      .kb-key {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 1.6rem;
-        height: 1.4rem;
-        padding: 0 0.35rem;
-        background: var(--bg-elev-2);
-        border: 1px solid var(--border-hover);
-        border-radius: var(--radius-sm);
-        font-size: var(--font-xs);
-        font-weight: var(--weight-semibold);
-        color: var(--text-dim);
-        font-family: 'SF Mono', Monaco, Consolas, monospace;
-        line-height: 1;
-      }
-      .kb-key.accent {
-        border-color: var(--accent);
-        color: var(--accent);
-        background: rgba(255, 140, 0, 0.08);
-      }
-      .kb-hint {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        text-align: center;
-        padding: var(--space-3) var(--space-5);
-        border-top: 1px solid var(--border);
-        background: var(--bg-elev);
-      }
+
 
       /* ── v5.1: Profile Health Check ── */
       .health-check-btn {
@@ -3392,64 +3262,6 @@
         }
       }
 
-      /* ── v5.4: Theme Accent Picker ── */
-      .accent-picker {
-        display: flex;
-        gap: var(--space-2);
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      .accent-swatch {
-        width: 1.6rem;
-        height: 1.6rem;
-        border-radius: 50%;
-        cursor: pointer;
-        border: 2px solid transparent;
-        transition: var(--transition);
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .accent-swatch:hover {
-        transform: scale(1.1);
-      }
-      .accent-swatch.active {
-        border-color: var(--text);
-        box-shadow:
-          0 0 0 2px var(--bg-elev),
-          0 0 0 3px var(--text-dim);
-      }
-      .accent-swatch.active::after {
-        content: '';
-        width: 0.5rem;
-        height: 0.5rem;
-        border-radius: 50%;
-        background: #fff;
-        box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
-      }
-      .accent-swatch[data-color='orange'] {
-        background: #ff8c00;
-      }
-      .accent-swatch[data-color='cyan'] {
-        background: #06b6d4;
-      }
-      .accent-swatch[data-color='emerald'] {
-        background: #10b981;
-      }
-      .accent-swatch[data-color='pink'] {
-        background: #ec4899;
-      }
-      .accent-swatch[data-color='purple'] {
-        background: #8b5cf6;
-      }
-      .accent-swatch[data-color='red'] {
-        background: #dc2626;
-      }
-      .accent-swatch[data-color='amber'] {
-        background: #f59e0b;
-      }
-
       /* ── v5.4: Compact Mode ── */
       .grid.compact {
         gap: var(--space-2);
@@ -3775,8 +3587,7 @@
       }
       .btn:focus-visible,
       .nav-item:focus-visible,
-      .card:focus-visible,
-      .accent-swatch:focus-visible {
+      .card:focus-visible {
         outline: 2px solid var(--accent);
         outline-offset: 2px;
       }
@@ -5485,7 +5296,7 @@
           <div class="mark"><img src="logo.png" alt="Shinobi Launcher" /></div>
           <div class="brand">
             <h1>Shinobi</h1>
-            <span id="version">v5.0.0</span>
+            <span id="version">v5.9.3</span>
           </div>
         </div>
 
@@ -5563,21 +5374,6 @@
                 <div class="notif-empty" id="notifEmpty">Nenhuma notificação ainda.</div>
               </div>
             </div>
-            <button
-              class="btn icon"
-              id="kbHelpBtn"
-              title="Atalhos de teclado (?)"
-              aria-label="Atalhos de teclado"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="6" width="20" height="12" rx="2" />
-                <line x1="6" y1="10" x2="6.01" y2="10" />
-                <line x1="10" y1="10" x2="10.01" y2="10" />
-                <line x1="14" y1="10" x2="14.01" y2="10" />
-                <line x1="18" y1="10" x2="18.01" y2="10" />
-                <line x1="8" y1="14" x2="16" y2="14" />
-              </svg>
-            </button>
             <!-- v5.8: Window Controls (always-on-top + minimize + maximize) -->
             <div class="window-controls">
               <button
@@ -5852,7 +5648,7 @@
                 <div style="flex: 1">
                   <div class="label">Sobre o launcher</div>
                   <div class="desc" id="advAboutVersion">
-                    Shinobi Launcher v5.0.0 • Electron 11 • Flash PPAPI 34
+                    Shinobi Launcher v5.9.3 • Electron 11 • Flash PPAPI 34
                   </div>
                 </div>
                 <a
@@ -5863,80 +5659,6 @@
                   title="Abrir repositório no GitHub"
                   >GitHub</a
                 >
-              </div>
-            </div>
-
-            <div class="settings-section">
-              <div class="settings-header">Aparência (v5.4)</div>
-              <div class="settings-row with-icon">
-                <div class="settings-row-icon orange">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
-                    <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
-                    <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
-                    <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
-                    <path
-                      d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"
-                    />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">Cor de destaque</div>
-                  <div class="desc">
-                    Personalize a cor principal da interface. Persistente entre sessões.
-                  </div>
-                </div>
-                <div class="accent-picker" id="accentPicker">
-                  <div
-                    class="accent-swatch active"
-                    data-color="orange"
-                    data-hex="#FF8C00"
-                    data-hover="#FFA833"
-                    title="Laranja (padrão)"
-                  ></div>
-                  <div
-                    class="accent-swatch"
-                    data-color="cyan"
-                    data-hex="#06B6D4"
-                    data-hover="#22D3EE"
-                    title="Ciano"
-                  ></div>
-                  <div
-                    class="accent-swatch"
-                    data-color="emerald"
-                    data-hex="#10B981"
-                    data-hover="#34D399"
-                    title="Esmeralda"
-                  ></div>
-                  <div
-                    class="accent-swatch"
-                    data-color="pink"
-                    data-hex="#EC4899"
-                    data-hover="#F472B6"
-                    title="Rosa"
-                  ></div>
-                  <div
-                    class="accent-swatch"
-                    data-color="purple"
-                    data-hex="#8B5CF6"
-                    data-hover="#A78BFA"
-                    title="Roxo"
-                  ></div>
-                  <div
-                    class="accent-swatch"
-                    data-color="red"
-                    data-hex="#DC2626"
-                    data-hover="#EF4444"
-                    title="Vermelho"
-                  ></div>
-                  <div
-                    class="accent-swatch"
-                    data-color="amber"
-                    data-hex="#F59E0B"
-                    data-hover="#FBBF24"
-                    title="Âmbar"
-                  ></div>
-                </div>
               </div>
             </div>
 
@@ -6229,7 +5951,7 @@
           <div class="sb-right">
             <span id="sbUptime">0:00</span>
             <div class="sb-sep"></div>
-            <span>v5.0.0</span>
+            <span>v5.9.3</span>
           </div>
         </div>
       </div>
@@ -6308,6 +6030,10 @@
           <div class="char-counter" id="notesCounter">0 / 200</div>
         </div>
         <div class="modal-actions">
+          <button class="btn" id="autoCreateBtn" type="button" title="Cria email temporário, registra no Naruto Online, salva credenciais no vault e habilita auto-login.">
+            Criar automaticamente
+          </button>
+          <div style="flex: 1"></div>
           <button class="btn" id="cancelProfile">Cancelar</button>
           <button class="btn primary" id="saveProfile">Salvar</button>
         </div>
@@ -6384,86 +6110,6 @@
     <!-- ═══ Context Menu (v5.2) ═══ -->
     <div class="ctx-menu" id="ctxMenu"></div>
 
-    <!-- ═══ Keyboard Shortcuts Overlay (v5.1) ═══ -->
-    <div class="kb-overlay" id="kbOverlay">
-      <div class="kb-panel">
-        <div class="kb-header">
-          <h3>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="6" width="20" height="12" rx="2" />
-              <line x1="6" y1="10" x2="6.01" y2="10" />
-              <line x1="10" y1="10" x2="10.01" y2="10" />
-              <line x1="14" y1="10" x2="14.01" y2="10" />
-              <line x1="18" y1="10" x2="18.01" y2="10" />
-              <line x1="8" y1="14" x2="16" y2="14" />
-            </svg>
-            Atalhos de teclado
-          </h3>
-          <button class="kb-close" id="kbClose">&times;</button>
-        </div>
-        <div class="kb-body">
-          <div class="kb-group">
-            <div class="kb-group-title">Navegação</div>
-            <div class="kb-row">
-              <span class="kb-action">Contas</span
-              ><span class="kb-keys"><span class="kb-key">1</span></span>
-            </div>
-            <div class="kb-row">
-              <span class="kb-action">Eventos</span
-              ><span class="kb-keys"><span class="kb-key">2</span></span>
-            </div>
-            <div class="kb-row">
-              <span class="kb-action">Configurações</span
-              ><span class="kb-keys"><span class="kb-key">3</span></span>
-            </div>
-          </div>
-          <div class="kb-group">
-            <div class="kb-group-title">Ações</div>
-            <div class="kb-row">
-              <span class="kb-action">Nova conta</span
-              ><span class="kb-keys"
-                ><span class="kb-key accent">Ctrl</span><span class="kb-key">N</span></span
-              >
-            </div>
-            <div class="kb-row">
-              <span class="kb-action">Buscar contas</span
-              ><span class="kb-keys"
-                ><span class="kb-key accent">Ctrl</span><span class="kb-key">F</span
-                ><span class="kb-key accent">/</span></span
-              >
-            </div>
-            <div class="kb-row">
-              <span class="kb-action">Limpar busca</span
-              ><span class="kb-keys"><span class="kb-key accent">Esc</span></span>
-            </div>
-          </div>
-          <div class="kb-group">
-            <div class="kb-group-title">Janela</div>
-            <div class="kb-row">
-              <span class="kb-action">Fechar modal / overlay</span
-              ><span class="kb-keys"><span class="kb-key accent">Esc</span></span>
-            </div>
-            <div class="kb-row">
-              <span class="kb-action">Ajuda de atalhos</span
-              ><span class="kb-keys"><span class="kb-key accent">?</span></span>
-            </div>
-          </div>
-          <div class="kb-group">
-            <div class="kb-group-title">Dev (janela do jogo)</div>
-            <div class="kb-row">
-              <span class="kb-action">Limpar login (cookies)</span
-              ><span class="kb-keys"><span class="kb-key accent">F5</span></span>
-            </div>
-            <div class="kb-row">
-              <span class="kb-action">DevTools</span
-              ><span class="kb-keys"><span class="kb-key accent">F12</span></span>
-            </div>
-          </div>
-        </div>
-        <div class="kb-hint">Pressione <strong>?</strong> ou <strong>Esc</strong> para fechar</div>
-      </div>
-    </div>
-
     <script>
       // v4.9.2: Dynamic scale — set <html> font-size based on screen width so the
       // whole UI (built in rem) grows on larger/higher-DPI displays. Mirrors the
@@ -6510,7 +6156,7 @@
         getWebviewStats: () => ipcRenderer.invoke('memory:webview-stats'),
         fetchServers: r => ipcRenderer.invoke('servers:fetch', r),
         // v4.9: Tempmail + API Login + Network Inspector
-        createTempmail: () => ipcRenderer.invoke('tempmail:create'),
+        createTempmail: (opts) => ipcRenderer.invoke('tempmail:create', opts),
         apiLogin: (pid, email, pwd) => ipcRenderer.invoke('tempmail:login', pid, email, pwd),
         getServers: (uid, gc) => ipcRenderer.invoke('tempmail:servers', uid, gc),
         checkSession: pid => ipcRenderer.invoke('session:check', pid),
@@ -7286,6 +6932,8 @@
         // v5.3: Load tags
         if (window._renderTagsInput) window._renderTagsInput();
         document.getElementById('fTags').value = '';
+        // v5.9.3: hide auto-create button in edit mode
+        document.getElementById('autoCreateBtn').style.display = 'none';
         document.getElementById('profileModal').classList.add('show');
       }
       async function del(id) {
@@ -7333,6 +6981,8 @@
         // v5.3: Clear tags input
         if (window._renderTagsInput) window._renderTagsInput();
         document.getElementById('fTags').value = '';
+        // v5.9.3: show auto-create button in create mode
+        document.getElementById('autoCreateBtn').style.display = '';
         document.getElementById('profileModal').classList.add('show');
       };
       document.getElementById('cancelProfile').onclick = () =>
@@ -7356,6 +7006,45 @@
           ipcRenderer.send('profile:create', opts);
         }
         document.getElementById('profileModal').classList.remove('show');
+      };
+
+      // v5.9.3: Auto-create account — tempmail + register + vault + auto-login
+      document.getElementById('autoCreateBtn').onclick = async function () {
+        var name = document.getElementById('fName').value.trim();
+        var server = document.getElementById('fServer').value.trim();
+        var region = document.getElementById('fRegion').value;
+        if (!name) {
+          toast('Informe um nome', 'err');
+          return;
+        }
+        if (!server) {
+          toast('Informe o servidor (ex.: S799)', 'err');
+          return;
+        }
+        if (editingId) {
+          toast('Use "Salvar" para editar perfis existentes', 'err');
+          return;
+        }
+        var btn = document.getElementById('autoCreateBtn');
+        var originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Criando…';
+        try {
+          var result = await window.api.createTempmail({
+            name: name,
+            server: server,
+            region: region,
+            language: currentLang || 'pt'
+          });
+          if (result && result.ok) {
+            document.getElementById('profileModal').classList.remove('show');
+          }
+        } catch (e) {
+          toast('Falha ao criar conta: ' + (e && e.message ? e.message : e), 'err');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
       };
 
       // v4.5: Notes char counter
@@ -8342,23 +8031,6 @@
         }
       });
 
-      // ── v5.1: Keyboard Shortcuts Overlay ──
-      var kbOverlay = document.getElementById('kbOverlay');
-      function toggleKbOverlay(show) {
-        if (show === undefined) show = !kbOverlay.classList.contains('show');
-        kbOverlay.classList.toggle('show', show);
-        if (show) kbOverlay.focus();
-      }
-      document.getElementById('kbHelpBtn').onclick = function () {
-        toggleKbOverlay(true);
-      };
-      document.getElementById('kbClose').onclick = function () {
-        toggleKbOverlay(false);
-      };
-      kbOverlay.addEventListener('click', function (e) {
-        if (e.target === kbOverlay) toggleKbOverlay(false);
-      });
-
       // ── v5.1: Sidebar Memory Bar ──
       function updateSidebarMemBar(s) {
         if (!s) return;
@@ -8556,45 +8228,11 @@
         }
       }
 
-      // ── v5.1: Extended Keyboard Shortcuts ──
+      // ── v5.9.3: Keyboard handler simplificado ──
+      // Atalhos de navegação (1/2/3, Ctrl+N, Ctrl+F, /, ?) e overlay de ajuda
+      // foram removidos — a sidebar + botões são suficientes. Apenas Esc fecha modais.
       document.addEventListener('keydown', function (e) {
-        // ? toggles keyboard help (only when not in an input)
-        if (
-          e.key === '?' &&
-          !e.ctrlKey &&
-          !e.metaKey &&
-          document.activeElement.tagName !== 'INPUT' &&
-          document.activeElement.tagName !== 'TEXTAREA' &&
-          document.activeElement.tagName !== 'SELECT'
-        ) {
-          toggleKbOverlay();
-          e.preventDefault();
-          return;
-        }
-        // Number keys 1-3 switch views
-        if (!e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement.tagName !== 'INPUT') {
-          var viewMap = { 1: 'accounts', 2: 'events', 3: 'settings' };
-          if (viewMap[e.key]) {
-            var navItem = document.querySelector('.nav-item[data-view="' + viewMap[e.key] + '"]');
-            if (navItem) navItem.click();
-          }
-        }
-        // Ctrl+N: new account
-        if (e.ctrlKey && e.key === 'n') {
-          e.preventDefault();
-          document.getElementById('newBtn').click();
-        }
-        // Ctrl+F: focus search
-        if (e.ctrlKey && e.key === 'f') {
-          e.preventDefault();
-          document.getElementById('searchInput').focus();
-        }
-        // Esc: close overlays
         if (e.key === 'Escape') {
-          if (kbOverlay.classList.contains('show')) {
-            toggleKbOverlay(false);
-            return;
-          }
           document.getElementById('profileModal').classList.remove('show');
           document.getElementById('vaultModal').classList.remove('show');
         }
@@ -9296,61 +8934,6 @@
         };
       }
 
-      // ── v5.4: Theme Accent Picker ──
-      var ACCENT_STORAGE_KEY = 'shinobi-accent-color';
-      function applyAccent(hex, hover) {
-        document.documentElement.style.setProperty('--accent', hex);
-        document.documentElement.style.setProperty('--accent-hover', hover || hex);
-        // Derive accent-2 (slightly darker) by simple RGB manipulation
-        try {
-          var m = hex.match(/^#([0-9a-f]{6})$/i);
-          if (m) {
-            var r = parseInt(m[1].slice(0, 2), 16);
-            var g = parseInt(m[1].slice(2, 4), 16);
-            var b = parseInt(m[1].slice(4, 6), 16);
-            var r2 = Math.max(0, Math.floor(r * 0.85));
-            var g2 = Math.max(0, Math.floor(g * 0.85));
-            var b2 = Math.max(0, Math.floor(b * 0.85));
-            var darker = '#' + ((1 << 24) + (r2 << 16) + (g2 << 8) + b2).toString(16).slice(1);
-            document.documentElement.style.setProperty('--accent-2', darker);
-          }
-        } catch (_) {
-          /* ignore */
-        }
-      }
-      function initAccentPicker() {
-        var picker = document.getElementById('accentPicker');
-        if (!picker) return;
-        // Restore saved accent
-        var saved = null;
-        try {
-          saved = JSON.parse(localStorage.getItem(ACCENT_STORAGE_KEY) || 'null');
-        } catch (_) {}
-        if (saved && saved.hex) {
-          applyAccent(saved.hex, saved.hover);
-          picker.querySelectorAll('.accent-swatch').forEach(function (s) {
-            s.classList.toggle('active', s.getAttribute('data-color') === saved.color);
-          });
-        }
-        picker.querySelectorAll('.accent-swatch').forEach(function (swatch) {
-          swatch.onclick = function () {
-            var color = swatch.getAttribute('data-color');
-            var hex = swatch.getAttribute('data-hex');
-            var hover = swatch.getAttribute('data-hover');
-            picker.querySelectorAll('.accent-swatch').forEach(function (s) {
-              s.classList.remove('active');
-            });
-            swatch.classList.add('active');
-            applyAccent(hex, hover);
-            localStorage.setItem(
-              ACCENT_STORAGE_KEY,
-              JSON.stringify({ color: color, hex: hex, hover: hover })
-            );
-            toast('Cor de destaque: ' + (swatch.title || color), 'ok');
-          };
-        });
-      }
-
       // ── v5.4: Quick Launch Sidebar Widget (top 3 most-used) ──
       function updateQuickLaunch() {
         var listEl = document.getElementById('quickLaunchList');
@@ -9462,31 +9045,6 @@
         });
       }
 
-      // ── v5.4: Keyboard Shortcuts (/ focus search, Esc clear) ──
-      function initKeyboardShortcutsV54() {
-        document.addEventListener('keydown', function (e) {
-          // Don't intercept when typing in inputs (except for Esc)
-          var tag = (e.target.tagName || '').toLowerCase();
-          var inField = tag === 'input' || tag === 'textarea' || tag === 'select';
-          if (e.key === '/' && !inField) {
-            e.preventDefault();
-            var s = document.getElementById('searchInput');
-            if (s) {
-              s.focus();
-              s.select();
-            }
-          } else if (e.key === 'Escape' && inField) {
-            var s2 = document.getElementById('searchInput');
-            if (s2 && s2.value) {
-              s2.value = '';
-              s2.dispatchEvent(new Event('input'));
-            } else if (s2) {
-              s2.blur();
-            }
-          }
-        });
-      }
-
       // Auto-remove card shine class after animation completes (avoid re-trigger on re-render)
       function cleanupShine() {
         document.querySelectorAll('.card.shine').forEach(function (c) {
@@ -9505,9 +9063,7 @@
       initDebugFlag();
       initDragDrop();
       initTagsInput();
-      initAccentPicker();
       initDevSubsections();
-      initKeyboardShortcutsV54();
       updateAnalytics();
       renderActivityLog();
       updateEventBadge();
@@ -9533,65 +9089,6 @@
       // ════════════════════════════════════════════════════════════════════
       // v5.5: Theme Variants · Notifications Center · Command Palette · Timeline
       // ════════════════════════════════════════════════════════════════════
-
-      // ── v5.5: Theme Variants ──
-      var THEME_VARIANT_KEY = 'shinobi-theme-variant';
-      var THEME_VARIANTS = {
-        midnight: {
-          accent: '#FF8C00',
-          hover: '#FFA833',
-          accent2: '#FF6B00',
-          label: 'Midnight Shinobi'
-        },
-        crimson: { accent: '#DC2626', hover: '#EF4444', accent2: '#B91C1C', label: 'Crimson Dawn' },
-        forest: { accent: '#10B981', hover: '#34D399', accent2: '#059669', label: 'Forest Mist' },
-        arctic: { accent: '#06B6D4', hover: '#22D3EE', accent2: '#0891B2', label: 'Arctic Glow' }
-      };
-      function applyThemeVariant(variant) {
-        var v = THEME_VARIANTS[variant];
-        if (!v) return;
-        if (variant === 'midnight') {
-          // Reset to defaults — clear inline overrides
-          document.documentElement.style.removeProperty('--accent');
-          document.documentElement.style.removeProperty('--accent-hover');
-          document.documentElement.style.removeProperty('--accent-2');
-        } else {
-          document.documentElement.style.setProperty('--accent', v.accent);
-          document.documentElement.style.setProperty('--accent-hover', v.hover);
-          document.documentElement.style.setProperty('--accent-2', v.accent2);
-        }
-        // Sync accent picker active state
-        var picker = document.getElementById('accentPicker');
-        if (picker) {
-          picker.querySelectorAll('.accent-swatch').forEach(function (s) {
-            s.classList.toggle('active', s.getAttribute('data-hex') === v.accent);
-          });
-        }
-        // Update theme variant card active state
-        document.querySelectorAll('.theme-variant-card').forEach(function (c) {
-          c.classList.toggle('active', c.getAttribute('data-variant') === variant);
-        });
-      }
-      function initThemeVariants() {
-        var saved = 'midnight';
-        try {
-          saved = localStorage.getItem(THEME_VARIANT_KEY) || 'midnight';
-        } catch (_) {}
-        if (!THEME_VARIANTS[saved]) saved = 'midnight';
-        applyThemeVariant(saved);
-        document.querySelectorAll('.theme-variant-card').forEach(function (card) {
-          card.onclick = function () {
-            var variant = card.getAttribute('data-variant');
-            applyThemeVariant(variant);
-            localStorage.setItem(THEME_VARIANT_KEY, variant);
-            // Clear any saved individual accent (theme takes precedence)
-            try {
-              localStorage.removeItem(ACCENT_STORAGE_KEY);
-            } catch (_) {}
-            toast('Tema: ' + THEME_VARIANTS[variant].label, 'ok');
-          };
-        });
-      }
 
       // ── v5.5: Notifications Center ──
       var notifications = [];
@@ -10107,7 +9604,6 @@
       };
 
       // ── v5.5: init sequence ──
-      initThemeVariants();
       initNotificationCenter();
       initViewTransitions();
       initGlassMorphism();
