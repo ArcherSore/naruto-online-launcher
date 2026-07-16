@@ -6635,7 +6635,7 @@
                         Listar cookies
                       </button>
                       <button class="btn sm" id="devReloadGame" type="button">
-                        Recarregar (F5)
+                        Limpar login (F5)
                       </button>
                       <button class="btn sm" id="devToggleDt" type="button">DevTools (F12)</button>
                     </div>
@@ -6872,39 +6872,8 @@
               >
             </div>
             <div class="kb-row">
-              <span class="kb-action">Command Palette</span
-              ><span class="kb-keys"
-                ><span class="kb-key accent">Ctrl</span><span class="kb-key">K</span></span
-              >
-            </div>
-            <div class="kb-row">
               <span class="kb-action">Limpar busca</span
               ><span class="kb-keys"><span class="kb-key accent">Esc</span></span>
-            </div>
-            <div class="kb-row">
-              <span class="kb-action">Seleção múltipla</span
-              ><span class="kb-keys"
-                ><span class="kb-key accent">Ctrl</span><span class="kb-key">B</span></span
-              >
-            </div>
-            <div class="kb-row">
-              <span class="kb-action">Exportar backup</span
-              ><span class="kb-keys"
-                ><span class="kb-key accent">Ctrl</span><span class="kb-key">E</span></span
-              >
-            </div>
-            <div class="kb-row">
-              <span class="kb-action">Lançar perfil (1–9)</span
-              ><span class="kb-keys"
-                ><span class="kb-key accent">Alt</span><span class="kb-key">1</span
-                ><span class="kb-key">…</span><span class="kb-key">9</span></span
-              >
-            </div>
-            <div class="kb-row">
-              <span class="kb-action">Sempre visível (fixar)</span
-              ><span class="kb-keys"
-                ><span class="kb-key accent">Alt</span><span class="kb-key">P</span></span
-              >
             </div>
           </div>
           <div class="kb-group">
@@ -6921,7 +6890,7 @@
           <div class="kb-group">
             <div class="kb-group-title">Dev (janela do jogo)</div>
             <div class="kb-row">
-              <span class="kb-action">Recarregar jogo</span
+              <span class="kb-action">Limpar login (cookies)</span
               ><span class="kb-keys"><span class="kb-key accent">F5</span></span>
             </div>
             <div class="kb-row">
@@ -6929,11 +6898,10 @@
               ><span class="kb-keys"><span class="kb-key accent">F12</span></span>
             </div>
             <div class="kb-row">
-              <span class="kb-action">Ativar SHINOBI_DEBUG</span
+              <span class="kb-action">Dev Tools (config)</span
               ><span class="kb-keys"
                 ><span class="kb-key accent">Ctrl</span><span class="kb-key accent">Shift</span
-                ><span class="kb-key">D</span>
-                <span style="color: var(--text-faint); font-size: 10px">(segurar 2s)</span></span
+                ><span class="kb-key">D</span></span
               >
             </div>
           </div>
@@ -8462,7 +8430,7 @@
       // ── SHINOBI_DEBUG feature flag (Decisão B / Fase 3b) ──
       // UI de Dev Tools fica escondida por padrão. Ativação:
       //   1. Env var SHINOBI_DEBUG=1 (boot-time) → window.__SHINOBI_DEBUG__ = true (via preload)
-      //   2. Atalho secreto: segurar Ctrl+Shift+D por 2s na tela principal → toggle localStorage.
+      //   2. Atalho: Ctrl+Shift+D → toggle localStorage + navega pra Configurações.
       // Quando ativo, mostra a seção Dev Tools em Configurações.
       function isDebugActive() {
         return (
@@ -8476,35 +8444,26 @@
       }
       function initDebugFlag() {
         applyDebugVisibility();
-        // Ctrl+Shift+D hold 2s → toggle localStorage flag
-        let holdTimer = null;
-        const startHold = function () {
-          if (holdTimer) clearTimeout(holdTimer);
-          holdTimer = setTimeout(function () {
+        document.addEventListener('keydown', function (e) {
+          if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+            e.preventDefault();
             const active = !isDebugActive();
             if (active) localStorage.setItem('shinobiDebugUnlocked', '1');
             else localStorage.removeItem('shinobiDebugUnlocked');
             applyDebugVisibility();
-            toast(
-              active ? '🔧 SHINOBI_DEBUG ativado (Dev Tools visível)' : 'SHINOBI_DEBUG desativado',
-              active ? 'ok' : 'info'
-            );
-          }, 2000);
-        };
-        const cancelHold = function () {
-          if (holdTimer) {
-            clearTimeout(holdTimer);
-            holdTimer = null;
-          }
-        };
-        document.addEventListener('keydown', function (e) {
-          if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
-            e.preventDefault();
-            startHold();
+            // Navega pra view de Configurações pra mostrar a seção Dev Tools
+            var navItem = document.querySelector('.nav-item[data-view="settings"]');
+            if (navItem) navItem.click();
+            // Scroll pra seção dev tools ficar visível
+            setTimeout(function () {
+              var sec = document.getElementById('devToolsSection');
+              if (sec && sec.style.display !== 'none') {
+                sec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }, 150);
+            toast(active ? '🔧 Dev Tools ativado' : 'Dev Tools desativado', active ? 'ok' : 'info');
           }
         });
-        document.addEventListener('keyup', cancelHold);
-        document.addEventListener('blur', cancelHold, true);
       }
 
       // ── v5.0: Profile Analytics Dashboard ──
@@ -9059,16 +9018,6 @@
         if (e.ctrlKey && e.key === 'f') {
           e.preventDefault();
           document.getElementById('searchInput').focus();
-        }
-        // Ctrl+B: toggle batch mode
-        if (e.ctrlKey && e.key === 'b') {
-          e.preventDefault();
-          document.getElementById('batchModeBtn').click();
-        }
-        // Ctrl+E: export
-        if (e.ctrlKey && e.key === 'e') {
-          e.preventDefault();
-          document.getElementById('exportBtn').click();
         }
         // Esc: close overlays
         if (e.key === 'Escape') {
@@ -10590,7 +10539,6 @@
       // ── v5.5: init sequence ──
       initThemeVariants();
       initNotificationCenter();
-      initCommandPalette();
       initViewTransitions();
       initGlassMorphism();
       initTimelineClearBtn();
@@ -11784,7 +11732,6 @@
       })();
 
       // ── v5.8: Init sequence ──
-      initAltNumberHotkeys();
       initWindowControls();
       // Lazy-load stats/heatmap on first Events view visit (handled in wireViewTransitionsV58).
       // Also do an initial load in case the user starts on the Events view.

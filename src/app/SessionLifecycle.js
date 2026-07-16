@@ -265,18 +265,19 @@ function attach(win, ctx) {
       )
       .catch(function () {});
 
-    // CAMADA 2: fullscreen limpo SOMENTE se há Flash embed (página de jogo)
+    // CAMADA 2: fullscreen limpo SOMENTE se há Flash embed visível (página de jogo)
     win.webContents
       .executeJavaScript(
-        'if (document.querySelector("embed") || document.querySelector("object")) {' +
+        'var flashEl = document.querySelector("#oas-player iframe, #oas-player embed, #oas-player object");' +
+          'if (flashEl || document.querySelector("#oas-player")) {' +
           '  var s = document.createElement("style");' +
           '  s.textContent = ' +
           '    "html, body { margin:0 !important; padding:0 !important; overflow:hidden !important; width:100% !important; height:100% !important; background:#000 !important; }" +' +
           '    "#oas-bar, .oas-bar, #oas-bar-hide, .header, .header-wrap, .site-header, .top-bar, .topbar { display:none !important; height:0 !important; min-height:0 !important; }" +' +
           '    "footer, .footer, .site-footer, .footer-wrap, #footer { display:none !important; height:0 !important; }" +' +
           '    ".sidebar, .left-sidebar, .right-sidebar, .nav-sidebar { display:none !important; }" +' +
-          '    "embed, object { width:100vw !important; height:100vh !important; display:block !important; }" +' +
-          '    "body > div { height:100vh !important; overflow:hidden !important; background:#000 !important; }";' +
+          '    "#oas-player { position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; margin:0 !important; }" +' +
+          '    "#oas-player iframe { width:100% !important; height:100% !important; }";' +
           '  document.head.appendChild(s);' +
           '}'
       )

@@ -177,7 +177,7 @@ function launchProfile(profileId, onOpened, onClosed) {
     getGameUrl: getGameUrl,
     LAUNCHER_PARAMS: LAUNCHER_PARAMS
   });
-  KeyboardShortcuts.attach(win, profile.name);
+  KeyboardShortcuts.attach(win, profile.name, ses);
 
   // Loading screen (spinner SVG/CSS, sem emoji — fontconfig-safe)
   win.loadURL(

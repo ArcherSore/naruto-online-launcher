@@ -229,7 +229,11 @@ describe('Launcher.js', () => {
     test('anexa KeyboardShortcuts', () => {
       launchAndTrack('p_001');
 
-      expect(KeyboardShortcuts.attach).toHaveBeenCalledWith(bwMock.win, 'TestProfile');
+      expect(KeyboardShortcuts.attach).toHaveBeenCalledWith(
+        bwMock.win,
+        'TestProfile',
+        bwMock.wc.session
+      );
     });
 
     test('carrega loading screen (data:text/html)', () => {

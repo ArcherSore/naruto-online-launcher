@@ -3,7 +3,7 @@
  *
  * Responsabilidade ÚNICA (SRP): interceptar atalhos de teclado nas janelas de
  * jogo via webContents 'before-input-event'. Inclui os pendências herdadas:
- *   - F5  → reload da sessão Flash (sem fechar a janela)
+ *   - F5  → Clear Login (limpa cookies + storage da partition, depois reload)
  *   - F12 → toggle DevTools
  *   - Alt+F4 → fecha a janela (kill switch graceful)
  *   - Bloqueia F10/Alt (menu bar Chromium), Ctrl+Shift+I/J (use F12)
@@ -20,8 +20,9 @@ const logger = require('../../utils/logger');
  * Anexa o handler de atalhos ao webContents de uma janela de jogo.
  * @param {Electron.BrowserWindow} win
  * @param {string} profileName - para logging
+ * @param {Electron.Session} [ses] - session da partition (para F5 clear login)
  */
-function attach(win, profileName) {
+function attach(win, profileName, ses) {
   if (!win || !win.webContents) return;
   const wc = win.webContents;
 
@@ -32,11 +33,28 @@ function attach(win, profileName) {
       win.close();
       return;
     }
-    // F5 → recarrega a página (reload da sessão Flash sem fechar a janela).
+    // F5 → Clear Login: limpa cookies + storage da partition, depois reload.
     if (input.key === 'F5' && !input.control && !input.alt && !input.shift) {
       event.preventDefault();
-      logger.info('F5: recarregando sessão Flash para ' + profileName);
-      wc.reload();
+      logger.info('F5: clear login para ' + profileName);
+      if (ses) {
+        Promise.all([
+          ses.clearStorageData({
+            storages: ['cookies', 'localstorage', 'sessionstorage']
+          }),
+          ses.clearCache()
+        ])
+          .then(function () {
+            logger.info('F5: login limpo, recarregando — ' + profileName);
+            wc.reload();
+          })
+          .catch(function (e) {
+            logger.warn('F5: erro ao limpar login — ' + e.message + ' (reload forçado)');
+            wc.reload();
+          });
+      } else {
+        wc.reload();
+      }
       return;
     }
     // F12 → toggle DevTools (liberado pra debug).

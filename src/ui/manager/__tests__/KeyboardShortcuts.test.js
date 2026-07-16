@@ -1,6 +1,6 @@
 /**
  * Testes para src/ui/manager/KeyboardShortcuts.js (Fase 3d split)
- * Verifica F5 reload, F12 DevTools, Alt+F4 close, e bloqueios.
+ * Verifica F5 clear login, F12 DevTools, Alt+F4 close, e bloqueios.
  */
 
 const KeyboardShortcuts = require('../KeyboardShortcuts');
@@ -22,6 +22,13 @@ function makeMockWin() {
   return { win, wc, getHandler: () => handler };
 }
 
+function makeMockSession() {
+  return {
+    clearStorageData: jest.fn(() => Promise.resolve()),
+    clearCache: jest.fn(() => Promise.resolve())
+  };
+}
+
 function fire(handler, input) {
   const event = { preventDefault: jest.fn() };
   handler(event, input);
@@ -39,8 +46,25 @@ describe('KeyboardShortcuts.js', () => {
     expect(() => KeyboardShortcuts.attach(null, 'x')).not.toThrow();
   });
 
-  describe('F5 → reload da sessão Flash', () => {
-    test('F5 (sem modificadores) chama wc.reload e preventDefault', () => {
+  describe('F5 → clear login (cookies + storage + reload)', () => {
+    test('F5 (sem modificadores) limpa storage da session e recarrega', async () => {
+      const { win, wc, getHandler } = makeMockWin();
+      const ses = makeMockSession();
+      KeyboardShortcuts.attach(win, 'TestProfile', ses);
+      const ev = fire(getHandler(), { key: 'F5', control: false, alt: false, shift: false });
+      expect(ev.preventDefault).toHaveBeenCalled();
+      expect(ses.clearStorageData).toHaveBeenCalledWith({
+        storages: ['cookies', 'localstorage', 'sessionstorage']
+      });
+      expect(ses.clearCache).toHaveBeenCalled();
+      // reload é chamado após as promises resolversem
+      await new Promise(function (r) {
+        setTimeout(r, 10);
+      });
+      expect(wc.reload).toHaveBeenCalled();
+    });
+
+    test('F5 sem session faz reload direto (fallback)', async () => {
       const { win, wc, getHandler } = makeMockWin();
       KeyboardShortcuts.attach(win, 'TestProfile');
       const ev = fire(getHandler(), { key: 'F5', control: false, alt: false, shift: false });
@@ -50,7 +74,8 @@ describe('KeyboardShortcuts.js', () => {
 
     test('Ctrl+F5 NÃO recarrega (deixa o Chromium tratar)', () => {
       const { win, wc, getHandler } = makeMockWin();
-      KeyboardShortcuts.attach(win, 'TestProfile');
+      const ses = makeMockSession();
+      KeyboardShortcuts.attach(win, 'TestProfile', ses);
       const ev = fire(getHandler(), { key: 'F5', control: true, alt: false, shift: false });
       expect(ev.preventDefault).not.toHaveBeenCalled();
       expect(wc.reload).not.toHaveBeenCalled();
