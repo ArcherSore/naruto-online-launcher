@@ -3435,59 +3435,6 @@
         font-size: var(--font-sm);
       }
 
-      /* ── v5.5: Theme Variants ── */
-      .theme-variants {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: var(--space-2);
-      }
-      .theme-variant-card {
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: var(--space-3);
-        cursor: pointer;
-        transition: var(--transition);
-        position: relative;
-        overflow: hidden;
-      }
-      .theme-variant-card:hover {
-        border-color: var(--border-hover);
-        transform: translateY(-2px);
-      }
-      .theme-variant-card.active {
-        border-color: var(--accent);
-        box-shadow:
-          0 0 0 1px var(--accent),
-          0 4px 12px rgba(255, 140, 0, 0.15);
-      }
-      .theme-variant-card .tv-swatches {
-        display: flex;
-        gap: 3px;
-        margin-bottom: var(--space-2);
-      }
-      .theme-variant-card .tv-swatches span {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-      }
-      .theme-variant-card .tv-name {
-        font-size: var(--font-xs);
-        font-weight: var(--weight-medium);
-        color: var(--text-dim);
-        text-align: center;
-      }
-      .theme-variant-card.active .tv-name {
-        color: var(--accent);
-      }
-      .theme-hint {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        margin-top: 0.4rem;
-        line-height: 1.4;
-      }
-
       /* ── v5.6: Profile card avatar ── */
       .card-avatar {
         width: 2.5rem;
