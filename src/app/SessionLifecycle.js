@@ -240,8 +240,8 @@ function attach(win, ctx) {
           const { shell } = require('electron');
           shell.openExternal(url);
         }
-      } catch (_) {
-        /* ignore */
+      } catch (e) {
+        logger.debug('new-window: URL inválida ignorada — ' + url);
       }
     }
   });
