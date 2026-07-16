@@ -273,6 +273,20 @@ describe('ProfileVault.js', () => {
       FreshVault.setCredentials('p_cb', 'u', 'p');
       expect(cb).toHaveBeenCalled();
     });
+
+    test('vault.json com tamanho > MAX_VAULT_BYTES inicia vazio', () => {
+      const vaultPath = path.join(tmpDir, 'vault.json');
+      // Write a file larger than MAX_VAULT_BYTES
+      const fs = require('fs');
+      const bigContent = '{"a":"' + 'x'.repeat(ProfileVault.MAX_VAULT_BYTES) + '"}';
+      fs.writeFileSync(vaultPath, bigContent, 'utf8');
+
+      delete require.cache[require.resolve('../ProfileVault')];
+      const FreshVault = require('../ProfileVault');
+
+      // Should have fallen back to empty store
+      expect(FreshVault.getCredentials('any')).toBeNull();
+    });
   });
 
   describe('encryption integration', () => {
