@@ -51,17 +51,6 @@
           </div>
         </div>
 
-        <!-- v5.1: Sidebar Memory Bar (single RAM indicator) -->
-        <div class="sidebar-membar">
-          <div class="sidebar-membar-label">
-            <span>RAM</span>
-            <strong id="sidebarMemVal">— MB</strong>
-          </div>
-          <div class="sidebar-membar-track">
-            <div class="sidebar-membar-fill" id="sidebarMemFill" style="width: 0%"></div>
-          </div>
-        </div>
-
         <div class="flash-indicator">
           <span class="flash-dot"></span>
           <span id="flashStatus">Flash PPAPI ✓</span>
@@ -229,35 +218,6 @@
 
           <!-- ── View: Events ── -->
           <div class="view" id="view-events">
-            <!-- v5.3: Session Overview -->
-            <div class="session-overview" id="sessionOverview">
-              <div class="session-overview-header">
-                <h4>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="3" width="20" height="14" rx="2" />
-                    <line x1="8" y1="21" x2="16" y2="21" />
-                    <line x1="12" y1="17" x2="12" y2="21" />
-                  </svg>
-                  Sessões ativas
-                </h4>
-                <div class="session-overview-actions">
-                  <button
-                    class="relaunch-btn"
-                    id="relaunchAllBtn"
-                    title="Relançar todos os perfis da última sessão"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="1 4 1 10 7 10" />
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                    </svg>
-                    Relançar todos
-                  </button>
-                </div>
-              </div>
-              <div class="session-list" id="sessionList">
-                <div class="session-empty">Nenhuma sessão ativa.</div>
-              </div>
-            </div>
             <div class="tabs" id="regionTabs"></div>
             <div id="eventList"></div>
           </div>
@@ -653,27 +613,6 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-        <!-- v5.7: Status Bar -->
-        <div class="status-bar" id="statusBar">
-          <div class="sb-section">
-            <span class="sb-dot green" id="sbFlashDot"></span>
-            <span id="sbFlashLabel">Flash PPAPI</span>
-          </div>
-          <div class="sb-sep"></div>
-          <div class="sb-section">
-            <span class="sb-dot green" id="sbConnDot"></span>
-            <span id="sbConnLabel">Online</span>
-          </div>
-          <div class="sb-sep"></div>
-          <div class="sb-section">
-            <span id="sbProfileCount">0 perfis</span>
-          </div>
-          <div class="sb-right">
-            <span id="sbUptime">0:00</span>
-            <div class="sb-sep"></div>
-            <span>v5.9.3</span>
           </div>
         </div>
       </div>

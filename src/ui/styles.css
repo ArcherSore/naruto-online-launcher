@@ -2281,41 +2281,6 @@
         color: var(--warn);
       }
 
-      /* ── v5.1: Sidebar Memory Bar ── */
-      .sidebar-membar {
-        padding: var(--space-2) var(--space-4);
-        border-top: 1px solid var(--border);
-        position: relative;
-        z-index: 1;
-      }
-      .sidebar-membar-label {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        margin-bottom: 0.25rem;
-      }
-      .sidebar-membar-label strong {
-        color: var(--text-dim);
-        font-weight: var(--weight-medium);
-        font-variant-numeric: tabular-nums;
-      }
-      .sidebar-membar-track {
-        height: 3px;
-        background: var(--bg-elev-2);
-        border-radius: 2px;
-        overflow: hidden;
-      }
-      .sidebar-membar-fill {
-        height: 100%;
-        border-radius: 2px;
-        transition:
-          width 0.6s ease,
-          background 0.4s ease;
-        background: var(--ok);
-      }
-
       /* ── v5.1: Settings Row Icons ── */
       .settings-row-icon {
         width: 1.5rem;
@@ -2646,35 +2611,6 @@
         filter: brightness(1.1);
       }
 
-      /* ── v5.3: Connection Health Indicator ── */
-      .conn-indicator {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        padding: 0.15rem 0.5rem;
-        border-radius: var(--radius-full);
-        background: var(--surface);
-        border: 1px solid var(--border);
-        margin-right: var(--space-2);
-      }
-      .conn-dot {
-        width: 0.35rem;
-        height: 0.35rem;
-        border-radius: 50%;
-        background: var(--ok);
-        animation: pulseRing 2s ease-in-out infinite;
-      }
-      .conn-dot.disconnected {
-        background: var(--danger);
-        animation: none;
-      }
-      .conn-dot.checking {
-        background: var(--warn);
-        animation: pulseRing 0.8s ease-in-out infinite;
-      }
-
       /* ── v5.3: Profile Tags System ── */
       .tag-filter-bar {
         display: flex;
@@ -2776,131 +2712,6 @@
         color: var(--text-faint);
       }
 
-      /* ── v5.3: Session Overview Panel ── */
-      .session-overview {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-        margin-bottom: var(--space-4);
-        animation: slideUp 300ms ease;
-      }
-      .session-overview-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-3) var(--space-4);
-        background: var(--bg-elev);
-        border-bottom: 1px solid var(--border);
-      }
-      .session-overview-header h4 {
-        font-size: var(--font-sm);
-        font-weight: var(--weight-semibold);
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-      }
-      .session-overview-header h4 svg {
-        width: 0.9rem;
-        height: 0.9rem;
-        color: var(--accent);
-      }
-      .session-overview-actions {
-        display: flex;
-        gap: var(--space-2);
-      }
-      .session-list {
-        max-height: 200px;
-        overflow-y: auto;
-      }
-      .session-item {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        padding: var(--space-2) var(--space-4);
-        border-bottom: 1px solid var(--border);
-        transition: background 100ms ease;
-      }
-      .session-item:last-child {
-        border-bottom: none;
-      }
-      .session-item:hover {
-        background: var(--surface-hover);
-      }
-      .session-dot {
-        width: 0.4rem;
-        height: 0.4rem;
-        border-radius: 50%;
-        background: var(--ok);
-        animation: pulseRing 2s ease-in-out infinite;
-        flex-shrink: 0;
-      }
-      .session-info {
-        flex: 1;
-        min-width: 0;
-      }
-      .session-name {
-        font-size: var(--font-sm);
-        font-weight: var(--weight-medium);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .session-uptime {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        font-variant-numeric: tabular-nums;
-      }
-      .session-close {
-        background: transparent;
-        border: none;
-        color: var(--text-faint);
-        cursor: pointer;
-        padding: 0.2rem;
-        border-radius: var(--radius-sm);
-        transition: var(--transition);
-        display: flex;
-        align-items: center;
-      }
-      .session-close:hover {
-        color: var(--danger);
-        background: rgba(220, 38, 38, 0.08);
-      }
-      .session-close svg {
-        width: 0.8rem;
-        height: 0.8rem;
-      }
-      .session-empty {
-        text-align: center;
-        padding: var(--space-4);
-        color: var(--text-faint);
-        font-size: var(--font-sm);
-      }
-
-      /* ── v5.3: Sidebar Uptime Counter ── */
-      .sidebar-uptime {
-        padding: var(--space-2) var(--space-4);
-        border-top: 1px solid var(--border);
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        position: relative;
-        z-index: 1;
-      }
-      .sidebar-uptime svg {
-        width: 0.7rem;
-        height: 0.7rem;
-        color: var(--accent);
-        opacity: 0.7;
-      }
-      .sidebar-uptime .uptime-val {
-        color: var(--text-dim);
-        font-weight: var(--weight-medium);
-        font-variant-numeric: tabular-nums;
-      }
-
       /* ── v5.3: Enhanced Event Cards ── */
       .event {
         position: relative;
@@ -2961,31 +2772,6 @@
       .event-icon.cycle {
         background: rgba(16, 185, 129, 0.1);
         color: var(--ok);
-      }
-
-      /* ── v5.3: Quick Relaunch Button ── */
-      .relaunch-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        padding: var(--space-1) var(--space-2);
-        font-size: var(--font-xs);
-        font-weight: var(--weight-medium);
-        border: 1px solid rgba(255, 140, 0, 0.25);
-        border-radius: var(--radius-sm);
-        background: rgba(255, 140, 0, 0.06);
-        color: var(--accent);
-        cursor: pointer;
-        transition: var(--transition);
-        font-family: var(--font-family);
-      }
-      .relaunch-btn:hover {
-        background: rgba(255, 140, 0, 0.12);
-        border-color: rgba(255, 140, 0, 0.4);
-      }
-      .relaunch-btn svg {
-        width: 0.7rem;
-        height: 0.7rem;
       }
 
       /* ── v5.4: Dev Subsection Collapsible ── */
@@ -3647,55 +3433,6 @@
         background: var(--accent);
         opacity: 0;
         transition: opacity 150ms ease;
-      }
-
-      /* ── v5.7: Status bar (bottom) ── */
-      .status-bar {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        padding: var(--space-1) var(--space-4);
-        background: var(--bg-elev);
-        border-top: 1px solid var(--border);
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        flex-shrink: 0;
-        position: relative;
-        z-index: 1;
-      }
-      .status-bar .sb-section {
-        display: flex;
-        align-items: center;
-        gap: var(--space-1);
-      }
-      .status-bar .sb-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: var(--radius-full);
-        flex-shrink: 0;
-      }
-      .status-bar .sb-dot.green {
-        background: var(--ok);
-        box-shadow: 0 0 4px rgba(16, 185, 129, 0.4);
-      }
-      .status-bar .sb-dot.red {
-        background: var(--danger);
-        box-shadow: 0 0 4px rgba(220, 38, 38, 0.4);
-      }
-      .status-bar .sb-dot.amber {
-        background: var(--warn);
-        box-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
-      }
-      .status-bar .sb-sep {
-        width: 1px;
-        height: 12px;
-        background: var(--border);
-        margin: 0 var(--space-1);
-      }
-      .status-bar .sb-right {
-        margin-left: auto;
-        display: flex;
-        gap: var(--space-3);
       }
 
       /* ── v5.7: Sidebar logo animated hover ── */

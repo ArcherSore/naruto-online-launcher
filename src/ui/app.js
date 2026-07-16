@@ -1785,7 +1785,6 @@
           });
         }
         localStorage.setItem(LAST_SESSION_KEY, JSON.stringify(lastSession));
-        updateSessionOverview();
       });
 
       var origDel = del;
@@ -1803,26 +1802,6 @@
           addActivity('error', 'Auto-login falhou: <strong>' + esc(name) + '</strong>');
         }
       });
-
-      // ── v5.1: Sidebar Memory Bar ──
-      function updateSidebarMemBar(s) {
-        if (!s) return;
-        var val = document.getElementById('sidebarMemVal');
-        var fill = document.getElementById('sidebarMemFill');
-        if (val) val.textContent = s.totalMB + ' MB';
-        if (fill && s.thresholdMB > 0) {
-          var pct = Math.min(100, (s.totalMB / s.thresholdMB) * 100);
-          fill.style.width = pct + '%';
-          fill.style.background =
-            pct < 50
-              ? 'var(--ok)'
-              : pct < 75
-                ? 'var(--warn)'
-                : pct < 90
-                  ? '#F97316'
-                  : 'var(--danger)';
-        }
-      }
 
       // ── v5.1: Batch Operations ──
       var batchMode = false;
@@ -2010,13 +1989,6 @@
           document.getElementById('vaultModal').classList.remove('show');
         }
       });
-
-      // ── v5.1: Update sidebar membar on memory updates ──
-      var origRenderMemory = renderMemory;
-      renderMemory = function (s) {
-        origRenderMemory(s);
-        updateSidebarMemBar(s);
-      };
 
       // ── v5.2: Custom Confirm Dialog ──
       var _confirmResolve = null;
@@ -2258,43 +2230,6 @@
       // ── v5.2: Vault remove uses custom confirm ──
       // Already handled above by overriding removeVault onclick
 
-      // ── v5.3: Connection Health Indicator ──
-      var connState = 'online'; // online | offline | checking
-      function updateConnectionState(state) {
-        connState = state;
-        var dot = document.getElementById('connDot');
-        var label = document.getElementById('connLabel');
-        if (!dot || !label) return;
-        dot.className =
-          'conn-dot' +
-          (state === 'offline' ? ' disconnected' : state === 'checking' ? ' checking' : '');
-        label.textContent =
-          state === 'online' ? 'Online' : state === 'offline' ? 'Offline' : 'Verificando';
-      }
-      // Check connectivity periodically
-      function checkConnection() {
-        updateConnectionState('checking');
-        var timeout = setTimeout(function () {
-          updateConnectionState('offline');
-        }, 5000);
-        try {
-          require('https')
-            .get('https://api.github.com', function (res) {
-              clearTimeout(timeout);
-              updateConnectionState(res.statusCode ? 'online' : 'offline');
-            })
-            .on('error', function () {
-              clearTimeout(timeout);
-              updateConnectionState('offline');
-            });
-        } catch (e) {
-          clearTimeout(timeout);
-          updateConnectionState('offline');
-        }
-      }
-      setInterval(checkConnection, 60000); // Check every 60s
-      setTimeout(checkConnection, 3000); // First check after 3s
-
       // ── v5.3: Profile Tags System ──
       var TAG_COLORS = {
         main: '#FF8C00',
@@ -2456,119 +2391,6 @@
         window._renderTagsInput = renderTagsInput;
       }
 
-      // ── v5.3: Session Overview Panel ──
-      var sessionOpenTimes = {}; // { profileId: openTimestamp }
-
-      function updateSessionOverview() {
-        var listEl = document.getElementById('sessionList');
-        if (!listEl) return;
-        var openIds = Object.keys(openWindows);
-        if (!openIds.length) {
-          listEl.innerHTML = '<div class="session-empty">Nenhuma sessão ativa.</div>';
-          return;
-        }
-        listEl.innerHTML = openIds
-          .map(function (id) {
-            var p = profiles.find(function (x) {
-              return x.id === id;
-            });
-            var name = p ? p.name : id;
-            var uptime = sessionOpenTimes[id]
-              ? formatSessionUptime(Date.now() - sessionOpenTimes[id])
-              : '—';
-            return (
-              '<div class="session-item">' +
-              '<span class="session-dot"></span>' +
-              '<div class="session-info">' +
-              '<div class="session-name">' +
-              esc(name) +
-              '</div>' +
-              '<div class="session-uptime">Aberta há ' +
-              uptime +
-              '</div>' +
-              '</div>' +
-              '<button class="session-close" data-close-session="' +
-              id +
-              '" title="Fechar sessão">' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-              '</button>' +
-              '</div>'
-            );
-          })
-          .join('');
-        // Close session handlers
-        listEl.querySelectorAll('.session-close').forEach(function (btn) {
-          btn.onclick = function (e) {
-            e.stopPropagation();
-            var id = btn.getAttribute('data-close-session');
-            ipcRenderer.send('profile:close', id);
-            addActivity('info', 'Sessão fechada: <strong>' + esc(id) + '</strong>');
-          };
-        });
-      }
-
-      function formatSessionUptime(ms) {
-        if (!ms || ms < 1000) return '0s';
-        var seconds = Math.floor(ms / 1000);
-        var hours = Math.floor(seconds / 3600);
-        var minutes = Math.floor((seconds % 3600) / 60);
-        var secs = seconds % 60;
-        if (hours > 0) return hours + 'h ' + minutes + 'm';
-        if (minutes > 0) return minutes + 'm ' + secs + 's';
-        return secs + 's';
-      }
-
-      // Track session open times
-      var origGameWindowStatus = null;
-      // We already have the game-window:status listener, let's add timing
-      ipcRenderer.on('game-window:status', function (_e, data) {
-        if (!data || !data.profileId) return;
-        if (data.open && !sessionOpenTimes[data.profileId]) {
-          sessionOpenTimes[data.profileId] = Date.now();
-        }
-        if (!data.open) {
-          delete sessionOpenTimes[data.profileId];
-        }
-      });
-
-      // ── v5.3: Quick Relaunch All ──
-      document.getElementById('relaunchAllBtn').onclick = function () {
-        var lastSession = JSON.parse(localStorage.getItem(LAST_SESSION_KEY) || '[]');
-        if (!lastSession.length) {
-          toast('Nenhuma sessão anterior encontrada', 'err');
-          return;
-        }
-        var launched = 0;
-        lastSession.forEach(function (id) {
-          // Only launch if not already open
-          if (!openWindows[id]) {
-            var p = profiles.find(function (x) {
-              return x.id === id;
-            });
-            if (p) {
-              origLaunch(id);
-              launched++;
-            }
-          }
-        });
-        if (launched > 0) toast('Relançando ' + launched + ' perfil(is)', 'ok');
-        else toast('Todos os perfis já estão abertos', 'ok');
-      };
-
-      // ── v5.3: Sidebar Uptime Counter ──
-      var appStartTime = Date.now();
-      function updateUptime() {
-        var el = document.getElementById('uptimeVal');
-        if (!el) return;
-        var ms = Date.now() - appStartTime;
-        var hours = Math.floor(ms / 3600000);
-        var minutes = Math.floor((ms % 3600000) / 60000);
-        if (hours > 0) el.textContent = hours + 'h ' + (minutes < 10 ? '0' : '') + minutes + 'm';
-        else el.textContent = minutes + 'm';
-      }
-      setInterval(updateUptime, 30000);
-      updateUptime();
-
       // ── v5.3: Enhanced Event Rendering ──
       var origRenderEventsSingle = renderEventsSingle;
       renderEventsSingle = function (list) {
@@ -2672,12 +2494,9 @@
       initTagsInput();
       initDevSubsections();
       updateEventBadge();
-      updateSessionOverview();
       setTimeout(function () {
         initCopyButtons();
       }, 1000);
-      // Session overview refresh timer
-      setInterval(updateSessionOverview, 10000);
       // v5.4: Refresh relative times + active-7d every minute
       setInterval(function () {
         if (profiles.length) {
@@ -3054,63 +2873,9 @@
       initCompare();
       initDragDropImport();
       initCardKeyboardMenu();
-
       // ════════════════════════════════════════════════════════════════════
       // v5.7: Status Bar · Profile Search Filters · Loading Skeletons · Card Expand · New Profile Animation
       // ════════════════════════════════════════════════════════════════════
-
-      // ── v5.7: Status Bar ──
-      var _appStartTime = Date.now();
-      function updateStatusBar() {
-        // Profile count
-        var countEl = document.getElementById('sbProfileCount');
-        if (countEl)
-          countEl.textContent = profiles.length + (profiles.length === 1 ? ' perfil' : ' perfis');
-        // Uptime
-        var uptimeEl = document.getElementById('sbUptime');
-        if (uptimeEl) {
-          var ms = Date.now() - _appStartTime;
-          var sec = Math.floor(ms / 1000) % 60;
-          var min = Math.floor(ms / 60000) % 60;
-          var hr = Math.floor(ms / 3600000);
-          uptimeEl.textContent =
-            (hr > 0 ? hr + ':' : '') +
-            String(min).padStart(2, '0') +
-            ':' +
-            String(sec).padStart(2, '0');
-        }
-        // Connection status (v5.8: read connState directly — avoids className mismatch bug
-        // where connDotTop.className is "conn-dot disconnected" not "red")
-        var connDot = document.getElementById('sbConnDot');
-        var connLabel = document.getElementById('sbConnLabel');
-        var CONN_COLOR_MAP = { online: 'green', offline: 'red', checking: 'amber' };
-        if (connDot) {
-          connDot.className = 'sb-dot ' + (CONN_COLOR_MAP[connState] || 'green');
-        }
-        if (connLabel) {
-          connLabel.textContent =
-            connState === 'online' ? 'Online' : connState === 'offline' ? 'Offline' : 'Verificando';
-        }
-        // Flash status (sync from flash indicator)
-        var flashDot = document.getElementById('sbFlashDot');
-        var flashLabel = document.getElementById('sbFlashLabel');
-        var flashStatusEl = document.getElementById('flashStatus');
-        if (flashDot && flashStatusEl) {
-          var flashOk = flashStatusEl.textContent.indexOf('✓') !== -1;
-          flashDot.className = 'sb-dot ' + (flashOk ? 'green' : 'amber');
-        }
-        if (flashLabel && flashStatusEl) {
-          flashLabel.textContent = flashStatusEl.textContent.replace(/[✓✗❌]/g, '').trim();
-        }
-      }
-      function initStatusBar() {
-        updateStatusBar();
-        setInterval(updateStatusBar, 5000);
-        // Also update on profile changes
-        ipcRenderer.on('profiles:updated', function () {
-          setTimeout(updateStatusBar, 100);
-        });
-      }
 
       // ── v5.7: Advanced Profile Search Filters ──
       var searchFilterRegion = '';
@@ -3286,7 +3051,6 @@
       })();
 
       // ── v5.7: Init sequence ──
-      initStatusBar();
       initSearchFilters();
       // Show skeleton briefly on first load
       showSkeletonLoader();
