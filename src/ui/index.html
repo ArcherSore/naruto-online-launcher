@@ -5481,14 +5481,6 @@
     <div class="app">
       <!-- ═══ SIDEBAR NAV ═══ -->
       <nav class="sidebar">
-        <!-- Ambient particles -->
-        <div class="sidebar-particles">
-          <span class="particle" style="top: 22%; left: 12%; animation-delay: 0s"></span>
-          <span class="particle" style="top: 50%; left: 72%; animation-delay: 2.5s"></span>
-          <span class="particle" style="top: 72%; left: 30%; animation-delay: 5s"></span>
-          <span class="particle" style="top: 38%; left: 82%; animation-delay: 7.5s"></span>
-        </div>
-
         <div class="sidebar-logo">
           <div class="mark"><img src="logo.png" alt="Shinobi Launcher" /></div>
           <div class="brand">
@@ -5526,12 +5518,7 @@
           </div>
         </div>
 
-        <div class="nav-stat">
-          <span class="dot" id="ramDot"></span>
-          <span id="memVal">— MB</span>
-        </div>
-
-        <!-- v5.1: Sidebar Memory Bar -->
+        <!-- v5.1: Sidebar Memory Bar (single RAM indicator) -->
         <div class="sidebar-membar">
           <div class="sidebar-membar-label">
             <span>RAM</span>
@@ -5542,42 +5529,9 @@
           </div>
         </div>
 
-        <div class="sidebar-uptime">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-          Sessão: <span class="uptime-val" id="uptimeVal">0:00</span>
-        </div>
-        <!-- v5.4: Quick Launch Widget — top 3 most-used profiles -->
-        <div class="quick-launch" id="quickLaunch">
-          <div class="quick-launch-title">
-            <span>Acesso rápido</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-          </div>
-          <div class="quick-launch-list" id="quickLaunchList">
-            <div class="quick-launch-empty">Jogue para popular.</div>
-          </div>
-        </div>
-        <div class="sidebar-footer">
-          <button class="btn sm" id="importBtn" title="Importar backup">Importar</button>
-          <button class="btn sm" id="exportBtn" title="Exportar backup">Exportar</button>
-        </div>
         <div class="flash-indicator">
           <span class="flash-dot"></span>
           <span id="flashStatus">Flash PPAPI ✓</span>
-        </div>
-        <div class="flash-cache-info" id="flashCacheInfo" style="display: none">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-            <polyline points="13 2 13 9 20 9" />
-          </svg>
-          <div class="cache-detail">
-            <span class="cache-version" id="flashCacheVersion">—</span>
-            <span id="flashCacheDate"></span>
-          </div>
         </div>
       </nav>
 
@@ -5585,64 +5539,7 @@
       <div class="main">
         <div class="topbar">
           <h2 id="viewTitle">Contas</h2>
-          <button
-            class="btn sm last-profile-btn"
-            id="lastProfileBtn"
-            title="Relançar último perfil"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-            <span id="lastProfileName"></span>
-          </button>
           <div class="actions">
-            <!-- v5.3: Connection Health Indicator -->
-            <div class="conn-indicator" id="connIndicator" title="Status de conexão">
-              <span class="conn-dot" id="connDot"></span>
-              <span id="connLabel">Online</span>
-            </div>
-            <!-- v4.5: View Mode Toggle (grid/list) -->
-            <div class="view-toggle" id="viewToggle" title="Alternar visualização">
-              <button id="viewGrid" class="active" title="Grade" aria-label="Visualização em grade">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="3" width="7" height="7" />
-                  <rect x="14" y="3" width="7" height="7" />
-                  <rect x="14" y="14" width="7" height="7" />
-                  <rect x="3" y="14" width="7" height="7" />
-                </svg>
-              </button>
-              <div class="divider"></div>
-              <button id="viewList" title="Lista" aria-label="Visualização em lista">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="8" y1="6" x2="21" y2="6" />
-                  <line x1="8" y1="12" x2="21" y2="12" />
-                  <line x1="8" y1="18" x2="21" y2="18" />
-                  <line x1="3" y1="6" x2="3.01" y2="6" />
-                  <line x1="3" y1="12" x2="3.01" y2="12" />
-                  <line x1="3" y1="18" x2="3.01" y2="18" />
-                </svg>
-              </button>
-            </div>
-            <!-- v5.4: Compact Mode Toggle -->
-            <button
-              class="compact-toggle"
-              id="compactToggle"
-              title="Modo compacto (cartões menores)"
-              aria-label="Modo compacto"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <line x1="3" y1="9" x2="21" y2="9" />
-                <line x1="3" y1="15" x2="21" y2="15" />
-              </svg>
-              Compacto
-            </button>
-            <button class="btn icon" id="muteBtn" title="Notificações" aria-label="Notificações">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-            </button>
             <!-- v5.5: Notifications Center -->
             <div style="position: relative">
               <button
@@ -5749,50 +5646,6 @@
         <div class="content">
           <!-- ── View: Accounts ── -->
           <div class="view active" id="view-accounts">
-            <!-- v5.0: Analytics Summary Bar -->
-            <div class="analytics-bar" id="analyticsBar">
-              <div class="analytics-card">
-                <div class="ac-icon orange">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                </div>
-                <span class="ac-value" id="statTotalAccounts">0</span>
-                <span class="ac-label">Contas</span>
-              </div>
-              <div class="analytics-card">
-                <div class="ac-icon green">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </div>
-                <span class="ac-value" id="statVaultCount">0</span>
-                <span class="ac-label">Com auto-login</span>
-              </div>
-              <div class="analytics-card">
-                <div class="ac-icon amber">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                </div>
-                <span class="ac-value" id="statTotalPlaytime">0h</span>
-                <span class="ac-label">Tempo total de jogo</span>
-              </div>
-              <div class="analytics-card">
-                <div class="ac-icon purple">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                </div>
-                <span class="ac-value" id="statTotalLaunches">0</span>
-                <span class="ac-label">Total de lançamentos</span>
-              </div>
-            </div>
             <!-- v5.3: Tag Filter Bar -->
             <div class="tag-filter-bar" id="tagFilterBar"></div>
             <div class="account-toolbar">
@@ -5858,84 +5711,6 @@
 
           <!-- ── View: Events ── -->
           <div class="view" id="view-events">
-            <!-- v5.8: Statistics Dashboard (4 cards with count-up animation) -->
-            <div class="stats-dashboard" id="statsDashboard">
-              <div class="stat-card">
-                <div class="sc-icon orange">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                </div>
-                <div class="sc-label">Total de lançamentos</div>
-                <div class="sc-value" data-stat="totalLaunches">0</div>
-                <div class="sc-sub" data-stat="totalLaunchesSub">—</div>
-              </div>
-              <div class="stat-card">
-                <div class="sc-icon green">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                </div>
-                <div class="sc-label">Tempo total de jogo</div>
-                <div class="sc-value" data-stat="totalPlaytime">
-                  0<span class="sc-suffix" data-stat="totalPlaytimeSuffix"></span>
-                </div>
-                <div class="sc-sub" data-stat="totalPlaytimeSub">—</div>
-              </div>
-              <div class="stat-card">
-                <div class="sc-icon purple">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path
-                      d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
-                    />
-                  </svg>
-                </div>
-                <div class="sc-label">Perfil mais jogado</div>
-                <div class="sc-value" data-stat="topProfile" style="font-size: 1.2rem">—</div>
-                <div class="sc-sub" data-stat="topProfileSub">0 lançamentos</div>
-              </div>
-              <div class="stat-card">
-                <div class="sc-icon blue">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
-                </div>
-                <div class="sc-label">Sequência atual</div>
-                <div class="sc-value">
-                  <span data-stat="currentStreak">0</span><span class="sc-suffix">dias</span>
-                </div>
-                <div class="sc-sub" data-stat="streakSub">—</div>
-              </div>
-            </div>
-            <!-- v5.8: Activity Heatmap (365-day GitHub-style calendar) -->
-            <div class="heatmap-section">
-              <div class="heatmap-header">
-                <h4>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                  Atividade — últimos 365 dias
-                </h4>
-                <div class="heatmap-legend">
-                  <span>Menos</span>
-                  <span class="hm-swatch" style="background: var(--bg-elev)"></span>
-                  <span class="hm-swatch" style="background: rgba(255, 140, 0, 0.25)"></span>
-                  <span class="hm-swatch" style="background: rgba(255, 140, 0, 0.45)"></span>
-                  <span class="hm-swatch" style="background: rgba(255, 140, 0, 0.7)"></span>
-                  <span class="hm-swatch" style="background: var(--accent)"></span>
-                  <span>Mais</span>
-                </div>
-              </div>
-              <div class="heatmap-wrap">
-                <div class="heatmap-grid" id="heatmapGrid"></div>
-                <div class="heatmap-months" id="heatmapMonths"></div>
-              </div>
-            </div>
             <!-- v5.3: Session Overview -->
             <div class="session-overview" id="sessionOverview">
               <div class="session-overview-header">
@@ -5967,46 +5742,6 @@
             </div>
             <div class="tabs" id="regionTabs"></div>
             <div id="eventList"></div>
-            <!-- v5.5: Activity Timeline (7-day launches bar chart) -->
-            <div class="timeline-section">
-              <div class="timeline-header">
-                <h4>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                  </svg>
-                  Atividade — últimos 7 dias
-                </h4>
-                <button
-                  class="timeline-clear"
-                  id="timelineClearBtn"
-                  type="button"
-                  title="Limpar histórico de lançamentos"
-                >
-                  Limpar
-                </button>
-              </div>
-              <div class="timeline-chart" id="timelineChart"></div>
-              <div class="timeline-legend" id="timelineLegend">
-                <span>Total: <strong id="timelineTotal">0</strong> lançamentos</span>
-                <span>Média: <strong id="timelineAvg">0</strong>/dia</span>
-              </div>
-            </div>
-            <!-- v5.0: Activity Log -->
-            <div class="activity-section" id="activitySection">
-              <div class="activity-header">
-                <h4>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="12 8 12 12 16 14" />
-                    <circle cx="12" cy="12" r="10" />
-                  </svg>
-                  Histórico de atividade
-                </h4>
-                <button class="activity-clear" id="activityClearBtn">Limpar</button>
-              </div>
-              <div class="activity-list" id="activityList">
-                <div class="activity-empty">Nenhuma atividade registrada.</div>
-              </div>
-            </div>
           </div>
 
           <!-- ── View: Settings ── -->
@@ -6069,90 +5804,6 @@
               </div>
             </div>
             <div class="settings-section">
-              <div class="settings-header">Desempenho</div>
-              <div
-                class="settings-row"
-                style="flex-direction: column; align-items: stretch; gap: 0.6rem"
-              >
-                <div
-                  style="
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    width: 100%;
-                  "
-                >
-                  <div>
-                    <div class="label">Memória do launcher</div>
-                    <div class="desc">
-                      GC automático do processo main (camada 2) — seguro, não afeta o renderer do
-                      Flash
-                    </div>
-                  </div>
-                  <span
-                    id="perfRam"
-                    style="
-                      font-size: var(--font-xs);
-                      color: var(--text-dim);
-                      font-variant-numeric: tabular-nums;
-                    "
-                    >— MB</span
-                  >
-                </div>
-                <div
-                  style="
-                    height: 5px;
-                    background: var(--bg-elev);
-                    border-radius: 3px;
-                    overflow: hidden;
-                  "
-                >
-                  <i
-                    id="perfRamFill"
-                    style="
-                      display: block;
-                      height: 100%;
-                      width: 0%;
-                      background: linear-gradient(90deg, #10b981, #34d399);
-                      border-radius: 3px;
-                      transition:
-                        width 0.6s,
-                        background 0.6s;
-                    "
-                  ></i>
-                </div>
-                <div
-                  style="
-                    display: flex;
-                    justify-content: space-between;
-                    gap: 1rem;
-                    font-size: var(--font-xs);
-                    color: var(--text-faint);
-                  "
-                >
-                  <span
-                    >Limite GC:
-                    <strong id="perfThreshold" style="color: var(--text-dim)">— MB</strong></span
-                  >
-                  <span
-                    >GC manuais: <strong id="perfGcManual" style="color: var(--ok)">0</strong></span
-                  >
-                  <span
-                    >GC auto:
-                    <strong id="perfGcAuto" style="color: var(--text-dim)">0</strong></span
-                  >
-                </div>
-                <button
-                  class="btn sm"
-                  id="perfForceGc"
-                  type="button"
-                  style="align-self: flex-start"
-                >
-                  Forçar limpeza de RAM
-                </button>
-              </div>
-            </div>
-            <div class="settings-section">
               <div class="settings-header">Avançado</div>
               <div class="settings-row with-icon">
                 <div class="settings-row-icon green">
@@ -6212,39 +5863,6 @@
                   title="Abrir repositório no GitHub"
                   >GitHub</a
                 >
-              </div>
-            </div>
-
-            <div class="settings-section">
-              <div class="settings-header">Estatísticas (v5.4)</div>
-              <div class="stats-grid" id="statsGrid">
-                <div class="stat-tile">
-                  <span class="stat-tile-label">Tempo total</span>
-                  <span class="stat-tile-value" id="statTotalPlay">0h</span>
-                  <span class="stat-tile-sub">todas as contas</span>
-                </div>
-                <div class="stat-tile">
-                  <span class="stat-tile-label">Lançamentos</span>
-                  <span class="stat-tile-value" id="statTotalLaunch">0</span>
-                  <span class="stat-tile-sub">total</span>
-                </div>
-                <div class="stat-tile">
-                  <span class="stat-tile-label">Conta top</span>
-                  <span class="stat-tile-value" id="statTopName" style="font-size: var(--font-md)"
-                    >—</span
-                  >
-                  <span class="stat-tile-sub" id="statTopDetail">sem dados</span>
-                </div>
-                <div class="stat-tile highlight">
-                  <span class="stat-tile-label">Ativos 7d</span>
-                  <span class="stat-tile-value" id="statActive7d">0</span>
-                  <span class="stat-tile-sub">contas usadas</span>
-                </div>
-                <div class="stat-tile">
-                  <span class="stat-tile-label">Tags únicas</span>
-                  <span class="stat-tile-value" id="statUniqueTags">0</span>
-                  <span class="stat-tile-sub">criadas</span>
-                </div>
               </div>
             </div>
 
@@ -6318,63 +5936,6 @@
                     data-hover="#FBBF24"
                     title="Âmbar"
                   ></div>
-                </div>
-              </div>
-              <div class="settings-row with-icon">
-                <div class="settings-row-icon purple">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
-                    <path d="M2 12h20" />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">Tema (v5.5)</div>
-                  <div class="desc">
-                    Predefinições de paleta que trocam a cor de destaque. Persistente entre sessões.
-                  </div>
-                  <div class="theme-variants" id="themeVariants" style="margin-top: 0.6rem">
-                    <div
-                      class="theme-variant-card active"
-                      data-variant="midnight"
-                      title="Midnight Shinobi (padrão)"
-                    >
-                      <div class="tv-swatches">
-                        <span style="background: #000000"></span
-                        ><span style="background: #ff8c00"></span
-                        ><span style="background: #ff6b00"></span>
-                      </div>
-                      <div class="tv-name">Midnight</div>
-                    </div>
-                    <div class="theme-variant-card" data-variant="crimson" title="Crimson Dawn">
-                      <div class="tv-swatches">
-                        <span style="background: #000000"></span
-                        ><span style="background: #dc2626"></span
-                        ><span style="background: #b91c1c"></span>
-                      </div>
-                      <div class="tv-name">Crimson</div>
-                    </div>
-                    <div class="theme-variant-card" data-variant="forest" title="Forest Mist">
-                      <div class="tv-swatches">
-                        <span style="background: #000000"></span
-                        ><span style="background: #10b981"></span
-                        ><span style="background: #059669"></span>
-                      </div>
-                      <div class="tv-name">Forest</div>
-                    </div>
-                    <div class="theme-variant-card" data-variant="arctic" title="Arctic Glow">
-                      <div class="tv-swatches">
-                        <span style="background: #000000"></span
-                        ><span style="background: #06b6d4"></span
-                        ><span style="background: #0891b2"></span>
-                      </div>
-                      <div class="tv-name">Arctic</div>
-                    </div>
-                  </div>
-                  <div class="theme-hint">
-                    Dica: o seletor de cor individual acima sobrescreve o tema. Aplique um tema para
-                    resetar, depois ajuste a cor.
-                  </div>
                 </div>
               </div>
             </div>
@@ -6897,13 +6458,6 @@
               <span class="kb-action">DevTools</span
               ><span class="kb-keys"><span class="kb-key accent">F12</span></span>
             </div>
-            <div class="kb-row">
-              <span class="kb-action">Dev Tools (config)</span
-              ><span class="kb-keys"
-                ><span class="kb-key accent">Ctrl</span><span class="kb-key accent">Shift</span
-                ><span class="kb-key">D</span></span
-              >
-            </div>
           </div>
         </div>
         <div class="kb-hint">Pressione <strong>?</strong> ou <strong>Esc</strong> para fechar</div>
@@ -7017,27 +6571,34 @@
       const LAST_PROFILE_KEY = 'shinobi-last-profile';
 
       // ── Last Profile (Quick Re-launch) ──
+      // v5.9.3: lastProfileBtn removido do topbar. Função vira no-op seguro.
       function loadLastProfile() {
+        var btn = document.getElementById('lastProfileBtn');
+        if (!btn) return;
         var id = localStorage.getItem(LAST_PROFILE_KEY);
         if (!id) {
-          document.getElementById('lastProfileBtn').style.display = 'none';
+          btn.style.display = 'none';
           return;
         }
         var p = profiles.find(function (x) {
           return x.id === id;
         });
         if (!p) {
-          document.getElementById('lastProfileBtn').style.display = 'none';
+          btn.style.display = 'none';
           return;
         }
         document.getElementById('lastProfileName').textContent = p.name;
-        document.getElementById('lastProfileBtn').style.display = 'inline-flex';
+        btn.style.display = 'inline-flex';
       }
 
-      document.getElementById('lastProfileBtn').onclick = function () {
-        var id = localStorage.getItem(LAST_PROFILE_KEY);
-        if (id) launch(id);
-      };
+      (function () {
+        var btn = document.getElementById('lastProfileBtn');
+        if (btn)
+          btn.onclick = function () {
+            var id = localStorage.getItem(LAST_PROFILE_KEY);
+            if (id) launch(id);
+          };
+      })();
 
       // ── IPC ──
       ipcRenderer.on('profiles:updated', (_e, list) => {
@@ -7128,27 +6689,31 @@
       };
 
       // v4.5: View mode toggle (grid/list) — persisted in localStorage
-      document.getElementById('viewGrid').onclick = function () {
-        if (viewMode === 'grid') return;
-        viewMode = 'grid';
-        localStorage.setItem('shinobi-view-mode', 'grid');
-        this.classList.add('active');
-        document.getElementById('viewList').classList.remove('active');
-        renderProfiles();
-      };
-      document.getElementById('viewList').onclick = function () {
-        if (viewMode === 'list') return;
-        viewMode = 'list';
-        localStorage.setItem('shinobi-view-mode', 'list');
-        this.classList.add('active');
-        document.getElementById('viewGrid').classList.remove('active');
-        renderProfiles();
-      };
-      // Apply initial view mode on load
-      (function initViewMode() {
+      // v5.9.3: view-toggle removido do topbar. Handlers viram no-op seguros.
+      (function initViewToggle() {
+        var vg = document.getElementById('viewGrid');
+        var vl = document.getElementById('viewList');
+        if (vg)
+          vg.onclick = function () {
+            if (viewMode === 'grid') return;
+            viewMode = 'grid';
+            localStorage.setItem('shinobi-view-mode', 'grid');
+            this.classList.add('active');
+            if (vl) vl.classList.remove('active');
+            renderProfiles();
+          };
+        if (vl)
+          vl.onclick = function () {
+            if (viewMode === 'list') return;
+            viewMode = 'list';
+            localStorage.setItem('shinobi-view-mode', 'list');
+            this.classList.add('active');
+            if (vg) vg.classList.remove('active');
+            renderProfiles();
+          };
         if (viewMode === 'list') {
-          document.getElementById('viewList').classList.add('active');
-          document.getElementById('viewGrid').classList.remove('active');
+          if (vl) vl.classList.add('active');
+          if (vg) vg.classList.remove('active');
         }
       })();
 
@@ -7937,7 +7502,8 @@
         notificationsMuted = !notificationsMuted;
         this.classList.toggle('on', !notificationsMuted);
         ipcRenderer.send('events:set-muted', notificationsMuted);
-        document.getElementById('muteBtn').classList.toggle('on', notificationsMuted);
+        var mb = document.getElementById('muteBtn');
+        if (mb) mb.classList.toggle('on', notificationsMuted);
       };
 
       document.getElementById('setMode').onchange = function () {
@@ -7952,25 +7518,42 @@
       };
 
       // ── Topbar buttons ──
-      document.getElementById('muteBtn').onclick = function () {
-        notificationsMuted = !notificationsMuted;
-        this.classList.toggle('on', notificationsMuted);
-        document.getElementById('setNotifications').classList.toggle('on', !notificationsMuted);
-        ipcRenderer.send('events:set-muted', notificationsMuted);
-        toast(notificationsMuted ? 'Notificações mutadas' : 'Notificações ativas', 'ok');
-      };
+      // v5.9.3: muteBtn removido do topbar. Handler vira no-op se ausente.
+      (function () {
+        var mb = document.getElementById('muteBtn');
+        if (!mb) return;
+        mb.classList.toggle('on', notificationsMuted);
+        mb.onclick = function () {
+          notificationsMuted = !notificationsMuted;
+          this.classList.toggle('on', notificationsMuted);
+          var sn = document.getElementById('setNotifications');
+          if (sn) sn.classList.toggle('on', !notificationsMuted);
+          ipcRenderer.send('events:set-muted', notificationsMuted);
+          toast(notificationsMuted ? 'Notificações mutadas' : 'Notificações ativas', 'ok');
+        };
+      })();
 
-      document.getElementById('exportBtn').onclick = async () => {
-        const r = await ipcRenderer.invoke('profiles:export-file');
-        if (r.ok) toast('Exportado', 'ok');
-        else if (r.error) toast('Erro: ' + r.error, 'err');
-      };
+      // v5.9.3: sidebar-footer Importar/Exportar removidos (redundante c/ Settings → Avançado).
+      // Handlers viram no-op se ausentes.
+      (function () {
+        var ex = document.getElementById('exportBtn');
+        if (ex)
+          ex.onclick = async () => {
+            const r = await ipcRenderer.invoke('profiles:export-file');
+            if (r.ok) toast('Exportado', 'ok');
+            else if (r.error) toast('Erro: ' + r.error, 'err');
+          };
+      })();
 
-      document.getElementById('importBtn').onclick = async () => {
-        const r = await ipcRenderer.invoke('profiles:import-file');
-        if (r.ok) toast('Importados ' + r.imported + ' perfis', 'ok');
-        else if (r.error) toast('Erro: ' + r.error, 'err');
-      };
+      (function () {
+        var im = document.getElementById('importBtn');
+        if (im)
+          im.onclick = async () => {
+            const r = await ipcRenderer.invoke('profiles:import-file');
+            if (r.ok) toast('Importados ' + r.imported + ' perfis', 'ok');
+            else if (r.error) toast('Erro: ' + r.error, 'err');
+          };
+      })();
 
       // ── Server Selector ──
       document.getElementById('btnPickServer').onclick = async () => {
@@ -8427,15 +8010,13 @@
         };
       }
 
-      // ── SHINOBI_DEBUG feature flag (Decisão B / Fase 3b) ──
-      // UI de Dev Tools fica escondida por padrão. Ativação:
-      //   1. Env var SHINOBI_DEBUG=1 (boot-time) → window.__SHINOBI_DEBUG__ = true (via preload)
-      //   2. Atalho: Ctrl+Shift+D → toggle localStorage + navega pra Configurações.
-      // Quando ativo, mostra a seção Dev Tools em Configurações.
+      // ── SHINOBI_DEBUG feature flag ──
+      // v5.9.3: Ativação APENAS via env var (boot-time), lida pelo preload.
+      // O atalho Ctrl+Shift+D e o toggle localStorage foram REMOVIDOS — debug
+      // agora é opt-in via scripts/debug.sh (abre terminal + seta SHINOBI_DEBUG=1).
+      // Zero complexidade de UI em launches normais.
       function isDebugActive() {
-        return (
-          window.__SHINOBI_DEBUG__ === true || localStorage.getItem('shinobiDebugUnlocked') === '1'
-        );
+        return window.__SHINOBI_DEBUG__ === true;
       }
       function applyDebugVisibility() {
         const sec = document.getElementById('devToolsSection');
@@ -8444,30 +8025,14 @@
       }
       function initDebugFlag() {
         applyDebugVisibility();
-        document.addEventListener('keydown', function (e) {
-          if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
-            e.preventDefault();
-            const active = !isDebugActive();
-            if (active) localStorage.setItem('shinobiDebugUnlocked', '1');
-            else localStorage.removeItem('shinobiDebugUnlocked');
-            applyDebugVisibility();
-            // Navega pra view de Configurações pra mostrar a seção Dev Tools
-            var navItem = document.querySelector('.nav-item[data-view="settings"]');
-            if (navItem) navItem.click();
-            // Scroll pra seção dev tools ficar visível
-            setTimeout(function () {
-              var sec = document.getElementById('devToolsSection');
-              if (sec && sec.style.display !== 'none') {
-                sec.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-            }, 150);
-            toast(active ? '🔧 Dev Tools ativado' : 'Dev Tools desativado', active ? 'ok' : 'info');
-          }
-        });
       }
 
       // ── v5.0: Profile Analytics Dashboard ──
+      // v5.9.3: analytics-bar removido da UI. Função mantida como no-op seguro
+      // (chamadas existentes em init/render não quebram). Limpeza completa num
+      // trigger S4 futuro.
       function updateAnalytics() {
+        if (!document.getElementById('statTotalAccounts')) return;
         if (!profiles || !profiles.length) {
           document.getElementById('statTotalAccounts').textContent = '0';
           document.getElementById('statVaultCount').textContent = '0';
@@ -8513,6 +8078,7 @@
 
       function renderActivityLog() {
         var el = document.getElementById('activityList');
+        if (!el) return;
         var log = getActivityLog();
         if (!log.length) {
           el.innerHTML = '<div class="activity-empty">Nenhuma atividade registrada.</div>';
@@ -8694,12 +8260,16 @@
       }
 
       // ── v5.0: Flash Cache Info ──
+      // v5.9.3: flashCacheInfo element removido do sidebar. Função vira no-op
+      // seguro (chamada em init não quebra). Info de cache continua acessível
+      // via Settings → Sobre.
       async function loadFlashCacheInfo() {
         try {
           var info = await ipcRenderer.invoke('flash:cache-info');
           var el = document.getElementById('flashCacheInfo');
+          if (!el) return;
           if (!info || !info.version) {
-            if (el) el.style.display = 'none';
+            el.style.display = 'none';
             return;
           }
           el.style.display = 'flex';
