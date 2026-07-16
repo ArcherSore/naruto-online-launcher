@@ -2,7 +2,7 @@
  * Testes para src/network/blocker.js
  */
 
-const { BLOCKED_DOMAINS, isBlockedDomain, shouldBlock } = require('../blocker');
+const { BLOCKED_DOMAINS, isBlockedDomain, shouldBlock, setupBlocker, forgetSession } = require('../blocker');
 
 describe('blocker.js', () => {
   describe('BLOCKED_DOMAINS', () => {
@@ -102,6 +102,85 @@ describe('blocker.js', () => {
 
     test('retorna false para URL vazia', () => {
       expect(shouldBlock('')).toBe(false);
+    });
+  });
+
+  describe('setupBlocker', () => {
+    test('returns true on first call and registers webRequest handler', () => {
+      var mockSession = {
+        webRequest: { onBeforeRequest: jest.fn() }
+      };
+      var result = setupBlocker(mockSession);
+      expect(result).toBe(true);
+      expect(mockSession.webRequest.onBeforeRequest).toHaveBeenCalledTimes(1);
+    });
+
+    test('returns false on second call (idempotent)', () => {
+      var mockSession = {
+        webRequest: { onBeforeRequest: jest.fn() }
+      };
+      setupBlocker(mockSession);
+      var result = setupBlocker(mockSession);
+      expect(result).toBe(false);
+      // onBeforeRequest still called only once (from first setupBlocker)
+      expect(mockSession.webRequest.onBeforeRequest).toHaveBeenCalledTimes(1);
+    });
+
+    test('webRequest handler cancels blocked domain, passes allowed', () => {
+      var mockSession = {
+        webRequest: { onBeforeRequest: jest.fn() }
+      };
+      setupBlocker(mockSession);
+      var handler = mockSession.webRequest.onBeforeRequest.mock.calls[0][0];
+      var mockCallback = jest.fn();
+
+      // Blocked URL
+      handler({ url: 'https://www.google-analytics.com/track' }, mockCallback);
+      expect(mockCallback).toHaveBeenCalledWith({ cancel: true });
+
+      // Allowed URL
+      mockCallback.mockClear();
+      handler({ url: 'https://naruto.oasgames.com/game' }, mockCallback);
+      expect(mockCallback).toHaveBeenCalledWith({ cancel: false });
+    });
+
+    test('webRequest handler replaces logintype=3 with logintype=4', () => {
+      var mockSession = {
+        webRequest: { onBeforeRequest: jest.fn() }
+      };
+      setupBlocker(mockSession);
+      var handler = mockSession.webRequest.onBeforeRequest.mock.calls[0][0];
+      var mockCallback = jest.fn();
+
+      handler({ url: 'https://game.com/login?logintype=3&server=1' }, mockCallback);
+      expect(mockCallback).toHaveBeenCalledWith({ redirectURL: 'https://game.com/login?logintype=4&server=1' });
+    });
+
+    test('does not replace logintype=30 (boundary-aware) but still redirects', () => {
+      var mockSession = {
+        webRequest: { onBeforeRequest: jest.fn() }
+      };
+      setupBlocker(mockSession);
+      var handler = mockSession.webRequest.onBeforeRequest.mock.calls[0][0];
+      var mockCallback = jest.fn();
+
+      handler({ url: 'https://game.com/login?logintype=30' }, mockCallback);
+      // includes('logintype=3') is true for logintype=30, so it enters the block,
+      // but regex logintype=3(?=&|$) doesn't match (3 is followed by 0).
+      // URL is unchanged but returned as redirectURL, not cancel:false.
+      expect(mockCallback).toHaveBeenCalledWith({ redirectURL: 'https://game.com/login?logintype=30' });
+    });
+  });
+
+  describe('forgetSession', () => {
+    test('allows setupBlocker to run again after forget', () => {
+      var mockSession = {
+        webRequest: { onBeforeRequest: jest.fn() }
+      };
+      expect(setupBlocker(mockSession)).toBe(true);
+      expect(setupBlocker(mockSession)).toBe(false);
+      forgetSession(mockSession);
+      expect(setupBlocker(mockSession)).toBe(true);
     });
   });
 });
