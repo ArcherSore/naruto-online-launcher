@@ -512,8 +512,83 @@ describe('SessionLifecycle.js', () => {
 
         const handler = wcHandlers['render-process-gone'];
         expect(typeof handler).toBe('function');
-        // Executa o handler — não deve lançar
         expect(() => handler({}, { reason: 'oom', exitCode: 1 })).not.toThrow();
+      });
+
+      test('auto-reload após crash "oom"', () => {
+        jest.useFakeTimers();
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['render-process-gone'];
+        handler({}, { reason: 'oom', exitCode: null });
+
+        // Deve agendar reload em 1.5s
+        expect(win.webContents.reload).not.toHaveBeenCalled();
+        jest.advanceTimersByTime(1500);
+        expect(win.webContents.reload).toHaveBeenCalledTimes(1);
+
+        jest.useRealTimers();
+      });
+
+      test('não recupera "clean-exit"', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['render-process-gone'];
+        handler({}, { reason: 'clean-exit', exitCode: 0 });
+
+        expect(win.webContents.reload).not.toHaveBeenCalled();
+      });
+
+      test('não recupera "killed"', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['render-process-gone'];
+        handler({}, { reason: 'killed', exitCode: 9 });
+
+        expect(win.webContents.reload).not.toHaveBeenCalled();
+      });
+
+      test('não recupera se win.isDestroyed()', () => {
+        const { win, wcHandlers } = makeMockWin();
+        win.isDestroyed.mockReturnValue(true);
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['render-process-gone'];
+        handler({}, { reason: 'crashed', exitCode: 1 });
+
+        expect(win.webContents.reload).not.toHaveBeenCalled();
+      });
+
+      test('backoff: para de recarregar após 3 crashes em 10 min', () => {
+        jest.useFakeTimers();
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['render-process-gone'];
+
+        // 1st crash → reload
+        handler({}, { reason: 'crashed', exitCode: 1 });
+        jest.advanceTimersByTime(1500);
+        expect(win.webContents.reload).toHaveBeenCalledTimes(1);
+
+        // 2nd crash → reload
+        handler({}, { reason: 'oom', exitCode: 2 });
+        jest.advanceTimersByTime(1500);
+        expect(win.webContents.reload).toHaveBeenCalledTimes(2);
+
+        // 3rd crash → limit reached, no reload
+        handler({}, { reason: 'abnormal-exit', exitCode: 3 });
+        expect(win.webContents.reload).toHaveBeenCalledTimes(2);
+
+        jest.useRealTimers();
       });
     });
   });
