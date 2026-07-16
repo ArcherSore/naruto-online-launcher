@@ -2832,38 +2832,6 @@
         }
       }
 
-      /* ── v5.6: Drag-drop file import zone ── */
-      .drop-zone {
-        position: fixed;
-        inset: 0;
-        background: rgba(255, 140, 0, 0.08);
-        border: 3px dashed var(--accent);
-        z-index: var(--z-overlay);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        pointer-events: none;
-        animation: overlayIn 200ms ease-out;
-      }
-      .drop-zone.active {
-        display: flex;
-      }
-      .drop-zone-inner {
-        text-align: center;
-        color: var(--accent);
-      }
-      .drop-zone-inner svg {
-        width: 3rem;
-        height: 3rem;
-        stroke-width: 1.5;
-        margin-bottom: var(--space-3);
-        opacity: 0.7;
-      }
-      .drop-zone-inner p {
-        font-size: var(--font-lg);
-        font-weight: var(--weight-semibold);
-      }
-
       /* ── v5.6: Sidebar footer hover ── */
       .sidebar-footer .btn:hover {
         border-color: var(--accent);

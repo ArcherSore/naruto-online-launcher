@@ -2179,78 +2179,7 @@
       // v5.6: Onboarding Tour · Profile Comparison · Drag-Drop Import · Badge Animations
       // ════════════════════════════════════════════════════════════════════
 
-      // ── v5.6: Drag-and-Drop File Import ──
-      function initDragDropImport() {
-        var dropZone = document.getElementById('dropZone');
-        if (!dropZone) return;
-        var dragCounter = 0;
-        document.addEventListener('dragenter', function (e) {
-          e.preventDefault();
-          dragCounter++;
-          dropZone.classList.add('active');
-        });
-        document.addEventListener('dragleave', function (e) {
-          e.preventDefault();
-          dragCounter--;
-          if (dragCounter <= 0) {
-            dragCounter = 0;
-            dropZone.classList.remove('active');
-          }
-        });
-        document.addEventListener('dragover', function (e) {
-          e.preventDefault();
-        });
-        document.addEventListener('drop', function (e) {
-          e.preventDefault();
-          dragCounter = 0;
-          dropZone.classList.remove('active');
-          var files = e.dataTransfer && e.dataTransfer.files;
-          if (!files || !files.length) return;
-          var file = files[0];
-          if (!file.name.endsWith('.json') && !file.name.endsWith('.enc')) {
-            toast('Formato não suportado. Use .json ou .enc', 'err');
-            return;
-          }
-          var reader = new FileReader();
-          reader.onload = function (ev) {
-            var content = ev.target.result;
-            if (file.name.endsWith('.enc')) {
-              // Encrypted backup — prompt for password
-              var pwd = prompt('Senha para descriptografar o backup:');
-              if (!pwd) return;
-              ipcRenderer
-                .invoke('profiles:import-encrypted', pwd)
-                .then(function (res) {
-                  if (res && res.ok) toast('Backup importado: ' + res.imported + ' perfis', 'ok');
-                  else toast('Erro: ' + (res.error || 'falha na importação'), 'err');
-                })
-                .catch(function (err) {
-                  toast('Erro: ' + err.message, 'err');
-                });
-            } else {
-              // Plain JSON
-              try {
-                ipcRenderer
-                  .invoke('profiles:import', content)
-                  .then(function (res) {
-                    if (res && res.imported)
-                      toast('Importados: ' + res.imported + ' | Ignorados: ' + res.skipped, 'ok');
-                    else toast('Nenhum perfil importado', 'err');
-                  })
-                  .catch(function (err) {
-                    toast('Erro: ' + err.message, 'err');
-                  });
-              } catch (err) {
-                toast('JSON inválido: ' + err.message, 'err');
-              }
-            }
-          };
-          reader.readAsText(file);
-        });
-      }
-
       // ── v5.6: Init sequence ──
-      initDragDropImport();
       // ════════════════════════════════════════════════════════════════════
       // v5.7: Status Bar · Profile Search Filters · Loading Skeletons · Card Expand · New Profile Animation
       // ════════════════════════════════════════════════════════════════════
