@@ -293,7 +293,6 @@ describe('ProfileVault.js', () => {
       const vaultPath = path.join(tmpDir, 'vault.json');
       fs.writeFileSync(vaultPath, '{"p1":{"user":"x","pass":"y"}}', 'utf8');
 
-      const origReadSync = fs.readFileSync;
       jest.spyOn(fs, 'readFileSync').mockImplementationOnce(function () {
         throw new Error('EACCES: permission denied');
       });
