@@ -570,4 +570,58 @@ describe('manager.js', function () {
       );
     });
   });
+
+  describe('getStats', function () {
+    test('retorna estatísticas com contadores corretos', function () {
+      var profiles = [
+        { id: 'p_1', name: 'A', server: 's1', region: 'br' },
+        { id: 'p_2', name: 'B', server: 's2', region: 'na' }
+      ];
+      store.getAll.mockReturnValue(profiles);
+      gameLauncher.isProfileOpen.mockImplementation(function (id) {
+        return id === 'p_1';
+      });
+      vault.hasCredentials.mockImplementation(function (id) {
+        return id === 'p_1';
+      });
+      partition.shouldUseShadow.mockImplementation(function (p) {
+        return p.id === 'p_2';
+      });
+
+      var stats = manager.getStats();
+      expect(stats.total).toBe(2);
+      expect(stats.open).toBe(1);
+      expect(stats.withVault).toBe(1);
+      expect(stats.shadow).toBe(1);
+      expect(stats.max).toBe(store.MAX_PROFILES);
+    });
+
+    test('retorna zero crashes quando runtime não tem entrada', function () {
+      store.getAll.mockReturnValue([{ id: 'p_no_rt', name: 'N', server: 's1', region: 'br' }]);
+      var stats = manager.getStats();
+      expect(stats.crashes).toBe(0);
+    });
+  });
+
+  describe('getOpenProfileIds', function () {
+    test('retorna IDs dos perfis abertos', function () {
+      var profiles = [
+        { id: 'p_open', name: 'O', server: 's1', region: 'br' },
+        { id: 'p_closed', name: 'X', server: 's2', region: 'na' }
+      ];
+      store.getAll.mockReturnValue(profiles);
+      gameLauncher.isProfileOpen.mockImplementation(function (id) {
+        return id === 'p_open';
+      });
+
+      var result = manager.getOpenProfileIds();
+      expect(result).toEqual(['p_open']);
+    });
+
+    test('retorna array vazio quando nenhum perfil está aberto', function () {
+      store.getAll.mockReturnValue([{ id: 'p_x', name: 'X', server: 's1', region: 'br' }]);
+      var result = manager.getOpenProfileIds();
+      expect(result).toEqual([]);
+    });
+  });
 });
