@@ -74,8 +74,6 @@
       let autoLoginStatus = {}; // { profileId: 'idle'|'loading'|'success'|'error' }
       // v4.6: Sort mode, persisted in localStorage
       let sortMode = localStorage.getItem('shinobi-sort-mode') || 'favorite';
-      // v5.4: Compact mode (slimmer cards), persisted in localStorage
-      let compactMode = localStorage.getItem('shinobi-compact-mode') === 'true';
       // v4.6: i18n strings (loaded from main process on init)
       let i18nStrings = {};
       let currentLang = 'pt';
@@ -251,7 +249,7 @@
         const grid = document.getElementById('profileGrid');
         // v4.5: Apply view mode class
         grid.className =
-          'grid' + (viewMode === 'list' ? ' list-view' : '') + (compactMode ? ' compact' : '');
+          'grid' + (viewMode === 'list' ? ' list-view' : '');
         let filtered = profiles;
         if (searchQuery) {
           filtered = profiles.filter(function (p) {
@@ -2125,19 +2123,6 @@
         else if (day < 30) label = Math.floor(day / 7) + 'sem atrás';
         else label = Math.floor(day / 30) + 'mês atrás';
         return { label: label, recent: min < 30 };
-      }
-
-      // ── v5.4: Compact Mode Toggle ──
-      var compactToggleBtn = document.getElementById('compactToggle');
-      if (compactMode && compactToggleBtn) compactToggleBtn.classList.add('active');
-      if (compactToggleBtn) {
-        compactToggleBtn.onclick = function () {
-          compactMode = !compactMode;
-          localStorage.setItem('shinobi-compact-mode', String(compactMode));
-          compactToggleBtn.classList.toggle('active', compactMode);
-          renderProfiles();
-          toast(compactMode ? 'Modo compacto ativado' : 'Modo compacto desativado', 'ok');
-        };
       }
 
       // ── v5.4: Dev Tools Subsection Collapsible ──
