@@ -591,5 +591,71 @@ describe('SessionLifecycle.js', () => {
         jest.useRealTimers();
       });
     });
+
+    describe('will-navigate handler', () => {
+      test('ignora data: URLs', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['will-navigate'];
+        expect(() => handler({ preventDefault: jest.fn() }, 'data:text/html,test')).not.toThrow();
+        expect(win.loadURL).not.toHaveBeenCalled();
+      });
+
+      test('injeta LAUNCHER_PARAMS em navegação game-host sem logintype', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['will-navigate'];
+        const evt = { preventDefault: jest.fn() };
+        handler(evt, 'https://naruto.narutowebgame.com/pt/serverlist');
+
+        expect(evt.preventDefault).toHaveBeenCalled();
+        expect(win.loadURL).toHaveBeenCalledWith(
+          'https://naruto.narutowebgame.com/pt/serverlist?logintype=4&leftbar_collapse=Yes&launcher=shinobi'
+        );
+      });
+
+      test('não interfere em assets (swf, js, css)', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['will-navigate'];
+        const evt = { preventDefault: jest.fn() };
+        handler(evt, 'https://naruto.narutowebgame.com/game.swf?v=2');
+
+        expect(evt.preventDefault).not.toHaveBeenCalled();
+      });
+
+      test('não interfere se URL já tem logintype', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['will-navigate'];
+        const evt = { preventDefault: jest.fn() };
+        handler(evt, 'https://naruto.narutowebgame.com/pt/serverlist?logintype=4');
+
+        expect(evt.preventDefault).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('new-window handler', () => {
+      test('abre link do jogo na mesma janela', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['new-window'];
+        const evt = { preventDefault: jest.fn() };
+        handler(evt, 'https://naruto.narutowebgame.com/pt/news');
+
+        expect(evt.preventDefault).toHaveBeenCalled();
+        expect(win.loadURL).toHaveBeenCalledWith('https://naruto.narutowebgame.com/pt/news');
+      });
+    });
   });
 });
