@@ -2954,21 +2954,6 @@
         outline-offset: 2px;
       }
 
-      /* ── v5.5: View transition ── */
-      @keyframes viewEnter {
-        from {
-          opacity: 0;
-          transform: translateY(8px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      .view.view-enter {
-        animation: viewEnter 250ms ease-out;
-      }
-
       /* ── v5.5: Enhanced empty state ── */
       .empty {
         position: relative;
@@ -3003,160 +2988,6 @@
         color: var(--text-dim);
         max-width: 340px;
         line-height: 1.5;
-      }
-
-      /* ── v5.5: Notifications Bell + Dropdown ── */
-      .notif-bell {
-        position: relative;
-        width: 2rem;
-        height: 2rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        color: var(--text-dim);
-        cursor: pointer;
-        transition: var(--transition);
-        padding: 0;
-      }
-      .notif-bell:hover {
-        background: var(--surface);
-        color: var(--accent);
-        border-color: var(--border-hover);
-      }
-      .notif-bell svg {
-        width: 1rem;
-        height: 1rem;
-        stroke-width: 2;
-      }
-      .notif-bell.has-new svg {
-        animation: bellSway 600ms ease-in-out;
-      }
-      .notif-badge {
-        position: absolute;
-        top: -4px;
-        right: -4px;
-        min-width: 16px;
-        height: 16px;
-        padding: 0 4px;
-        background: var(--accent);
-        color: #0a0a0f;
-        font-size: 10px;
-        font-weight: var(--weight-bold);
-        border-radius: var(--radius-full);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: var(--font-family);
-        box-shadow: 0 0 0 2px var(--bg-elev);
-      }
-      .notif-dropdown {
-        position: absolute;
-        top: calc(100% + 8px);
-        right: 0;
-        width: 340px;
-        max-height: 420px;
-        background: var(--bg-elev);
-        border: 1px solid var(--border-hover);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow-lg);
-        z-index: var(--z-overlay);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        animation: modalIn 180ms ease-out;
-      }
-      .notif-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-3) var(--space-4);
-        border-bottom: 1px solid var(--border);
-        background: var(--bg-elev-2);
-      }
-      .notif-header span {
-        font-size: var(--font-sm);
-        font-weight: var(--weight-semibold);
-        color: var(--text);
-      }
-      .notif-clear {
-        background: transparent;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        color: var(--text-faint);
-        font-size: var(--font-xs);
-        padding: 0.2rem 0.55rem;
-        cursor: pointer;
-        transition: var(--transition);
-        font-family: var(--font-family);
-      }
-      .notif-clear:hover {
-        border-color: var(--danger);
-        color: var(--danger);
-      }
-      .notif-list {
-        flex: 1;
-        overflow-y: auto;
-        max-height: 340px;
-      }
-      .notif-item {
-        display: flex;
-        gap: var(--space-3);
-        padding: var(--space-3) var(--space-4);
-        border-bottom: 1px solid var(--border);
-        transition: background 100ms ease;
-      }
-      .notif-item:last-child {
-        border-bottom: none;
-      }
-      .notif-item:hover {
-        background: var(--surface);
-      }
-      .notif-item .ni-icon {
-        width: 1.4rem;
-        height: 1.4rem;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--radius-sm);
-        margin-top: 1px;
-      }
-      .notif-item.ok .ni-icon {
-        background: rgba(16, 185, 129, 0.12);
-        color: var(--ok);
-      }
-      .notif-item.err .ni-icon {
-        background: rgba(220, 38, 38, 0.12);
-        color: var(--danger);
-      }
-      .notif-item.info .ni-icon {
-        background: rgba(255, 140, 0, 0.1);
-        color: var(--accent);
-      }
-      .notif-item .ni-body {
-        flex: 1;
-        min-width: 0;
-      }
-      .notif-item .ni-msg {
-        font-size: var(--font-sm);
-        color: var(--text);
-        line-height: 1.4;
-        word-wrap: break-word;
-      }
-      .notif-item .ni-time {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        margin-top: 0.15rem;
-        font-variant-numeric: tabular-nums;
-      }
-      .notif-empty {
-        text-align: center;
-        padding: var(--space-6) var(--space-4);
-        color: var(--text-faint);
-        font-size: var(--font-sm);
       }
 
       /* ── v5.6: Profile card avatar ── */
@@ -3396,22 +3227,6 @@
         font-weight: var(--weight-semibold);
       }
 
-      /* ── v5.6: Badge pop animation ── */
-      @keyframes badgePop {
-        0% {
-          transform: scale(1);
-        }
-        50% {
-          transform: scale(1.3);
-        }
-        100% {
-          transform: scale(1);
-        }
-      }
-      .notif-badge.pop {
-        animation: badgePop 300ms ease-out;
-      }
-
       /* ── v5.6: Sidebar footer hover ── */
       .sidebar-footer .btn:hover {
         border-color: var(--accent);
@@ -3623,21 +3438,6 @@
         to {
           transform: rotate(360deg);
         }
-      }
-
-      /* ── v5.8: Refined view transition (fade + slide + subtle scale) ── */
-      @keyframes viewEnterV58 {
-        from {
-          opacity: 0;
-          transform: translateY(12px) scale(0.99);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-      .view.view-enter-v58 {
-        animation: viewEnterV58 280ms cubic-bezier(0.2, 0.8, 0.3, 1);
       }
 
       /* ── v5.8: Toast slide-in with subtle bounce ── */
