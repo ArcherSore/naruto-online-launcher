@@ -1990,85 +1990,6 @@
         }
       }
 
-      /* ── v5.0: Profile Analytics Dashboard ── */
-      .analytics-bar {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: var(--space-3);
-        margin-bottom: var(--space-5);
-        animation: slideUp 300ms ease;
-      }
-      .analytics-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: var(--space-4) var(--space-4);
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-        position: relative;
-        overflow: hidden;
-        transition:
-          border-color 200ms ease,
-          box-shadow 200ms ease;
-      }
-      .analytics-card:hover {
-        border-color: var(--border-hover);
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
-      }
-      .analytics-card .ac-icon {
-        width: 1.6rem;
-        height: 1.6rem;
-        border-radius: var(--radius-sm);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: var(--space-1);
-        flex-shrink: 0;
-      }
-      .analytics-card .ac-icon svg {
-        width: 1rem;
-        height: 1rem;
-      }
-      .analytics-card .ac-icon.orange {
-        background: rgba(255, 140, 0, 0.1);
-        color: var(--accent);
-      }
-      .analytics-card .ac-icon.green {
-        background: rgba(16, 185, 129, 0.1);
-        color: var(--ok);
-      }
-      .analytics-card .ac-icon.amber {
-        background: rgba(245, 158, 11, 0.1);
-        color: var(--warn);
-      }
-      .analytics-card .ac-icon.purple {
-        background: rgba(139, 92, 246, 0.1);
-        color: #8b5cf6;
-      }
-      .analytics-card .ac-value {
-        font-size: var(--font-xl);
-        font-weight: var(--weight-bold);
-        color: var(--text);
-        font-variant-numeric: tabular-nums;
-        line-height: 1.1;
-      }
-      .analytics-card .ac-label {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        font-weight: var(--weight-medium);
-      }
-      .analytics-card::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 40%;
-        height: 100%;
-        background: linear-gradient(135deg, transparent 60%, rgba(255, 140, 0, 0.02));
-        pointer-events: none;
-      }
-
       /* ── v5.0: JWT Decoder Widget ── */
       .jwt-decoder {
         background: var(--bg);
@@ -2197,112 +2118,6 @@
         padding: var(--space-2);
       }
 
-      /* ── v5.0: Activity Log ── */
-      .activity-section {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-        margin-bottom: var(--space-4);
-      }
-      .activity-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-3) var(--space-4);
-        background: var(--bg-elev);
-        border-bottom: 1px solid var(--border);
-      }
-      .activity-header h4 {
-        font-size: var(--font-sm);
-        font-weight: var(--weight-semibold);
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-      }
-      .activity-header h4 svg {
-        width: 0.9rem;
-        height: 0.9rem;
-        color: var(--accent);
-      }
-      .activity-clear {
-        background: transparent;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        color: var(--text-faint);
-        font-size: var(--font-xs);
-        padding: 0.15rem 0.5rem;
-        cursor: pointer;
-        transition: var(--transition);
-        font-family: var(--font-family);
-      }
-      .activity-clear:hover {
-        border-color: var(--danger);
-        color: var(--danger);
-      }
-      .activity-list {
-        max-height: 280px;
-        overflow-y: auto;
-      }
-      .activity-item {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-3);
-        padding: var(--space-3) var(--space-4);
-        border-bottom: 1px solid var(--border);
-        transition: background 100ms ease;
-      }
-      .activity-item:last-child {
-        border-bottom: none;
-      }
-      .activity-item:hover {
-        background: var(--surface-hover);
-      }
-      .activity-dot {
-        width: 0.5rem;
-        height: 0.5rem;
-        border-radius: 50%;
-        margin-top: 0.4rem;
-        flex-shrink: 0;
-      }
-      .activity-dot.launch {
-        background: var(--accent);
-      }
-      .activity-dot.login {
-        background: var(--ok);
-      }
-      .activity-dot.error {
-        background: var(--danger);
-      }
-      .activity-dot.info {
-        background: var(--text-faint);
-      }
-      .activity-body {
-        flex: 1;
-        min-width: 0;
-      }
-      .activity-text {
-        font-size: var(--font-sm);
-        color: var(--text);
-        line-height: 1.4;
-      }
-      .activity-text strong {
-        color: var(--accent);
-        font-weight: var(--weight-semibold);
-      }
-      .activity-time {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        margin-top: 0.1rem;
-        font-variant-numeric: tabular-nums;
-      }
-      .activity-empty {
-        text-align: center;
-        padding: var(--space-5);
-        color: var(--text-faint);
-        font-size: var(--font-sm);
-      }
-
       /* ── v5.0: Notification Badge ── */
       .nav-badge {
         position: absolute;
@@ -2414,34 +2229,6 @@
       .dev-btn-group .btn.sm {
         font-size: var(--font-xs);
       }
-
-      /* ── v5.0: Flash Cache Info ── */
-      .flash-cache-info {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-4);
-        border-top: 1px solid var(--border);
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-      }
-      .flash-cache-info svg {
-        width: 0.75rem;
-        height: 0.75rem;
-        color: var(--ok);
-        flex-shrink: 0;
-      }
-      .flash-cache-info .cache-detail {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-      }
-      .flash-cache-info .cache-version {
-        color: var(--text-dim);
-        font-weight: var(--weight-medium);
-      }
-
-
 
       /* ── v5.1: Profile Health Check ── */
       .health-check-btn {
@@ -3140,15 +2927,6 @@
         font-variant-numeric: tabular-nums;
       }
 
-      /* ── v5.3: Skeleton Loading for Analytics ── */
-      .analytics-bar.loading .analytics-card {
-        opacity: 0.5;
-        pointer-events: none;
-      }
-      .analytics-bar.loading .ac-value {
-        color: var(--text-faint);
-      }
-
       /* ── v5.3: Enhanced Event Cards ── */
       .event {
         position: relative;
@@ -3370,154 +3148,6 @@
         animation: cardShine 800ms ease-out;
         pointer-events: none;
         border-radius: inherit;
-      }
-
-      /* ── v5.4: Quick Launch Sidebar Widget ── */
-      .quick-launch {
-        padding: var(--space-3) var(--space-4);
-        border-top: 1px solid var(--border);
-      }
-      .quick-launch-title {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        font-weight: var(--weight-semibold);
-        margin-bottom: var(--space-2);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .quick-launch-title svg {
-        width: 0.7rem;
-        height: 0.7rem;
-        color: var(--accent);
-      }
-      .quick-launch-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-      }
-      .quick-launch-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.35rem 0.4rem;
-        border-radius: var(--radius-sm);
-        cursor: pointer;
-        transition: var(--transition);
-        position: relative;
-      }
-      .quick-launch-item:hover {
-        background: var(--surface-hover);
-      }
-      .quick-launch-item .ql-dot {
-        width: 0.5rem;
-        height: 0.5rem;
-        border-radius: 50%;
-        flex-shrink: 0;
-        box-shadow: 0 0 6px currentColor;
-      }
-      .quick-launch-item .ql-name {
-        flex: 1;
-        font-size: var(--font-xs);
-        color: var(--text-dim);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-weight: var(--weight-medium);
-      }
-      .quick-launch-item .ql-count {
-        font-size: 9px;
-        color: var(--text-faint);
-        font-variant-numeric: tabular-nums;
-        font-family: 'SF Mono', Monaco, Consolas, monospace;
-      }
-      .quick-launch-item .ql-play {
-        width: 1rem;
-        height: 1rem;
-        border-radius: var(--radius-sm);
-        background: rgba(255, 140, 0, 0.1);
-        color: var(--accent);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        transition: var(--transition);
-      }
-      .quick-launch-item:hover .ql-play {
-        display: flex;
-      }
-      .quick-launch-item .ql-play svg {
-        width: 0.55rem;
-        height: 0.55rem;
-      }
-      .quick-launch-empty {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        text-align: center;
-        padding: var(--space-2);
-        font-style: italic;
-      }
-
-      /* ── v5.4: Statistics Grid (Settings) ── */
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-        gap: var(--space-2);
-        margin-top: var(--space-2);
-      }
-      .stat-tile {
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: var(--space-3);
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-        transition: var(--transition);
-        position: relative;
-        overflow: hidden;
-      }
-      .stat-tile:hover {
-        border-color: var(--border-hover);
-        transform: translateY(-1px);
-      }
-      .stat-tile::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: var(--accent);
-        opacity: 0.6;
-      }
-      .stat-tile-label {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-        font-weight: var(--weight-semibold);
-      }
-      .stat-tile-value {
-        font-size: var(--font-lg);
-        font-weight: var(--weight-bold);
-        color: var(--text);
-        font-variant-numeric: tabular-nums;
-        line-height: 1.1;
-      }
-      .stat-tile-sub {
-        font-size: var(--font-xs);
-        color: var(--text-dim);
-        font-weight: var(--weight-regular);
-      }
-      .stat-tile.highlight::before {
-        background: var(--ok);
-        opacity: 1;
-      }
-      .stat-tile.highlight .stat-tile-value {
-        color: var(--ok);
       }
 
       /* ── v5.4: Search Focus Glow ── */
@@ -3886,183 +3516,6 @@
         line-height: 1.4;
       }
 
-      /* ── v5.5: Activity Timeline Chart ── */
-      .timeline-section {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-        margin-bottom: var(--space-4);
-      }
-      .timeline-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-3) var(--space-4);
-        background: var(--bg-elev);
-        border-bottom: 1px solid var(--border);
-      }
-      .timeline-header h4 {
-        font-size: var(--font-sm);
-        font-weight: var(--weight-semibold);
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-      }
-      .timeline-header h4 svg {
-        width: 0.9rem;
-        height: 0.9rem;
-        color: var(--accent);
-      }
-      .timeline-clear {
-        background: transparent;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        color: var(--text-faint);
-        font-size: var(--font-xs);
-        padding: 0.15rem 0.5rem;
-        cursor: pointer;
-        transition: var(--transition);
-        font-family: var(--font-family);
-      }
-      .timeline-clear:hover {
-        border-color: var(--danger);
-        color: var(--danger);
-      }
-      .timeline-chart {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: var(--space-2);
-        padding: var(--space-4);
-        height: 180px;
-        position: relative;
-      }
-      .timeline-bar-col {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--space-1);
-        min-width: 0;
-        cursor: default;
-        position: relative;
-      }
-      .timeline-bar-count {
-        font-size: var(--font-xs);
-        font-weight: var(--weight-semibold);
-        color: var(--text-dim);
-        font-variant-numeric: tabular-nums;
-        height: 14px;
-        visibility: hidden;
-      }
-      .timeline-bar-col.has-count .timeline-bar-count {
-        visibility: visible;
-      }
-      .timeline-bar {
-        width: 100%;
-        max-width: 36px;
-        min-height: 4px;
-        background: linear-gradient(180deg, var(--accent) 0%, var(--accent-2) 100%);
-        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-        transform-origin: bottom;
-        animation: barGrow 600ms ease-out;
-        transition: filter 150ms ease;
-        position: relative;
-      }
-      .timeline-bar-col:hover .timeline-bar {
-        filter: brightness(1.2);
-      }
-      .timeline-bar-col.today .timeline-bar {
-        box-shadow: 0 0 12px rgba(255, 140, 0, 0.4);
-      }
-      .timeline-bar-col.today .timeline-bar::after {
-        content: '';
-        position: absolute;
-        top: -6px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--accent);
-        animation: pulseRing 1.6s ease-in-out infinite;
-      }
-      .timeline-bar-col.empty .timeline-bar {
-        background: var(--border);
-        min-height: 2px;
-        opacity: 0.5;
-      }
-      @keyframes barGrow {
-        from {
-          transform: scaleY(0);
-        }
-        to {
-          transform: scaleY(1);
-        }
-      }
-      .timeline-day {
-        font-size: var(--font-xs);
-        font-weight: var(--weight-medium);
-        color: var(--text-dim);
-        text-transform: capitalize;
-      }
-      .timeline-date {
-        font-size: 10px;
-        color: var(--text-faint);
-        font-variant-numeric: tabular-nums;
-      }
-      .timeline-bar-col.today .timeline-day {
-        color: var(--accent);
-      }
-      .timeline-tooltip {
-        position: absolute;
-        bottom: calc(100% + 8px);
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--bg-elev-2);
-        border: 1px solid var(--border-hover);
-        border-radius: var(--radius-sm);
-        padding: 0.4rem 0.6rem;
-        font-size: var(--font-xs);
-        color: var(--text);
-        white-space: nowrap;
-        box-shadow: var(--shadow);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 150ms ease;
-        z-index: 5;
-      }
-      .timeline-bar-col:hover .timeline-tooltip {
-        opacity: 1;
-      }
-      .timeline-empty-msg {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--text-faint);
-        font-size: var(--font-sm);
-        text-align: center;
-        padding: var(--space-4);
-        pointer-events: none;
-      }
-      .timeline-legend {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: var(--space-2) var(--space-4);
-        border-top: 1px solid var(--border);
-        background: var(--bg-elev);
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-      }
-      .timeline-legend strong {
-        color: var(--accent);
-        font-weight: var(--weight-semibold);
-      }
-
       /* ── v5.6: Profile card avatar ── */
       .card-avatar {
         width: 2.5rem;
@@ -4132,133 +3585,6 @@
         50% {
           box-shadow: 0 0 14px var(--accent);
         }
-      }
-
-      /* ── v5.6: Onboarding tooltip tour ── */
-      .onboard-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.55);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
-        z-index: var(--z-modal);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        animation: overlayIn 200ms ease-out;
-      }
-      .onboard-overlay[hidden] {
-        display: none;
-      }
-      .onboard-card {
-        width: 420px;
-        max-width: 92vw;
-        background: var(--bg-elev);
-        border: 1px solid var(--border-hover);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-lg);
-        overflow: hidden;
-        animation: modalIn 250ms cubic-bezier(0.2, 0.8, 0.3, 1);
-      }
-      .onboard-header {
-        padding: var(--space-5) var(--space-5) 0;
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-      }
-      .onboard-header .ob-icon {
-        width: 2.5rem;
-        height: 2.5rem;
-        border-radius: var(--radius);
-        background: rgba(255, 140, 0, 0.12);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--accent);
-        flex-shrink: 0;
-      }
-      .onboard-header .ob-icon svg {
-        width: 1.25rem;
-        height: 1.25rem;
-        stroke-width: 2;
-      }
-      .onboard-header h3 {
-        font-size: var(--font-lg);
-        font-weight: var(--weight-semibold);
-      }
-      .onboard-body {
-        padding: var(--space-4) var(--space-5);
-        color: var(--text-dim);
-        font-size: var(--font-sm);
-        line-height: 1.6;
-      }
-      .onboard-body ul {
-        margin-top: var(--space-2);
-        padding-left: 1.2rem;
-      }
-      .onboard-body li {
-        margin-bottom: 0.3rem;
-      }
-      .onboard-body kbd {
-        font-family: var(--font-family);
-        font-size: 10px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        padding: 0.05rem 0.3rem;
-        color: var(--text-dim);
-        font-weight: var(--weight-medium);
-      }
-      .onboard-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: var(--space-3) var(--space-5);
-        border-top: 1px solid var(--border);
-        background: var(--bg-elev-2);
-      }
-      .onboard-step {
-        display: flex;
-        gap: var(--space-1);
-      }
-      .onboard-step span {
-        width: 8px;
-        height: 8px;
-        border-radius: var(--radius-full);
-        background: var(--border);
-        transition: var(--transition);
-      }
-      .onboard-step span.active {
-        background: var(--accent);
-        box-shadow: 0 0 6px var(--accent);
-      }
-      .onboard-skip {
-        background: transparent;
-        border: none;
-        color: var(--text-faint);
-        font-size: var(--font-xs);
-        cursor: pointer;
-        font-family: var(--font-family);
-        transition: var(--transition);
-      }
-      .onboard-skip:hover {
-        color: var(--text);
-      }
-      .onboard-next {
-        background: var(--accent);
-        color: #0a0a0f;
-        border: none;
-        border-radius: var(--radius-sm);
-        padding: var(--space-2) var(--space-4);
-        font-size: var(--font-sm);
-        font-weight: var(--weight-semibold);
-        cursor: pointer;
-        font-family: var(--font-family);
-        transition: var(--transition);
-      }
-      .onboard-next:hover {
-        background: var(--accent-hover);
-        box-shadow: 0 0 12px rgba(255, 140, 0, 0.25);
       }
 
       /* ── v5.6: Profile Comparison Modal ── */
@@ -4597,18 +3923,6 @@
         margin-bottom: var(--space-3);
       }
 
-      /* ── v5.7: Quick launch keyboard nav ── */
-      .quick-launch-item {
-        transition:
-          background 150ms ease,
-          border-color 150ms ease;
-      }
-      .quick-launch-item:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: -2px;
-        border-radius: var(--radius-sm);
-      }
-
       /* ── v5.7: Micro-animation on new profile ── */
       @keyframes newProfileBounce {
         0% {
@@ -4841,27 +4155,6 @@
         border-radius: 50%;
         background: var(--accent);
         transform: translate(-50%, -50%);
-      }
-
-      /* ── v5.8: Alt+N quick-launch hotkey hint badge ── */
-      .ql-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 1.1rem;
-        height: 1.1rem;
-        padding: 0 0.25rem;
-        border-radius: var(--radius-sm);
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        color: var(--text-faint);
-        font-size: var(--font-2xs);
-        font-weight: var(--weight-semibold);
-        margin-left: auto;
-      }
-      .quick-launch-item:hover .ql-badge {
-        color: var(--accent);
-        border-color: var(--accent);
       }
 
       /* ── v5.8: Sidebar footer version pill ── */
@@ -5844,10 +5137,7 @@
         renderRegionTabs();
         loadLastProfile();
         populateDevProfileSelects();
-        updateAnalytics();
         renderTagFilterBar();
-        updateQuickLaunch();
-        updateStatsGrid();
       });
       ipcRenderer.on('memory:update', (_e, s) => renderMemory(s));
       ipcRenderer.on('events:update', (_e, data) => renderEvents(data));
@@ -7307,34 +6597,6 @@
         applyDebugVisibility();
       }
 
-      // ── v5.0: Profile Analytics Dashboard ──
-      // v5.9.3: analytics-bar removido da UI. Função mantida como no-op seguro
-      // (chamadas existentes em init/render não quebram). Limpeza completa num
-      // trigger S4 futuro.
-      function updateAnalytics() {
-        if (!document.getElementById('statTotalAccounts')) return;
-        if (!profiles || !profiles.length) {
-          document.getElementById('statTotalAccounts').textContent = '0';
-          document.getElementById('statVaultCount').textContent = '0';
-          document.getElementById('statTotalPlaytime').textContent = '0h';
-          document.getElementById('statTotalLaunches').textContent = '0';
-          return;
-        }
-        document.getElementById('statTotalAccounts').textContent = profiles.length;
-        var vaultCount = profiles.filter(function (p) {
-          return p.hasVault;
-        }).length;
-        document.getElementById('statVaultCount').textContent = vaultCount;
-        var totalMs = profiles.reduce(function (sum, p) {
-          return sum + (p.totalPlayMs || 0);
-        }, 0);
-        document.getElementById('statTotalPlaytime').textContent = formatPlayTime(totalMs);
-        var totalLaunches = profiles.reduce(function (sum, p) {
-          return sum + (p.launchCount || 0);
-        }, 0);
-        document.getElementById('statTotalLaunches').textContent = totalLaunches;
-      }
-
       // ── v5.0: Activity Log (persisted in localStorage) ──
       var ACTIVITY_KEY = 'shinobi-activity-log';
       var MAX_ACTIVITIES = 50;
@@ -7352,56 +6614,8 @@
         log.unshift({ type: type, text: text, time: Date.now() });
         if (log.length > MAX_ACTIVITIES) log = log.slice(0, MAX_ACTIVITIES);
         localStorage.setItem(ACTIVITY_KEY, JSON.stringify(log));
-        renderActivityLog();
         updateEventBadge();
       }
-
-      function renderActivityLog() {
-        var el = document.getElementById('activityList');
-        if (!el) return;
-        var log = getActivityLog();
-        if (!log.length) {
-          el.innerHTML = '<div class="activity-empty">Nenhuma atividade registrada.</div>';
-          return;
-        }
-        el.innerHTML = log
-          .slice(0, 30)
-          .map(function (item) {
-            var dotClass = 'info';
-            if (item.type === 'launch') dotClass = 'launch';
-            else if (item.type === 'login') dotClass = 'login';
-            else if (item.type === 'error') dotClass = 'error';
-            var timeStr = new Date(item.time).toLocaleString('pt-BR', {
-              day: '2-digit',
-              month: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit'
-            });
-            return (
-              '<div class="activity-item">' +
-              '<span class="activity-dot ' +
-              dotClass +
-              '"></span>' +
-              '<div class="activity-body">' +
-              '<div class="activity-text">' +
-              esc(item.text) +
-              '</div>' +
-              '<div class="activity-time">' +
-              timeStr +
-              '</div>' +
-              '</div>' +
-              '</div>'
-            );
-          })
-          .join('');
-      }
-
-      document.getElementById('activityClearBtn').onclick = function () {
-        localStorage.removeItem(ACTIVITY_KEY);
-        renderActivityLog();
-        updateEventBadge();
-        toast('Histórico de atividade limpo', 'ok');
-      };
 
       // ── v5.0: Notification Badge on Events ──
       function updateEventBadge() {
@@ -7536,27 +6750,6 @@
           ta.select();
           document.execCommand('copy');
           document.body.removeChild(ta);
-        }
-      }
-
-      // ── v5.0: Flash Cache Info ──
-      // v5.9.3: flashCacheInfo element removido do sidebar. Função vira no-op
-      // seguro (chamada em init não quebra). Info de cache continua acessível
-      // via Settings → Sobre.
-      async function loadFlashCacheInfo() {
-        try {
-          var info = await ipcRenderer.invoke('flash:cache-info');
-          var el = document.getElementById('flashCacheInfo');
-          if (!el) return;
-          if (!info || !info.version) {
-            el.style.display = 'none';
-            return;
-          }
-          el.style.display = 'flex';
-          document.getElementById('flashCacheVersion').textContent = 'Flash ' + info.version;
-          document.getElementById('flashCacheDate').textContent = info.downloadDate || '';
-        } catch (e) {
-          // Handler might not exist on older versions — silently ignore
         }
       }
 
@@ -8076,64 +7269,6 @@
       // ── v5.2: Vault remove uses custom confirm ──
       // Already handled above by overriding removeVault onclick
 
-      // ── v5.3: Animated Analytics Counters ──
-      var prevAnalytics = { totalAccounts: 0, vaultCount: 0, totalPlaytime: '', totalLaunches: 0 };
-      function animateValue(el, start, end, duration) {
-        if (start === end || typeof start !== 'number' || typeof end !== 'number') {
-          el.textContent = end;
-          return;
-        }
-        el.classList.add('animating');
-        var range = end - start;
-        var startTime = null;
-        function step(timestamp) {
-          if (!startTime) startTime = timestamp;
-          var progress = Math.min((timestamp - startTime) / duration, 1);
-          var eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-          el.textContent = Math.round(start + range * eased);
-          if (progress < 1) requestAnimationFrame(step);
-          else {
-            el.classList.remove('animating');
-            el.textContent = end;
-          }
-        }
-        requestAnimationFrame(step);
-      }
-
-      var origUpdateAnalytics = updateAnalytics;
-      updateAnalytics = function () {
-        var prevTotal = prevAnalytics.totalAccounts;
-        var prevVault = prevAnalytics.vaultCount;
-        var prevLaunches = prevAnalytics.totalLaunches;
-        origUpdateAnalytics();
-        if (!profiles || !profiles.length) return;
-        var newTotal = profiles.length;
-        var newVault = profiles.filter(function (p) {
-          return p.hasVault;
-        }).length;
-        var newLaunches = profiles.reduce(function (sum, p) {
-          return sum + (p.launchCount || 0);
-        }, 0);
-        // Animate counters if values changed
-        if (prevTotal !== newTotal)
-          animateValue(document.getElementById('statTotalAccounts'), prevTotal, newTotal, 500);
-        if (prevVault !== newVault)
-          animateValue(document.getElementById('statVaultCount'), prevVault, newVault, 500);
-        if (prevLaunches !== newLaunches)
-          animateValue(
-            document.getElementById('statTotalLaunches'),
-            prevLaunches,
-            newLaunches,
-            500
-          );
-        prevAnalytics = {
-          totalAccounts: newTotal,
-          vaultCount: newVault,
-          totalPlaytime: '',
-          totalLaunches: newLaunches
-        };
-      };
-
       // ── v5.3: Connection Health Indicator ──
       var connState = 'online'; // online | offline | checking
       function updateConnectionState(state) {
@@ -8525,105 +7660,6 @@
         };
       }
 
-      // ── v5.4: Quick Launch Sidebar Widget (top 3 most-used) ──
-      function updateQuickLaunch() {
-        var listEl = document.getElementById('quickLaunchList');
-        if (!listEl) return;
-        var sorted = profiles
-          .slice()
-          .sort(function (a, b) {
-            return (b.launchCount || 0) - (a.launchCount || 0);
-          })
-          .filter(function (p) {
-            return (p.launchCount || 0) > 0;
-          })
-          .slice(0, 3);
-        if (!sorted.length) {
-          listEl.innerHTML = '<div class="quick-launch-empty">Jogue para popular.</div>';
-          return;
-        }
-        listEl.innerHTML = sorted
-          .map(function (p) {
-            return (
-              '<div class="quick-launch-item" data-ql-id="' +
-              p.id +
-              '" title="' +
-              esc(p.name) +
-              ' — ' +
-              (p.launchCount || 0) +
-              ' lançamentos">' +
-              '<span class="ql-dot" style="background:' +
-              p.color +
-              ';color:' +
-              p.color +
-              '"></span>' +
-              '<span class="ql-name">' +
-              esc(p.name) +
-              '</span>' +
-              '<span class="ql-count">' +
-              (p.launchCount || 0) +
-              'x</span>' +
-              '<span class="ql-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>' +
-              '</div>'
-            );
-          })
-          .join('');
-        listEl.querySelectorAll('.quick-launch-item').forEach(function (item) {
-          item.onclick = function () {
-            var id = item.getAttribute('data-ql-id');
-            if (id) launch(id);
-          };
-        });
-      }
-
-      // ── v5.4: Settings Stats Grid ──
-      function updateStatsGrid() {
-        var totalPlayEl = document.getElementById('statTotalPlay');
-        var totalLaunchEl = document.getElementById('statTotalLaunch');
-        var topNameEl = document.getElementById('statTopName');
-        var topDetailEl = document.getElementById('statTopDetail');
-        var active7dEl = document.getElementById('statActive7d');
-        var uniqueTagsEl = document.getElementById('statUniqueTags');
-        if (!totalPlayEl) return;
-        var totalPlayMs = profiles.reduce(function (s, p) {
-          return s + (p.totalPlayMs || 0);
-        }, 0);
-        var totalLaunch = profiles.reduce(function (s, p) {
-          return s + (p.launchCount || 0);
-        }, 0);
-        totalPlayEl.textContent = formatPlayTime(totalPlayMs);
-        totalLaunchEl.textContent = totalLaunch;
-        // Top profile (by play time, fallback to launch count)
-        var top = profiles.slice().sort(function (a, b) {
-          return (
-            (b.totalPlayMs || 0) - (a.totalPlayMs || 0) ||
-            (b.launchCount || 0) - (a.launchCount || 0)
-          );
-        })[0];
-        if (top && (top.totalPlayMs > 0 || top.launchCount > 0)) {
-          topNameEl.textContent = top.name.length > 14 ? top.name.slice(0, 12) + '…' : top.name;
-          topDetailEl.textContent =
-            formatPlayTime(top.totalPlayMs || 0) + ' • ' + (top.launchCount || 0) + 'x';
-        } else {
-          topNameEl.textContent = '—';
-          topDetailEl.textContent = 'sem dados';
-        }
-        // Active 7d: profiles used within the last 7 days
-        var sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-        var active7d = profiles.filter(function (p) {
-          return p.lastUsed && Date.now() - p.lastUsed < sevenDaysMs;
-        }).length;
-        active7dEl.textContent = active7d;
-        // Unique tags
-        var tagSet = {};
-        profiles.forEach(function (p) {
-          (p.tags || []).forEach(function (t) {
-            tagSet[t] = true;
-          });
-        });
-        uniqueTagsEl.textContent = Object.keys(tagSet).length;
-      }
-
       // ── v5.4: Dev Tools Subsection Collapsible ──
       function initDevSubsections() {
         document.querySelectorAll('[data-dev-toggle]').forEach(function (header) {
@@ -8655,13 +7691,8 @@
       initDragDrop();
       initTagsInput();
       initDevSubsections();
-      updateAnalytics();
-      renderActivityLog();
       updateEventBadge();
       updateSessionOverview();
-      updateQuickLaunch();
-      updateStatsGrid();
-      loadFlashCacheInfo();
       setTimeout(function () {
         initCopyButtons();
         cleanupShine();
@@ -8672,7 +7703,6 @@
       setInterval(function () {
         if (profiles.length) {
           renderProfiles();
-          updateStatsGrid();
           cleanupShine();
         }
       }, 60000);
@@ -8780,103 +7810,6 @@
         }, 30000);
       }
 
-      // ── v5.5: Activity Timeline (7-day bar chart) ──
-      var WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-      async function loadTimeline() {
-        var chart = document.getElementById('timelineChart');
-        if (!chart) return;
-        var data;
-        try {
-          data = await ipcRenderer.invoke('profile:launch-timeline', 7);
-        } catch (e) {
-          chart.innerHTML = '<div class="timeline-empty-msg">Erro ao carregar atividade.</div>';
-          return;
-        }
-        if (!Array.isArray(data) || !data.length) {
-          chart.innerHTML =
-            '<div class="timeline-empty-msg">Nenhuma atividade ainda. Jogue para ver o gráfico ganhar vida!</div>';
-          return;
-        }
-        var maxCount = 1;
-        var totalCount = 0;
-        data.forEach(function (d) {
-          if (d.count > maxCount) maxCount = d.count;
-          totalCount += d.count || 0;
-        });
-        var todayStr = (function () {
-          var d = new Date();
-          var m = String(d.getMonth() + 1).padStart(2, '0');
-          var day = String(d.getDate()).padStart(2, '0');
-          return d.getFullYear() + '-' + m + '-' + day;
-        })();
-        var hasAny = totalCount > 0;
-        var barsHtml = data
-          .map(function (d) {
-            var isToday = d.date === todayStr;
-            var heightPct = d.count > 0 ? Math.max(8, (d.count / maxCount) * 100) : 0;
-            var dateObj = new Date(d.date + 'T00:00:00');
-            var weekday = isNaN(dateObj.getTime()) ? '?' : WEEKDAY_SHORT[dateObj.getDay()];
-            var dateLabel = d.date.slice(8) + '/' + d.date.slice(5, 7);
-            var topProfile = d.profiles && d.profiles.length ? d.profiles[0] : null;
-            var tooltipText = d.date + ' · ' + d.count + ' lançamento' + (d.count === 1 ? '' : 's');
-            if (topProfile)
-              tooltipText += ' · Top: ' + topProfile.name + ' (' + topProfile.count + 'x)';
-            var barStyle = d.count > 0 ? 'height:' + heightPct + '%' : 'height:2px';
-            var classes =
-              'timeline-bar-col' +
-              (isToday ? ' today' : '') +
-              (d.count > 0 ? '' : ' empty') +
-              (d.count > 0 ? ' has-count' : '');
-            return (
-              '<div class="' +
-              classes +
-              '">' +
-              '<div class="timeline-bar-count">' +
-              (d.count || '') +
-              '</div>' +
-              '<div class="timeline-bar" style="' +
-              barStyle +
-              '"></div>' +
-              '<div class="timeline-day">' +
-              weekday +
-              '</div>' +
-              '<div class="timeline-date">' +
-              dateLabel +
-              '</div>' +
-              '<div class="timeline-tooltip">' +
-              esc(tooltipText) +
-              '</div>' +
-              '</div>'
-            );
-          })
-          .join('');
-        chart.innerHTML =
-          barsHtml +
-          (hasAny
-            ? ''
-            : '<div class="timeline-empty-msg">Nenhuma atividade ainda. Jogue para ver o gráfico ganhar vida!</div>');
-        // Update legend
-        var totalEl = document.getElementById('timelineTotal');
-        var avgEl = document.getElementById('timelineAvg');
-        if (totalEl) totalEl.textContent = totalCount;
-        if (avgEl) avgEl.textContent = (totalCount / 7).toFixed(1);
-      }
-      function initTimelineClearBtn() {
-        var btn = document.getElementById('timelineClearBtn');
-        if (!btn) return;
-        btn.onclick = async function () {
-          if (!confirm('Limpar todo o histórico de lançamentos? Esta ação não pode ser desfeita.'))
-            return;
-          try {
-            await ipcRenderer.invoke('profile:clear-launch-log');
-            toast('Histórico de atividade limpo', 'ok');
-            loadTimeline();
-          } catch (e) {
-            toast('Erro ao limpar: ' + e.message, 'err');
-          }
-        };
-      }
-
       // ── v5.5: View transitions (fade-slide) ──
       var _origNavHandler = null;
       function initViewTransitions() {
@@ -8891,9 +7824,6 @@
                 viewEl.classList.remove('view-enter');
                 void viewEl.offsetWidth; // reflow
                 viewEl.classList.add('view-enter');
-              }
-              if (view === 'events') {
-                setTimeout(loadTimeline, 100);
               }
             });
           },
@@ -8922,93 +7852,10 @@
       initNotificationCenter();
       initViewTransitions();
       initGlassMorphism();
-      initTimelineClearBtn();
-      // Load timeline on first nav to Events (also triggered by view transition hook)
-      setTimeout(loadTimeline, 500);
-      // Hook profiles:updated to refresh timeline
-      ipcRenderer.on('profiles:updated', function () {
-        if (window._timelineRefreshTimer) return;
-        window._timelineRefreshTimer = setTimeout(function () {
-          window._timelineRefreshTimer = null;
-          loadTimeline();
-        }, 2000);
-      });
 
       // ════════════════════════════════════════════════════════════════════
       // v5.6: Onboarding Tour · Profile Comparison · Drag-Drop Import · Badge Animations
       // ════════════════════════════════════════════════════════════════════
-
-      // ── v5.6: Onboarding Tour ──
-      var ONBOARD_KEY = 'shinobi-onboard-done';
-      var ONBOARD_STEPS = [
-        {
-          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
-          title: 'Bem-vindo ao Shinobi Launcher!',
-          body: '<p>Este tour rápido mostra as principais funcionalidades. Vamos começar!</p>'
-        },
-        {
-          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/></svg>',
-          title: 'Perfis de conta',
-          body: '<ul><li>Clique <strong>Nova conta</strong> para criar um perfil</li><li>Cada perfil é isolado (cookies separados)</li><li>Adicione tags, notes, e credenciais de auto-login</li><li>Clique <strong>Play</strong> para lançar o jogo</li></ul>'
-        },
-        {
-          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
-          title: 'Auto-login seguro',
-          body: '<ul><li>Guarde usuário + senha no cofre criptografado</li><li>Login automático quando o jogo abrir</li><li>JWT renovado automaticamente (2h de sessão)</li></ul>'
-        },
-        {
-          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
-          title: 'Backup e eventos',
-          body: '<ul><li>Backup criptografado com AES-256</li><li>Eventos automáticos por região com alertas</li><li>Criação automática de conta com credenciais</li><li>Monitor de memória RAM integrado</li></ul>'
-        }
-      ];
-      var onboardStep = 0;
-      function showOnboard() {
-        var done = false;
-        try {
-          done = localStorage.getItem(ONBOARD_KEY) === '1';
-        } catch (_) {}
-        if (done || !profiles || profiles.length > 0) return; // Only show for new users with 0 profiles
-        var overlay = document.getElementById('onboardOverlay');
-        if (!overlay) return;
-        onboardStep = 0;
-        renderOnboardStep();
-        overlay.hidden = false;
-      }
-      function renderOnboardStep() {
-        var step = ONBOARD_STEPS[onboardStep];
-        if (!step) return;
-        document.getElementById('onboardIcon').innerHTML = step.icon;
-        document.getElementById('onboardTitle').textContent = step.title;
-        document.getElementById('onboardBody').innerHTML = step.body;
-        // Dots
-        var dots = document.getElementById('onboardDots');
-        dots.innerHTML = ONBOARD_STEPS.map(function (_, i) {
-          return '<span class="' + (i === onboardStep ? 'active' : '') + '"></span>';
-        }).join('');
-        // Button text
-        var nextBtn = document.getElementById('onboardNext');
-        nextBtn.textContent = onboardStep === ONBOARD_STEPS.length - 1 ? 'Concluir' : 'Próximo';
-      }
-      function initOnboarding() {
-        document.getElementById('onboardNext').onclick = function () {
-          onboardStep++;
-          if (onboardStep >= ONBOARD_STEPS.length) {
-            document.getElementById('onboardOverlay').hidden = true;
-            try {
-              localStorage.setItem(ONBOARD_KEY, '1');
-            } catch (_) {}
-            return;
-          }
-          renderOnboardStep();
-        };
-        document.getElementById('onboardSkip').onclick = function () {
-          document.getElementById('onboardOverlay').hidden = true;
-          try {
-            localStorage.setItem(ONBOARD_KEY, '1');
-          } catch (_) {}
-        };
-      }
 
       // ── v5.6: Profile Comparison Modal ──
       function openCompare() {
@@ -9260,13 +8107,10 @@
       }
 
       // ── v5.6: Init sequence ──
-      initOnboarding();
       initCompare();
       initDragDropImport();
       initCardParallax();
       initCardKeyboardMenu();
-      // Show onboarding for first-time users (0 profiles)
-      setTimeout(showOnboard, 800);
 
       // ════════════════════════════════════════════════════════════════════
       // v5.7: Status Bar · Profile Search Filters · Loading Skeletons · Card Expand · New Profile Animation
@@ -9414,30 +8258,6 @@
         }, 100);
       }
 
-      // ── v5.7: Quick Launch keyboard navigation ──
-      function initQuickLaunchKeyboard() {
-        var list = document.getElementById('quickLaunchList');
-        if (!list) return;
-        list.addEventListener('keydown', function (e) {
-          var items = list.querySelectorAll('.quick-launch-item');
-          if (!items.length) return;
-          var focused = document.activeElement;
-          var idx = Array.from(items).indexOf(focused);
-          if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-            e.preventDefault();
-            var next = idx < items.length - 1 ? items[idx + 1] : items[0];
-            if (next) next.focus();
-          } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-            e.preventDefault();
-            var prev = idx > 0 ? items[idx - 1] : items[items.length - 1];
-            if (prev) prev.focus();
-          } else if (e.key === 'Enter' && focused) {
-            var playBtn = focused.querySelector('.ql-play');
-            if (playBtn) playBtn.click();
-          }
-        });
-      }
-
       // ── v5.7: Patch profile creation to trigger bounce animation (v5.8: properly wired) ──
       // Track the last-created profile name so we can detect it in the next profiles:updated event
       // and trigger the bounce animation. The backend creates the profile asynchronously, so we
@@ -9525,7 +8345,6 @@
       // ── v5.7: Init sequence ──
       initStatusBar();
       initSearchFilters();
-      initQuickLaunchKeyboard();
       // Show skeleton briefly on first load
       showSkeletonLoader();
       setTimeout(function () {
@@ -9535,297 +8354,6 @@
       // ════════════════════════════════════════════════════════════════════
       // v5.8: Statistics Dashboard · Activity Heatmap · Alt+1..9 Hotkeys · Always-on-Top · Count-up · Polish
       // ════════════════════════════════════════════════════════════════════
-
-      // ── v5.8: Count-up animation utility ──
-      function animateCountUp(el, targetValue, opts) {
-        if (!el) return;
-        opts = opts || {};
-        var duration = opts.duration || 800;
-        var decimals = opts.decimals || 0;
-        var suffix = opts.suffix || '';
-        var startVal = opts.startVal || 0;
-        var startTime = null;
-        // Cancel any in-flight animation on this element
-        if (el._countUpRaf) cancelAnimationFrame(el._countUpRaf);
-        function easeOutCubic(t) {
-          return 1 - Math.pow(1 - t, 3);
-        }
-        function step(ts) {
-          if (!startTime) startTime = ts;
-          var progress = Math.min((ts - startTime) / duration, 1);
-          var eased = easeOutCubic(progress);
-          var current = startVal + (targetValue - startVal) * eased;
-          el.textContent =
-            (decimals ? current.toFixed(decimals) : Math.round(current).toLocaleString('pt-BR')) +
-            suffix;
-          if (progress < 1) {
-            el._countUpRaf = requestAnimationFrame(step);
-          } else {
-            el._countUpRaf = null;
-          }
-        }
-        el._countUpRaf = requestAnimationFrame(step);
-      }
-
-      // ── v5.8: Statistics Dashboard loader ──
-      async function loadStatsDashboard() {
-        try {
-          var stats = await ipcRenderer.invoke('profile:launch-log-stats');
-          var totalLaunches = (stats && stats.total) || 0;
-
-          // Total launches card (count-up)
-          var totalEl = document.querySelector('[data-stat="totalLaunches"]');
-          animateCountUp(totalEl, totalLaunches);
-          var totalSubEl = document.querySelector('[data-stat="totalLaunchesSub"]');
-          if (totalSubEl) {
-            if (totalLaunches === 0) totalSubEl.textContent = 'Nenhum lançamento ainda';
-            else if (stats.oldestTs)
-              totalSubEl.textContent =
-                'Desde ' + new Date(stats.oldestTs).toLocaleDateString('pt-BR');
-            else totalSubEl.textContent = '—';
-          }
-
-          // Total playtime card (sum across all profiles)
-          var totalPlayMs = profiles.reduce(function (sum, p) {
-            return sum + (p.totalPlayMs || 0);
-          }, 0);
-          var playEl = document.querySelector('[data-stat="totalPlaytime"]');
-          var playSuffixEl = document.querySelector('[data-stat="totalPlaytimeSuffix"]');
-          var playSubEl = document.querySelector('[data-stat="totalPlaytimeSub"]');
-          if (playEl) {
-            // Decompose playtime into hr+min for count-up
-            var totalMin = Math.floor(totalPlayMs / 60000);
-            var hr = Math.floor(totalMin / 60);
-            var min = totalMin % 60;
-            if (hr > 0) {
-              animateCountUp(playEl, hr, { suffix: '' });
-              if (playSuffixEl)
-                playSuffixEl.textContent = 'h ' + String(min).padStart(2, '0') + 'm';
-            } else {
-              animateCountUp(playEl, min, { suffix: '' });
-              if (playSuffixEl) playSuffixEl.textContent = 'min';
-            }
-          }
-          if (playSubEl) {
-            if (totalPlayMs === 0) playSubEl.textContent = 'Sem tempo registrado';
-            else {
-              var avg = profiles.length ? Math.floor(totalPlayMs / profiles.length / 60000) : 0;
-              playSubEl.textContent = 'Média: ' + avg + 'min por perfil';
-            }
-          }
-
-          // Top profile card
-          var topProfile = null;
-          var topCount = 0;
-          profiles.forEach(function (p) {
-            if ((p.launchCount || 0) > topCount) {
-              topCount = p.launchCount || 0;
-              topProfile = p;
-            }
-          });
-          var topEl = document.querySelector('[data-stat="topProfile"]');
-          var topSubEl = document.querySelector('[data-stat="topProfileSub"]');
-          if (topEl) topEl.textContent = topProfile ? topProfile.name : '—';
-          if (topSubEl)
-            topSubEl.textContent = topProfile
-              ? topCount + ' lançamento' + (topCount > 1 ? 's' : '')
-              : 'Crie um perfil';
-
-          // Current streak card
-          var timeline = await ipcRenderer.invoke('profile:launch-timeline', 365);
-          var streak = 0;
-          var bestStreak = 0;
-          var streakActive = false;
-          if (timeline && timeline.length) {
-            // Walk from the most recent day backwards; if today has launches, count from today; else from yesterday
-            var todayIdx = timeline.length - 1;
-            var startIdx = todayIdx;
-            if ((timeline[todayIdx].count || 0) === 0) {
-              startIdx = todayIdx - 1; // allow streak from yesterday
-            }
-            for (var i = startIdx; i >= 0; i--) {
-              if ((timeline[i].count || 0) > 0) {
-                streak++;
-                streakActive = true;
-              } else if (streakActive) {
-                break;
-              }
-            }
-            // Best streak: scan full timeline
-            var cur = 0;
-            for (var j = 0; j < timeline.length; j++) {
-              if ((timeline[j].count || 0) > 0) {
-                cur++;
-                if (cur > bestStreak) bestStreak = cur;
-              } else {
-                cur = 0;
-              }
-            }
-          }
-          var streakEl = document.querySelector('[data-stat="currentStreak"]');
-          animateCountUp(streakEl, streak);
-          var streakSubEl = document.querySelector('[data-stat="streakSub"]');
-          if (streakSubEl) {
-            if (streak === 0) streakSubEl.textContent = 'Inicie uma sequência hoje!';
-            else if (bestStreak > streak)
-              streakSubEl.textContent = 'Recorde: ' + bestStreak + ' dias';
-            else streakSubEl.textContent = 'Novo recorde! 🎉';
-          }
-        } catch (e) {
-          // Stats are non-critical; fail silently
-          console.warn('Stats dashboard load failed:', e.message);
-        }
-      }
-
-      // ── v5.8: Activity Heatmap (365-day GitHub-style calendar) ──
-      var HEATMAP_MONTHS = [
-        'Jan',
-        'Fev',
-        'Mar',
-        'Abr',
-        'Mai',
-        'Jun',
-        'Jul',
-        'Ago',
-        'Set',
-        'Out',
-        'Nov',
-        'Dez'
-      ];
-      async function loadHeatmap() {
-        var grid = document.getElementById('heatmapGrid');
-        var monthsEl = document.getElementById('heatmapMonths');
-        if (!grid || !monthsEl) return;
-        try {
-          var timeline = await ipcRenderer.invoke('profile:launch-timeline', 365);
-          if (!timeline || !timeline.length) {
-            grid.innerHTML =
-              '<div style="grid-column:1/-1;color:var(--text-faint);font-size:var(--font-sm);padding:1rem 0">Sem dados de atividade ainda.</div>';
-            monthsEl.innerHTML = '';
-            return;
-          }
-          // Build a date → count map for the last 365 days
-          var today = new Date();
-          today.setHours(0, 0, 0, 0);
-          var countMap = {};
-          timeline.forEach(function (day) {
-            countMap[day.date] = day.count || 0;
-          });
-          // Find the start date — go back 364 days, then align to Sunday (so weeks line up)
-          var start = new Date(today);
-          start.setDate(start.getDate() - 364);
-          var startDow = start.getDay(); // 0=Sun
-          start.setDate(start.getDate() - startDow); // align to Sunday
-          // Build cells
-          var cells = [];
-          var cur = new Date(start);
-          var todayStr = _heatmapDateKey(today);
-          var firstCellDate = new Date(cur);
-          while (cur <= today) {
-            var dateStr = _heatmapDateKey(cur);
-            var count = countMap[dateStr] || 0;
-            var level = 0;
-            if (count >= 10) level = 4;
-            else if (count >= 5) level = 3;
-            else if (count >= 3) level = 2;
-            else if (count >= 1) level = 1;
-            cells.push({
-              date: dateStr,
-              dateObj: new Date(cur),
-              count: count,
-              level: level,
-              isToday: dateStr === todayStr
-            });
-            cur.setDate(cur.getDate() + 1);
-          }
-          // Render grid (column-major — weeks as columns)
-          var html = '';
-          cells.forEach(function (c) {
-            var cls =
-              'heatmap-cell' + (c.level ? ' l' + c.level : '') + (c.isToday ? ' today' : '');
-            html +=
-              '<div class="' +
-              cls +
-              '" data-date="' +
-              c.date +
-              '" data-count="' +
-              c.count +
-              '"></div>';
-          });
-          grid.innerHTML = html;
-          // Month labels: one per week-column where the month changes
-          var monthLabelHtml = '';
-          cur = new Date(firstCellDate);
-          var prevMonth = -1;
-          while (cur <= today) {
-            var m = cur.getMonth();
-            if (m !== prevMonth && cur.getDate() <= 7) {
-              // First week of a new month
-              monthLabelHtml +=
-                '<span class="heatmap-month-label">' + HEATMAP_MONTHS[m] + '</span>';
-            } else {
-              monthLabelHtml += '<span></span>';
-            }
-            prevMonth = m;
-            cur.setDate(cur.getDate() + 7); // advance one week
-          }
-          monthsEl.innerHTML = monthLabelHtml;
-          // Wire tooltips
-          _wireHeatmapTooltips();
-        } catch (e) {
-          grid.innerHTML =
-            '<div style="color:var(--danger);font-size:var(--font-sm);padding:1rem 0">Erro ao carregar heatmap.</div>';
-          console.warn('Heatmap load failed:', e.message);
-        }
-      }
-      function _heatmapDateKey(d) {
-        var y = d.getFullYear();
-        var m = String(d.getMonth() + 1).padStart(2, '0');
-        var day = String(d.getDate()).padStart(2, '0');
-        return y + '-' + m + '-' + day;
-      }
-      function _wireHeatmapTooltips() {
-        var grid = document.getElementById('heatmapGrid');
-        var tooltip = document.getElementById('heatmapTooltip');
-        if (!grid || !tooltip) return;
-        grid.querySelectorAll('.heatmap-cell').forEach(function (cell) {
-          cell.addEventListener('mouseenter', function (e) {
-            var date = cell.getAttribute('data-date');
-            var count = parseInt(cell.getAttribute('data-count'), 10) || 0;
-            var dateLabel = new Date(date + 'T00:00:00').toLocaleDateString('pt-BR', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric'
-            });
-            tooltip.innerHTML =
-              '<strong>' +
-              count +
-              '</strong> lançamento' +
-              (count !== 1 ? 's' : '') +
-              '<br>' +
-              dateLabel +
-              (cell.classList.contains('today') ? ' • hoje' : '');
-            tooltip.classList.add('show');
-            var rect = cell.getBoundingClientRect();
-            tooltip.style.left = rect.left + rect.width / 2 - tooltip.offsetWidth / 2 + 'px';
-            tooltip.style.top = rect.top - tooltip.offsetHeight - 6 + 'px';
-          });
-          cell.addEventListener('mouseleave', function () {
-            tooltip.classList.remove('show');
-          });
-          cell.addEventListener('click', function () {
-            var count = parseInt(cell.getAttribute('data-count'), 10) || 0;
-            var date = cell.getAttribute('data-date');
-            if (count > 0)
-              toast(
-                count +
-                  ' lançamento(s) em ' +
-                  new Date(date + 'T00:00:00').toLocaleDateString('pt-BR'),
-                'info'
-              );
-          });
-        });
-      }
 
       // ── v5.8: Alt+1..9 Quick Launch Hotkeys + Alt+P Always-on-Top ──
       function initAltNumberHotkeys() {
@@ -9933,11 +8461,6 @@
             view.classList.remove('view-enter-v58');
             void view.offsetWidth;
             view.classList.add('view-enter-v58');
-            // Lazy-load Events view data
-            if (targetView === 'events') {
-              setTimeout(loadStatsDashboard, 80);
-              setTimeout(loadHeatmap, 120);
-            }
           });
         });
       })();
@@ -10020,37 +8543,6 @@
         );
       })();
 
-      // ── v5.8: Add Alt+N hint badges to quick-launch items ──
-      (function wireQuickLaunchBadges() {
-        // Observe the quick launch list and inject badges
-        var list = document.getElementById('quickLaunchList');
-        if (!list) return;
-        function addBadges() {
-          var items = list.querySelectorAll('.quick-launch-item');
-          items.forEach(function (item, idx) {
-            if (idx >= 9) return;
-            if (item.querySelector('.ql-badge')) return;
-            var badge = document.createElement('span');
-            badge.className = 'ql-badge';
-            badge.textContent = 'Alt+' + (idx + 1);
-            badge.title = 'Atalho: Alt+' + (idx + 1);
-            // Append at end of item
-            item.appendChild(badge);
-          });
-        }
-        addBadges();
-        // Re-run when profiles change
-        ipcRenderer.on('profiles:updated', function () {
-          setTimeout(addBadges, 50);
-        });
-        // Also observe DOM changes
-        if (window.MutationObserver) {
-          new MutationObserver(function () {
-            addBadges();
-          }).observe(list, { childList: true });
-        }
-      })();
-
       // ── v5.8: Replace sidebar version text with a version pill ──
       (function wireVersionPill() {
         var versionEl = document.getElementById('version');
@@ -10086,47 +8578,7 @@
 
       // ── v5.8: Init sequence ──
       initWindowControls();
-      // Lazy-load stats/heatmap on first Events view visit (handled in wireViewTransitionsV58).
-      // Also do an initial load in case the user starts on the Events view.
-      setTimeout(function () {
-        if (
-          document.getElementById('view-events') &&
-          document.getElementById('view-events').classList.contains('active')
-        ) {
-          loadStatsDashboard();
-          loadHeatmap();
-        }
-      }, 500);
-      // Refresh stats/heatmap when profiles change (throttled)
-      var _statsRefreshTs = 0;
-      ipcRenderer.on('profiles:updated', function () {
-        var now = Date.now();
-        if (now - _statsRefreshTs < 2000) return;
-        _statsRefreshTs = now;
-        setTimeout(loadStatsDashboard, 300);
-        setTimeout(loadHeatmap, 400);
-      });
     </script>
-
-    <!-- v5.6: Onboarding Tooltip Tour -->
-    <div class="onboard-overlay" id="onboardOverlay" hidden>
-      <div class="onboard-card">
-        <div class="onboard-header">
-          <div class="ob-icon" id="onboardIcon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-          </div>
-          <h3 id="onboardTitle">Bem-vindo ao Shinobi Launcher!</h3>
-        </div>
-        <div class="onboard-body" id="onboardBody"></div>
-        <div class="onboard-footer">
-          <button class="onboard-skip" id="onboardSkip" type="button">Pular tour</button>
-          <div class="onboard-step" id="onboardDots"></div>
-          <button class="onboard-next" id="onboardNext" type="button">Próximo</button>
-        </div>
-      </div>
-    </div>
 
     <!-- v5.6: Profile Comparison Modal -->
     <div class="compare-overlay" id="compareOverlay" hidden>
