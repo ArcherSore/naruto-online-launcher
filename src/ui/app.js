@@ -2322,130 +2322,6 @@
       // v5.6: Onboarding Tour · Profile Comparison · Drag-Drop Import · Badge Animations
       // ════════════════════════════════════════════════════════════════════
 
-      // ── v5.6: Profile Comparison Modal ──
-      function openCompare() {
-        var overlay = document.getElementById('compareOverlay');
-        if (!overlay || !profiles.length) return;
-        overlay.hidden = false;
-        populateCompareSelects();
-        renderComparison();
-      }
-      function populateCompareSelects() {
-        var opts = profiles
-          .map(function (p) {
-            return '<option value="' + p.id + '">' + esc(p.name) + ' (' + p.server + ')</option>';
-          })
-          .join('');
-        var left = document.getElementById('compareLeft');
-        var right = document.getElementById('compareRight');
-        if (left) left.innerHTML = opts;
-        if (right) {
-          right.innerHTML = opts;
-          // Default to second profile if available
-          if (profiles.length > 1) right.selectedIndex = 1;
-        }
-      }
-      function renderComparison() {
-        var leftId = document.getElementById('compareLeft');
-        var rightId = document.getElementById('compareRight');
-        if (!leftId || !rightId) return;
-        var pA = profiles.find(function (p) {
-          return p.id === leftId.value;
-        });
-        var pB = profiles.find(function (p) {
-          return p.id === rightId.value;
-        });
-        if (!pA || !pB) return;
-        var rows = [
-          { label: 'Nome', left: pA.name, right: pB.name },
-          { label: 'Servidor', left: pA.server, right: pB.server },
-          { label: 'Região', left: REGIONS[pA.region] || '—', right: REGIONS[pB.region] || '—' },
-          {
-            label: 'Lançamentos',
-            left: (pA.launchCount || 0) + 'x',
-            right: (pB.launchCount || 0) + 'x',
-            highlight: true,
-            compare: 'number'
-          },
-          {
-            label: 'Tempo de jogo',
-            left: formatPlayTime(pA.totalPlayMs || 0),
-            right: formatPlayTime(pB.totalPlayMs || 0),
-            highlight: true,
-            compare: 'time'
-          },
-          {
-            label: 'Último uso',
-            left: pA.lastUsed ? formatRelativeTime(pA.lastUsed).label : 'nunca',
-            right: pB.lastUsed ? formatRelativeTime(pB.lastUsed).label : 'nunca'
-          },
-          {
-            label: 'Auto-login',
-            left: pA.hasVault ? '✓ Ativo' : '✗ Inativo',
-            right: pB.hasVault ? '✓ Ativo' : '✗ Inativo'
-          },
-          {
-            label: 'Favorito',
-            left: pA.favorite ? '★ Sim' : '—',
-            right: pB.favorite ? '★ Sim' : '—'
-          },
-          {
-            label: 'Tags',
-            left: (pA.tags || []).join(', ') || '—',
-            right: (pB.tags || []).join(', ') || '—'
-          },
-          { label: 'Notas', left: pA.notes || '—', right: pB.notes || '—' }
-        ];
-        var grid = document.getElementById('compareGrid');
-        if (!grid) return;
-        grid.innerHTML = rows
-          .map(function (r) {
-            var leftClass = 'compare-cell left';
-            var rightClass = 'compare-cell right';
-            var leftVal = esc(String(r.left));
-            var rightVal = esc(String(r.right));
-            if (r.highlight && r.compare === 'number') {
-              var a = parseInt(String(r.left)) || 0;
-              var b = parseInt(String(r.right)) || 0;
-              if (a > b) {
-                leftVal += '<span class="badge-win">+</span>';
-                leftClass += ' highlight';
-              } else if (b > a) {
-                rightVal += '<span class="badge-win">+</span>';
-                rightClass += ' highlight';
-              }
-            }
-            return (
-              '<div class="compare-row">' +
-              '<div class="' +
-              leftClass +
-              '">' +
-              leftVal +
-              '</div>' +
-              '<div class="compare-cell label">' +
-              esc(r.label) +
-              '</div>' +
-              '<div class="' +
-              rightClass +
-              '">' +
-              rightVal +
-              '</div>' +
-              '</div>'
-            );
-          })
-          .join('');
-      }
-      function initCompare() {
-        document.getElementById('compareClose').onclick = function () {
-          document.getElementById('compareOverlay').hidden = true;
-        };
-        document.getElementById('compareLeft').onchange = renderComparison;
-        document.getElementById('compareRight').onchange = renderComparison;
-        document.getElementById('compareOverlay').addEventListener('click', function (e) {
-          if (e.target === this) this.hidden = true;
-        });
-      }
-
       // ── v5.6: Drag-and-Drop File Import ──
       function initDragDropImport() {
         var dropZone = document.getElementById('dropZone');
@@ -2537,7 +2413,6 @@
       }
 
       // ── v5.6: Init sequence ──
-      initCompare();
       initDragDropImport();
       initCardKeyboardMenu();
       // ════════════════════════════════════════════════════════════════════
