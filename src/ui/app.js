@@ -821,10 +821,6 @@
         document.getElementById('profileModal').classList.add('show');
       }
       async function del(id) {
-        var p = profiles.find(function (x) {
-          return x.id === id;
-        });
-        var pName = p ? p.name : id;
         if (!confirm('Excluir esta conta? Cookies e credenciais serão apagados.')) return;
         ipcRenderer.send('profile:delete', id);
         // If last profile was this one, clear
