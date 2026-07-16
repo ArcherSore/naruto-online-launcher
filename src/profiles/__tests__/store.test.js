@@ -200,6 +200,29 @@ describe('store.js', () => {
     });
   });
 
+  describe('create — validation overrides invalid optional fields', () => {
+    test('overrides notificationsEnabled string with default true', () => {
+      const result = store.create({ name: 'ValNotif', notificationsEnabled: 'yes' });
+      expect(result).not.toBeNull();
+      expect(result.notificationsEnabled).toBe(true);
+      store.remove(result.id);
+    });
+
+    test('overrides negative launchCount with default 0', () => {
+      const result = store.create({ name: 'ValLaunch', launchCount: -1 });
+      expect(result).not.toBeNull();
+      expect(result.launchCount).toBe(0);
+      store.remove(result.id);
+    });
+
+    test('overrides negative totalPlayMs with default 0', () => {
+      const result = store.create({ name: 'ValPlay', totalPlayMs: -100 });
+      expect(result).not.toBeNull();
+      expect(result.totalPlayMs).toBe(0);
+      store.remove(result.id);
+    });
+  });
+
   describe('get and getAll', () => {
     test('getAll returns a copy (not the internal array)', () => {
       store.create({ name: 'TestGet' });
