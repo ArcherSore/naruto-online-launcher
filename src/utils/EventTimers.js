@@ -240,7 +240,7 @@ function formatCountdown(ms) {
 }
 
 function formatUserTime(ms, region) {
-  var meta = REGION_META[region];
+  var meta = REGION_TZ[region] || REGION_TZ.br;
   var d = new Date(ms);
   var h = ((d.getUTCHours() + meta.baseOffset) % 24 + 24) % 24;
   var m = d.getUTCMinutes();
