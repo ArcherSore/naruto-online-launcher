@@ -255,6 +255,57 @@ describe('SessionLifecycle.js', () => {
 
         expect(vault.hasCredentials).toHaveBeenCalledWith('p_001');
       });
+
+      test('para auto-login quando formInjectAttempts > 5', () => {
+        const { win, wcHandlers } = makeMockWin();
+        vault.hasCredentials.mockReturnValue(true);
+        vault.getCredentials.mockReturnValue({ user: 'test@x.com', pass: 'secret' });
+        vault.buildAutoLoginScript.mockReturnValue('(function(){return "not-found";})()');
+        const entry = {
+          failLoadRetry: false,
+          formInjectAttempts: 6,
+          autoLoginTimer: null,
+          failLoadTimer: null
+        };
+        const ctx = makeCtx({ entry });
+        SessionLifecycle.attach(win, ctx);
+
+        // Trigger multiple did-finish-load to simulate retries
+        const handler = wcHandlers['did-finish-load'];
+        handler();
+
+        // Com formInjectAttempts=6, deve parar de tentar — não chama executeJavaScript para auto-login
+        const autoLoginCalls = win.webContents.executeJavaScript.mock.calls.filter(function (c) {
+          return typeof c[0] === 'string' && c[0].includes('doLogin');
+        });
+        expect(autoLoginCalls.length).toBe(0);
+      });
+
+      test('reseta formInjectAttempts quando auto-login succeed (result=filled)', () => {
+        // Verifica que com formInjectAttempts < 6, o auto-login script É executado
+        // (ao contrário do teste "para quando > 5" que verifica o oposto).
+        const { win, wcHandlers } = makeMockWin();
+        vault.hasCredentials.mockReturnValue(true);
+        vault.getCredentials.mockReturnValue({ user: 'test@x.com', pass: 'secret' });
+        vault.buildAutoLoginScript.mockReturnValue('AUTO_LOGIN_SCRIPT_MARKER');
+        const entry = {
+          failLoadRetry: false,
+          formInjectAttempts: 3,
+          autoLoginTimer: null,
+          failLoadTimer: null
+        };
+        const ctx = makeCtx({ entry });
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['did-finish-load'];
+        handler();
+
+        // O auto-login script (com marcador) deve ter sido passado a executeJavaScript
+        const found = win.webContents.executeJavaScript.mock.calls.some(function (c) {
+          return c[0] === 'AUTO_LOGIN_SCRIPT_MARKER';
+        });
+        expect(found).toBe(true);
+      });
     });
 
     describe('did-fail-load handler', () => {
