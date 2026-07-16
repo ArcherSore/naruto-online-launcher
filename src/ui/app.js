@@ -1962,60 +1962,13 @@
         }
       });
 
-      // ── v5.2: Custom Confirm Dialog ──
-      var _confirmResolve = null;
-      function customConfirm(title, message, opts) {
-        opts = opts || {};
-        var overlay = document.getElementById('confirmOverlay');
-        var iconEl = document.getElementById('confirmIcon');
-        document.getElementById('confirmTitle').textContent = title;
-        document.getElementById('confirmMessage').textContent = message;
-        // Set icon type
-        iconEl.className = 'confirm-icon ' + (opts.type || 'danger');
-        var okBtn = document.getElementById('confirmOk');
-        okBtn.className = 'btn ' + (opts.type === 'warn' ? 'primary' : 'btn-danger');
-        okBtn.textContent = opts.okText || 'Confirmar';
-        overlay.classList.add('show');
-        return new Promise(function (resolve) {
-          _confirmResolve = resolve;
-        });
-      }
-      document.getElementById('confirmCancel').onclick = function () {
-        document.getElementById('confirmOverlay').classList.remove('show');
-        if (_confirmResolve) {
-          _confirmResolve(false);
-          _confirmResolve = null;
-        }
-      };
-      document.getElementById('confirmOk').onclick = function () {
-        document.getElementById('confirmOverlay').classList.remove('show');
-        if (_confirmResolve) {
-          _confirmResolve(true);
-          _confirmResolve = null;
-        }
-      };
-      document.getElementById('confirmOverlay').addEventListener('click', function (e) {
-        if (e.target === this) {
-          this.classList.remove('show');
-          if (_confirmResolve) {
-            _confirmResolve(false);
-            _confirmResolve = null;
-          }
-        }
-      });
-
-      // Replace browser confirm() calls with custom dialog (v5.2)
+      // ── v5.2: Context Menu ──
       del = async function (id) {
         var p = profiles.find(function (x) {
           return x.id === id;
         });
         var pName = p ? p.name : id;
-        var confirmed = await customConfirm(
-          'Excluir conta',
-          'Excluir "' + pName + '"? Cookies e credenciais serão apagados permanentemente.',
-          { type: 'danger', okText: 'Excluir' }
-        );
-        if (!confirmed) return;
+        if (!confirm('Excluir "' + pName + '"? Cookies e credenciais serão apagados permanentemente.')) return;
         ipcRenderer.send('profile:delete', id);
         addActivity('info', 'Conta excluída: <strong>' + esc(pName) + '</strong>');
         if (localStorage.getItem(LAST_PROFILE_KEY) === id) {
@@ -2026,12 +1979,7 @@
 
       var origRemoveVault = document.getElementById('removeVault').onclick;
       document.getElementById('removeVault').onclick = async function () {
-        var confirmed = await customConfirm(
-          'Remover credenciais',
-          'Remover as credenciais salvas deste perfil? O auto-login será desativado.',
-          { type: 'warn', okText: 'Remover' }
-        );
-        if (!confirmed) return;
+        if (!confirm('Remover as credenciais salvas deste perfil? O auto-login será desativado.')) return;
         await ipcRenderer.invoke('vault:remove', vaultId);
         toast('Credenciais removidas', 'ok');
         document.getElementById('vaultModal').classList.remove('show');
@@ -2178,16 +2126,11 @@
         }
       };
 
-      // ── v5.2: Batch delete uses custom confirm ──
+      // ── v5.2: Batch delete ──
       var origBatchDelete = document.getElementById('batchDeleteBtn').onclick;
       document.getElementById('batchDeleteBtn').onclick = async function () {
         if (!batchSelected.size) return;
-        var confirmed = await customConfirm(
-          'Excluir ' + batchSelected.size + ' conta(s)',
-          'Esta ação é irreversível. Cookies e credenciais serão apagados permanentemente.',
-          { type: 'danger', okText: 'Excluir ' + batchSelected.size + ' conta(s)' }
-        );
-        if (!confirmed) return;
+        if (!confirm('Excluir ' + batchSelected.size + ' conta(s)? Esta ação é irreversível. Cookies e credenciais serão apagados permanentemente.')) return;
         batchSelected.forEach(function (id) {
           ipcRenderer.send('profile:delete', id);
         });
