@@ -128,8 +128,8 @@ function create(session, profileId) {
     listeners.onCapture.forEach(function (cb) {
       try {
         cb(entry);
-      } catch (_) {
-        /* ignore */
+      } catch (e) {
+        logger.debug('Inspector: callback error: ' + e.message);
       }
     });
   }
