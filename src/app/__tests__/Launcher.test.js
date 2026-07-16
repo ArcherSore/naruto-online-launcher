@@ -251,6 +251,21 @@ describe('Launcher.js', () => {
       expect(bwMock.win.show).toHaveBeenCalled();
       expect(bwMock.win.focus).toHaveBeenCalled();
     });
+
+    test('page-title-updated previne mudança de título da janela', () => {
+      launchAndTrack('p_001');
+      bwMock.win.setTitle.mockClear();
+
+      var onCalls = bwMock.win.on.mock.calls;
+      var titleCall = onCalls.find(function (c) { return c[0] === 'page-title-updated'; });
+      expect(titleCall).toBeDefined();
+
+      var mockEvent = { preventDefault: jest.fn() };
+      titleCall[1](mockEvent);
+
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+      expect(bwMock.win.setTitle).toHaveBeenCalledWith(expect.stringContaining('TestProfile'));
+    });
   });
 
   describe('hasOpenWindows', () => {
