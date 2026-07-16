@@ -49,7 +49,9 @@ describe('logger.js', () => {
 
     test('aceita dados adicionais', () => {
       logger.warn('warning message', { key: 'value' });
-      expect(electronLog.warn).toHaveBeenCalledWith(expect.stringContaining('warning message'), { key: 'value' });
+      expect(electronLog.warn).toHaveBeenCalledWith(expect.stringContaining('warning message'), {
+        key: 'value'
+      });
     });
   });
 
@@ -76,7 +78,9 @@ describe('logger.js', () => {
 
     test('aceita dados adicionais', () => {
       logger.debug('debug message', { ctx: 'test' });
-      expect(electronLog.debug).toHaveBeenCalledWith(expect.stringContaining('debug message'), { ctx: 'test' });
+      expect(electronLog.debug).toHaveBeenCalledWith(expect.stringContaining('debug message'), {
+        ctx: 'test'
+      });
     });
   });
 });

@@ -128,7 +128,9 @@ describe('settings.js - saveConfig', () => {
   });
 
   test('retorna false quando write falha', () => {
-    fs.writeFileSync.mockImplementation(function () { throw new Error('EACCES'); });
+    fs.writeFileSync.mockImplementation(function () {
+      throw new Error('EACCES');
+    });
     const result = saveConfig({ region: 'pt' });
     expect(result).toBe(false);
     expect(fs.renameSync).not.toHaveBeenCalled();

@@ -181,7 +181,7 @@ jobs:
             🇧🇷 PT · 🇺🇸 EN · 🇫🇷 FR · 🇩🇪 DE · 🇪🇸 ES · 🇵🇱 PL
 
             ### Flash PPAPI
-            Flash binaries are downloaded on-demand on first boot (no binaries committed to repo). Linux shows an actionable error if Flash cannot be provisioned.
+            Flash PPAPI binaries (Linux `.so` + Windows `.dll`) are committed to the repo so the build is fully reproducible offline. Linux shows an actionable error if Flash cannot be provisioned at runtime.
 
   # ── Auto-update README with latest download links ──
   update-readme:

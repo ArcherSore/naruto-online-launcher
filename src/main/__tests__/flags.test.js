@@ -212,8 +212,12 @@ describe('flags.js', () => {
       jest.isolateModules(function () {
         jest.mock('os', function () {
           return {
-            totalmem: function () { return 6 * 1024 * 1024 * 1024; },
-            cpus: function () { return [{}]; }
+            totalmem: function () {
+              return 6 * 1024 * 1024 * 1024;
+            },
+            cpus: function () {
+              return [{}];
+            }
           };
         });
         var flags = require('../flags');
@@ -229,16 +233,24 @@ describe('flags.js', () => {
       jest.isolateModules(function () {
         jest.mock('os', function () {
           return {
-            totalmem: function () { return 16 * 1024 * 1024 * 1024; },
-            cpus: function () { return [{}, {}, {}, {}, {}, {}, {}, {}]; }
+            totalmem: function () {
+              return 16 * 1024 * 1024 * 1024;
+            },
+            cpus: function () {
+              return [{}, {}, {}, {}, {}, {}, {}, {}];
+            }
           };
         });
         var flags = require('../flags');
         flags.applyAll({ hardwareProfile: 'cpu' });
         var calls = electron.app.commandLine.appendSwitch.mock.calls;
-        var hasDisableGpu = calls.some(function (c) { return c[0] === 'disable-gpu'; });
+        var hasDisableGpu = calls.some(function (c) {
+          return c[0] === 'disable-gpu';
+        });
         expect(hasDisableGpu).toBe(true);
-        var rasterCall = calls.find(function (c) { return c[0] === 'num-raster-threads'; });
+        var rasterCall = calls.find(function (c) {
+          return c[0] === 'num-raster-threads';
+        });
         expect(rasterCall).toBeDefined();
         expect(rasterCall[1]).toBe('4'); // min(8 cores, 4) = 4
       });
@@ -248,8 +260,12 @@ describe('flags.js', () => {
       jest.isolateModules(function () {
         jest.mock('os', function () {
           return {
-            totalmem: function () { return 16 * 1024 * 1024 * 1024; },
-            cpus: function () { return [{}]; }
+            totalmem: function () {
+              return 16 * 1024 * 1024 * 1024;
+            },
+            cpus: function () {
+              return [{}];
+            }
           };
         });
         var flags = require('../flags');

@@ -2,7 +2,13 @@
  * Testes para src/network/blocker.js
  */
 
-const { BLOCKED_DOMAINS, isBlockedDomain, shouldBlock, setupBlocker, forgetSession } = require('../blocker');
+const {
+  BLOCKED_DOMAINS,
+  isBlockedDomain,
+  shouldBlock,
+  setupBlocker,
+  forgetSession
+} = require('../blocker');
 
 describe('blocker.js', () => {
   describe('BLOCKED_DOMAINS', () => {
@@ -153,7 +159,9 @@ describe('blocker.js', () => {
       var mockCallback = jest.fn();
 
       handler({ url: 'https://game.com/login?logintype=3&server=1' }, mockCallback);
-      expect(mockCallback).toHaveBeenCalledWith({ redirectURL: 'https://game.com/login?logintype=4&server=1' });
+      expect(mockCallback).toHaveBeenCalledWith({
+        redirectURL: 'https://game.com/login?logintype=4&server=1'
+      });
     });
 
     test('does not replace logintype=30 (boundary-aware) but still redirects', () => {
@@ -168,7 +176,9 @@ describe('blocker.js', () => {
       // includes('logintype=3') is true for logintype=30, so it enters the block,
       // but regex logintype=3(?=&|$) doesn't match (3 is followed by 0).
       // URL is unchanged but returned as redirectURL, not cancel:false.
-      expect(mockCallback).toHaveBeenCalledWith({ redirectURL: 'https://game.com/login?logintype=30' });
+      expect(mockCallback).toHaveBeenCalledWith({
+        redirectURL: 'https://game.com/login?logintype=30'
+      });
     });
   });
 

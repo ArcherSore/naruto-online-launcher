@@ -257,7 +257,9 @@ describe('Launcher.js', () => {
       bwMock.win.setTitle.mockClear();
 
       var onCalls = bwMock.win.on.mock.calls;
-      var titleCall = onCalls.find(function (c) { return c[0] === 'page-title-updated'; });
+      var titleCall = onCalls.find(function (c) {
+        return c[0] === 'page-title-updated';
+      });
       expect(titleCall).toBeDefined();
 
       var mockEvent = { preventDefault: jest.fn() };

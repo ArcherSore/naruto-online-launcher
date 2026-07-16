@@ -41,7 +41,10 @@ function _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl) {
         .catch(function (e) {
           if (win.isDestroyed()) return;
           logger.warn(
-            'Login via API falhou para "' + profile.name + '" — fallback form-injection: ' + e.message
+            'Login via API falhou para "' +
+              profile.name +
+              '" — fallback form-injection: ' +
+              e.message
           );
           win.loadURL(url);
         });

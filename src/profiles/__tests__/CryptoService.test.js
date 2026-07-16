@@ -138,11 +138,17 @@ describe('CryptoService.js', () => {
 
   describe('importEncryptedBackup — error branches', () => {
     test('rejeita versão de backup incompatível', () => {
-      const encrypted = Cs.exportEncryptedBackup([{ id: 'p1', name: 'Test' }], { 'p1': { user: 'a@b.com', pass: 'x' } }, 'testpass1234');
+      const encrypted = Cs.exportEncryptedBackup(
+        [{ id: 'p1', name: 'Test' }],
+        { p1: { user: 'a@b.com', pass: 'x' } },
+        'testpass1234'
+      );
       const envelope = JSON.parse(Buffer.from(encrypted, 'base64').toString());
       envelope.version = 99;
       const tampered = Buffer.from(JSON.stringify(envelope)).toString('base64');
-      expect(() => Cs.importEncryptedBackup(tampered, 'testpass1234')).toThrow('Versão de backup incompatível');
+      expect(() => Cs.importEncryptedBackup(tampered, 'testpass1234')).toThrow(
+        'Versão de backup incompatível'
+      );
     });
 
     test('rejeita estrutura com base64 inválido nos campos criptográficos', () => {
