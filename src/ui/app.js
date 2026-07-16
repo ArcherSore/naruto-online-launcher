@@ -140,7 +140,6 @@
         renderRegionTabs();
         loadLastProfile();
         populateDevProfileSelects();
-        renderTagFilterBar();
       });
       ipcRenderer.on('memory:update', (_e, s) => renderMemory(s));
       ipcRenderer.on('events:update', (_e, data) => renderEvents(data));
@@ -268,12 +267,6 @@
               regionKey.indexOf(searchQuery) !== -1 ||
               notes.indexOf(searchQuery) !== -1
             );
-          });
-        }
-        // v5.3: Filter by active tag
-        if (activeTagFilter) {
-          filtered = filtered.filter(function (p) {
-            return (p.tags || []).indexOf(activeTagFilter) !== -1;
           });
         }
         // v4.6: Apply sorting
@@ -452,7 +445,6 @@
       <div class="card-body">
         ${serverHtml}
       </div>
-      ${buildTagsHtml(p.tags)}
       ${notesHtml}
       <div class="card-badges">
         ${p.hasVault ? '<span class="badge ok">auto-login</span>' : ''}
@@ -489,17 +481,6 @@
               } else if (act === 'switch-server') {
                 /* handled by onchange */
               }
-            });
-          });
-          // v5.3: Tag remove handler on profile cards
-          card.querySelectorAll('[data-remove-tag]').forEach(function (tagEl) {
-            tagEl.addEventListener('click', function (e) {
-              e.stopPropagation();
-              var tag = tagEl.getAttribute('data-remove-tag');
-              var currentTags = (p.tags || []).filter(function (t) {
-                return t !== tag;
-              });
-              ipcRenderer.send('profile:update', { id: p.id, tags: currentTags });
             });
           });
           // v5.1: Batch checkbox handler
@@ -802,7 +783,6 @@
         const p = profiles.find(x => x.id === id);
         if (!p) return;
         editingId = id;
-        editingTags = (p.tags || []).slice(); // v5.3: Copy tags for editing
         document.getElementById('modalTitle').textContent = 'Editar conta';
         document.getElementById('fName').value = p.name;
         document.getElementById('fServer').value = p.server;
@@ -813,9 +793,6 @@
         updateNotesCounter();
         selectedColor = p.color;
         renderColors();
-        // v5.3: Load tags
-        if (window._renderTagsInput) window._renderTagsInput();
-        document.getElementById('fTags').value = '';
         // v5.9.3: hide auto-create button in edit mode
         document.getElementById('autoCreateBtn').style.display = 'none';
         document.getElementById('profileModal').classList.add('show');
@@ -848,7 +825,6 @@
       // ── Modal: Profile ──
       document.getElementById('newBtn').onclick = () => {
         editingId = null;
-        editingTags = [];
         document.getElementById('modalTitle').textContent = 'Nova conta';
         document.getElementById('fName').value = '';
         document.getElementById('fServer').value = '';
@@ -858,9 +834,6 @@
         updateNotesCounter();
         selectedColor = PALETTE[profiles.length % PALETTE.length];
         renderColors();
-        // v5.3: Clear tags input
-        if (window._renderTagsInput) window._renderTagsInput();
-        document.getElementById('fTags').value = '';
         // v5.9.3: show auto-create button in create mode
         document.getElementById('autoCreateBtn').style.display = '';
         document.getElementById('profileModal').classList.add('show');
@@ -874,7 +847,6 @@
           region: document.getElementById('fRegion').value,
           color: selectedColor,
           notes: document.getElementById('fNotes').value.trim(), // v4.5: save notes
-          tags: editingTags.slice() // v5.3: save tags
         };
         if (!opts.name) {
           toast('Informe um nome', 'err');
@@ -2230,166 +2202,6 @@
       // ── v5.2: Vault remove uses custom confirm ──
       // Already handled above by overriding removeVault onclick
 
-      // ── v5.3: Profile Tags System ──
-      var TAG_COLORS = {
-        main: '#FF8C00',
-        alt: '#06B6D4',
-        pvp: '#DC2626',
-        farm: '#10B981',
-        eventos: '#F59E0B',
-        evento: '#F59E0B',
-        events: '#F59E0B',
-        pve: '#8B5CF6',
-        ranked: '#EC4899',
-        test: '#84CC16'
-      };
-      var activeTagFilter = null;
-      var editingTags = []; // Tags being edited in modal
-
-      function getTagColor(tag) {
-        var lower = (tag || '').toLowerCase();
-        if (TAG_COLORS[lower]) return TAG_COLORS[lower];
-        // Generate consistent color from tag string
-        var hash = 0;
-        for (var i = 0; i < lower.length; i++) hash = lower.charCodeAt(i) + ((hash << 5) - hash);
-        var hue = Math.abs(hash) % 360;
-        return 'hsl(' + hue + ', 65%, 55%)';
-      }
-
-      function getAllTags() {
-        var tagMap = {};
-        profiles.forEach(function (p) {
-          (p.tags || []).forEach(function (tag) {
-            tagMap[tag] = (tagMap[tag] || 0) + 1;
-          });
-        });
-        return Object.keys(tagMap)
-          .sort()
-          .map(function (t) {
-            return { name: t, count: tagMap[t] };
-          });
-      }
-
-      function renderTagFilterBar() {
-        var bar = document.getElementById('tagFilterBar');
-        if (!bar) return;
-        var tags = getAllTags();
-        if (!tags.length) {
-          bar.innerHTML = '';
-          return;
-        }
-        var html =
-          '<span style="font-size:var(--font-xs);color:var(--text-faint);margin-right:.2rem">Tags:</span>';
-        // "All" chip
-        html +=
-          '<span class="tag-filter-chip' +
-          (!activeTagFilter ? ' active' : '') +
-          '" data-tag-filter="">Todas</span>';
-        tags.forEach(function (t) {
-          var color = getTagColor(t.name);
-          html +=
-            '<span class="tag-filter-chip' +
-            (activeTagFilter === t.name ? ' active' : '') +
-            '" data-tag-filter="' +
-            esc(t.name) +
-            '" style="' +
-            (activeTagFilter === t.name
-              ? 'border-color:' + color + ';color:' + color + ';background:' + color + '15'
-              : '') +
-            '">' +
-            '<span style="width:6px;height:6px;border-radius:50%;background:' +
-            color +
-            ';display:inline-block"></span> ' +
-            esc(t.name) +
-            '<span class="tag-count">' +
-            t.count +
-            '</span></span>';
-        });
-        bar.innerHTML = html;
-        // Handlers
-        bar.querySelectorAll('.tag-filter-chip').forEach(function (chip) {
-          chip.onclick = function () {
-            var tag = chip.getAttribute('data-tag-filter');
-            activeTagFilter = tag || null;
-            renderTagFilterBar();
-            renderProfiles();
-          };
-        });
-      }
-
-      function buildTagsHtml(tags) {
-        if (!tags || !tags.length) return '';
-        return (
-          '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:2px">' +
-          tags
-            .map(function (tag) {
-              var color = getTagColor(tag);
-              return (
-                '<span class="profile-tag" style="background:' +
-                color +
-                '18;color:' +
-                color +
-                ';border:1px solid ' +
-                color +
-                '30">' +
-                esc(tag) +
-                '<span class="tag-remove" data-remove-tag="' +
-                esc(tag) +
-                '">&times;</span>' +
-                '</span>'
-              );
-            })
-            .join('') +
-          '</div>'
-        );
-      }
-
-      function initTagsInput() {
-        var wrap = document.getElementById('tagsInputWrap');
-        var input = document.getElementById('fTags');
-        if (!wrap || !input) return;
-
-        function renderTagsInput() {
-          // Remove existing tags in the wrapper (keep the input)
-          wrap.querySelectorAll('.profile-tag').forEach(function (t) {
-            t.remove();
-          });
-          editingTags.forEach(function (tag) {
-            var span = document.createElement('span');
-            span.className = 'profile-tag';
-            span.style.background = getTagColor(tag) + '18';
-            span.style.color = getTagColor(tag);
-            span.style.border = '1px solid ' + getTagColor(tag) + '30';
-            span.innerHTML =
-              esc(tag) +
-              ' <span class="tag-remove" style="cursor:pointer;opacity:.6">&times;</span>';
-            span.querySelector('.tag-remove').onclick = function () {
-              editingTags = editingTags.filter(function (t) {
-                return t !== tag;
-              });
-              renderTagsInput();
-            };
-            wrap.insertBefore(span, input);
-          });
-        }
-
-        input.onkeydown = function (e) {
-          if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault();
-            var val = input.value.trim().replace(/,/g, '').toLowerCase();
-            if (!val || editingTags.indexOf(val) !== -1 || editingTags.length >= 5) return;
-            editingTags.push(val);
-            input.value = '';
-            renderTagsInput();
-          }
-          if (e.key === 'Backspace' && !input.value && editingTags.length) {
-            editingTags.pop();
-            renderTagsInput();
-          }
-        };
-        // Store reference for modal open/close
-        window._renderTagsInput = renderTagsInput;
-      }
 
       // ── v5.3: Enhanced Event Rendering ──
       var origRenderEventsSingle = renderEventsSingle;
@@ -2491,7 +2303,6 @@
       initDevTools();
       initDebugFlag();
       initDragDrop();
-      initTagsInput();
       initDevSubsections();
       updateEventBadge();
       setTimeout(function () {
