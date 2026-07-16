@@ -254,12 +254,14 @@ function attach(win, ctx) {
     if (entry) entry.failLoadRetry = false;
     ses.cookies.flushStore().catch(function () {});
 
-    // CAMADA 1: limpeza leve (ads, cookies, popups)
+    // CAMADA 1: limpeza leve (ads, cookies, popups, poluição do site do jogo)
     win.webContents
       .insertCSS(
         '.ad, .ads, .banner, .ad-banner, .ad-container, [class*="advertisement"], [id*="advertisement"] { display: none !important; }' +
           '.cookie-notice, .cookie-banner, #cookieConsent, .gdpr-banner { display: none !important; }' +
-          '.support-link, .help-link, .external-link, .social-share, .share-buttons { display: none !important; }'
+          '.support-link, .help-link, .external-link, .social-share, .share-buttons { display: none !important; }' +
+          '#flash_guide_main_panel, #fb_like_tag, #preload_element { display: none !important; }' +
+          'iframe[name="conversion_code"], iframe[name="adtrace"] { display: none !important; width:0 !important; height:0 !important; }'
       )
       .catch(function () {});
 
@@ -270,7 +272,7 @@ function attach(win, ctx) {
           '  var s = document.createElement("style");' +
           '  s.textContent = ' +
           '    "html, body { margin:0 !important; padding:0 !important; overflow:hidden !important; width:100% !important; height:100% !important; background:#000 !important; }" +' +
-          '    "#oas-bar, .oas-bar, .header, .header-wrap, .site-header, .top-bar, .topbar { display:none !important; height:0 !important; min-height:0 !important; }" +' +
+          '    "#oas-bar, .oas-bar, #oas-bar-hide, .header, .header-wrap, .site-header, .top-bar, .topbar { display:none !important; height:0 !important; min-height:0 !important; }" +' +
           '    "footer, .footer, .site-footer, .footer-wrap, #footer { display:none !important; height:0 !important; }" +' +
           '    ".sidebar, .left-sidebar, .right-sidebar, .nav-sidebar { display:none !important; }" +' +
           '    "embed, object { width:100vw !important; height:100vh !important; display:block !important; }" +' +
