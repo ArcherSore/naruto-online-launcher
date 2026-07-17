@@ -164,17 +164,30 @@ async function _clearIdleSessions() {
 
 /**
  * Windows: EmptyWorkingSet via PowerShell (psapi.dll).
+ * Fallback: SetProcessWorkingSetSize via PowerShell if psapi fails.
+ * On Server Core / Nano Server where PowerShell may be unavailable, silently skip.
  */
 function _emptyWorkingSetWindows() {
   return new Promise(function (resolve) {
     const { exec } = require('child_process');
-    const child = exec(
-      'powershell -NoProfile -Command "[psapi]::EmptyWorkingSet([diagnostics.process]::GetCurrentProcess().Handle)"',
-      { timeout: 5000, windowsHide: true },
-      function () {
-        resolve();
+    const cmd =
+      'powershell -NoProfile -Command "[psapi]::EmptyWorkingSet([diagnostics.process]::GetCurrentProcess().Handle)"';
+    const child = exec(cmd, { timeout: 5000, windowsHide: true }, function (err) {
+      // If psapi type not available (Server Core), try alternative
+      if (err) {
+        const alt = exec(
+          'powershell -NoProfile -Command "[System.Diagnostics.Process]::GetCurrentProcess().MinWorkingSet = [System.IntPtr]::Zero; [System.Diagnostics.Process]::GetCurrentProcess().MaxWorkingSet = [System.IntPtr]::Zero"',
+          { timeout: 5000, windowsHide: true },
+          function () { resolve(); }
+        );
+        setTimeout(function () {
+          try { alt.kill(); } catch (_) { /* ignore */ }
+          resolve();
+        }, 6000);
+        return;
       }
-    );
+      resolve();
+    });
     setTimeout(function () {
       try {
         child.kill();

@@ -200,7 +200,7 @@ function attach(win, ctx) {
     }
     _crashTimestamps.push(now);
     logger.info('SessionLifecycle: auto-reload em 1.5s para "' + profile.name + '"');
-    setTimeout(function () {
+    var reloadTimer = setTimeout(function () {
       if (win.isDestroyed() || win.webContents.isDestroyed()) return;
       try {
         win.webContents.reload();
@@ -208,6 +208,7 @@ function attach(win, ctx) {
         logger.warn('SessionLifecycle: reload falhou para "' + profile.name + '": ' + e.message);
       }
     }, 1500);
+    if (reloadTimer.unref) reloadTimer.unref();
   });
 
   win.on('unresponsive', function () {
@@ -324,6 +325,7 @@ function attach(win, ctx) {
             win.loadURL(getGameUrl(profile));
           }
         }, 1500);
+        if (entry.failLoadTimer.unref) entry.failLoadTimer.unref();
       }
     } else {
       logger.error(
@@ -344,6 +346,7 @@ function attach(win, ctx) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
       const gameUrl = getGameUrl(profile);
+      const safeUrl = gameUrl.replace(/'/g, "\\'").replace(/\\/g, '\\\\');
       win.webContents.loadURL(
         'data:text/html,' +
           encodeURIComponent(
@@ -360,7 +363,7 @@ function attach(win, ctx) {
               profile.name +
               '</p>' +
               '<button onclick="location.href=\'' +
-              gameUrl +
+              safeUrl +
               '\'" ' +
               'style="padding:10px 24px;background:linear-gradient(135deg,#DC2626,#7a1414);color:#fff;' +
               'border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">' +

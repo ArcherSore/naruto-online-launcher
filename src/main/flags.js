@@ -88,9 +88,15 @@ function applyAll(opts) {
     app.commandLine.appendSwitch('num-raster-threads', String(Math.min(CPU_CORES, 4)));
     app.commandLine.appendSwitch('use-gl', process.platform === 'linux' ? 'swiftshader' : '');
   } else {
+    // NOTE: enable-accelerated-video-decode is PLACEBO for Flash PPAPI.
+    // Flash does its own video decoding internally; this flag only affects
+    // HTML5 <video>. Kept because it's harmless and may help non-Flash content.
     app.commandLine.appendSwitch('enable-accelerated-video-decode');
     if (process.platform === 'linux' && !IS_WAYLAND) {
       app.commandLine.appendSwitch('use-gl', 'desktop');
+      // NOTE: VaapiVideoDecoder is PLACEBO for Flash PPAPI.
+      // VAAPI decode is for HTML5 <video>; Flash uses its own decoder.
+      // Kept because it's harmless and may help non-Flash content.
       _enabled.add('VaapiVideoDecoder');
     }
   }

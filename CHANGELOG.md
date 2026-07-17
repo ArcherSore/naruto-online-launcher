@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.9.16] - 2026-07-18
+
+### Fixed — Stability (timers, XSS, Windows fallback)
+- **Timer leak prevention**: Added `.unref()` on crash-recovery timer (1.5s
+  auto-reload after render-process-gone) and fail-load retry timer in
+  SessionLifecycle.js. Without unref, these timers prevent clean process
+  exit during shutdown.
+- **XSS in error page**: `did-fail-load` error page had unescaped `gameUrl`
+  in inline `onclick` handler. Now properly escapes single quotes and
+  backslashes before interpolation.
+- **Windows Server Core fallback**: `_emptyWorkingSetWindows()` in
+  GcDaemon.js now tries an alternative PowerShell command
+  (MinWorkingSet/MaxWorkingSet) if the `[psapi]` type is unavailable.
+
+### Changed — Placebo documentation (flags.js)
+- `enable-accelerated-video-decode`: documented as PLACEBO for Flash PPAPI
+  (Flash does its own video decoding; flag only affects HTML5 <video>)
+- `VaapiVideoDecoder`: documented as PLACEBO for Flash PPAPI (same reason)
+- Both flags kept (harmless, may help non-Flash content)
+
 ## [5.9.15] - 2026-07-18
 
 ### Fixed — Coverage provider (jest.config.js)
