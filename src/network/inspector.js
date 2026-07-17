@@ -23,6 +23,13 @@ const logger = require('../utils/logger');
 const jwt = require('../utils/jwt');
 
 // Endpoints interessantes pra classificar capturas
+// v5.9.10: adicionados endpoints do fluxo de login observados no F12:
+//   - ScriptLoginManager-1.2.php (login manager JS com params criptografados)
+//   - Scriptpad-zeropadding.js (crypto padding library pro form de login)
+//   - query_svr_info.fcgi (XHR que busca info do servidor por svr_id)
+// Esses 3 endpoints aparecem no tráfego normal do jogo mesmo com pre-auth
+// via API (oas_user cookie). O ScriptLoginManager é carregado pela página
+// do jogo pra validação de sessão — NÃO é bug se aparece com status 200.
 var KNOWN_ENDPOINTS = {
   'passport.oasgames.com': { type: 'auth', label: 'Passport (login/register)' },
   'odp3.oasgames.com': { type: 'api', label: 'Odp3 API (servers/profile)' },
@@ -31,6 +38,37 @@ var KNOWN_ENDPOINTS = {
   'narutowebgame.com': { type: 'site', label: 'Naruto site' },
   'oasgames.com': { type: 'parent', label: 'oasgames parent' }
 };
+
+// v5.9.10: Path signatures para classificar requisições por nome de arquivo
+// quando o hostname já é conhecido mas o path identifica a função específica.
+// Útil pra distinguir login flow vs game API vs telemetry no inspector log.
+var KNOWN_PATH_SIGNATURES = [
+  {
+    pattern: /ScriptLoginManager/i,
+    type: 'auth',
+    label: 'ScriptLoginManager (login form JS)'
+  },
+  {
+    pattern: /Scriptpad-zeropadding/i,
+    type: 'auth',
+    label: 'Scriptpad zeropadding (login crypto)'
+  },
+  {
+    pattern: /query_svr_info\.fcgi/i,
+    type: 'game',
+    label: 'Server info query (svr_id)'
+  },
+  {
+    pattern: /oss_report\.fcgi/i,
+    type: 'telemetry',
+    label: 'iMSDK telemetry (BLOCKED)'
+  },
+  {
+    pattern: /crossdomain\.xml/i,
+    type: 'telemetry',
+    label: 'Flash policy (BLOCKED)'
+  }
+];
 
 /**
  * Cria um inspector pra uma session do Electron.
@@ -44,7 +82,8 @@ function create(session, profileId) {
     // agregados
     totalRequests: 0,
     byDomain: {},
-    byType: { auth: 0, api: 0, game: 0, site: 0, parent: 0, other: 0 },
+    // v5.9.10: adicionado tipo 'telemetry' (oss_report.fcgi, crossdomain.xml)
+    byType: { auth: 0, api: 0, game: 0, site: 0, parent: 0, telemetry: 0, other: 0 },
     capturedCookies: [],
     capturedJwts: [],
     startedAt: Date.now()
@@ -55,11 +94,30 @@ function create(session, profileId) {
 
   /**
    * Classifica uma URL nos tipos conhecidos.
+   * v5.9.10: agora também checa KNOWN_PATH_SIGNATURES pra classificar
+   * por nome de arquivo (ScriptLoginManager, query_svr_info, etc.) —
+   * mais específico que só o hostname.
    */
   function classify(url) {
     try {
       var u = new (require('url').URL)(url);
       var host = u.hostname;
+      var fullPath = u.pathname + u.search;
+
+      // Primeiro checa path signatures (mais específico)
+      for (var i = 0; i < KNOWN_PATH_SIGNATURES.length; i++) {
+        var sig = KNOWN_PATH_SIGNATURES[i];
+        if (sig.pattern.test(fullPath)) {
+          return {
+            domain: host,
+            path: u.pathname,
+            type: sig.type,
+            label: sig.label
+          };
+        }
+      }
+
+      // Depois checa hostname conhecido
       for (var domain in KNOWN_ENDPOINTS) {
         if (host === domain || host.endsWith('.' + domain)) {
           return Object.assign({ domain: host, path: u.pathname }, KNOWN_ENDPOINTS[domain]);
@@ -194,7 +252,7 @@ function create(session, profileId) {
     stats.capturedJwts = [];
     stats.totalRequests = 0;
     stats.byDomain = {};
-    stats.byType = { auth: 0, api: 0, game: 0, site: 0, parent: 0, other: 0 };
+    stats.byType = { auth: 0, api: 0, game: 0, site: 0, parent: 0, telemetry: 0, other: 0 };
     stats.startedAt = Date.now();
   }
 
@@ -214,5 +272,6 @@ function create(session, profileId) {
 
 module.exports = {
   create: create,
-  KNOWN_ENDPOINTS: KNOWN_ENDPOINTS
+  KNOWN_ENDPOINTS: KNOWN_ENDPOINTS,
+  KNOWN_PATH_SIGNATURES: KNOWN_PATH_SIGNATURES
 };

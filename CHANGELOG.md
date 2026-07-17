@@ -1,5 +1,46 @@
 # Changelog
 
+## [5.9.10] - 2026-07-17
+
+### Added — Inspector path signatures (classificação por nome de arquivo)
+- **Contexto**: análise de logs F12 do jogo rodando revelou 3 endpoints do
+  fluxo de login que não eram classificados pelo inspector:
+  - `ScriptLoginManager-1.2.php?param=...&md5=...` (2 chamadas, ~500ms total)
+  - `Scriptpad-zeropadding.js` (~109ms, library de crypto padding)
+  - `query_svr_info.fcgi?svr_id=842` (~110ms, XHR que busca info do servidor)
+- **Mudança**: `inspector.js` agora tem `KNOWN_PATH_SIGNATURES` (array de
+  regex) além de `KNOWN_ENDPOINTS` (hostname). A função `classify()` checa
+  path signatures PRIMEIRO (mais específico) antes do hostname. Novos tipos
+  classificados:
+  - `ScriptLoginManager` → type `auth`, label "ScriptLoginManager (login form JS)"
+  - `Scriptpad-zeropadding` → type `auth`, label "Scriptpad zeropadding (login crypto)"
+  - `query_svr_info.fcgi` → type `game`, label "Server info query (svr_id)"
+  - `oss_report.fcgi` → type `telemetry`, label "iMSDK telemetry (BLOCKED)"
+  - `crossdomain.xml` → type `telemetry`, label "Flash policy (BLOCKED)"
+- **Novo tipo `telemetry`** adicionado ao stats `byType` (era ausente antes).
+- `KNOWN_PATH_SIGNATURES` exportado no `module.exports` para testes.
+- **Benefício**: quando SHINOBI_DEBUG=1 está ativo, o log do inspector agora
+  distingue claramente login flow vs game API vs telemetry, facilitando
+  diagnosticar problemas de login e planejar o bot auto-play (Task 226).
+
+### Analysis — F12 logs do fluxo de login (sem bugs encontrados)
+- Logs F12 do user analisados: 227 requests, 19.1 MB transferidos.
+- **ScriptLoginManager-1.2.php** carrega mesmo com pre-auth via API (cookie
+  oas_user). NÃO é bug — a página do jogo inclui esse script para validação
+  de sessão. Com o cookie presente, o script detecta a sessão ativa e não
+  exibe o form de login. Bloquear seria arriscado (poderia quebrar a
+  detecção de sessão do JS do jogo).
+- **query_svr_info.fcgi?svr_id=842** é uma chamada legítima do jogo (busca
+  info do servidor). Candidato para cache futuro (5-10 min), mas requer
+  interceptação de response body via protocol.interceptBufferProtocol —
+  deixado como otimização futura de baixa prioridade (~110ms savings).
+- **Scriptpad-zeropadding.js** é uma library de crypto padding usada pelo
+  form de login. Com pre-auth, é carregada mas não usada. Bloquear é
+  arriscado (dependência JS do jogo). Deixado como está.
+- **Preload fix (v5.9.9) confirmado**: preload.js expõe
+  `{ enabled: DEBUG, isDebug: function }` em vez de boolean direto.
+  O crash `TypeError: Error processing argument at index 1` está resolvido.
+
 ## [5.9.9] - 2026-07-17
 
 ### Fixed — Preload crash (TypeError em exposeInMainWorld)
