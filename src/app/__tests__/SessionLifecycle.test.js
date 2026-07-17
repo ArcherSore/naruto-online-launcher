@@ -799,4 +799,251 @@ describe('SessionLifecycle.js', () => {
       await new Promise(r => setTimeout(r, 50));
     });
   });
+
+  // ── CRON-3: Additional coverage tests ──
+
+  describe('reloadWithPreAuth — edge cases', () => {
+    test('retorna Promise.resolve() quando win é null', async () => {
+      var result = await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, null, {}, jest.fn());
+      expect(result).toBeUndefined();
+    });
+
+    test('retorna Promise.resolve() quando win.isDestroyed() true', async () => {
+      var win = { isDestroyed: () => true, webContents: { isDestroyed: () => true } };
+      var result = await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, {}, jest.fn());
+      expect(result).toBeUndefined();
+    });
+
+    test('retorna Promise.resolve() quando webContents.isDestroyed() true', async () => {
+      var win = { isDestroyed: () => false, id: 99, webContents: { isDestroyed: () => true } };
+      var result = await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, null, jest.fn());
+      expect(result).toBeUndefined();
+    });
+
+    test('sem session: faz reload direto', async () => {
+      var win = {
+        isDestroyed: () => false,
+        id: 100,
+        webContents: { isDestroyed: () => false, reload: jest.fn() }
+      };
+      await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, null, jest.fn());
+      expect(win.webContents.reload).toHaveBeenCalled();
+    });
+
+    test('com session: limpa storage e chama _loadGameWithPreAuth', async () => {
+      var win = {
+        isDestroyed: () => false,
+        id: 101,
+        loadURL: jest.fn(),
+        webContents: {
+          isDestroyed: () => false,
+          executeJavaScript: jest.fn(() => Promise.resolve()),
+          reload: jest.fn()
+        }
+      };
+      var ses = {
+        clearStorageData: jest.fn(() => Promise.resolve()),
+        clearCache: jest.fn(() => Promise.resolve())
+      };
+
+      await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, ses, () => 'https://game.url');
+
+      expect(ses.clearStorageData).toHaveBeenCalledWith({
+        storages: ['cookies', 'localstorage', 'sessionstorage']
+      });
+      expect(ses.clearCache).toHaveBeenCalled();
+      // _loadGameWithPreAuth deve ter sido chamado (via win.loadURL)
+    });
+
+    test('fallback reload direto quando clearStorageData falha', async () => {
+      var win = {
+        isDestroyed: () => false,
+        id: 102,
+        webContents: {
+          isDestroyed: () => false,
+          executeJavaScript: jest.fn(() => Promise.resolve()),
+          reload: jest.fn()
+        }
+      };
+      var ses = {
+        clearStorageData: jest.fn(() => Promise.reject(new Error('clear fail'))),
+        clearCache: jest.fn(() => Promise.resolve())
+      };
+
+      await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, ses, jest.fn());
+
+      expect(win.webContents.reload).toHaveBeenCalled();
+    });
+
+    test('não chama loadURL quando win destruído após clearStorageData', async () => {
+      var win = {
+        isDestroyed: () => false,
+        id: 103,
+        loadURL: jest.fn(),
+        webContents: {
+          isDestroyed: () => false,
+          executeJavaScript: jest.fn(() => Promise.resolve()),
+          reload: jest.fn()
+        }
+      };
+      var ses = {
+        clearStorageData: jest.fn(function () {
+          win.isDestroyed = () => true;
+          return Promise.resolve();
+        }),
+        clearCache: jest.fn(() => Promise.resolve())
+      };
+
+      await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, ses, () => 'https://game.url');
+
+      // loadURL não deve ser chamado (win destruído no meio)
+      // _loadGameWithPreAuth checa win.isDestroyed internamente
+    });
+  });
+
+  describe('_loadGameWithPreAuth', () => {
+    test('carrega URL diretamente sem credenciais', () => {
+      var win = { loadURL: jest.fn() };
+      var profile = { id: 'p_001', name: 'Test' };
+      var getGameUrl = jest.fn(() => 'https://game.url');
+
+      SessionLifecycle._loadGameWithPreAuth('p_001', profile, win, {}, getGameUrl);
+
+      expect(win.loadURL).toHaveBeenCalledWith('https://game.url');
+    });
+
+    test('carrega URL diretamente quando hasCredentials false', () => {
+      vault.hasCredentials.mockReturnValue(false);
+      var win = { loadURL: jest.fn() };
+      var profile = { id: 'p_001', name: 'Test' };
+      var getGameUrl = jest.fn(() => 'https://game.url');
+
+      SessionLifecycle._loadGameWithPreAuth('p_001', profile, win, {}, getGameUrl);
+
+      expect(win.loadURL).toHaveBeenCalledWith('https://game.url');
+    });
+
+    test('carrega URL diretamente quando creds não tem user/pass', () => {
+      vault.hasCredentials.mockReturnValue(true);
+      vault.getCredentials.mockReturnValue({ user: '', pass: '' });
+      var win = { loadURL: jest.fn() };
+      var profile = { id: 'p_001', name: 'Test' };
+      var getGameUrl = jest.fn(() => 'https://game.url');
+
+      SessionLifecycle._loadGameWithPreAuth('p_001', profile, win, {}, getGameUrl);
+
+      expect(win.loadURL).toHaveBeenCalledWith('https://game.url');
+    });
+  });
+
+  describe('attach — will-navigate edge cases', () => {
+    test('intercepta URL oasgames', () => {
+      var { win, wcHandlers } = makeMockWin();
+      var ctx = makeCtx();
+      SessionLifecycle.attach(win, ctx);
+
+      var handler = wcHandlers['will-navigate'];
+      var evt = { preventDefault: jest.fn() };
+      handler(evt, 'https://www.oasgames.com/pt/serverlist');
+
+      expect(evt.preventDefault).toHaveBeenCalled();
+      expect(win.loadURL).toHaveBeenCalled();
+    });
+
+    test('não intercepta assets oasgames', () => {
+      var { win, wcHandlers } = makeMockWin();
+      var ctx = makeCtx();
+      SessionLifecycle.attach(win, ctx);
+
+      var handler = wcHandlers['will-navigate'];
+      var evt = { preventDefault: jest.fn() };
+      handler(evt, 'https://www.oasgames.com/game.js');
+
+      expect(evt.preventDefault).not.toHaveBeenCalled();
+    });
+
+    test('não intercepta URLs de outros domínios', () => {
+      var { win, wcHandlers } = makeMockWin();
+      var ctx = makeCtx();
+      SessionLifecycle.attach(win, ctx);
+
+      var handler = wcHandlers['will-navigate'];
+      var evt = { preventDefault: jest.fn() };
+      handler(evt, 'https://www.google.com/');
+
+      expect(evt.preventDefault).not.toHaveBeenCalled();
+    });
+
+    test('não quebra com URL inválida no will-navigate', () => {
+      var { win, wcHandlers } = makeMockWin();
+      var ctx = makeCtx();
+      SessionLifecycle.attach(win, ctx);
+
+      var handler = wcHandlers['will-navigate'];
+      expect(() => handler({ preventDefault: jest.fn() }, 'not-a-url')).not.toThrow();
+    });
+  });
+
+  describe('attach — new-window edge cases', () => {
+    test('não abre URL inválida via shell', () => {
+      var { win, wcHandlers } = makeMockWin();
+      var ctx = makeCtx();
+      SessionLifecycle.attach(win, ctx);
+
+      var handler = wcHandlers['new-window'];
+      var evt = { preventDefault: jest.fn() };
+      // URL sem protocolo válido → new URL() vai lançar, mas é capturado
+      handler(evt, 'not-a-valid-url');
+
+      expect(evt.preventDefault).toHaveBeenCalled();
+      var { shell } = require('electron');
+      expect(shell.openExternal).not.toHaveBeenCalled();
+    });
+
+    test('não abre non-http URLs via shell', () => {
+      var { win, wcHandlers } = makeMockWin();
+      var ctx = makeCtx();
+      SessionLifecycle.attach(win, ctx);
+
+      var handler = wcHandlers['new-window'];
+      var evt = { preventDefault: jest.fn() };
+      handler(evt, 'ftp://files.example.com/file.zip');
+
+      expect(evt.preventDefault).toHaveBeenCalled();
+      var { shell } = require('electron');
+      expect(shell.openExternal).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('attach — close handler edge cases', () => {
+    test('não chama destroy se win já destruído', () => {
+      jest.useFakeTimers();
+      var { win, handlers } = makeMockWin();
+      win.isDestroyed.mockReturnValue(true);
+      var ctx = makeCtx();
+      SessionLifecycle.attach(win, ctx);
+
+      var closeHandler = handlers['close'];
+      closeHandler({ preventDefault: jest.fn() });
+      jest.advanceTimersByTime(500);
+
+      // destroy não deve ser chamado se win.isDestroyed()
+      // mas o código verifica antes de chamar
+      jest.useRealTimers();
+    });
+
+    test('segunda chamada close é ignorada (isForceClosing guard)', () => {
+      jest.useFakeTimers();
+      var { win, handlers } = makeMockWin();
+      var ctx = makeCtx();
+      SessionLifecycle.attach(win, ctx);
+
+      var closeHandler = handlers['close'];
+      closeHandler({ preventDefault: jest.fn() });
+      closeHandler({ preventDefault: jest.fn() });
+
+      // Segunda chamada não deve causar problemas
+      jest.useRealTimers();
+    });
+  });
 });

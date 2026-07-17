@@ -1,5 +1,123 @@
 # Changelog
 
+## [5.9.22] - 2026-07-18
+
+### Fixed — Bug: `profile:update-notes` crash on null data
+- **IpcRouter null guard**: `typeof null === 'object'` in JS means the
+  `profile:update-notes` handler's validation (`typeof data !== 'object'`)
+  passed for `null`, then crashed on `data.id`. Added explicit
+  `data === null` check. Found via new IPC handler tests.
+
+### Improved — Test coverage (+93 tests, 1064 → 1157)
+- **IpcRouter.js**: 49% → 77% stmts. Added 80+ tests covering all
+  IPC handlers: profile CRUD, vault, tempmail, inspector, dev tools,
+  servers, i18n, events, memory, diagnostics, flash, window controls,
+  profiles export/import (including 2MB limit validation).
+- **SessionLifecycle.js**: 78% → 81% stmts. Added tests for
+  reloadWithPreAuth edge cases (null win, destroyed wc, no session,
+  fallback on error, win destroyed mid-reload), _loadGameWithPreAuth
+  (no creds, empty creds), will-navigate (oasgames host, invalid URL),
+  new-window (invalid URL, non-http protocol), close handler (destroyed
+  win, double-close guard).
+- **GcDaemon.js**: Added tests for collect return shape, busy path,
+  error resilience, start/stop idempotency.
+
+## [5.9.21] - 2026-07-18
+
+### Added — Accessibility (Electron renderer)
+- **Toggle switch ARIA**: `#setNotifications` now has `role="switch"`,
+  `aria-checked="true/false"`, `tabindex="0"`, and `keydown` handler for
+  Space/Enter activation. Previously a bare div with only onclick.
+- **Modal dialog ARIA**: `#profileModal` and `#vaultModal` now have
+  `role="dialog"`, `aria-modal="true"`, and `aria-labelledby` pointing to
+  their heading elements. Screen readers can now identify them as dialogs.
+- **Backdrop-click-to-close**: Clicking the dark overlay behind the
+  profile and vault modals now closes them (same UX as confirmOverlay).
+  Previously only the Cancel button or Escape key would close them.
+
+### Fixed — Accessibility (Electron renderer)
+- **`#togglePass` tabindex="-1"`**: Removed. The "show password" button was
+  unreachable via Tab key despite being a `<button>` with `:focus-visible`
+  CSS already in place. Now naturally tabbable.
+
+## [5.9.20] - 2026-07-18
+
+### Fixed — Stability: crash + memory leak in SessionLifecycle
+- **`reloadWithPreAuth` crash**: Added `webContents.isDestroyed()` guard before
+  accessing `webContents.reload()`. Previously, if the renderer process was
+  destroyed between the `ses` null-check and the reload call (race condition
+  during window close), Electron would throw an uncaught exception.
+- **`_reloadingWindows` Set leak**: The anti-race guard Set accumulated window
+  IDs that were never cleaned up when a window was destroyed. Added
+  `_reloadingWindows.delete(win.id)` in the `closed` event handler.
+
+### Audit — Placebo, edge cases, and optimization assessment
+- **GpuDetector.js**: No new placebo found. musl/nouveau/sandbox/PRIME
+  detection already correct. sysfs→lspci fallback chain correct.
+- **CpuOptimizer.js**: Idempotency guard + 50-entry cap correct. Nice retry
+  with fallback to 0 (no CAP_SYS_NICE needed) correct. Windows priority
+  mapping (ABOVE_NORMAL/NORMAL/BELOW_NORMAL) correct.
+- **flags.js**: `enable-accelerated-video-decode` and `VaapiVideoDecoder`
+  already documented as placebo for Flash PPAPI (harmless, kept).
+- **optimization.js**: `disableFrameRateLimit`, `disableSmoothScrolling`
+  already documented as placebo/partial in JSDoc.
+- **StallDetector.js**: Proper detach, backoff (3/10min), auto-stop (120s
+  continuous activity), pollInterval.unref all correct.
+- **GcDaemon.js**: Black-screen fix (skip active partitions, no shadercache),
+  throttle, anti-reentry all correct.
+- **Windows edge cases**: DPI awareness (Electron 11 handles), Game Mode
+  (requires native addon, not added), Server Core (PowerShell fails
+  gracefully, os.setPriority works without it), UAC (non-elevated affinity
+  fails gracefully).
+- **Linux distros**: Steam Deck (Arch-based, sysfs works), NixOS (lspci
+  may not be in PATH, sysfs fallback works), Flatpak (detected, logged).
+- **Rejected additions** (risk > benefit): GPU process priority (PID not
+  exposed in Electron 11), wmode (controlled by game website), reg query
+  fallback (fragile parsing), `SetGameMode` (native Windows API).
+
+## [5.9.19] - 2026-07-18
+
+### Added — Accessibility & keyboard polish (Electron renderer)
+- **`.btn:disabled` CSS rule**: Disabled buttons now show `opacity: 0.4`,
+  `cursor: not-allowed`, `pointer-events: none` (previously looked identical
+  to enabled buttons).
+- **Card keyboard activation**: Cards with `tabIndex=0` now respond to
+  Enter/Space keypress to launch the profile (previously only click worked).
+- **Nav items keyboard support**: Sidebar navigation tabs now have
+  `tabindex="0"`, `role="tab"`, `aria-selected`, and keydown handler for
+  Enter/Space activation.
+- **Escape key closes all overlays**: Expanded Escape handler to also close
+  `confirmOverlay`, `kbOverlay`, and `cmdkOverlay` (previously only closed
+  profileModal and vaultModal).
+- **Tooltip `:focus-visible`**: `[data-tip]` tooltips now appear on keyboard
+  focus, not just hover.
+- **Label `for` attributes**: Profile modal labels (Nome, Região, Servidor,
+  Usuário, Senha) now have `for` attributes linking to their inputs.
+- **`aria-selected` on nav**: Navigation handler toggles `aria-selected`
+  true/false alongside the `active` class.
+
+### Fixed — CSS & Next.js preview
+- **`--radius-md` undefined**: `.preset-card` referenced `var(--radius-md)`
+  which was never defined. Changed to `var(--radius)`.
+- **Indigo/blue in Next.js globals.css**: `.dark` theme had `--chart-1` and
+  `--sidebar-primary` set to `oklch(0.488 0.243 264.376)` (hue 264° =
+  blue/indigo, forbidden by project rules). Replaced with brand-orange
+  `oklch(0.705 0.213 47.604)`.
+- **`lang="en"` → `lang="pt-BR"`**: Next.js preview layout had wrong
+  language declaration (content is Portuguese).
+- **Removed unused `<Toaster />`**: layout.tsx imported and rendered shadcn
+  Toaster but never triggered it anywhere.
+- **Removed `'use client'`**: page.tsx had no client-side interactivity
+  (no state, effects, or event handlers). Now renders as Server Component.
+
+### Improved — Next.js preview accessibility
+- Added `aria-label` to download links (Linux/Windows) and GitHub link.
+- Added `focus-visible:ring-2 ring-[#ff8c00]/50` to all interactive links.
+- Added `aria-hidden="true"` to decorative SVG icons.
+- Footer now uses `mt-auto` pattern instead of `flex-1` on main
+  (more resilient if content changes).
+- Standardized badge padding to `px-3 py-1` and features grid gap to `gap-4`.
+
 ## [5.9.18] - 2026-07-18
 
 ### Fixed — Language validation bug (store.js)

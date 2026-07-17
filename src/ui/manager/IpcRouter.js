@@ -181,7 +181,7 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.on('profile:update-notes', function (_e, data) {
-    if (typeof data !== 'object' || typeof data.id !== 'string' || typeof data.notes !== 'string')
+    if (typeof data !== 'object' || data === null || typeof data.id !== 'string' || typeof data.notes !== 'string')
       return;
     store.update(data.id, { notes: data.notes.slice(0, 200) });
     _pushProfiles();

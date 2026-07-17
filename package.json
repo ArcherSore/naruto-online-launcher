@@ -1,6 +1,6 @@
 {
   "name": "naruto-online-launcher",
-  "version": "5.9.18",
+  "version": "5.9.22",
   "description": "Shinobi Launcher — Multi-account isolated Flash game launcher for Naruto Online. GC inteligente, multi-conta, cross-platform Linux+Windows.",
   "main": "src/main.js",
   "author": "Chrispsz",

@@ -19,6 +19,7 @@ jest.mock('../../../profiles/store', () => ({
   create: jest.fn(),
   update: jest.fn(),
   remove: jest.fn(),
+  reorder: jest.fn(),
   getStats: jest.fn(() => ({})),
   incrementLaunch: jest.fn(),
   addPlayTime: jest.fn(),
@@ -104,6 +105,10 @@ jest.mock('../../../network/inspector', () => ({
     getStats: jest.fn(() => null),
     clear: jest.fn()
   }))
+}));
+
+jest.mock('../../../app/FlashUpdater', () => ({
+  getCacheInfo: jest.fn(() => ({ version: '32.0.0.371', downloadDate: '2024-01-01' }))
 }));
 
 jest.mock('../../server-selector', () => ({
@@ -519,6 +524,641 @@ describe('IpcRouter.js', () => {
       }).not.toThrow();
       expect(store.incrementLaunch).toHaveBeenCalledWith('p_002');
       expect(store.recordLaunch).toHaveBeenCalledWith('p_002');
+    });
+
+    test('registra play time no onClosed callback', () => {
+      const gameLauncher = require('../../game-launcher');
+      gameLauncher.launchProfile.mockImplementation(function (id, onOpened, onClosed) {
+        if (onOpened) onOpened();
+        if (onClosed) onClosed();
+      });
+
+      IpcRouter.launchProfile('p_003');
+
+      // onOpened sets _launchTimes → onClosed reads it and calls addPlayTime
+      expect(store.addPlayTime).toHaveBeenCalledWith('p_003', expect.any(Number));
+    });
+  });
+
+  // ── CRON-3: Additional coverage tests ──
+
+  describe('profile:update handler', () => {
+    test('whitelist permite campos válidos e ignora campos internos', () => {
+      store.get.mockReturnValue({ id: 'p_001' });
+      const handler = onHandlers['profile:update'];
+
+      handler(
+        {},
+        {
+          id: 'p_001',
+          name: 'New Name',
+          server: 's2',
+          region: 'br',
+          language: 'pt',
+          color: '#ff0000',
+          notes: 'test notes',
+          tags: ['pvp'],
+          favorite: true,
+          notificationsEnabled: false,
+          hardwareProfile: 'low',
+          createdAt: '2020-01-01',
+          stats: { launches: 99 },
+          launchCount: 99,
+          lastPlayed: 999999
+        }
+      );
+
+      expect(store.update).toHaveBeenCalledWith(
+        'p_001',
+        expect.objectContaining({
+          name: 'New Name',
+          server: 's2',
+          region: 'br'
+        })
+      );
+      const safeArg = store.update.mock.calls[0][1];
+      expect(safeArg.createdAt).toBeUndefined();
+      expect(safeArg.stats).toBeUndefined();
+      expect(safeArg.launchCount).toBeUndefined();
+      expect(safeArg.lastPlayed).toBeUndefined();
+      expect(StateBroadcaster.pushProfiles).toHaveBeenCalled();
+    });
+
+    test('ignora data inválido (null)', () => {
+      const handler = onHandlers['profile:update'];
+      handler({}, null);
+      expect(store.update).not.toHaveBeenCalled();
+    });
+
+    test('ignora data sem id string', () => {
+      const handler = onHandlers['profile:update'];
+      handler({}, { id: 123 });
+      expect(store.update).not.toHaveBeenCalled();
+    });
+
+    test('ignora data que é string ao invés de object', () => {
+      const handler = onHandlers['profile:update'];
+      handler({}, 'not-an-object');
+      expect(store.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('profile:reorder handler', () => {
+    test('chama store.reorder com array', () => {
+      const handler = onHandlers['profile:reorder'];
+      handler({}, ['p_3', 'p_1', 'p_2']);
+      expect(store.reorder).toHaveBeenCalledWith(['p_3', 'p_1', 'p_2']);
+      expect(StateBroadcaster.pushProfiles).toHaveBeenCalled();
+    });
+
+    test('ignora input não-array', () => {
+      const handler = onHandlers['profile:reorder'];
+      handler({}, 'not-array');
+      expect(store.reorder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('profile:launch handler', () => {
+    test('envia toast de erro quando perfil não existe', () => {
+      store.get.mockReturnValue(null);
+      const handler = onHandlers['profile:launch'];
+      handler({}, 'nonexistent');
+      expect(ManagerWindow.send).toHaveBeenCalledWith(
+        'profile:toast',
+        expect.objectContaining({ type: 'error' })
+      );
+    });
+
+    test('envia toast de erro para id não-string', () => {
+      const handler = onHandlers['profile:launch'];
+      handler({}, 123);
+      expect(ManagerWindow.send).toHaveBeenCalledWith(
+        'profile:toast',
+        expect.objectContaining({ type: 'error' })
+      );
+    });
+
+    test('não lança quando perfil existe e handler registrado', () => {
+      store.get.mockReturnValue({ id: 'p_001' });
+      const handler = onHandlers['profile:launch'];
+      expect(() => handler({}, 'p_001')).not.toThrow();
+    });
+  });
+
+  describe('profile:get-stats handler', () => {
+    test('retorna stats do store', async () => {
+      store.getStats.mockReturnValue({ totalPlayMs: 3600000 });
+      const handler = handleHandlers['profile:get-stats'];
+      const result = await handler({}, 'p_001');
+      expect(store.getStats).toHaveBeenCalledWith('p_001');
+      expect(result).toEqual({ totalPlayMs: 3600000 });
+    });
+
+    test('retorna null para id não-string', async () => {
+      const handler = handleHandlers['profile:get-stats'];
+      const result = await handler({}, 123);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('profile:duplicate handler', () => {
+    test('duplica perfil com "(copia)" no nome', async () => {
+      store.get.mockReturnValue({
+        id: 'p_001',
+        name: 'Test',
+        server: 's1',
+        region: 'br',
+        language: 'pt',
+        notes: 'hi'
+      });
+      store.create.mockReturnValue({ id: 'p_new', name: 'Test (copia)' });
+
+      const handler = handleHandlers['profile:duplicate'];
+      const result = await handler({}, 'p_001');
+
+      expect(store.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Test (cópia)',
+          server: 's1',
+          region: 'br'
+        })
+      );
+      expect(result.ok).toBe(true);
+      expect(result.profile).toBeDefined();
+    });
+
+    test('retorna erro quando perfil não encontrado', async () => {
+      store.get.mockReturnValue(null);
+      const handler = handleHandlers['profile:duplicate'];
+      const result = await handler({}, 'nonexistent');
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('not found');
+    });
+
+    test('retorna erro quando limite de perfis atingido', async () => {
+      store.get.mockReturnValue({
+        id: 'p_001',
+        name: 'Test',
+        server: 's1',
+        region: 'br',
+        language: 'pt'
+      });
+      store.create.mockReturnValue(null);
+
+      const handler = handleHandlers['profile:duplicate'];
+      const result = await handler({}, 'p_001');
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('Max');
+    });
+
+    test('retorna erro para id não-string', async () => {
+      const handler = handleHandlers['profile:duplicate'];
+      const result = await handler({}, 123);
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('profile:set-favorite handler', () => {
+    test('favorita perfil', async () => {
+      store.update.mockReturnValue(true);
+      const handler = handleHandlers['profile:set-favorite'];
+      const result = await handler({}, 'p_001', true);
+      expect(store.update).toHaveBeenCalledWith('p_001', { favorite: true });
+      expect(result).toBe(true);
+    });
+
+    test('desfavorita perfil', async () => {
+      const handler = handleHandlers['profile:set-favorite'];
+      await handler({}, 'p_001', false);
+      expect(store.update).toHaveBeenCalledWith('p_001', { favorite: false });
+    });
+
+    test('retorna false para id não-string', async () => {
+      const handler = handleHandlers['profile:set-favorite'];
+      const result = await handler({}, null);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('profile:close handler', () => {
+    test('não lança sem handler registrado', () => {
+      const handler = onHandlers['profile:close'];
+      expect(() => handler({}, 'p_001')).not.toThrow();
+    });
+
+    test('ignora id não-string', () => {
+      const handler = onHandlers['profile:close'];
+      expect(() => handler({}, 123)).not.toThrow();
+    });
+  });
+
+  describe('auto-login:status handler', () => {
+    test('encaminha status com profileId string', () => {
+      const handler = onHandlers['auto-login:status'];
+      handler({}, { profileId: 'p_001', status: 'success' });
+      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', {
+        profileId: 'p_001',
+        status: 'success'
+      });
+    });
+
+    test('ignora data sem profileId string', () => {
+      const handler = onHandlers['auto-login:status'];
+      handler({}, null);
+      handler({}, { profileId: 123 });
+      handler({}, undefined);
+      expect(ManagerWindow.send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('game-window:status handler', () => {
+    test('encaminha status', () => {
+      const handler = onHandlers['game-window:status'];
+      handler({}, { profileId: 'p_001', open: true });
+      expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
+        profileId: 'p_001',
+        open: true
+      });
+    });
+
+    test('ignora data sem profileId string', () => {
+      const handler = onHandlers['game-window:status'];
+      handler({}, null);
+      expect(ManagerWindow.send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('profile:update-notes handler', () => {
+    test('atualiza notes com truncamento de 200 chars', () => {
+      const handler = onHandlers['profile:update-notes'];
+      handler({}, { id: 'p_001', notes: 'a'.repeat(300) });
+      expect(store.update).toHaveBeenCalledWith('p_001', {
+        notes: 'a'.repeat(200)
+      });
+      expect(StateBroadcaster.pushProfiles).toHaveBeenCalled();
+    });
+
+    test('ignora data sem id ou notes string', () => {
+      const handler = onHandlers['profile:update-notes'];
+      handler({}, null);
+      handler({}, { id: 'p_001' });
+      handler({}, { notes: 'test' });
+      handler({}, { id: 123, notes: 'test' });
+      expect(store.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('i18n handlers', () => {
+    test('i18n:get-lang retorna idioma', async () => {
+      const handler = handleHandlers['i18n:get-lang'];
+      const result = await handler();
+      expect(result).toBe('pt');
+    });
+
+    test('i18n:set-lang chama setLanguage', async () => {
+      const handler = handleHandlers['i18n:set-lang'];
+      await handler({}, 'en');
+      const i18n = require('../../../config/i18n');
+      expect(i18n.setLanguage).toHaveBeenCalledWith('en');
+    });
+
+    test('i18n:get-all retorna dicionário', async () => {
+      const handler = handleHandlers['i18n:get-all'];
+      await handler();
+      const i18n = require('../../../config/i18n');
+      expect(i18n.getAll).toHaveBeenCalled();
+    });
+
+    test('i18n:t retorna tradução da chave', async () => {
+      const handler = handleHandlers['i18n:t'];
+      const result = await handler({}, 'common.save');
+      expect(result).toBe('common.save');
+    });
+  });
+
+  describe('events handlers', () => {
+    test('events:get retorna eventos com region padrão br', async () => {
+      const handler = handleHandlers['events:get'];
+      await handler({}, undefined);
+      const et = require('../../../utils/EventTimers');
+      expect(et.getUpcoming).toHaveBeenCalledWith('br');
+    });
+
+    test('events:get passa region informada', async () => {
+      const handler = handleHandlers['events:get'];
+      await handler({}, 'latam');
+      const et = require('../../../utils/EventTimers');
+      expect(et.getUpcoming).toHaveBeenCalledWith('latam');
+    });
+
+    test('events:set-muted chama et.setMuted', () => {
+      const handler = onHandlers['events:set-muted'];
+      handler({}, true);
+      const et = require('../../../utils/EventTimers');
+      expect(et.setMuted).toHaveBeenCalledWith(true);
+    });
+  });
+
+  describe('memory:webview-stats handler', () => {
+    test('retorna stats de webview', async () => {
+      const handler = handleHandlers['memory:webview-stats'];
+      await handler();
+      const mg = require('../../../memory/guard');
+      expect(mg.getWebviewStats).toHaveBeenCalled();
+    });
+  });
+
+  describe('servers handlers', () => {
+    test('servers:fetch com region', async () => {
+      const handler = handleHandlers['servers:fetch'];
+      await handler({}, 'latam');
+      const ss = require('../../server-selector');
+      expect(ss.fetchServers).toHaveBeenCalledWith('latam');
+    });
+
+    test('servers:fetch default br quando sem region', async () => {
+      const handler = handleHandlers['servers:fetch'];
+      await handler({}, undefined);
+      const ss = require('../../server-selector');
+      expect(ss.fetchServers).toHaveBeenCalledWith('br');
+    });
+
+    test('servers:clear-cache chama clearCache', async () => {
+      const handler = handleHandlers['servers:clear-cache'];
+      const result = await handler({}, 'br');
+      const ss = require('../../server-selector');
+      expect(ss.clearCache).toHaveBeenCalledWith('br');
+      expect(result).toEqual({ ok: true });
+    });
+  });
+
+  describe('diagnostics:export handler', () => {
+    test('exporta zip e envia toast de sucesso', async () => {
+      const handler = handleHandlers['diagnostics:export'];
+      const result = await handler();
+      expect(result.ok).toBe(true);
+      expect(ManagerWindow.send).toHaveBeenCalledWith(
+        'profile:toast',
+        expect.objectContaining({ type: 'success' })
+      );
+    });
+
+    test('envia toast de erro quando export falha', async () => {
+      const diagnostics = require('../../../utils/diagnostics');
+      diagnostics.exportZip.mockRejectedValue(new Error('zip fail'));
+      const handler = handleHandlers['diagnostics:export'];
+      const result = await handler();
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('zip fail');
+      expect(ManagerWindow.send).toHaveBeenCalledWith(
+        'profile:toast',
+        expect.objectContaining({ type: 'error' })
+      );
+    });
+  });
+
+  describe('flash:cache-info handler', () => {
+    test('retorna info do cache do Flash', async () => {
+      const flashUpdater = require('../../../app/FlashUpdater');
+      flashUpdater.getCacheInfo.mockReturnValue({
+        version: '32.0.0.371',
+        downloadDate: '2024-01-01'
+      });
+      const handler = handleHandlers['flash:cache-info'];
+      const result = await handler();
+      expect(result).toEqual({ version: '32.0.0.371', downloadDate: '2024-01-01' });
+    });
+
+    test('retorna null version quando getCacheInfo retorna null', async () => {
+      const flashUpdater = require('../../../app/FlashUpdater');
+      flashUpdater.getCacheInfo.mockReturnValue(null);
+      const handler = handleHandlers['flash:cache-info'];
+      const result = await handler();
+      expect(result).toEqual({ version: null, downloadDate: null });
+    });
+
+    test('retorna null version quando getCacheInfo lança erro', async () => {
+      const flashUpdater = require('../../../app/FlashUpdater');
+      flashUpdater.getCacheInfo.mockImplementation(function () {
+        throw new Error('boom');
+      });
+      const handler = handleHandlers['flash:cache-info'];
+      const result = await handler();
+      expect(result).toEqual({ version: null, downloadDate: null });
+    });
+  });
+
+  describe('tempmail:login handler', () => {
+    test('login com sucesso', async () => {
+      const handler = handleHandlers['tempmail:login'];
+      const result = await handler({}, 'p_001', 'user@test.com', 'pass123');
+      expect(result.ok).toBe(true);
+      expect(ManagerWindow.send).toHaveBeenCalledWith(
+        'profile:toast',
+        expect.objectContaining({ type: 'success' })
+      );
+    });
+
+    test('retorna erro quando perfil não existe', async () => {
+      store.get.mockReturnValue(null);
+      const handler = handleHandlers['tempmail:login'];
+      const result = await handler({}, 'nonexistent', 'u', 'p');
+      expect(result.ok).toBe(false);
+    });
+
+    test('retorna erro quando login falha', async () => {
+      store.get.mockReturnValue({ id: 'p_001', name: 'Test' });
+      const apiLogin = require('../../../network/api-login');
+      apiLogin.loginAndInject.mockRejectedValue(new Error('auth fail'));
+      const handler = handleHandlers['tempmail:login'];
+      const result = await handler({}, 'p_001', 'u', 'p');
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('auth fail');
+    });
+  });
+
+  describe('tempmail:servers handler', () => {
+    test('retorna servidores recomendados', async () => {
+      tempmail.getRecommendedServers.mockResolvedValue([{ id: 1, name: 'Server 1' }]);
+      const handler = handleHandlers['tempmail:servers'];
+      const result = await handler({}, 12345, 'br');
+      expect(result.ok).toBe(true);
+      expect(result.data).toHaveLength(1);
+    });
+
+    test('retorna erro quando falha', async () => {
+      tempmail.getRecommendedServers.mockRejectedValue(new Error('network'));
+      const handler = handleHandlers['tempmail:servers'];
+      const result = await handler({}, 12345, 'br');
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('session:check handler', () => {
+    test('retorna status da sessão', async () => {
+      store.get.mockReturnValue({ id: 'p_001', name: 'Test' });
+      const handler = handleHandlers['session:check'];
+      const result = await handler({}, 'p_001');
+      expect(result.ok).toBe(true);
+    });
+
+    test('retorna erro quando perfil não existe', async () => {
+      store.get.mockReturnValue(null);
+      const handler = handleHandlers['session:check'];
+      const result = await handler({}, 'nonexistent');
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('inspector handlers', () => {
+    test('inspector:enable cria e ativa inspector', async () => {
+      store.get.mockReturnValue({ id: 'p_001' });
+      const handler = handleHandlers['inspector:enable'];
+      const result = await handler({}, 'p_001');
+      expect(result.ok).toBe(true);
+    });
+
+    test('inspector:enable retorna erro quando perfil não existe', async () => {
+      store.get.mockReturnValue(null);
+      const handler = handleHandlers['inspector:enable'];
+      const result = await handler({}, 'nonexistent');
+      expect(result.ok).toBe(false);
+    });
+
+    test('inspector:disable não lança sem inspector', async () => {
+      const handler = handleHandlers['inspector:disable'];
+      const result = await handler({}, 'nonexistent_profile');
+      expect(result.ok).toBe(true);
+    });
+
+    test('inspector:entries retorna empty quando não há inspector', async () => {
+      const handler = handleHandlers['inspector:entries'];
+      const result = await handler({}, 'nonexistent_profile');
+      expect(result.ok).toBe(true);
+      expect(result.data.entries).toEqual([]);
+    });
+
+    test('inspector:clear não lança sem inspector', async () => {
+      const handler = handleHandlers['inspector:clear'];
+      const result = await handler({}, 'nonexistent_profile');
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe('dev tools handlers', () => {
+    test('dev:get-page-source retorna erro quando janela não aberta', async () => {
+      const gameLauncher = require('../../game-launcher');
+      gameLauncher.getWebContents.mockReturnValue(null);
+      const handler = handleHandlers['dev:get-page-source'];
+      const result = await handler({}, 'p_001');
+      expect(result.ok).toBe(false);
+    });
+
+    test('dev:get-cookies retorna erro quando perfil não existe', async () => {
+      store.get.mockReturnValue(null);
+      const handler = handleHandlers['dev:get-cookies'];
+      const result = await handler({}, 'nonexistent');
+      expect(result.ok).toBe(false);
+    });
+
+    test('dev:reload-game retorna erro quando janela não aberta', async () => {
+      const gameLauncher = require('../../game-launcher');
+      gameLauncher.getWebContents.mockReturnValue(null);
+      const handler = handleHandlers['dev:reload-game'];
+      const result = await handler({}, 'p_001');
+      expect(result.ok).toBe(false);
+    });
+
+    test('dev:toggle-devtools retorna erro quando janela não aberta', async () => {
+      const gameLauncher = require('../../game-launcher');
+      gameLauncher.getWebContents.mockReturnValue(null);
+      const handler = handleHandlers['dev:toggle-devtools'];
+      const result = await handler({}, 'p_001');
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('profiles:export/import handlers', () => {
+    test('profiles:export retorna JSON exportado', async () => {
+      store.exportJSON.mockReturnValue('[{"id":"p_001"}]');
+      const handler = handleHandlers['profiles:export'];
+      const result = await handler();
+      expect(result).toBe('[{"id":"p_001"}]');
+    });
+
+    test('profiles:import importa JSON válido', async () => {
+      store.importJSON.mockReturnValue({ imported: 2, skipped: 1 });
+      const handler = handleHandlers['profiles:import'];
+      const result = await handler({}, '[{"id":"p_new"}]');
+      expect(store.importJSON).toHaveBeenCalledWith('[{"id":"p_new"}]');
+      expect(result.imported).toBe(2);
+      expect(StateBroadcaster.pushProfiles).toHaveBeenCalled();
+    });
+
+    test('profiles:import rejeita string muito longa (> 2MB)', async () => {
+      const handler = handleHandlers['profiles:import'];
+      var bigStr = 'x'.repeat(2 * 1024 * 1024 + 1);
+      var result = await handler({}, bigStr);
+      expect(result.error).toContain('Invalid or too large');
+    });
+
+    test('profiles:import rejeita input não-string', async () => {
+      const handler = handleHandlers['profiles:import'];
+      var result = await handler({}, 123);
+      expect(result.error).toContain('Invalid or too large');
+    });
+  });
+
+  describe('window handlers', () => {
+    test('window:minimize não lança sem janela', () => {
+      const handler = onHandlers['window:minimize'];
+      expect(() => handler({})).not.toThrow();
+    });
+
+    test('window:toggle-always-on-top com on=boolean', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue({
+        isDestroyed: function () {
+          return false;
+        },
+        isAlwaysOnTop: function () {
+          return false;
+        },
+        setAlwaysOnTop: jest.fn()
+      });
+      const handler = handleHandlers['window:toggle-always-on-top'];
+      var result = await handler({}, true);
+      expect(result.ok).toBe(true);
+      expect(result.alwaysOnTop).toBe(true);
+    });
+
+    test('window:toggle-always-on-top sem janela retorna erro', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue(null);
+      const handler = handleHandlers['window:toggle-always-on-top'];
+      var result = await handler({}, true);
+      expect(result.ok).toBe(false);
+    });
+
+    test('window:get-always-on-top sem janela retorna false', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue(null);
+      const handler = handleHandlers['window:get-always-on-top'];
+      var result = await handler();
+      expect(result).toBe(false);
+    });
+
+    test('window:toggle-maximize sem janela retorna null', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue(null);
+      const handler = handleHandlers['window:toggle-maximize'];
+      var result = await handler();
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('profile:get handler', () => {
+    test('retorna perfil por id', async () => {
+      store.get.mockReturnValue({ id: 'p_001', name: 'Test' });
+      const handler = handleHandlers['profile:get'];
+      var result = await handler({}, 'p_001');
+      expect(result).toEqual({ id: 'p_001', name: 'Test' });
     });
   });
 });
