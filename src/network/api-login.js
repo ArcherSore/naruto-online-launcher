@@ -113,7 +113,7 @@ async function checkSession(session) {
  * @returns {Promise<{renewed:boolean, loginKey:string|null, expiresAt:number}>}
  */
 async function renewIfNeeded(session, email, password, thresholdSeconds) {
-  thresholdSeconds = thresholdSeconds || 300; // 5 min default
+  thresholdSeconds = thresholdSeconds != null ? thresholdSeconds : 300; // 5 min default
   const status = await checkSession(session);
   if (status.valid && status.expiresInSeconds > thresholdSeconds) {
     return { renewed: false, loginKey: null, expiresAt: 0 };

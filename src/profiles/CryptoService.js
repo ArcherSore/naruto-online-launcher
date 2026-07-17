@@ -178,6 +178,13 @@ function importEncryptedBackup(encryptedBase64, password) {
     throw new Error('Schema do backup inválido: perfis não é array');
   }
 
+  // v5.9.15: Validate credentials is a non-null object when present
+  if (payload.credentials !== undefined && payload.credentials !== null) {
+    if (typeof payload.credentials !== 'object' || Array.isArray(payload.credentials)) {
+      throw new Error('Schema do backup inválido: credenciais não é objeto');
+    }
+  }
+
   return payload;
 }
 

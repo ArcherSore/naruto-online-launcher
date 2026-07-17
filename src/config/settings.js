@@ -72,6 +72,13 @@ function loadConfig() {
       return validateConfig({});
     }
 
+    // v5.9.15: Reject unreasonably large config files (prevent OOM on corruption)
+    var stat = fs.statSync(configPath);
+    if (stat.size > 1 * 1024 * 1024) {
+      logger.error('Config file too large (' + stat.size + ' bytes), using defaults');
+      return validateConfig({});
+    }
+
     const rawContent = fs.readFileSync(configPath, 'utf8');
     let rawConfig;
 

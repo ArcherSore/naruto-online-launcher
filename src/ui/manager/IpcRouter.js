@@ -15,6 +15,7 @@
 const { ipcMain, dialog, session } = require('electron');
 const fs = require('fs');
 const logger = require('../../utils/logger');
+const { isValidRegion } = require('../../config/regions');
 const store = require('../../profiles/store');
 const mg = require('../../memory/guard');
 const et = require('../../utils/EventTimers');
@@ -102,7 +103,18 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.on('profile:update', function (_e, data) {
-    store.update(data.id, data);
+    if (typeof data !== 'object' || data === null || typeof data.id !== 'string') return;
+    // v5.9.15: Whitelist updatable fields to prevent renderer from overwriting
+    // internal fields (id, createdAt, stats, launchCount, lastPlayed, etc.)
+    const ALLOWED = [
+      'name', 'server', 'region', 'language', 'color', 'notes',
+      'tags', 'favorite', 'notificationsEnabled', 'hardwareProfile'
+    ];
+    var safe = { id: data.id };
+    for (var i = 0; i < ALLOWED.length; i++) {
+      if (data[ALLOWED[i]] !== undefined) safe[ALLOWED[i]] = data[ALLOWED[i]];
+    }
+    store.update(safe.id, safe);
     _pushProfiles();
     _pushEvents();
   });
@@ -286,7 +298,7 @@ function registerIpcHandlers(handlers) {
       const profile = store.create({
         name: opts.name || 'Player ' + result.game.nickname,
         server: opts.server || '',
-        region: opts.region || 'br',
+        region: isValidRegion(opts.region) ? opts.region : 'br',
         language: opts.language || 'pt',
         notificationsEnabled: opts.notificationsEnabled !== false
       });
