@@ -1,5 +1,35 @@
 # Changelog
 
+## [5.9.15] - 2026-07-18
+
+### Fixed — Coverage provider (jest.config.js)
+- Switched `coverageProvider` from `babel` to `v8`. The babel provider wraps
+  modules during instrumentation, breaking `jest.mock` identity for
+  electron/electron-log in `tests/setup.js`. This caused 298/789 tests to
+  fail under `--coverage`. V8 provider uses built-in VM coverage without
+  source transforms — all 31 suites now pass with coverage enabled.
+
+### Fixed — Security hardening (6 issues)
+- **SEC-04**: Whitelisted `profile:update` IPC fields — renderer can no longer
+  overwrite internal fields (id, createdAt, stats, launchCount, etc.)
+- **SEC-06**: Fixed stale comment in `preload.js` that incorrectly claimed
+  `launcher:get-version` was removed (handler IS active in main.js)
+- **SEC-07**: Added `isValidRegion()` validation in `tempmail:create`
+- **SEC-08**: Added 1MB file size check on `config.json` read (prevent OOM)
+- **SEC-15**: Added credentials structure validation in
+  `CryptoService.importEncryptedBackup`
+- **TYPE-05**: Fixed `falsy||default` anti-pattern in `api-login.renewIfNeeded`
+
+### Changed — Code quality
+- **DUP-01**: Extracted `_getWin()` helper in IpcRouter.js — replaces 7x
+  repeated `ManagerWindow.getManagerWindow()` + `isDestroyed()` guard
+- **DUP-02**: Extracted `_clearEntryTimers(entry)` in SessionLifecycle.js —
+  replaces 2x duplicated clearTimeout blocks
+- **JSDoc**: Added documentation to 12 public functions across ProfileVault,
+  Launcher, profiles/manager, flags.js
+- **TYPE**: Added IPC input validation for `profile:launch-timeline` (positive
+  number) and `profiles:import` (string + 2MB limit)
+
 ## [5.0.0] - 2026-07-14
 
 ### Changed — Refatoração SOLID + Clean Code (Fase 3, Decisão C)
