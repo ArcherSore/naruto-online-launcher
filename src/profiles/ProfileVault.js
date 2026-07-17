@@ -61,6 +61,10 @@ function _decryptWithMachineKey(payload) {
   }
 }
 
+/**
+ * Lazily loads the vault from disk into memory cache.
+ * No-op if already loaded.
+ */
 function _ensureLoaded() {
   if (_store !== null) return;
   const file = _getVaultPath();
@@ -80,6 +84,10 @@ function _ensureLoaded() {
   }
 }
 
+/**
+ * Persists the in-memory vault to disk (atomic write via tmp+rename).
+ * @returns {boolean} true if saved successfully
+ */
 function _persist() {
   _ensureLoaded();
   const file = _getVaultPath();
@@ -264,6 +272,10 @@ function buildAutoLoginScript(user, pass) {
   );
 }
 
+/**
+ * Register a callback invoked after the vault is persisted.
+ * @param {Function} cb - callback (no arguments)
+ */
 function onChange(cb) {
   if (typeof cb === 'function') _listeners.push(cb);
 }

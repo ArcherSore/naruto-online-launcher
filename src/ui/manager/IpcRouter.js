@@ -160,7 +160,8 @@ function registerIpcHandlers(handlers) {
 
   // v5.5: Launch timeline (7-day activity chart data)
   ipcMain.handle('profile:launch-timeline', function (_e, days) {
-    return store.getLaunchTimeline(days || 7);
+    var d = typeof days === 'number' && days > 0 ? days : 7;
+    return store.getLaunchTimeline(d);
   });
   ipcMain.handle('profile:clear-launch-log', function () {
     store.clearLaunchLog();
@@ -526,6 +527,9 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('profiles:import', function (_e, jsonStr) {
+    if (typeof jsonStr !== 'string' || jsonStr.length > 2 * 1024 * 1024) {
+      return { imported: 0, error: 'Invalid or too large import data' };
+    }
     const res = store.importJSON(jsonStr);
     _pushProfiles();
     _pushEvents();

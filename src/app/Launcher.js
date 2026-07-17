@@ -63,6 +63,10 @@ function hasOpenWindows() {
   return false;
 }
 
+/**
+ * Resolve the application icon path (packaged > dev fallback).
+ * @returns {string} absolute path to icon.png
+ */
 function resolveIconPath() {
   const fs = require('fs');
   const packaged = path.join(process.resourcesPath, 'icon.png');
@@ -205,6 +209,10 @@ function launchProfile(profileId, onOpened, onClosed) {
   );
 }
 
+/**
+ * Focus (show + raise) a game window by profile ID.
+ * @param {string} profileId
+ */
 function focusProfile(profileId) {
   if (!gameWindows.has(profileId)) return;
   const entry = gameWindows.get(profileId);
@@ -214,18 +222,32 @@ function focusProfile(profileId) {
   }
 }
 
+/**
+ * Close a game window by profile ID (triggers close handler).
+ * @param {string} profileId
+ */
 function closeProfile(profileId) {
   if (!gameWindows.has(profileId)) return;
   const entry = gameWindows.get(profileId);
   if (entry.window && !entry.window.isDestroyed()) entry.window.close();
 }
 
+/**
+ * Check if a profile's game window is currently open and alive.
+ * @param {string} profileId
+ * @returns {boolean}
+ */
 function isProfileOpen(profileId) {
   if (!gameWindows.has(profileId)) return false;
   const entry = gameWindows.get(profileId);
   return !!(entry && entry.window && !entry.window.isDestroyed());
 }
 
+/**
+ * Get the WebContents for a profile's game window.
+ * @param {string} profileId
+ * @returns {Electron.WebContents|null}
+ */
 function getWebContents(profileId) {
   if (!gameWindows.has(profileId)) return null;
   const entry = gameWindows.get(profileId);

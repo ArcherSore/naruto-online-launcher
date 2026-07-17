@@ -291,10 +291,19 @@ function hasCredentials(profileId) {
 
 // ── Import/Export ──
 
+/**
+ * Export all profiles as a JSON string.
+ * @returns {string} JSON array of profiles
+ */
 function exportAll() {
   return store.exportJSON();
 }
 
+/**
+ * Import profiles from a JSON string (replaces existing profiles).
+ * @param {string} jsonStr - JSON array of profile objects
+ * @returns {{imported: number}} import result
+ */
 function importAll(jsonStr) {
   const result = store.importJSON(jsonStr);
   _notify();

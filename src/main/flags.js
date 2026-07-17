@@ -25,6 +25,11 @@ const _enabled = new Set(['VizDisplayCompositor']);
 const _jsFlags = ['--expose-gc'];
 let _applied = false;
 
+/**
+ * Compute the V8 heap size in MB based on available RAM.
+ * @param {boolean} [forceBatata=false] - Force low-RAM mode
+ * @returns {number} heap size in MB
+ */
 function _computeHeapMB(forceBatata) {
   const low = forceBatata || TOTAL_RAM_GB < 4;
   if (low) return 384;
