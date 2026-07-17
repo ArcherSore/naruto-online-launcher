@@ -34,7 +34,8 @@ jest.mock('../../network/cookies', () => ({
 }));
 
 jest.mock('../SessionLifecycle', () => ({
-  attach: jest.fn()
+  attach: jest.fn(),
+  reloadWithPreAuth: jest.fn()
 }));
 
 jest.mock('../../ui/manager/KeyboardShortcuts', () => ({
@@ -226,13 +227,16 @@ describe('Launcher.js', () => {
       );
     });
 
-    test('anexa KeyboardShortcuts', () => {
+    test('anexa KeyboardShortcuts com callback onClearLogin (F5 pré-auth)', () => {
+      // v5.9.7: F5 agora delega pro callback em vez de fazer reload direto,
+      // pra pré-autenticar via API antes de recarregar (igual ao Play).
       launchAndTrack('p_001');
 
       expect(KeyboardShortcuts.attach).toHaveBeenCalledWith(
         bwMock.win,
         'TestProfile',
-        bwMock.wc.session
+        bwMock.wc.session,
+        expect.any(Function)
       );
     });
 
@@ -361,6 +365,52 @@ describe('Launcher.js', () => {
       expect(entry).toHaveProperty('autoLoginTimer');
       expect(entry).toHaveProperty('failLoadRetry');
       expect(entry).toHaveProperty('formInjectAttempts');
+    });
+  });
+
+  describe('reloadWithPreAuth (v5.9.7)', () => {
+    test('exporta reloadWithPreAuth como função', () => {
+      expect(typeof Launcher.reloadWithPreAuth).toBe('function');
+    });
+
+    test('não lança se perfil não está aberto', () => {
+      expect(() => Launcher.reloadWithPreAuth('nonexistent')).not.toThrow();
+      expect(SessionLifecycle.reloadWithPreAuth).not.toHaveBeenCalled();
+    });
+
+    test('delega pro SessionLifecycle.reloadWithPreAuth com perfil + win + session', () => {
+      launchAndTrack('p_001');
+      SessionLifecycle.reloadWithPreAuth.mockClear();
+
+      Launcher.reloadWithPreAuth('p_001');
+
+      expect(SessionLifecycle.reloadWithPreAuth).toHaveBeenCalledTimes(1);
+      // Args: (profileId, profile, win, ses, getGameUrl)
+      const args = SessionLifecycle.reloadWithPreAuth.mock.calls[0];
+      expect(args[0]).toBe('p_001');
+      expect(args[1]).toEqual(expect.objectContaining({ id: 'p_001' }));
+      expect(args[2]).toBe(bwMock.win);
+      expect(args[3]).toBe(bwMock.wc.session);
+      expect(typeof args[4]).toBe('function'); // getGameUrl
+    });
+
+    test('não chama SessionLifecycle se a janela foi destruída', () => {
+      launchAndTrack('p_001');
+      bwMock.win.isDestroyed.mockReturnValue(true);
+      SessionLifecycle.reloadWithPreAuth.mockClear();
+
+      Launcher.reloadWithPreAuth('p_001');
+
+      expect(SessionLifecycle.reloadWithPreAuth).not.toHaveBeenCalled();
+    });
+
+    test('não chama SessionLifecycle se perfil não está no store', () => {
+      launchAndTrack('p_001');
+      store.get.mockReturnValueOnce(null); // perfil sumiu do store
+      SessionLifecycle.reloadWithPreAuth.mockClear();
+
+      expect(() => Launcher.reloadWithPreAuth('p_001')).not.toThrow();
+      expect(SessionLifecycle.reloadWithPreAuth).not.toHaveBeenCalled();
     });
   });
 });

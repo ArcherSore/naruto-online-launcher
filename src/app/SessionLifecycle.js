@@ -479,9 +479,66 @@ function attach(win, ctx) {
   if (_renewTimer.unref) _renewTimer.unref();
 }
 
+/**
+ * Recarrega a página do jogo com pré-autenticação (igual ao fluxo do Play).
+ *
+ * Diferente de um reload cru, este método:
+ *   1. Limpa cookies + localStorage + sessionStorage + cache da partition
+ *   2. Pré-autentica via apiLogin.loginAndInject() ANTES de recarregar
+ *      → o cookie oas_user já vem setado → servidor redireciona direto pro jogo,
+ *        sem mostrar a tela de login do Naruto Online (email ficaria visível).
+ *
+ * Se o perfil NÃO tem credenciais no vault, faz só o reload direto (não há como
+ * pré-autenticar). Se o apiLogin falha, faz fallback pro loadURL simples (o
+ * form-injection auto-login via did-finish-load cuida do login depois).
+ *
+ * @param {string} profileId
+ * @param {Object} profile
+ * @param {Electron.BrowserWindow} win
+ * @param {Electron.Session} ses
+ * @param {Function} getGameUrl
+ * @returns {Promise<void>}
+ */
+function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
+  if (!win || win.isDestroyed()) return Promise.resolve();
+  if (!ses) {
+    // Sem session: não há o que limpar, só recarrega.
+    win.webContents.reload();
+    return Promise.resolve();
+  }
+
+  logger.info('F5 reloadWithPreAuth: limpando login + pré-autenticando "' + profile.name + '"');
+
+  // Limpa onbeforeunload/onunload antes (igual ao reload antigo fazia).
+  var clearJs = win.webContents
+    .executeJavaScript('window.onbeforeunload = null; window.onunload = null;')
+    .catch(function () {});
+
+  var clearStorage = ses.clearStorageData({
+    storages: ['cookies', 'localstorage', 'sessionstorage']
+  });
+  var clearCache = ses.clearCache();
+
+  return Promise.all([clearJs, clearStorage, clearCache])
+    .then(function () {
+      if (win.isDestroyed()) return;
+      logger.info('F5 reloadWithPreAuth: login limpo, pré-autenticando — ' + profile.name);
+      // Reutiliza o MESMO fluxo do Play (apiLogin.loginAndInject antes de loadURL).
+      _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl);
+    })
+    .catch(function (e) {
+      if (win.isDestroyed()) return;
+      logger.warn('F5 reloadWithPreAuth: erro ao limpar — fallback reload direto: ' + e.message);
+      // Reset do entry formInjectAttempts não é necessário aqui (did-finish-load cuida).
+      win.webContents.reload();
+    });
+}
+
 module.exports = {
   attach: attach,
+  reloadWithPreAuth: reloadWithPreAuth,
   // expostos p/ testes
   _sendWindowStatus: _sendWindowStatus,
-  _sendAutoLoginResult: _sendAutoLoginResult
+  _sendAutoLoginResult: _sendAutoLoginResult,
+  _loadGameWithPreAuth: _loadGameWithPreAuth
 };
