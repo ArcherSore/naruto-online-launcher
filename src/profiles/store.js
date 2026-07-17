@@ -68,7 +68,8 @@ function isValidProfile(p) {
   if (typeof p.server !== 'string' || p.server.length > 20) return false;
   if (!['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(p.region)) return false;
   // v3.4: language opcional (default 'pt' para retrocompatibilidade)
-  if (p.language !== undefined && !['pt', 'en'].includes(p.language)) return false;
+  // v4.0.1 FIX: sync with settings.js — i18n supports 6 languages
+  if (p.language !== undefined && !['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(p.language)) return false;
   // v3.4: notificationsEnabled opcional (default true para retrocompatibilidade)
   if (p.notificationsEnabled !== undefined && typeof p.notificationsEnabled !== 'boolean')
     return false;
@@ -322,7 +323,8 @@ function create(opts) {
     region: ['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(opts.region)
       ? opts.region
       : 'br',
-    language: ['pt', 'en'].includes(opts.language) ? opts.language : 'pt',
+    // v4.0.1 FIX: sync with settings.js — i18n supports 6 languages
+    language: ['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(opts.language) ? opts.language : 'pt',
     notificationsEnabled:
       typeof opts.notificationsEnabled === 'boolean' ? opts.notificationsEnabled : true,
     color:
@@ -371,7 +373,8 @@ function update(id, updates) {
   if (typeof updates.server === 'string') p.server = updates.server.slice(0, 20).trim();
   if (['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(updates.region))
     p.region = updates.region;
-  if (['pt', 'en'].includes(updates.language)) p.language = updates.language;
+  // v4.0.1 FIX: sync with settings.js — i18n supports 6 languages
+  if (['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(updates.language)) p.language = updates.language;
   if (typeof updates.notificationsEnabled === 'boolean')
     p.notificationsEnabled = updates.notificationsEnabled;
   if (typeof updates.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(updates.color))

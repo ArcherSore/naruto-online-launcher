@@ -158,8 +158,15 @@ describe('store.js', () => {
     });
 
     test('defaults language to pt for invalid language', () => {
-      const p = store.create({ language: 'fr' });
+      const p = store.create({ language: 'xyz' });
       expect(p.language).toBe('pt');
+    });
+
+    test('accepts all 6 supported languages', () => {
+      ['pt', 'en', 'de', 'es', 'pl', 'fr'].forEach((lang) => {
+        const p = store.create({ language: lang });
+        expect(p.language).toBe(lang);
+      });
     });
 
     test('uses provided color if valid hex', () => {

@@ -242,14 +242,26 @@ function formatUserTime(ms) {
   return h + ':' + m;
 }
 
+/**
+ * Check if event notifications are globally muted.
+ * @returns {boolean}
+ */
 function isMuted() {
   return _muted;
 }
+/**
+ * Set global mute state for event notifications.
+ * @param {boolean} m - true to mute, false to unmute
+ */
 function setMuted(m) {
   _muted = !!m;
   logger.info('EventTimers: notificações ' + (_muted ? 'MUTADAS' : 'ativas'));
 }
 
+/**
+ * Register a callback invoked when an event reminder fires.
+ * @param {Function} cb - callback(event)
+ */
 function onRemind(cb) {
   if (typeof cb === 'function') _remindListeners.push(cb);
 }
@@ -354,6 +366,9 @@ function start(activeRegions) {
   if (_timer.unref) _timer.unref();
 }
 
+/**
+ * Stop the event timer interval.
+ */
 function stop() {
   if (_timer) {
     clearInterval(_timer);

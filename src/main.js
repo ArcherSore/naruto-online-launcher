@@ -1,10 +1,9 @@
 /**
- * Shinobi Launcher — main.js v3.4.0
+ * Shinobi Launcher — main.js (thin bootstrap)
  *
- * ORQUESTRADOR PRINCIPAL (thin bootstrap)
+ * ORQUESTRADOR PRINCIPAL
  *
- * FILOSOFIA v3.4:
- *   Multi-região (BR/NA/EU/HK) com idioma por perfil (pt/en).
+ *   Multi-região (BR/NA/EU/HK/DE/ES/PL/FR) com idioma por perfil (pt/en/de/es/pl/fr).
  *   Backup criptografado AES-256-GCM + PBKDF2 com senha mestre.
  *   Telemetria removida v4.9.2 — zero tracking, logs ficam no disco.
  *   Exportador de diagnóstico em Configurações → Avançado (opt-in explícito).
@@ -14,13 +13,6 @@
  *   2. [top-level, antes de ready] main/flags.applyAll() ← ÚNICO lugar que toca commandLine
  *   3. [ready] subsystems: store.load, guard.start, eventTimers.startWithProfiles
  *   4. [ready] ui/controller.createManagerWindow()
- *
- * RECURSOS v3.4:
- *   - Multi-região: URL regional por perfil (BR/NA/EU/HK) + idioma (pt/en)
- *   - Backup criptografado: AES-256-GCM + PBKDF2 (200k iterações, SHA-512)
- *   - Telemetria deduplicada: 1 issue por tipo de crash/dia (comentários para reports adicionais)
- *   - EventTimers por perfil: notificationsEnabled flag (opt-out por conta)
- *   - Schema migration: perfis v1 → v2 automático (adiciona language + notificationsEnabled)
  *
  * ARQUITETURA:
  *   Electron 11.5.0 (ÚLTIMA com PPAPI Flash) + Clean Flash 34.0 bundled.
@@ -99,7 +91,6 @@ const profileStore = require('./profiles/store');
 const profileManager = require('./profiles/manager');
 const partition = require('./profiles/partition');
 const vault = require('./profiles/vault');
-// v4.9.1: crash reporter removido (era local-only, usuário não quer mais)
 const i18n = require('./config/i18n');
 
 let uiManager = null;
@@ -316,7 +307,6 @@ app.on('ready', function () {
   eventTimers.startWithProfiles(profileStore.getAll());
 
   // v3.3: SEM TRAY — app fecha quando todas as janelas fecham.
-  // v4.9.1: crash reporter removido — era só log local
 
   // ── v3.5: ONBOARDING — se firstBoot, mostra setup antes do manager ──
   if (config.firstBoot !== false) {
@@ -488,7 +478,6 @@ function _initManagerAndLaunch() {
       _persistConfig();
       return memoryGuard.isBatata();
     }
-    // v4.9.1: crash reporter removido do Settings
   });
 
   // v4.1: Register preload API handlers (game windows use narutoLauncher API)
@@ -523,7 +512,6 @@ app.on('gpu-process-crashed', function (event) {
   const reason = (event && event.reason) || 'unknown';
   const exitCode = (event && event.exitCode) || '?';
   logger.error('⚡ GPU process crashed — reason=' + reason + ' exitCode=' + exitCode);
-  // v4.9.1: crash reporter removido — só log
 });
 
 app.on('child-process-gone', function (event, details) {
@@ -535,7 +523,6 @@ app.on('child-process-gone', function (event, details) {
       ' exitCode=' +
       details.exitCode
   );
-  // v4.9.1: crash reporter removido — só log
 });
 
 app.on('will-quit', function () {

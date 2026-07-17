@@ -234,6 +234,9 @@ function start() {
   if (_timer.unref) _timer.unref();
 }
 
+/**
+ * Stop the GC daemon interval timer.
+ */
 function stop() {
   if (_timer) {
     clearInterval(_timer);

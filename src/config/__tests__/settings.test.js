@@ -1,9 +1,9 @@
 /**
  * Testes para src/config/settings.js
- * Nota: Este módulo depende de electron.app, então testamos a lógica de validação
+ * Cobertura: validateConfig, loadConfig, saveConfig
  */
 
-// Mock do electron
+// Mock do electron (local — este arquivo precisa de app.getPath)
 jest.mock('electron', () => ({
   app: {
     getPath: jest.fn(() => '/mock/userData')
@@ -11,13 +11,30 @@ jest.mock('electron', () => ({
 }));
 
 // Mock do fs
+const mockExistsSync = jest.fn();
+const mockStatSync = jest.fn();
+const mockReadFileSync = jest.fn();
+const mockWriteFileSync = jest.fn();
+const mockRenameSync = jest.fn();
+
 jest.mock('fs', () => ({
-  existsSync: jest.fn(() => false),
-  readFileSync: jest.fn(),
-  writeFileSync: jest.fn()
+  existsSync: mockExistsSync,
+  statSync: mockStatSync,
+  readFileSync: mockReadFileSync,
+  writeFileSync: mockWriteFileSync,
+  renameSync: mockRenameSync
 }));
 
-const { validateConfig } = require('../settings');
+const settings = require('../settings');
+const validateConfig = settings.validateConfig;
+const loadConfig = settings.loadConfig;
+const saveConfig = settings.saveConfig;
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockExistsSync.mockReturnValue(false);
+  mockStatSync.mockReturnValue({ size: 512 });
+});
 
 describe('settings.js - validateConfig', () => {
   test('retorna defaults para config vazia', () => {
@@ -59,12 +76,12 @@ describe('settings.js - validateConfig', () => {
 
   test('sanitiza região inválida', () => {
     const result = validateConfig({ region: 'invalid' });
-    expect(result.region).toBe('pt'); // fallback para default
+    expect(result.region).toBe('pt');
   });
 
   test('sanitiza perfil inválido', () => {
     const result = validateConfig({ hardwareProfile: 'invalid' });
-    expect(result.hardwareProfile).toBe('modern'); // fallback para default
+    expect(result.hardwareProfile).toBe('modern');
   });
 
   test('ignora propriedades desconhecidas', () => {
@@ -74,5 +91,260 @@ describe('settings.js - validateConfig', () => {
     });
     expect(result.region).toBe('fr');
     expect(result).not.toHaveProperty('unknownProp');
+  });
+
+  // ── v4.0.1: language field (6 languages) ──
+
+  test('default language é pt', () => {
+    expect(validateConfig({}).language).toBe('pt');
+  });
+
+  test('aceita todos 6 idiomas suportados', () => {
+    ['pt', 'en', 'de', 'es', 'pl', 'fr'].forEach((lang) => {
+      expect(validateConfig({ language: lang }).language).toBe(lang);
+    });
+  });
+
+  test('rejeita idioma inválido e usa pt como fallback', () => {
+    expect(validateConfig({ language: 'ru' }).language).toBe('pt');
+    expect(validateConfig({ language: 'ja' }).language).toBe('pt');
+    expect(validateConfig({ language: '' }).language).toBe('pt');
+    expect(validateConfig({ language: 123 }).language).toBe('pt');
+  });
+
+  // ── forceBatata ──
+
+  test('forceBatata true é preservado', () => {
+    expect(validateConfig({ forceBatata: true }).forceBatata).toBe(true);
+  });
+
+  test('forceBatata false é preservado', () => {
+    expect(validateConfig({ forceBatata: false }).forceBatata).toBe(false);
+  });
+
+  test('forceBatata undefined resulta undefined', () => {
+    expect(validateConfig({}).forceBatata).toBeUndefined();
+  });
+
+  test('forceBatata com valor truthy não-booleano resulta undefined', () => {
+    expect(validateConfig({ forceBatata: 'yes' }).forceBatata).toBeUndefined();
+    expect(validateConfig({ forceBatata: 1 }).forceBatata).toBeUndefined();
+  });
+
+  // ── mutedEvents ──
+
+  test('mutedEvents true é preservado', () => {
+    expect(validateConfig({ mutedEvents: true }).mutedEvents).toBe(true);
+  });
+
+  test('mutedEvents false (explícito) é false', () => {
+    expect(validateConfig({ mutedEvents: false }).mutedEvents).toBe(false);
+  });
+
+  test('mutedEvents undefined é false', () => {
+    expect(validateConfig({}).mutedEvents).toBe(false);
+  });
+
+  // ── windowBounds ──
+
+  test('windowBounds é preservado', () => {
+    const bounds = { x: 100, y: 200, width: 800, height: 600 };
+    expect(validateConfig({ windowBounds: bounds }).windowBounds).toEqual(bounds);
+  });
+
+  test('windowBounds null é null', () => {
+    expect(validateConfig({ windowBounds: null }).windowBounds).toBeNull();
+  });
+
+  test('windowBounds undefined é null', () => {
+    expect(validateConfig({}).windowBounds).toBeNull();
+  });
+
+  // ── firstBoot ──
+
+  test('firstBoot default é true', () => {
+    expect(validateConfig({}).firstBoot).toBe(true);
+  });
+
+  test('firstBoot false é preservado', () => {
+    expect(validateConfig({ firstBoot: false }).firstBoot).toBe(false);
+  });
+
+  test('firstBoot true é preservado', () => {
+    expect(validateConfig({ firstBoot: true }).firstBoot).toBe(true);
+  });
+
+  // ── advancedMode ──
+
+  test('advancedMode default é false', () => {
+    expect(validateConfig({}).advancedMode).toBe(false);
+  });
+
+  test('advancedMode true é preservado', () => {
+    expect(validateConfig({ advancedMode: true }).advancedMode).toBe(true);
+  });
+
+  test('advancedMode com valor não-booleano é false', () => {
+    expect(validateConfig({ advancedMode: 'yes' }).advancedMode).toBe(false);
+  });
+});
+
+describe('settings.js - loadConfig', () => {
+  test('retorna defaults quando arquivo não existe', () => {
+    mockExistsSync.mockReturnValue(false);
+    const config = loadConfig();
+    expect(config.region).toBe('pt');
+    expect(config.hardwareProfile).toBe('modern');
+  });
+
+  test('lê e valida config do arquivo', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      region: 'en',
+      hardwareProfile: 'legacy',
+      language: 'de',
+      advancedMode: true
+    }));
+    const config = loadConfig();
+    expect(config.region).toBe('en');
+    expect(config.hardwareProfile).toBe('legacy');
+    expect(config.language).toBe('de');
+    expect(config.advancedMode).toBe(true);
+  });
+
+  test('rejeita arquivo config > 1MB (OOM protection)', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockStatSync.mockReturnValue({ size: 2 * 1024 * 1024 }); // 2MB
+    const config = loadConfig();
+    expect(config.region).toBe('pt'); // fallback defaults
+    expect(mockReadFileSync).not.toHaveBeenCalled();
+  });
+
+  test('aceita arquivo config de exatamente 1MB', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockStatSync.mockReturnValue({ size: 1 * 1024 * 1024 }); // exactly 1MB
+    mockReadFileSync.mockReturnValue(JSON.stringify({ region: 'fr' }));
+    const config = loadConfig();
+    expect(config.region).toBe('fr');
+  });
+
+  test('retorna defaults para JSON inválido', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockStatSync.mockReturnValue({ size: 512 });
+    mockReadFileSync.mockReturnValue('not json{{{');
+    const config = loadConfig();
+    expect(config.region).toBe('pt');
+  });
+
+  test('retorna defaults quando readFileSync lança erro', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockStatSync.mockReturnValue({ size: 512 });
+    mockReadFileSync.mockImplementation(() => {
+      throw new Error('EACCES');
+    });
+    const config = loadConfig();
+    expect(config.region).toBe('pt');
+  });
+
+  test('sanitiza valores inválidos do arquivo', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockStatSync.mockReturnValue({ size: 512 });
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      region: 'invalid_region',
+      hardwareProfile: 'unknown_profile',
+      language: 'ru'
+    }));
+    const config = loadConfig();
+    expect(config.region).toBe('pt');
+    expect(config.hardwareProfile).toBe('modern');
+    expect(config.language).toBe('pt');
+  });
+});
+
+describe('settings.js - saveConfig', () => {
+  test('escreve config como JSON com indentação', () => {
+    const result = saveConfig({
+      region: 'br',
+      hardwareProfile: 'modern',
+      language: 'pt'
+    });
+    expect(result).toBe(true);
+    expect(mockWriteFileSync).toHaveBeenCalledTimes(1);
+    expect(mockRenameSync).toHaveBeenCalledTimes(1);
+
+    // Verifica que escreveu JSON válido
+    const written = mockWriteFileSync.mock.calls[0][1];
+    const parsed = JSON.parse(written);
+    expect(parsed.region).toBe('br');
+    expect(parsed.language).toBe('pt');
+  });
+
+  test('usa atomic write (tmp + rename)', () => {
+    saveConfig({ region: 'br', hardwareProfile: 'modern' });
+    const tmpPath = mockWriteFileSync.mock.calls[0][0];
+    const destPath = mockRenameSync.mock.calls[0][1];
+    expect(tmpPath).toMatch(/\.tmp$/);
+    expect(destPath).not.toMatch(/\.tmp$/);
+    // rename moves tmp → original
+    expect(mockRenameSync).toHaveBeenCalledWith(tmpPath, destPath);
+  });
+
+  test('retorna false em erro de escrita', () => {
+    mockWriteFileSync.mockImplementation(() => {
+      throw new Error('EACCES');
+    });
+    const result = saveConfig({ region: 'br' });
+    expect(result).toBe(false);
+  });
+
+  test('windowBounds null é serializado como null', () => {
+    saveConfig({
+      region: 'br',
+      hardwareProfile: 'modern',
+      windowBounds: null
+    });
+    const written = mockWriteFileSync.mock.calls[0][1];
+    const parsed = JSON.parse(written);
+    expect(parsed.windowBounds).toBeNull();
+  });
+
+  test('firstBoot false é preservado no save', () => {
+    saveConfig({
+      region: 'br',
+      hardwareProfile: 'modern',
+      firstBoot: false
+    });
+    const written = mockWriteFileSync.mock.calls[0][1];
+    const parsed = JSON.parse(written);
+    expect(parsed.firstBoot).toBe(false);
+  });
+
+  test('firstBoot true (default) é salvo como true', () => {
+    saveConfig({
+      region: 'br',
+      hardwareProfile: 'modern',
+      firstBoot: true
+    });
+    const written = mockWriteFileSync.mock.calls[0][1];
+    const parsed = JSON.parse(written);
+    expect(parsed.firstBoot).toBe(true);
+  });
+
+  test('language default pt é salvo corretamente', () => {
+    saveConfig({ region: 'br', hardwareProfile: 'modern' });
+    const written = mockWriteFileSync.mock.calls[0][1];
+    const parsed = JSON.parse(written);
+    expect(parsed.language).toBe('pt');
+  });
+
+  test('não inclui propriedades extras', () => {
+    saveConfig({
+      region: 'br',
+      hardwareProfile: 'modern',
+      extraField: 'should not be saved'
+    });
+    const written = mockWriteFileSync.mock.calls[0][1];
+    const parsed = JSON.parse(written);
+    expect(parsed).not.toHaveProperty('extraField');
   });
 });

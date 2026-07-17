@@ -1,5 +1,47 @@
 # Changelog
 
+## [5.9.18] - 2026-07-18
+
+### Fixed — Language validation bug (store.js)
+- **Critical**: `store.js` validated profile language against `['pt', 'en']`
+  in 3 places (isValidProfile, create, update) while `settings.js` and
+  `i18n.js` support 6 languages since v4.0.1. Profiles with de/es/pl/fr
+  language would be rejected or silently reset to 'pt'. Fixed all 3
+  occurrences to use `['pt', 'en', 'de', 'es', 'pl', 'fr']`.
+
+### Changed — Stale comment cleanup (main.js)
+- Updated main.js file header: removed outdated version (v3.4.0),
+  removed stale telemetry reference, updated region/language list to
+  current 8 regions + 6 languages.
+- Removed 5 redundant `// v4.9.1: crash reporter removido` comments
+  that referenced a feature removed 7 versions ago.
+
+### Added — 103 new tests (+14.1% coverage)
+- **settings.js** (52% → 100%): 36 new tests covering validateConfig
+  (language, forceBatata, mutedEvents, windowBounds, firstBoot,
+  advancedMode), loadConfig (file I/O, size limit, JSON parse error,
+  stat error), saveConfig (atomic write, error handling, serialization).
+- **diagnostics.js** (0% → 86.9%): 33 new tests covering _sanitize
+  (paths, tokens, emails, edge cases), _sanitizeObj (recursion,
+  depth limit, sensitive field redaction, arrays), _collectSystemInfo
+  (structure, sanitization), exportZip (cancel, success, error).
+- **inspector.js** (0% → 99.5%): 35 new tests covering create/enable/
+  disable, getEntries (filter by type/kind/domain), getStats (counters,
+  snapshot isolation), on/capture events, JWT extraction (dedup,
+  non-auth skip), URL classification, max entries FIFO.
+- **store.test.js**: Added test for all 6 supported languages.
+
+### Added — JSDoc on 5 exported functions
+- EventTimers.js: isMuted(), setMuted(), onRemind(), stop()
+- GcDaemon.js: stop()
+
+### Improved — Coverage summary
+- Overall: 71.02% → 78.34% stmts (+7.3pts)
+- Branch: 78.76% → 80.76% (+2pts)
+- Functions: 83.46% → 86.51% (+3pts)
+- Test count: 789 → 892 (+103)
+- Test suites: 31 → 33 (+2)
+
 ## [5.9.17] - 2026-07-18
 
 ### Changed — Accessibility (semantic HTML + ARIA)
