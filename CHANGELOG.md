@@ -1,5 +1,37 @@
 # Changelog
 
+## [5.9.11] - 2026-07-17
+
+### Added — StallDetector: auto-F5 quando SWF essencial falha (login trava em 14%)
+- **Problema reportado pelo user**: "seria interessante um auto f5 quando um
+  sfw essencial nao baixar, pq acontece as vezes do login travar em 14% e dar
+  erro de conexao". O preloader do Flash NÃO tem retry — quando um SWF falha
+  no download (network hiccup, timeout, Mixed Content), o loader fica preso
+  forever naquela porcentagem. O usuário precisa fechar e reabrir manualmente.
+- **Solução**: novo módulo `src/app/StallDetector.js` que monitora a session
+  via `webRequest.onCompleted` + `onErrorOccurred`. Quando detecta:
+  - **(A) Burst de falhas SWF**: 2+ SWFs falhando em 60s → servidor instável →
+    trigger auto-reload
+  - **(B) Inatividade de rede**: 45s sem nenhuma atividade durante o loading →
+    loader travado → trigger auto-reload
+  - O auto-reload usa `reloadWithPreAuth` (mesmo fluxo do F5 v5.9.7: limpa
+    cookies + pré-autentica via API antes de reload → tela de login não
+    aparece, email não fica visível)
+- **Backoff**: max 3 auto-reloads em 10 min por perfil (evita loop infinito
+  se o servidor estiver realmente fora do ar). Após 3 tentativas, desiste.
+- **Auto-stop**: após 120s de atividade contínua sem stall, considera o jogo
+  "pronto" e encerra o monitoramento (o jogo está rodando, inatividade é normal).
+- **Integração**: `SessionLifecycle.attach` agora cria o StallDetector em
+  `did-finish-load` (após CSS injection + auto-login) e faz cleanup em `close`.
+- **Cobertura de testes**: 19 novos testes em `src/app/__tests__/StallDetector.test.js`
+  cobrindo: SWF burst detection, inactivity stall, backoff, ready detection,
+  detach idempotente, win destroyed auto-cleanup, callback error handling.
+- **Nota técnica**: `did-fail-load` (já existente) cuida de erros da página
+  HTML principal. StallDetector cuida de falhas de SUB-RECURSOS (SWFs dentro
+  do Flash player) que `did-fail-load` não detecta. Usa `onCompleted` +
+  `onErrorOccurred` (eventos não usados por blocker nem inspector → sem
+  conflito de listeners).
+
 ## [5.9.10] - 2026-07-17
 
 ### Added — Inspector path signatures (classificação por nome de arquivo)

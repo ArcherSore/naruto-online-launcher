@@ -53,7 +53,11 @@ function makeMockWin() {
     reload: jest.fn(),
     isDestroyed: jest.fn(() => false),
     session: {
-      cookies: { flushStore: jest.fn(() => Promise.resolve()) }
+      cookies: { flushStore: jest.fn(() => Promise.resolve()) },
+      webRequest: {
+        onCompleted: jest.fn(),
+        onErrorOccurred: jest.fn()
+      }
     }
   };
 
@@ -85,7 +89,15 @@ function makeCtx(overrides) {
         failLoadTimer: null,
         formInjectAttempts: 0
       },
-      ses: { cookies: { flushStore: jest.fn(() => Promise.resolve()) } },
+      ses: {
+        cookies: { flushStore: jest.fn(() => Promise.resolve()) },
+        webRequest: {
+          onCompleted: jest.fn(),
+          onErrorOccurred: jest.fn()
+        },
+        clearStorageData: jest.fn(() => Promise.resolve()),
+        clearCache: jest.fn(() => Promise.resolve())
+      },
       onOpened: jest.fn(),
       onClosed: jest.fn(),
       getGameUrl: jest.fn(

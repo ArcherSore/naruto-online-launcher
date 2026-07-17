@@ -15,6 +15,7 @@
 const logger = require('../utils/logger');
 const vault = require('../profiles/vault');
 const ManagerWindow = require('../ui/manager/ManagerWindow');
+const StallDetector = require('./StallDetector');
 
 /**
  * Carrega a página do jogo com pré-autenticação via API quando possível.
@@ -149,6 +150,10 @@ function attach(win, ctx) {
   const onClosed = ctx.onClosed;
   const getGameUrl = ctx.getGameUrl;
   const LAUNCHER_PARAMS = ctx.LAUNCHER_PARAMS;
+
+  // ── StallDetector instance (auto-F5 quando SWF essencial falha) ──
+  // Anexado em did-finish-load, desanexado em close/reload.
+  var _stallDetector = null;
 
   // ── ISOLAMENTO DE CRASH + AUTO-RECOVERY ──
   // Backoff: max 3 auto-reloads em 10 min por perfil (evita crash loop).
@@ -335,6 +340,28 @@ function attach(win, ctx) {
       .catch(function () {});
 
     _tryAutoLogin(profileId, win, entry);
+
+    // ── StallDetector: auto-F5 quando SWF essencial falha (v5.9.11) ──
+    // Monitora webRequest.onCompleted + onErrorOccurred. Se 2+ SWFs falham
+    // em 60s, ou 45s sem atividade de rede durante o loading → trigger
+    // reloadWithPreAuth (mesmo fluxo do F5: limpa + pré-auth via API).
+    // Backoff: max 3 auto-reloads em 10 min. Auto-stop após 120s de atividade.
+    if (_stallDetector) {
+      try {
+        _stallDetector.detach();
+      } catch (_) {
+        /* ignore */
+      }
+      _stallDetector = null;
+    }
+    _stallDetector = StallDetector.attach(win, ses, {
+      profileName: profile.name,
+      onStall: function () {
+        if (win.isDestroyed()) return;
+        logger.info('StallDetector disparou auto-F5 (pré-auth) — "' + profile.name + '"');
+        reloadWithPreAuth(profileId, profile, win, ses, getGameUrl);
+      }
+    });
   });
 
   // ── did-fail-load: retry 1x + tela de erro amigável ──
@@ -421,6 +448,15 @@ function attach(win, ctx) {
     if (entry) {
       if (entry.autoLoginTimer) clearTimeout(entry.autoLoginTimer);
       if (entry.failLoadTimer) clearTimeout(entry.failLoadTimer);
+    }
+    // StallDetector cleanup (remove webRequest listeners + interval)
+    if (_stallDetector) {
+      try {
+        _stallDetector.detach();
+      } catch (_) {
+        /* ignore */
+      }
+      _stallDetector = null;
     }
     // JWT auto-renewal interval cleanup
     if (_renewTimer) {
