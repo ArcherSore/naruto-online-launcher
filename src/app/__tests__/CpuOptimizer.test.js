@@ -314,4 +314,92 @@ describe('CpuOptimizer', function () {
       expect(stats.platform).toBe(process.platform);
     });
   });
+
+  describe('_applyWindowsAffinity', function () {
+    test('returns not-windows on non-win32', async function () {
+      const orig = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      const res = await cpuOptimizer._applyWindowsAffinity(1234, [0, 1, 2, 3]);
+      expect(res.ok).toBe(false);
+      expect(res.error).toBe('not-windows');
+      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
+    });
+
+    test('returns invalid-args for empty cores on win32', async function () {
+      const orig = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+      const res = await cpuOptimizer._applyWindowsAffinity(1234, []);
+      expect(res.ok).toBe(false);
+      expect(res.error).toBe('invalid-args');
+      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
+    });
+
+    test('computes bitmask and calls powershell on win32', async function () {
+      const orig = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+      child_process.execFile.mockImplementation(function (cmd, args, opts, cb) {
+        cb(null, '', '');
+      });
+      const res = await cpuOptimizer._applyWindowsAffinity(1234, [0, 1, 2, 3]);
+      expect(res.ok).toBe(true);
+      expect(res.mask).toBe(15); // 0b1111
+      expect(child_process.execFile).toHaveBeenCalled();
+      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
+    });
+
+    test('handles execFile error gracefully', async function () {
+      const orig = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+      child_process.execFile.mockImplementation(function (cmd, args, opts, cb) {
+        cb(new Error('powershell not found'));
+      });
+      const res = await cpuOptimizer._applyWindowsAffinity(1234, [0, 1]);
+      expect(res.ok).toBe(false);
+      expect(res.error).toBe('powershell not found');
+      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
+    });
+  });
+
+  describe('_applyWindowsPriority', function () {
+    test('returns not-windows on non-win32', async function () {
+      const orig = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      const res = await cpuOptimizer._applyWindowsPriority(1234, -5);
+      expect(res.ok).toBe(false);
+      expect(res.error).toBe('not-windows');
+      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
+    });
+  });
+
+  describe('optimizeRenderer cross-platform', function () {
+    test('Windows path: uses win affinity + priority, skips oom', async function () {
+      const orig = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+      // Mock os.setPriority + constants via _winPrioConstants override
+      const os = require('os');
+      os.constants = {
+        priority: { PRIORITY_ABOVE_NORMAL: -7, PRIORITY_NORMAL: 0, PRIORITY_BELOW_NORMAL: 10 }
+      };
+      os.setPriority = jest.fn();
+      child_process.execFile.mockImplementation(function (cmd, args, opts, cb) {
+        cb(null, '', '');
+      });
+      const res = await cpuOptimizer.optimizeRenderer(8888, { preset: 'performance' });
+      expect(res.affinity.ok).toBe(true);
+      expect(res.nice.ok).toBe(true);
+      expect(res.oom.skipped).toBe('no-windows-equivalent');
+      expect(os.setPriority).toHaveBeenCalled();
+      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
+    });
+
+    test('macOS path: all skipped', async function () {
+      const orig = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+      const res = await cpuOptimizer.optimizeRenderer(7777, { preset: 'balanced' });
+      expect(res.affinity.skipped).toContain('platform-darwin');
+      expect(res.nice.skipped).toContain('platform-darwin');
+      expect(res.oom.skipped).toContain('platform-darwin');
+      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
+    });
+  });
 });

@@ -36,6 +36,40 @@ const VENDOR_MAP = {
 let _cache = null;
 
 /**
+ * Detecta se o sistema usa musl libc (Alpine Linux, Void Linux musl, etc).
+ * musl NÃO usa arena-based malloc como glibc — MALLOC_ARENA_MAX é placebo lá.
+ * Detecção: /lib/ld-musl-*.so.1 existe apenas em sistemas musl.
+ * @returns {boolean}
+ */
+function _isMusl() {
+  if (process.platform !== 'linux') return false;
+  try {
+    const libDir = fs.readdirSync('/lib');
+    return libDir.some(function (f) {
+      return /^ld-musl-/.test(f);
+    });
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Detecta se o driver NVIDIA em uso é o proprietário (nvidia) ou o open-source (nouveau).
+ * /proc/driver/nvidia só existe com o driver proprietário. nouveau expõe via
+ * /sys/class/drm/cardN/device/driver = 'nouveau'.
+ * Env vars __GL_* só funcionam com o driver proprietário — são placebo com nouveau.
+ * @returns {boolean} true se driver proprietário NVIDIA carregado
+ */
+function _isNvidiaProprietary() {
+  if (process.platform !== 'linux') return process.platform === 'win32'; // Win sempre proprietário
+  try {
+    return fs.existsSync('/proc/driver/nvidia');
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
  * Detecta PRIME (NVIDIA Optimus laptop com dGPU NVIDIA + iGPU Intel).
  * Em laptops Optimus, o X server roda na Intel e a NVIDIA é offload.
  * @returns {boolean}
@@ -49,7 +83,8 @@ function _detectNvidiaPrimeLinux() {
   // Em laptop com Intel iGPU + NVIDIA dGPU, ambos estão presentes.
   try {
     const hasNvidia = fs.existsSync('/proc/driver/nvidia');
-    const hasIntel = fs.existsSync('/sys/class/drm/card0/device/vendor') &&
+    const hasIntel =
+      fs.existsSync('/sys/class/drm/card0/device/vendor') &&
       fs.readFileSync('/sys/class/drm/card0/device/vendor', 'utf8').trim() === '0x8086';
     return hasNvidia && hasIntel;
   } catch (_) {
@@ -142,8 +177,12 @@ function _listGpusLinuxLspci() {
       const vendorName = m[2].toLowerCase();
       let code = null;
       if (vendorName.indexOf('nvidia') !== -1) code = 'nvidia';
-      else if (vendorName.indexOf('amd') !== -1 || vendorName.indexOf('advanced micro devices') !== -1 ||
-        vendorName.indexOf('radeon') !== -1) code = 'amd';
+      else if (
+        vendorName.indexOf('amd') !== -1 ||
+        vendorName.indexOf('advanced micro devices') !== -1 ||
+        vendorName.indexOf('radeon') !== -1
+      )
+        code = 'amd';
       else if (vendorName.indexOf('intel') !== -1) code = 'intel';
       if (!code) continue;
 
@@ -198,7 +237,8 @@ function _listGpusWindowsWmic() {
 
       let code = null;
       if (vendorName.indexOf('nvidia') !== -1) code = 'nvidia';
-      else if (vendorName.indexOf('amd') !== -1 || vendorName.indexOf('radeon') !== -1) code = 'amd';
+      else if (vendorName.indexOf('amd') !== -1 || vendorName.indexOf('radeon') !== -1)
+        code = 'amd';
       else if (vendorName.indexOf('intel') !== -1) code = 'intel';
       if (!code) continue;
 
@@ -252,10 +292,16 @@ function detect() {
   let active = null;
   if (gpus.length > 0) {
     if (isPrime && process.env.__NV_PRIME_RENDER_OFFLOAD === '1') {
-      active = gpus.find(function (g) { return g.vendor === 'nvidia'; }) || gpus[0];
+      active =
+        gpus.find(function (g) {
+          return g.vendor === 'nvidia';
+        }) || gpus[0];
     } else if (isPrime) {
       // PRIME passivo: Intel iGPU está ativa (X server roda nela)
-      active = gpus.find(function (g) { return g.vendor === 'intel'; }) || gpus[0];
+      active =
+        gpus.find(function (g) {
+          return g.vendor === 'intel';
+        }) || gpus[0];
     } else {
       active = gpus[0];
     }
@@ -267,17 +313,32 @@ function detect() {
     deviceId: active ? active.deviceId : 0,
     description: active ? active.description : 'Unknown GPU',
     isPrime: isPrime,
-    hasNvidia: gpus.some(function (g) { return g.vendor === 'nvidia'; }),
-    hasAmd: gpus.some(function (g) { return g.vendor === 'amd'; }),
-    hasIntel: gpus.some(function (g) { return g.vendor === 'intel'; }),
+    hasNvidia: gpus.some(function (g) {
+      return g.vendor === 'nvidia';
+    }),
+    hasAmd: gpus.some(function (g) {
+      return g.vendor === 'amd';
+    }),
+    hasIntel: gpus.some(function (g) {
+      return g.vendor === 'intel';
+    }),
     allGpus: gpus
   };
 
   logger.info(
-    'GpuDetector: active=' + _cache.vendor +
-    ' (' + _cache.description + ')' +
-    (isPrime ? ' [PRIME]' : '') +
-    ' all=[' + gpus.map(function (g) { return g.vendor; }).join(',') + ']'
+    'GpuDetector: active=' +
+      _cache.vendor +
+      ' (' +
+      _cache.description +
+      ')' +
+      (isPrime ? ' [PRIME]' : '') +
+      ' all=[' +
+      gpus
+        .map(function (g) {
+          return g.vendor;
+        })
+        .join(',') +
+      ']'
   );
 
   return _cache;
@@ -298,26 +359,36 @@ function getEnvVars(preset) {
   // ── Comum a todas as GPUs ──
   // Reduz fragmentação de memória do V8/Flash (glibc malloc).
   // 2 arenas é o suficiente para single-threaded-heavy workload como Flash.
-  env.MALLOC_ARENA_MAX = '2';
+  // PLACEBO em musl libc (Alpine, Void musl) — musl não usa arena-based malloc.
+  if (!_isMusl()) {
+    env.MALLOC_ARENA_MAX = '2';
+  } else {
+    logger.info('GpuDetector: musl libc detectado — MALLOC_ARENA_MAX skipado (placebo)');
+  }
 
   if (gpu.vendor === 'nvidia') {
-    // Threaded optimizations: driver NVIDIA cria threads auxiliares para
-    // upload de texturas e command buffer building. OFF por default em alguns
-    // drivers. ON = ganho real de FPS em Flash (que é CPU-bound no renderer).
-    env.__GL_THREADED_OPTIMIZATIONS = '1';
+    // __GL_* vars só funcionam com driver NVIDIA proprietário. Com nouveau são placebo.
+    if (!_isNvidiaProprietary()) {
+      logger.info('GpuDetector: nouveau detectado — __GL_* vars skipadas (placebo com nouveau)');
+    } else {
+      // Threaded optimizations: driver NVIDIA cria threads auxiliares para
+      // upload de texturas e command buffer building. OFF por default em alguns
+      // drivers. ON = ganho real de FPS em Flash (que é CPU-bound no renderer).
+      env.__GL_THREADED_OPTIMIZATIONS = '1';
 
-    // Vsync controlado pelo Chromium (não pelo driver). Performance preset
-    // desabilita vsync do driver pra reduzir input lag.
-    if (preset === 'performance') {
-      env.__GL_SYNC_TO_VBLANK = '0';
-    }
+      // Vsync controlado pelo Chromium (não pelo driver). Performance preset
+      // desabilita vsync do driver pra reduzir input lag.
+      if (preset === 'performance') {
+        env.__GL_SYNC_TO_VBLANK = '0';
+      }
 
-    // PRIME offload: se a NVIDIA está disponível mas não ativa, força offload
-    // para renderizar na dGPU (ganho real em laptops Optimus).
-    if (gpu.isPrime && process.env.__NV_PRIME_RENDER_OFFLOAD !== '1') {
-      env.__NV_PRIME_RENDER_OFFLOAD = '1';
-      env.__GLX_VENDOR_LIBRARY_NAME = 'nvidia';
-      logger.info('GpuDetector: PRIME offload ativado (dGPU NVIDIA forçada)');
+      // PRIME offload: se a NVIDIA está disponível mas não ativa, força offload
+      // para renderizar na dGPU (ganho real em laptops Optimus).
+      if (gpu.isPrime && process.env.__NV_PRIME_RENDER_OFFLOAD !== '1') {
+        env.__NV_PRIME_RENDER_OFFLOAD = '1';
+        env.__GLX_VENDOR_LIBRARY_NAME = 'nvidia';
+        logger.info('GpuDetector: PRIME offload ativado (dGPU NVIDIA forçada)');
+      }
     }
   } else if (gpu.vendor === 'amd') {
     // Mesa radeonsi (AMD open-source). zerovram = zera VRAM em context destroy
@@ -328,11 +399,9 @@ function getEnvVars(preset) {
     // VAAPI (Video Acceleration API) para decode de vídeo via GPU
     env.LIBVA_DRIVER_NAME = 'radeonsi';
 
-    if (preset === 'performance') {
-      // Desabilita shader cache pra evitar I/O em disco no warm-up (ganho de 1-2s
-      // no primeiro frame). Em balanced/quality mantém cache (boot mais rápido).
-      env.MESA_SHADER_CACHE_DISABLE = '0'; // mantém cache (false=enabled, mas MESA nome é confuso)
-    }
+    // MESA_SHADER_CACHE: mantém cache habilitado em todos os presets (default).
+    // Desabilitar (MESA_SHADER_CACHE_DISABLE=1) só ajuda em benchmarks sintéticos
+    // — no uso real, o cache economiza 1-3s no warm-up de shaders. Removido.
   } else if (gpu.vendor === 'intel') {
     // iHD driver (Broadwell 2015+). i965 para antigos.
     // Detecção simples: se deviceId >= 0x1600 (Broadwell), usa iHD.
@@ -340,8 +409,9 @@ function getEnvVars(preset) {
     env.LIBVA_DRIVER_NAME = useIHD ? 'iHD' : 'i965';
 
     if (preset === 'performance') {
-      // Desabilita CCS (Color Compression Storage) — em alguns drivers Intel
-      // causa artefatos em Flash. Sem CCS = mais estável, leve perda de perf.
+      // norbc = NO Render Buffer Compression. É um flag de DEBUG de estabilidade
+      // (desabilita CCS que pode causar artefatos em Flash), NÃO de performance.
+      // Mantém por estabilidade em drivers Intel problemáticos.
       env.INTEL_DEBUG = 'norbc';
     }
   }
@@ -372,6 +442,8 @@ module.exports = {
   _listGpusLinuxSysfs: _listGpusLinuxSysfs,
   _listGpusLinuxLspci: _listGpusLinuxLspci,
   _detectNvidiaPrimeLinux: _detectNvidiaPrimeLinux,
+  _isMusl: _isMusl,
+  _isNvidiaProprietary: _isNvidiaProprietary,
   VENDOR_NVIDIA: VENDOR_NVIDIA,
   VENDOR_AMD: VENDOR_AMD,
   VENDOR_INTEL: VENDOR_INTEL,

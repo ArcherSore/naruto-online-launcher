@@ -259,11 +259,12 @@ function attach(win, ctx) {
     if (entry) entry.failLoadRetry = false;
     ses.cookies.flushStore().catch(function () {});
 
-    // ── v5.0.0: CPU optimization (taskset + nice + oom_score_adj) ──
+    // ── v5.0.0: CPU optimization (cross-platform) ──
     // Aplicado aqui (e não no ready-to-show) porque getOSProcessId() só retorna
     // valor válido após o renderer process spawn — que acontece no loadURL.
-    // Em Linux, aplica affinity em P-cores + nice + oom_score_adj=-500.
-    // Em Windows/macOS, no-op (CpuOptimizer retorna not-linux).
+    // LINUX: taskset (affinity) + renice (priority) + oom_score_adj (OOM protection).
+    // WINDOWS: PowerShell (affinity) + os.setPriority (priority).
+    // macOS: no-op.
     try {
       const cpuOptimizer = require('./CpuOptimizer');
       const { loadConfig } = require('../config/settings');

@@ -285,6 +285,7 @@ describe('GpuDetector', function () {
       fs.existsSync.mockImplementation(function (p) {
         if (p === '/sys/class/drm') return true;
         if (p === '/sys/class/drm/card0/device/vendor') return true;
+        if (p === '/proc/driver/nvidia') return true; // driver proprietário ativo
         return false;
       });
       fs.readdirSync.mockReturnValue(['card0']);
@@ -301,6 +302,7 @@ describe('GpuDetector', function () {
       fs.existsSync.mockImplementation(function (p) {
         if (p === '/sys/class/drm') return true;
         if (p === '/sys/class/drm/card0/device/vendor') return true;
+        if (p === '/proc/driver/nvidia') return true; // driver proprietário ativo
         return false;
       });
       fs.readdirSync.mockReturnValue(['card0']);
@@ -395,6 +397,76 @@ describe('GpuDetector', function () {
       // Não seta nada específico de marca
       expect(env.__GL_THREADED_OPTIMIZATIONS).toBeUndefined();
       expect(env.LIBVA_DRIVER_NAME).toBeUndefined();
+    });
+
+    test('musl libc skips MALLOC_ARENA_MAX (placebo on musl)', function () {
+      gpuDetector._resetCache();
+      fs.existsSync.mockReturnValue(false);
+      fs.readdirSync.mockImplementation(function (p) {
+        if (p === '/lib') return ['ld-musl-x86_64.so.1'];
+        return [];
+      });
+      child_process.execFileSync.mockImplementation(function () {
+        throw new Error('not found');
+      });
+      const env = gpuDetector.getEnvVars('balanced');
+      expect(env.MALLOC_ARENA_MAX).toBeUndefined();
+    });
+
+    test('nouveau driver skips __GL_* vars (placebo with nouveau)', function () {
+      gpuDetector._resetCache();
+      fs.existsSync.mockImplementation(function (p) {
+        if (p === '/sys/class/drm') return true;
+        if (p === '/sys/class/drm/card0/device/vendor') return true;
+        if (p === '/proc/driver/nvidia') return false; // nouveau, não proprietário
+        return false;
+      });
+      fs.readdirSync.mockReturnValue(['card0']);
+      fs.readFileSync.mockImplementation(function (p) {
+        if (p.endsWith('/vendor')) return '0x10de';
+        return '';
+      });
+      const env = gpuDetector.getEnvVars('balanced');
+      expect(env.__GL_THREADED_OPTIMIZATIONS).toBeUndefined();
+      expect(env.MALLOC_ARENA_MAX).toBe('2'); // glibc ainda seta
+    });
+  });
+
+  describe('_isMusl', function () {
+    test('returns true when /lib has ld-musl-*.so', function () {
+      fs.readdirSync.mockReturnValue(['ld-musl-x86_64.so.1']);
+      expect(gpuDetector._isMusl()).toBe(true);
+    });
+
+    test('returns false when /lib has no ld-musl-*', function () {
+      fs.readdirSync.mockReturnValue(['libc.so.6', 'ld-linux-x86-64.so.2']);
+      expect(gpuDetector._isMusl()).toBe(false);
+    });
+
+    test('returns false on non-linux platform', function () {
+      const orig = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+      expect(gpuDetector._isMusl()).toBe(false);
+      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
+    });
+  });
+
+  describe('_isNvidiaProprietary', function () {
+    test('returns true when /proc/driver/nvidia exists', function () {
+      fs.existsSync.mockReturnValue(true);
+      expect(gpuDetector._isNvidiaProprietary()).toBe(true);
+    });
+
+    test('returns false when /proc/driver/nvidia missing (nouveau)', function () {
+      fs.existsSync.mockReturnValue(false);
+      expect(gpuDetector._isNvidiaProprietary()).toBe(false);
+    });
+
+    test('returns true on Windows (always proprietary)', function () {
+      const orig = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+      expect(gpuDetector._isNvidiaProprietary()).toBe(true);
+      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
     });
   });
 });

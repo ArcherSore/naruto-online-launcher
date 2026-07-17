@@ -11,15 +11,21 @@
  *   thread entre núcleos (cache thrashing) — fixar em um núcleo P (performance)
  *   reduz cache misses e dá ganho real de FPS (5-15% em CPUs híbridas).
  *
- * Otimizações aplicadas (Linux only — Windows/macOS não suportam):
- *   1. CPU affinity: fixa o renderer PID em um conjunto de núcleos P-cores
- *      (Intel Alder Lake+ híbrido) ou nos primeiros N núcleos (CPUs uniformes).
- *   2. Nice priority: -5 (maior prioridade dentro do limite do usuário).
- *   3. oom_score_adj: -500 (kernel não mata em OOM, prefere matar outros).
- *   4. SCHED_BATCH no renderer NÃO (quebra input), apenas no GC daemon se houver.
+ * Otimizações aplicadas:
+ *   LINUX:
+ *     1. CPU affinity via `taskset -cp <cores> <pid>` (fixa renderer em P-cores).
+ *     2. Nice priority via `renice -n <priority> -p <pid>` (-5 performance).
+ *     3. oom_score_adj=-500 via /proc/<pid>/oom_score_adj (kernel não mata em OOM).
  *
- * Como Electron não expõe setAffinity direto, usamos `taskset` externo via
- * child_process.execFile. Em AppImage sem taskset, falha silenciosamente.
+ *   WINDOWS (Win10/11):
+ *     1. CPU affinity via PowerShell `Set-Process -ProcessorAffinity <mask>`.
+ *     2. Process priority via Node.js `os.setPriority()` (cross-platform, REAL).
+ *     3. Sem oom_score_adj equivalente (Windows não tem OOM killer como Linux).
+ *
+ *   macOS: no-op (Mac não roda Flash PPAPI — sem suporte ao plugin).
+ *
+ * Como Electron não expõe setAffinity direto, usamos processos externos.
+ * Em AppImage sem taskset / Windows sem PowerShell, falha silenciosamente.
  */
 
 'use strict';
@@ -28,6 +34,19 @@ const fs = require('fs');
 const os = require('os');
 const { execFile } = require('child_process');
 const logger = require('../utils/logger');
+
+// Windows priority constants — resolved lazily dentro de _applyWindowsPriority
+// (os mock nos testes não tem constants.priority, então não pode ser top-level).
+let _winPrioCache = null;
+function _winPrioConstants() {
+  if (_winPrioCache) return _winPrioCache;
+  _winPrioCache = {
+    aboveNormal: os.constants.priority.PRIORITY_ABOVE_NORMAL,
+    normal: os.constants.priority.PRIORITY_NORMAL,
+    belowNormal: os.constants.priority.PRIORITY_BELOW_NORMAL
+  };
+  return _winPrioCache;
+}
 
 let _appliedPids = new Set(); // pids já otimizados (evita reapply)
 
@@ -50,12 +69,16 @@ function detectCoreTopology() {
       if (fs.existsSync('/sys/devices/cpu_core/cpus')) {
         const raw = fs.readFileSync('/sys/devices/cpu_core/cpus', 'utf8').trim();
         // Formato: "0-7" ou "0 1 2 3" ou "0,2,4,6"
-        _parseCpuList(raw).forEach(function (n) { pCores.push(n); });
+        _parseCpuList(raw).forEach(function (n) {
+          pCores.push(n);
+        });
       }
       // E-cores (cpu_atom): efficient
       if (fs.existsSync('/sys/devices/cpu_atom/cpus')) {
         const raw = fs.readFileSync('/sys/devices/cpu_atom/cpus', 'utf8').trim();
-        _parseCpuList(raw).forEach(function (n) { eCores.push(n); });
+        _parseCpuList(raw).forEach(function (n) {
+          eCores.push(n);
+        });
       }
     } catch (_) {
       /* ignore */
@@ -115,19 +138,25 @@ function _applyTaskset(pid, cores) {
       return resolve({ ok: false, error: 'invalid-args' });
     }
     const coresArg = cores.join(',');
-    execFile('taskset', ['-cp', coresArg, String(pid)], {
-      timeout: 2000,
-      stdio: ['ignore', 'pipe', 'pipe']
-    }, function (err) {
-      if (err) {
-        // taskset não disponível (AppImage minimal) ou sem permissão
-        logger.debug('CpuOptimizer: taskset falhou pid=' + pid + ' cores=' + coresArg +
-          ' — ' + err.message);
-        return resolve({ ok: false, error: err.message });
+    execFile(
+      'taskset',
+      ['-cp', coresArg, String(pid)],
+      {
+        timeout: 2000,
+        stdio: ['ignore', 'pipe', 'pipe']
+      },
+      function (err) {
+        if (err) {
+          // taskset não disponível (AppImage minimal) ou sem permissão
+          logger.debug(
+            'CpuOptimizer: taskset falhou pid=' + pid + ' cores=' + coresArg + ' — ' + err.message
+          );
+          return resolve({ ok: false, error: err.message });
+        }
+        logger.info('CpuOptimizer: affinity aplicada pid=' + pid + ' cores=[' + coresArg + ']');
+        resolve({ ok: true });
       }
-      logger.info('CpuOptimizer: affinity aplicada pid=' + pid + ' cores=[' + coresArg + ']');
-      resolve({ ok: true });
-    });
+    );
   });
 }
 
@@ -144,18 +173,24 @@ function _applyRenice(pid, priority) {
     if (process.platform !== 'linux') {
       return resolve({ ok: false, error: 'not-linux' });
     }
-    execFile('renice', ['-n', String(priority), '-p', String(pid)], {
-      timeout: 2000,
-      stdio: ['ignore', 'pipe', 'pipe']
-    }, function (err) {
-      if (err) {
-        logger.debug('CpuOptimizer: renice falhou pid=' + pid + ' n=' + priority +
-          ' — ' + err.message);
-        return resolve({ ok: false, error: err.message });
+    execFile(
+      'renice',
+      ['-n', String(priority), '-p', String(pid)],
+      {
+        timeout: 2000,
+        stdio: ['ignore', 'pipe', 'pipe']
+      },
+      function (err) {
+        if (err) {
+          logger.debug(
+            'CpuOptimizer: renice falhou pid=' + pid + ' n=' + priority + ' — ' + err.message
+          );
+          return resolve({ ok: false, error: err.message });
+        }
+        logger.info('CpuOptimizer: nice=' + priority + ' aplicado pid=' + pid);
+        resolve({ ok: true, priority: priority });
       }
-      logger.info('CpuOptimizer: nice=' + priority + ' aplicado pid=' + pid);
-      resolve({ ok: true, priority: priority });
-    });
+    );
   });
 }
 
@@ -175,8 +210,7 @@ function _applyOomScoreAdj(pid, score) {
     const path = '/proc/' + pid + '/oom_score_adj';
     fs.writeFile(path, String(score), function (err) {
       if (err) {
-        logger.debug('CpuOptimizer: oom_score_adj falhou pid=' + pid +
-          ' — ' + err.message);
+        logger.debug('CpuOptimizer: oom_score_adj falhou pid=' + pid + ' — ' + err.message);
         return resolve({ ok: false, error: err.message });
       }
       logger.info('CpuOptimizer: oom_score_adj=' + score + ' aplicado pid=' + pid);
@@ -186,12 +220,104 @@ function _applyOomScoreAdj(pid, score) {
 }
 
 /**
- * Aplica todas as otimizações de CPU em um renderer PID.
+ * Aplica CPU affinity no Windows via PowerShell `Set-Process -ProcessorAffinity`.
+ * Windows usa bitmask: bit N = core N. cores [0,1,2,3] → 0b1111 = 15.
+ * PowerShell é o método mais confiável no Win10/11 (wmic está deprecated).
+ * @param {number} pid
+ * @param {number[]} cores
+ * @returns {Promise<{ok: boolean, mask?: number, error?: string}>}
+ */
+function _applyWindowsAffinity(pid, cores) {
+  return new Promise(function (resolve) {
+    if (process.platform !== 'win32') {
+      return resolve({ ok: false, error: 'not-windows' });
+    }
+    if (!pid || cores.length === 0) {
+      return resolve({ ok: false, error: 'invalid-args' });
+    }
+    // Bitmask: bit N = core N (máx 64 cores suportadas pelo Windows)
+    let mask = 0;
+    cores.forEach(function (c) {
+      if (c >= 0 && c < 64) mask |= 1 << c;
+    });
+    if (mask === 0) {
+      return resolve({ ok: false, error: 'empty-mask' });
+    }
+    const script = '(Get-Process -Id ' + pid + ').ProcessorAffinity = ' + mask;
+    execFile(
+      'powershell',
+      ['-NoProfile', '-NonInteractive', '-Command', script],
+      {
+        timeout: 3000,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true
+      },
+      function (err) {
+        if (err) {
+          // PowerShell não disponível (Windows Server Core minimal) ou sem permissão
+          logger.debug(
+            'CpuOptimizer: win affinity falhou pid=' + pid + ' mask=' + mask + ' — ' + err.message
+          );
+          return resolve({ ok: false, error: err.message });
+        }
+        logger.info(
+          'CpuOptimizer: win affinity aplicada pid=' +
+            pid +
+            ' mask=' +
+            mask +
+            ' cores=[' +
+            cores.join(',') +
+            ']'
+        );
+        resolve({ ok: true, mask: mask });
+      }
+    );
+  });
+}
+
+/**
+ * Aplica prioridade de processo no Windows via Node.js os.setPriority (cross-platform).
+ * Mapeia nice-like targets (-5/0/+5) para Windows priority classes:
+ *   -5 → ABOVE_NORMAL (performance preset)
+ *    0 → NORMAL (balanced preset)
+ *   +5 → BELOW_NORMAL (quality preset)
+ * Não usa HIGH/REALTIME (causa instabilidade no sistema — mouse/teclado travam).
+ * @param {number} pid
+ * @param {number} niceTarget - valor nice-like (-5 a +5)
+ * @returns {Promise<{ok: boolean, priority?: number, error?: string}>}
+ */
+function _applyWindowsPriority(pid, niceTarget) {
+  return new Promise(function (resolve) {
+    if (process.platform !== 'win32') {
+      return resolve({ ok: false, error: 'not-windows' });
+    }
+    let prio;
+    const c = _winPrioConstants();
+    if (niceTarget < 0) prio = c.aboveNormal;
+    else if (niceTarget > 0) prio = c.belowNormal;
+    else prio = c.normal;
+    try {
+      os.setPriority(pid, prio);
+      logger.info('CpuOptimizer: win priority aplicada pid=' + pid + ' prio=' + prio);
+      resolve({ ok: true, priority: prio });
+    } catch (e) {
+      // EPERM se pid pertence a outro user, ou EINVAL se pid não existe mais
+      logger.debug('CpuOptimizer: win priority falhou pid=' + pid + ' — ' + e.message);
+      resolve({ ok: false, error: e.message });
+    }
+  });
+}
+
+/**
+ * Aplica todas as otimizações de CPU em um renderer PID (cross-platform).
+ *
+ * LINUX: taskset (affinity) + renice (priority) + oom_score_adj (OOM protection).
+ * WINDOWS: PowerShell (affinity) + os.setPriority (priority). Sem OOM protection.
+ * macOS: no-op.
  *
  * @param {number} pid - PID do processo renderer do Electron
  * @param {Object} opts - { preset: 'performance'|'balanced'|'quality',
- *                          topology: detectCoreTopology() result (optional),
- *                          extraCores: número de núcleos extras além do P-core principal }
+ *                          topology: detectCoreTopology() result (optional) }
  * @returns {Promise<{affinity, nice, oom}>}
  */
 async function optimizeRenderer(pid, opts) {
@@ -199,7 +325,11 @@ async function optimizeRenderer(pid, opts) {
   const preset = opts.preset || 'balanced';
 
   if (!pid || pid <= 0) {
-    return { affinity: { ok: false, error: 'invalid-pid' }, nice: { ok: false, error: 'invalid-pid' }, oom: { ok: false, error: 'invalid-pid' } };
+    return {
+      affinity: { ok: false, error: 'invalid-pid' },
+      nice: { ok: false, error: 'invalid-pid' },
+      oom: { ok: false, error: 'invalid-pid' }
+    };
   }
 
   // Idempotente: se já aplicamos pro mesmo PID, pula (mas re-aplica em reload).
@@ -207,7 +337,11 @@ async function optimizeRenderer(pid, opts) {
   // Removido: o renderer PID muda em cada reload (novo processo), então o Set
   // cresce indefinidamente. Limpar a cada 50 entradas (antes de adicionar a 51ª).
   if (_appliedPids.has(pid)) {
-    return { affinity: { ok: true, skipped: true }, nice: { ok: true, skipped: true }, oom: { ok: true, skipped: true } };
+    return {
+      affinity: { ok: true, skipped: true },
+      nice: { ok: true, skipped: true },
+      oom: { ok: true, skipped: true }
+    };
   }
   if (_appliedPids.size >= 50) _appliedPids.clear();
   _appliedPids.add(pid);
@@ -239,33 +373,57 @@ async function optimizeRenderer(pid, opts) {
     }
   }
 
-  const affinityPromise = cores.length > 0
-    ? _applyTaskset(pid, cores)
-    : Promise.resolve({ ok: true, skipped: 'quality-preset' });
-
-  // Nice: -5 em performance (maior prioridade), 0 em balanced, +5 em quality
-  // (menor prioridade — deixa outras apps terem prioridade se user está multitask).
-  // Mas -5 provavelmente falha (sem CAP_SYS_NICE). Tentamos -5, se falha tenta 0.
+  // Nice-like target: -5 performance / 0 balanced / +5 quality
+  // (mapeado para Windows priority class em _applyWindowsPriority)
   let niceTarget = preset === 'performance' ? -5 : preset === 'balanced' ? 0 : 5;
-  const nicePromise = _applyRenice(pid, niceTarget).then(function (res) {
-    if (!res.ok && niceTarget < 0) {
-      // Retry com 0 (sem necessidade de CAP_SYS_NICE)
-      return _applyRenice(pid, 0);
-    }
-    return res;
-  });
 
-  // OOM protection: -500 em performance/balanced, 0 em quality
+  // OOM protection: -500 em performance/balanced, 0 em quality (Linux only)
   const oomScore = preset === 'quality' ? 0 : -500;
-  const oomPromise = _applyOomScoreAdj(pid, oomScore);
+
+  let affinityPromise, nicePromise, oomPromise;
+
+  if (process.platform === 'win32') {
+    // ── WINDOWS: PowerShell affinity + os.setPriority. Sem oom_score_adj. ──
+    affinityPromise =
+      cores.length > 0
+        ? _applyWindowsAffinity(pid, cores)
+        : Promise.resolve({ ok: true, skipped: 'quality-preset' });
+    nicePromise = _applyWindowsPriority(pid, niceTarget);
+    oomPromise = Promise.resolve({ ok: true, skipped: 'no-windows-equivalent' });
+  } else if (process.platform === 'linux') {
+    // ── LINUX: taskset + renice + oom_score_adj ──
+    affinityPromise =
+      cores.length > 0
+        ? _applyTaskset(pid, cores)
+        : Promise.resolve({ ok: true, skipped: 'quality-preset' });
+    nicePromise = _applyRenice(pid, niceTarget).then(function (res) {
+      if (!res.ok && niceTarget < 0) {
+        // Retry com 0 (sem necessidade de CAP_SYS_NICE)
+        return _applyRenice(pid, 0);
+      }
+      return res;
+    });
+    oomPromise = _applyOomScoreAdj(pid, oomScore);
+  } else {
+    // ── macOS/other: no-op ──
+    affinityPromise = Promise.resolve({ ok: true, skipped: 'platform-' + process.platform });
+    nicePromise = Promise.resolve({ ok: true, skipped: 'platform-' + process.platform });
+    oomPromise = Promise.resolve({ ok: true, skipped: 'platform-' + process.platform });
+  }
 
   const [affinity, nice, oom] = await Promise.all([affinityPromise, nicePromise, oomPromise]);
 
   logger.info(
-    'CpuOptimizer: pid=' + pid + ' preset=' + preset +
-    ' affinity=' + (affinity.ok ? '✓' : '✗') +
-    ' nice=' + (nice.ok ? (nice.priority !== undefined ? nice.priority : '✓') : '✗') +
-    ' oom=' + (oom.ok ? '✓' : '✗')
+    'CpuOptimizer: pid=' +
+      pid +
+      ' preset=' +
+      preset +
+      ' affinity=' +
+      (affinity.ok ? '✓' : '✗') +
+      ' nice=' +
+      (nice.ok ? (nice.priority !== undefined ? nice.priority : '✓') : '✗') +
+      ' oom=' +
+      (oom.ok ? '✓' : '✗')
   );
 
   return { affinity: affinity, nice: nice, oom: oom, cores: cores };
@@ -289,6 +447,7 @@ function getStats() {
  */
 function _reset() {
   _appliedPids.clear();
+  _winPrioCache = null; // limpa cache de constants Windows
 }
 
 module.exports = {
@@ -300,5 +459,8 @@ module.exports = {
   _parseCpuList: _parseCpuList,
   _applyTaskset: _applyTaskset,
   _applyRenice: _applyRenice,
-  _applyOomScoreAdj: _applyOomScoreAdj
+  _applyOomScoreAdj: _applyOomScoreAdj,
+  _applyWindowsAffinity: _applyWindowsAffinity,
+  _applyWindowsPriority: _applyWindowsPriority,
+  _winPrioConstants: _winPrioConstants
 };

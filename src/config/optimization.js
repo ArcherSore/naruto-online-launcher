@@ -30,14 +30,17 @@ const PRESETS = {
     icon: '\u{1F680}',
     color: '#DC2626',
     // Chromium flags específicas
+    // NOTA: Flash PPAPI tem framerate INTERNO (stage.frameRate ~24-30fps no Naruto Online).
+    // Flags abaixo afetam o COMPOSITOR do Chromium, não o framerate interno do Flash.
+    // Ganho real vem de CPU affinity + GPU env vars + zero-copy, não de uncap de FPS.
     chromiumFlags: {
-      disableFrameRateLimit: true,
-      disableSmoothScrolling: true,
-      enableGpuRasterization: true,
-      enableZeroCopy: true,
-      enableVulkan: true, // só ativa se GPU suportar (decidido em flags.js)
-      useAngle: 'vulkan', // ANGLE em cima de Vulkan (mais estável)
-      disableVsync: true
+      disableFrameRateLimit: true, // afeta compositor Chromium, NÃO Flash internal fps (placebo parcial)
+      disableSmoothScrolling: true, // não afeta Flash (placebo p/ jogo), reduz input lag marginal
+      enableGpuRasterization: true, // REAL: GPU rasteriza conteúdo DOM (não o Flash plugin surface)
+      enableZeroCopy: true, // REAL: evita cópia CPU→GPU na composição
+      enableVulkan: true, // só ativa se GPU suportar (decidido em flags.js). Chromium 87 Vulkan é experimental
+      useAngle: 'vulkan', // ANGLE em cima de Vulkan (mais estável que Vulkan puro)
+      disableVsync: true // REAL: desabilita vsync do compositor (reduz input lag)
     },
     // CPU
     cpu: {

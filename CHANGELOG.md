@@ -1,5 +1,59 @@
 # Changelog
 
+## [5.9.14] - 2026-07-17
+
+### Fixed — Otimizações cross-platform (Windows + Linux breadth) + anti-placebo
+
+**User request**: "deve ser otimizado e tudo funcional no windows tambem e
+principalmente no linux que tem diversas distros e precisa ser mais amplo.
+fique atento a otimizacoes que sao superficiais e nao aplica realmente."
+
+**Auditoria real vs placebo** (o user alertou que otimizações superficiais
+eram o problema da versão anterior):
+
+1. **CpuOptimizer.js — Windows agora suportado** (antes era Linux-only):
+   - `_applyWindowsAffinity(pid, cores)`: PowerShell
+     `(Get-Process -Id <pid>).ProcessorAffinity = <mask>`.
+     Bitmask: bit N = core N (cores [0,1,2,3] → 0b1111 = 15).
+     PowerShell é mais confiável que wmic (deprecated no Win11).
+   - `_applyWindowsPriority(pid, niceTarget)`: Node.js `os.setPriority()`
+     (cross-platform, REAL). Mapeia: -5→ABOVE_NORMAL, 0→NORMAL, +5→BELOW_NORMAL.
+     Não usa HIGH/REALTIME (causa instabilidade — mouse/teclado travam).
+   - `optimizeRenderer` agora ramifica por platform: Linux (taskset+renice+oom),
+     Windows (PowerShell+os.setPriority), macOS (no-op).
+   - Windows não tem oom_score_adj equivalente (gerenciamento de memória
+     diferente do Linux) — skipado honestamente.
+
+2. **GpuDetector.js — Anti-placebo para distros Linux diversas**:
+   - `_isMusl()`: detecta musl libc (Alpine, Void musl) via `/lib/ld-musl-*.so`.
+     MALLOC_ARENA_MAX é placebo em musl (não usa arena-based malloc) — skipado.
+   - `_isNvidiaProprietary()`: detecta driver proprietário vs nouveau via
+     `/proc/driver/nvidia`. `__GL_*` vars são placebo com nouveau — skipadas.
+   - Removido `MESA_SHADER_CACHE_DISABLE='0'` (faz nada — só re-enable o default).
+   - Comentário do `INTEL_DEBUG=norbc` corrigido: é flag de ESTABILIDADE
+     (desabilita Render Buffer Compression), não de performance.
+
+3. **optimization.js — Documentação honesta sobre placebo**:
+   - Comentários explicitam quais flags afetam o COMPOSITOR do Chromium vs
+     o framerate INTERNO do Flash (stage.frameRate ~24-30fps no Naruto Online).
+   - `disableFrameRateLimit`: documentado como "placebo parcial" — afeta
+     compositor, não Flash internal fps. Ganho real vem de CPU affinity +
+     GPU env vars + zero-copy.
+   - `disableSmoothScrolling`: documentado como "não afeta Flash".
+
+4. **SessionLifecycle.js**: comentário atualizado — Windows agora tem suporte
+   real (antes dizia "no-op em Windows/macOS").
+
+**Testes**: +15 novos (946 → 961). GpuDetector: _isMusl (3), _isNvidiaProprietary
+(3), musl skip MALLOC_ARENA_MAX (1), nouveau skip __GL_* (1). CpuOptimizer:
+_applyWindowsAffinity (4), _applyWindowsPriority (1), optimizeRenderer
+cross-platform Windows+macOS (2). Lint 0 erros. Prettier clean.
+
+**Impacto**: o launcher agora aplica otimizações REAIS em Windows (affinity +
+prioridade) e é honesto sobre o que é placebo em distros Linux exóticas
+(Alpine/musl, nouveau). Fundação sólida para os crons autônomos continuarem
+ampliando cobertura (FreeBSD, Steam Deck, etc).
+
 ## [5.9.13] - 2026-07-17
 
 ### Added — Painel de Otimização (GPU + CPU + Vulkan + Presets)
