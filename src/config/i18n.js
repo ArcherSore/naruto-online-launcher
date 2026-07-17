@@ -40,7 +40,6 @@ const DICTIONARY = {
     'profile.name': 'Nome',
     'profile.server': 'Servidor',
     'profile.region': 'Região',
-    'profile.color': 'Cor',
     'profile.new': 'Nova conta',
     'profile.empty': 'Nenhuma conta cadastrada',
     'profile.empty.hint': 'Clique em "Nova conta" para criar seu primeiro perfil.',
@@ -140,7 +139,6 @@ const DICTIONARY = {
     'profile.name': 'Name',
     'profile.server': 'Server',
     'profile.region': 'Region',
-    'profile.color': 'Color',
     'profile.new': 'New account',
     'profile.empty': 'No accounts registered',
     'profile.empty.hint': 'Click "New account" to create your first profile.',
@@ -240,7 +238,6 @@ const DICTIONARY = {
     'profile.name': 'Name',
     'profile.server': 'Server',
     'profile.region': 'Region',
-    'profile.color': 'Farbe',
     'profile.new': 'Neues Konto',
     'profile.empty': 'Keine Konten registriert',
     'profile.empty.hint': 'Klicken Sie auf "Neues Konto", um Ihr erstes Profil zu erstellen.'
@@ -269,7 +266,6 @@ const DICTIONARY = {
     'profile.name': 'Nombre',
     'profile.server': 'Servidor',
     'profile.region': 'Región',
-    'profile.color': 'Color',
     'profile.new': 'Nueva cuenta',
     'profile.empty': 'Sin cuentas registradas',
     'profile.empty.hint': 'Haz clic en "Nueva cuenta" para crear tu primer perfil.'
@@ -298,7 +294,6 @@ const DICTIONARY = {
     'profile.name': 'Nazwa',
     'profile.server': 'Serwer',
     'profile.region': 'Region',
-    'profile.color': 'Kolor',
     'profile.new': 'Nowe konto',
     'profile.empty': 'Brak zarejestrowanych kont',
     'profile.empty.hint': 'Kliknij "Nowe konto", aby utworzyć swój pierwszy profil.'
@@ -327,7 +322,6 @@ const DICTIONARY = {
     'profile.name': 'Nom',
     'profile.server': 'Serveur',
     'profile.region': 'Région',
-    'profile.color': 'Couleur',
     'profile.new': 'Nouveau compte',
     'profile.empty': 'Aucun compte enregistré',
     'profile.empty.hint': 'Cliquez sur "Nouveau compte" pour créer votre premier profil.'

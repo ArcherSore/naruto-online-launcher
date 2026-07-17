@@ -273,6 +273,52 @@ describe('ProfileVault.js', () => {
       FreshVault.setCredentials('p_cb', 'u', 'p');
       expect(cb).toHaveBeenCalled();
     });
+
+    test('getCredentials retorna strings vazias quando decrypt falha', () => {
+      const CryptoService = require('../CryptoService');
+      const origDecrypt = CryptoService.decrypt;
+      CryptoService.decrypt = jest.fn(() => {
+        throw new Error('bad ciphertext');
+      });
+
+      ProfileVault.setCredentials('p_decfail', 'user_x', 'pass_y');
+      const creds = ProfileVault.getCredentials('p_decfail');
+
+      expect(creds).not.toBeNull();
+      expect(creds.user).toBe('');
+      expect(creds.pass).toBe('');
+
+      CryptoService.decrypt = origDecrypt;
+    });
+
+    test('_ensureLoaded com erro de leitura (EACCES) inicia vazio', () => {
+      const vaultPath = path.join(tmpDir, 'vault.json');
+      fs.writeFileSync(vaultPath, '{"p1":{"user":"x","pass":"y"}}', 'utf8');
+
+      jest.spyOn(fs, 'readFileSync').mockImplementationOnce(function () {
+        throw new Error('EACCES: permission denied');
+      });
+
+      delete require.cache[require.resolve('../ProfileVault')];
+      const FreshVault = require('../ProfileVault');
+
+      expect(FreshVault.hasCredentials('p1')).toBe(false);
+      fs.readFileSync.mockRestore();
+    });
+
+    test('vault.json com tamanho > MAX_VAULT_BYTES inicia vazio', () => {
+      const vaultPath = path.join(tmpDir, 'vault.json');
+      // Write a file larger than MAX_VAULT_BYTES
+      const fs = require('fs');
+      const bigContent = '{"a":"' + 'x'.repeat(ProfileVault.MAX_VAULT_BYTES) + '"}';
+      fs.writeFileSync(vaultPath, bigContent, 'utf8');
+
+      delete require.cache[require.resolve('../ProfileVault')];
+      const FreshVault = require('../ProfileVault');
+
+      // Should have fallen back to empty store
+      expect(FreshVault.getCredentials('any')).toBeNull();
+    });
   });
 
   describe('encryption integration', () => {

@@ -181,7 +181,11 @@ function launchProfile(profileId, onOpened, onClosed) {
     getGameUrl: getGameUrl,
     LAUNCHER_PARAMS: LAUNCHER_PARAMS
   });
-  KeyboardShortcuts.attach(win, profile.name);
+  // F5 (clear login) agora faz pré-autenticação via API antes de recarregar
+  // (igual ao Play) → não mostra a tela de login do jogo, email não fica visível.
+  KeyboardShortcuts.attach(win, profile.name, ses, function onClearLogin() {
+    reloadWithPreAuth(profileId);
+  });
 
   // Loading screen (spinner SVG/CSS, sem emoji — fontconfig-safe)
   win.loadURL(
@@ -195,14 +199,10 @@ function launchProfile(profileId, onOpened, onClosed) {
           'border-radius:50%;animation:sp 1s linear infinite;margin-bottom:18px}' +
           '@keyframes sp{to{transform:rotate(360deg)}}' +
           '.t{font-size:15px;font-weight:600;letter-spacing:.2px;color:#f0ede6}' +
-          '.s{font-size:12px;color:#6a6a78;margin-top:6px}' +
           '</style></head><body>' +
           '<div class="spin"></div>' +
           '<div class="t">Carregando ' +
           String(profile.name).replace(/</g, '&lt;') +
-          '</div>' +
-          '<div class="s">' +
-          (isShadow ? 'Sessão efêmera (shadow)' : 'Sessão isolada por perfil') +
           '</div>' +
           '</body></html>'
       )
@@ -255,6 +255,37 @@ function getWebContents(profileId) {
   return entry.window.webContents;
 }
 
+/**
+ * Recarrega a janela do jogo com pré-autenticação (igual ao fluxo do Play).
+ * Delegado ao SessionLifecycle.reloadWithPreAuth — usado pelo atalho F5.
+ *
+ * Diferente de um reload cru, limpa o login E pré-autentica via API antes de
+ * recarregar, então a tela de login do Naruto Online não chega a aparecer
+ * (email não fica visível). Veja SessionLifecycle.reloadWithPreAuth.
+ *
+ * @param {string} profileId
+ */
+function reloadWithPreAuth(profileId) {
+  if (!gameWindows.has(profileId)) {
+    logger.warn('reloadWithPreAuth: perfil não está aberto — ' + profileId);
+    return;
+  }
+  const entry = gameWindows.get(profileId);
+  if (!entry || !entry.window || entry.window.isDestroyed()) return;
+  const profile = store.get(profileId);
+  if (!profile) {
+    logger.warn('reloadWithPreAuth: perfil não encontrado no store — ' + profileId);
+    return;
+  }
+  SessionLifecycle.reloadWithPreAuth(
+    profileId,
+    profile,
+    entry.window,
+    entry.window.webContents.session,
+    getGameUrl
+  );
+}
+
 module.exports = {
   launchProfile: launchProfile,
   focusProfile: focusProfile,
@@ -262,5 +293,6 @@ module.exports = {
   isProfileOpen: isProfileOpen,
   getWebContents: getWebContents,
   hasOpenWindows: hasOpenWindows,
-  getGameUrl: getGameUrl
+  getGameUrl: getGameUrl,
+  reloadWithPreAuth: reloadWithPreAuth
 };

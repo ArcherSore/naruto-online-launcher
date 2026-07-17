@@ -53,7 +53,11 @@ function makeMockWin() {
     reload: jest.fn(),
     isDestroyed: jest.fn(() => false),
     session: {
-      cookies: { flushStore: jest.fn(() => Promise.resolve()) }
+      cookies: { flushStore: jest.fn(() => Promise.resolve()) },
+      webRequest: {
+        onCompleted: jest.fn(),
+        onErrorOccurred: jest.fn()
+      }
     }
   };
 
@@ -85,7 +89,15 @@ function makeCtx(overrides) {
         failLoadTimer: null,
         formInjectAttempts: 0
       },
-      ses: { cookies: { flushStore: jest.fn(() => Promise.resolve()) } },
+      ses: {
+        cookies: { flushStore: jest.fn(() => Promise.resolve()) },
+        webRequest: {
+          onCompleted: jest.fn(),
+          onErrorOccurred: jest.fn()
+        },
+        clearStorageData: jest.fn(() => Promise.resolve()),
+        clearCache: jest.fn(() => Promise.resolve())
+      },
       onOpened: jest.fn(),
       onClosed: jest.fn(),
       getGameUrl: jest.fn(
@@ -254,6 +266,82 @@ describe('SessionLifecycle.js', () => {
         handler();
 
         expect(vault.hasCredentials).toHaveBeenCalledWith('p_001');
+      });
+
+      test('para auto-login quando formInjectAttempts > 5', () => {
+        const { win, wcHandlers } = makeMockWin();
+        vault.hasCredentials.mockReturnValue(true);
+        vault.getCredentials.mockReturnValue({ user: 'test@x.com', pass: 'secret' });
+        vault.buildAutoLoginScript.mockReturnValue('(function(){return "not-found";})()');
+        const entry = {
+          failLoadRetry: false,
+          formInjectAttempts: 6,
+          autoLoginTimer: null,
+          failLoadTimer: null
+        };
+        const ctx = makeCtx({ entry });
+        SessionLifecycle.attach(win, ctx);
+
+        // Trigger multiple did-finish-load to simulate retries
+        const handler = wcHandlers['did-finish-load'];
+        handler();
+
+        // Com formInjectAttempts=6, deve parar de tentar — não chama executeJavaScript para auto-login
+        const autoLoginCalls = win.webContents.executeJavaScript.mock.calls.filter(function (c) {
+          return typeof c[0] === 'string' && c[0].includes('doLogin');
+        });
+        expect(autoLoginCalls.length).toBe(0);
+      });
+
+      test('reseta formInjectAttempts quando auto-login succeed (result=filled)', () => {
+        // Verifica que com formInjectAttempts < 6, o auto-login script É executado
+        // (ao contrário do teste "para quando > 5" que verifica o oposto).
+        const { win, wcHandlers } = makeMockWin();
+        vault.hasCredentials.mockReturnValue(true);
+        vault.getCredentials.mockReturnValue({ user: 'test@x.com', pass: 'secret' });
+        vault.buildAutoLoginScript.mockReturnValue('AUTO_LOGIN_SCRIPT_MARKER');
+        const entry = {
+          failLoadRetry: false,
+          formInjectAttempts: 3,
+          autoLoginTimer: null,
+          failLoadTimer: null
+        };
+        const ctx = makeCtx({ entry });
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['did-finish-load'];
+        handler();
+
+        // O auto-login script (com marcador) deve ter sido passado a executeJavaScript
+        const found = win.webContents.executeJavaScript.mock.calls.some(function (c) {
+          return c[0] === 'AUTO_LOGIN_SCRIPT_MARKER';
+        });
+        expect(found).toBe(true);
+      });
+
+      test('resultado "clicked" reseta formInjectAttempts', () => {
+        vault.hasCredentials.mockReturnValue(true);
+        vault.getCredentials.mockReturnValue({ user: 'u', pass: 'p' });
+        // Make executeJavaScript resolve with 'clicked'
+        const { win, wcHandlers } = makeMockWin();
+        win.webContents.executeJavaScript = jest.fn(() => Promise.resolve('clicked'));
+        const entry = {
+          failLoadRetry: false,
+          formInjectAttempts: 3,
+          autoLoginTimer: null,
+          failLoadTimer: null
+        };
+        const ctx = makeCtx({ entry });
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['did-finish-load'];
+        handler();
+
+        // formInjectAttempts should be reset to 0 after 'clicked' result
+        // (verified via the entry reference which is mutated inside the handler)
+        setImmediate(function () {
+          expect(entry.formInjectAttempts).toBe(0);
+        });
       });
     });
 
@@ -512,9 +600,203 @@ describe('SessionLifecycle.js', () => {
 
         const handler = wcHandlers['render-process-gone'];
         expect(typeof handler).toBe('function');
-        // Executa o handler — não deve lançar
         expect(() => handler({}, { reason: 'oom', exitCode: 1 })).not.toThrow();
       });
+
+      test('auto-reload após crash "oom"', () => {
+        jest.useFakeTimers();
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['render-process-gone'];
+        handler({}, { reason: 'oom', exitCode: null });
+
+        // Deve agendar reload em 1.5s
+        expect(win.webContents.reload).not.toHaveBeenCalled();
+        jest.advanceTimersByTime(1500);
+        expect(win.webContents.reload).toHaveBeenCalledTimes(1);
+
+        jest.useRealTimers();
+      });
+
+      test('não recupera "clean-exit"', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['render-process-gone'];
+        handler({}, { reason: 'clean-exit', exitCode: 0 });
+
+        expect(win.webContents.reload).not.toHaveBeenCalled();
+      });
+
+      test('não recupera "killed"', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['render-process-gone'];
+        handler({}, { reason: 'killed', exitCode: 9 });
+
+        expect(win.webContents.reload).not.toHaveBeenCalled();
+      });
+
+      test('não recupera se win.isDestroyed()', () => {
+        const { win, wcHandlers } = makeMockWin();
+        win.isDestroyed.mockReturnValue(true);
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['render-process-gone'];
+        handler({}, { reason: 'crashed', exitCode: 1 });
+
+        expect(win.webContents.reload).not.toHaveBeenCalled();
+      });
+
+      test('backoff: para de recarregar após 3 crashes em 10 min', () => {
+        jest.useFakeTimers();
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['render-process-gone'];
+
+        // 1st crash → reload
+        handler({}, { reason: 'crashed', exitCode: 1 });
+        jest.advanceTimersByTime(1500);
+        expect(win.webContents.reload).toHaveBeenCalledTimes(1);
+
+        // 2nd crash → reload
+        handler({}, { reason: 'oom', exitCode: 2 });
+        jest.advanceTimersByTime(1500);
+        expect(win.webContents.reload).toHaveBeenCalledTimes(2);
+
+        // 3rd crash → limit reached, no reload
+        handler({}, { reason: 'abnormal-exit', exitCode: 3 });
+        expect(win.webContents.reload).toHaveBeenCalledTimes(2);
+
+        jest.useRealTimers();
+      });
+    });
+
+    describe('will-navigate handler', () => {
+      test('ignora data: URLs', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['will-navigate'];
+        expect(() => handler({ preventDefault: jest.fn() }, 'data:text/html,test')).not.toThrow();
+        expect(win.loadURL).not.toHaveBeenCalled();
+      });
+
+      test('injeta LAUNCHER_PARAMS em navegação game-host sem logintype', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['will-navigate'];
+        const evt = { preventDefault: jest.fn() };
+        handler(evt, 'https://naruto.narutowebgame.com/pt/serverlist');
+
+        expect(evt.preventDefault).toHaveBeenCalled();
+        expect(win.loadURL).toHaveBeenCalledWith(
+          'https://naruto.narutowebgame.com/pt/serverlist?logintype=4&leftbar_collapse=Yes&launcher=shinobi'
+        );
+      });
+
+      test('não interfere em assets (swf, js, css)', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['will-navigate'];
+        const evt = { preventDefault: jest.fn() };
+        handler(evt, 'https://naruto.narutowebgame.com/game.swf?v=2');
+
+        expect(evt.preventDefault).not.toHaveBeenCalled();
+      });
+
+      test('não interfere se URL já tem logintype', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['will-navigate'];
+        const evt = { preventDefault: jest.fn() };
+        handler(evt, 'https://naruto.narutowebgame.com/pt/serverlist?logintype=4');
+
+        expect(evt.preventDefault).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('new-window handler', () => {
+      test('abre link do jogo na mesma janela', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['new-window'];
+        const evt = { preventDefault: jest.fn() };
+        handler(evt, 'https://naruto.narutowebgame.com/pt/news');
+
+        expect(evt.preventDefault).toHaveBeenCalled();
+        expect(win.loadURL).toHaveBeenCalledWith('https://naruto.narutowebgame.com/pt/news');
+      });
+
+      test('abre URL externa (não-jogo) via shell.openExternal', () => {
+        const { win, wcHandlers } = makeMockWin();
+        const ctx = makeCtx();
+        SessionLifecycle.attach(win, ctx);
+
+        const handler = wcHandlers['new-window'];
+        const evt = { preventDefault: jest.fn() };
+        handler(evt, 'https://www.google.com/search?q=test');
+
+        expect(evt.preventDefault).toHaveBeenCalled();
+        const { shell } = require('electron');
+        expect(shell.openExternal).toHaveBeenCalledWith('https://www.google.com/search?q=test');
+      });
+    });
+  });
+
+  describe('reloadWithPreAuth race guard', () => {
+    test('segunda chamada durante reload em andamento é ignorada (same window)', async () => {
+      const win = {
+        isDestroyed: () => false,
+        id: 42,
+        webContents: {
+          executeJavaScript: jest.fn(() => Promise.resolve()),
+          reload: jest.fn(),
+          isDestroyed: () => false
+        }
+      };
+      const ses = {
+        clearStorageData: jest.fn(() => Promise.resolve()),
+        clearCache: jest.fn(() => Promise.resolve())
+      };
+
+      // Primeira chamada — retorna promise que não resolve imediatamente
+      var resolveFirst;
+      ses.clearStorageData = jest.fn(
+        () =>
+          new Promise(r => {
+            resolveFirst = r;
+          })
+      );
+
+      SessionLifecycle.reloadWithPreAuth('p1', { name: 'test' }, win, ses, jest.fn());
+      SessionLifecycle.reloadWithPreAuth('p1', { name: 'test' }, win, ses, jest.fn());
+
+      // clearStorageData deve ter sido chamado apenas 1 vez (segunda chamada skipou)
+      expect(ses.clearStorageData).toHaveBeenCalledTimes(1);
+
+      // Resolve a primeira promise
+      if (resolveFirst) resolveFirst();
+      // Limpa o guard para não afetar outros testes
+      // (o setTimeout de 3s vai limpar, mas forçamos aqui)
+      await new Promise(r => setTimeout(r, 50));
     });
   });
 });

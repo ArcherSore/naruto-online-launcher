@@ -79,7 +79,7 @@ function list() {
 /**
  * Cria um novo perfil. Garante que a partition dir existe (persist) para que
  * bunshin/clone não falhe em perfis nunca lançados.
- * @param {{name:string, server:string, region:string, color?:string}} opts
+ * @param {{name:string, server:string, region:string}} opts
  * @returns {Object|null} perfil criado
  */
 function create(opts) {
@@ -400,6 +400,5 @@ module.exports = {
   // Events
   onChange: onChange,
   // Constants
-  MAX_PROFILES: store.MAX_PROFILES,
-  PALETTE: store.PALETTE
+  MAX_PROFILES: store.MAX_PROFILES
 };

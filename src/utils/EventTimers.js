@@ -44,6 +44,10 @@ const REGION_TZ = {
 // Boss Mundial tem 2 janelas diárias (12:00 e 20:00 server-time).
 // Arena 3v3 reset semanal. Team Dungeon tem cooldown diário.
 // Eventos especiais (Bond, Treasure, Rebate) seguem calendário semanal no portal oficial.
+//
+// v5.9.3: Todos os nomes/descrições em PORTUGUÊS independente da região do
+// servidor. Apenas os HORÁRIOS seguem o fuso do servidor (convertidos para
+// o relógio local do usuário via nextOccurrenceMs). Idioma consistente.
 const EVENTS_BY_REGION = {
   br: [
     {
@@ -76,52 +80,88 @@ const EVENTS_BY_REGION = {
       category: 'social',
       remindMin: 0
     },
-    { id: 'br-reset', name: 'Reset Diário (5AM)', hours: [5], category: 'reset', remindMin: 0 }
+    { id: 'br-reset', name: 'Reset Diário (5h)', hours: [5], category: 'reset', remindMin: 0 }
   ],
   na: [
-    { id: 'na-boss-world', name: 'World Boss', hours: [11, 19], category: 'boss', remindMin: 5 },
+    { id: 'na-boss-world', name: 'Boss Mundial', hours: [11, 19], category: 'boss', remindMin: 5 },
     { id: 'na-arena-3v3', name: 'Arena 3v3 (PvP)', hours: [17], category: 'arena', remindMin: 10 },
-    { id: 'na-dungeon', name: 'Team Dungeon', hours: [13, 20], category: 'dungeon', remindMin: 5 },
-    { id: 'na-clan-war', name: 'Clan War', hours: [19], category: 'social', remindMin: 30 },
-    { id: 'na-guild-arena', name: 'Guild Arena', hours: [18], category: 'arena', remindMin: 15 },
+    {
+      id: 'na-dungeon',
+      name: 'Dungeon em Time',
+      hours: [13, 20],
+      category: 'dungeon',
+      remindMin: 5
+    },
+    { id: 'na-clan-war', name: 'Guerra de Clã', hours: [19], category: 'social', remindMin: 30 },
+    {
+      id: 'na-guild-arena',
+      name: 'Arena de Guildas',
+      hours: [18],
+      category: 'arena',
+      remindMin: 15
+    },
     {
       id: 'na-bond-checkin',
-      name: 'Bond / Daily Check-in',
+      name: 'Bond / Check-in Diário',
       hours: [5],
       category: 'social',
       remindMin: 0
     },
-    { id: 'na-reset', name: 'Daily Reset (5AM)', hours: [5], category: 'reset', remindMin: 0 }
+    { id: 'na-reset', name: 'Reset Diário (5h)', hours: [5], category: 'reset', remindMin: 0 }
   ],
   eu: [
-    { id: 'eu-boss-world', name: 'World Boss', hours: [12, 20], category: 'boss', remindMin: 5 },
+    { id: 'eu-boss-world', name: 'Boss Mundial', hours: [12, 20], category: 'boss', remindMin: 5 },
     { id: 'eu-arena-3v3', name: 'Arena 3v3 (PvP)', hours: [18], category: 'arena', remindMin: 10 },
-    { id: 'eu-dungeon', name: 'Team Dungeon', hours: [14, 21], category: 'dungeon', remindMin: 5 },
-    { id: 'eu-clan-war', name: 'Clan War', hours: [20], category: 'social', remindMin: 30 },
-    { id: 'eu-guild-arena', name: 'Guild Arena', hours: [19], category: 'arena', remindMin: 15 },
+    {
+      id: 'eu-dungeon',
+      name: 'Dungeon em Time',
+      hours: [14, 21],
+      category: 'dungeon',
+      remindMin: 5
+    },
+    { id: 'eu-clan-war', name: 'Guerra de Clã', hours: [20], category: 'social', remindMin: 30 },
+    {
+      id: 'eu-guild-arena',
+      name: 'Arena de Guildas',
+      hours: [19],
+      category: 'arena',
+      remindMin: 15
+    },
     {
       id: 'eu-bond-checkin',
-      name: 'Bond / Daily Check-in',
+      name: 'Bond / Check-in Diário',
       hours: [5],
       category: 'social',
       remindMin: 0
     },
-    { id: 'eu-reset', name: 'Daily Reset (5AM)', hours: [5], category: 'reset', remindMin: 0 }
+    { id: 'eu-reset', name: 'Reset Diário (5h)', hours: [5], category: 'reset', remindMin: 0 }
   ],
   hk: [
-    { id: 'hk-boss-world', name: 'World Boss', hours: [12, 20], category: 'boss', remindMin: 5 },
+    { id: 'hk-boss-world', name: 'Boss Mundial', hours: [12, 20], category: 'boss', remindMin: 5 },
     { id: 'hk-arena-3v3', name: 'Arena 3v3 (PvP)', hours: [18], category: 'arena', remindMin: 10 },
-    { id: 'hk-dungeon', name: 'Team Dungeon', hours: [14, 21], category: 'dungeon', remindMin: 5 },
-    { id: 'hk-clan-war', name: 'Clan War', hours: [20], category: 'social', remindMin: 30 },
-    { id: 'hk-guild-arena', name: 'Guild Arena', hours: [19], category: 'arena', remindMin: 15 },
+    {
+      id: 'hk-dungeon',
+      name: 'Dungeon em Time',
+      hours: [14, 21],
+      category: 'dungeon',
+      remindMin: 5
+    },
+    { id: 'hk-clan-war', name: 'Guerra de Clã', hours: [20], category: 'social', remindMin: 30 },
+    {
+      id: 'hk-guild-arena',
+      name: 'Arena de Guildas',
+      hours: [19],
+      category: 'arena',
+      remindMin: 15
+    },
     {
       id: 'hk-bond-checkin',
-      name: 'Bond / Daily Check-in',
+      name: 'Bond / Check-in Diário',
       hours: [5],
       category: 'social',
       remindMin: 0
     },
-    { id: 'hk-reset', name: 'Daily Reset (5AM)', hours: [5], category: 'reset', remindMin: 0 }
+    { id: 'hk-reset', name: 'Reset Diário (5h)', hours: [5], category: 'reset', remindMin: 0 }
   ]
 };
 
@@ -212,11 +252,12 @@ function getUpcoming(region) {
         hours: ev.hours,
         category: ev.category,
         remindMin: ev.remindMin,
+        durationMin: ev.durationMin || 60, // v5.9.12: duração do evento (default 60min)
         region: region,
         nextFireMs: ms,
         nextFireLabel: formatCountdown(ms),
-        // Hora no fuso do usuário (para display)
-        userTimeLabel: formatUserTime(soonest)
+        // Hora no fuso do servidor (para display)
+        userTimeLabel: formatUserTime(soonest, region)
       };
     })
     .sort(function (a, b) {
@@ -235,11 +276,12 @@ function formatCountdown(ms) {
   return Math.floor(ms / 1000) + 's';
 }
 
-function formatUserTime(ms) {
-  const d = new Date(ms);
-  const h = String(d.getHours()).padStart(2, '0');
-  const m = String(d.getMinutes()).padStart(2, '0');
-  return h + ':' + m;
+function formatUserTime(ms, region) {
+  var meta = REGION_TZ[region] || REGION_TZ.br;
+  var d = new Date(ms);
+  var h = (((d.getUTCHours() + meta.baseOffset) % 24) + 24) % 24;
+  var m = d.getUTCMinutes();
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }
 
 /**

@@ -99,9 +99,15 @@ describe('settings.js - validateConfig', () => {
     expect(validateConfig({}).language).toBe('pt');
   });
 
-  test('aceita todos 6 idiomas suportados', () => {
-    ['pt', 'en', 'de', 'es', 'pl', 'fr'].forEach((lang) => {
+  test('aceita idiomas suportados (pt, en)', () => {
+    ['pt', 'en'].forEach((lang) => {
       expect(validateConfig({ language: lang }).language).toBe(lang);
+    });
+  });
+
+  test('rejeita idiomas não suportados (de, es, pl, fr) e usa pt', () => {
+    ['de', 'es', 'pl', 'fr', 'ru', 'ja'].forEach((lang) => {
+      expect(validateConfig({ language: lang }).language).toBe('pt');
     });
   });
 
@@ -202,13 +208,13 @@ describe('settings.js - loadConfig', () => {
     mockReadFileSync.mockReturnValue(JSON.stringify({
       region: 'en',
       hardwareProfile: 'legacy',
-      language: 'de',
+      language: 'en',
       advancedMode: true
     }));
     const config = loadConfig();
     expect(config.region).toBe('en');
     expect(config.hardwareProfile).toBe('legacy');
-    expect(config.language).toBe('de');
+    expect(config.language).toBe('en');
     expect(config.advancedMode).toBe(true);
   });
 

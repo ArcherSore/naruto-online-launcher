@@ -81,6 +81,14 @@ function registerIpcHandlers(handlers) {
     const win = _getWin();
     if (win) win.minimize();
   });
+
+  // ── v5.0.0: App relaunch (for optimization preset change) ──
+  ipcMain.on('app:relaunch', function () {
+    logger.info('App relaunch requested (preset change)');
+    const { app } = require('electron');
+    app.relaunch();
+    app.exit(0);
+  });
   ipcMain.handle('window:toggle-maximize', function () {
     const win = _getWin();
     if (!win) return null;
@@ -188,7 +196,6 @@ function registerIpcHandlers(handlers) {
       server: src.server,
       region: src.region,
       language: src.language,
-      color: src.color,
       notes: src.notes || '',
       tags: src.tags || [] // v5.3: copy tags
     });
@@ -590,8 +597,7 @@ function registerIpcHandlers(handlers) {
             server: p.server,
             region: p.region,
             language: p.language,
-            notificationsEnabled: p.notificationsEnabled,
-            color: p.color
+            notificationsEnabled: p.notificationsEnabled
           });
           if (newProfile) {
             imported++;

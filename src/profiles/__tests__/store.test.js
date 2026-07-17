@@ -99,16 +99,10 @@ describe('store.js', () => {
     test('exports getStats as function', () => {
       expect(typeof store.getStats).toBe('function');
     });
-    test('exports MAX_PROFILES = 12', () => {
-      expect(store.MAX_PROFILES).toBe(12);
+    test('exports MAX_PROFILES = 10', () => {
+      expect(store.MAX_PROFILES).toBe(10);
     });
-    test('exports PALETTE as array of 12 hex colors', () => {
-      expect(Array.isArray(store.PALETTE)).toBe(true);
-      expect(store.PALETTE.length).toBe(12);
-      store.PALETTE.forEach(function (c) {
-        expect(c).toMatch(/^#[0-9a-fA-F]{6}$/);
-      });
-    });
+
     test('exports getPartitionName as function', () => {
       expect(typeof store.getPartitionName).toBe('function');
     });
@@ -123,7 +117,6 @@ describe('store.js', () => {
       expect(p.region).toBe('br');
       expect(p.language).toBe('pt');
       expect(p.notificationsEnabled).toBe(true);
-      expect(p.color).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(p.launchCount).toBe(0);
       expect(p.totalPlayMs).toBe(0);
       expect(p.notes).toBe('');
@@ -167,16 +160,6 @@ describe('store.js', () => {
         const p = store.create({ language: lang });
         expect(p.language).toBe(lang);
       });
-    });
-
-    test('uses provided color if valid hex', () => {
-      const p = store.create({ color: '#FF0000' });
-      expect(p.color).toBe('#FF0000');
-    });
-
-    test('uses palette color if color is invalid', () => {
-      const p = store.create({ color: 'red' });
-      expect(store.PALETTE).toContain(p.color);
     });
 
     test('truncates name to 40 chars', () => {
@@ -243,11 +226,7 @@ describe('store.js', () => {
       expect(store.get(p.id).region).toBe('br');
     });
 
-    test('ignores invalid color on update', () => {
-      const p = store.create({ color: '#FF8C00' });
-      store.update(p.id, { color: 'not-a-color' });
-      expect(store.get(p.id).color).toBe('#FF8C00');
-    });
+
 
     test('updates favorite flag', () => {
       const p = store.create({ favorite: false });
@@ -457,7 +436,7 @@ describe('store.js', () => {
             region: 'br',
             language: 'pt',
             notificationsEnabled: true,
-            color: '#FF8C00',
+            // color removed in remote schema
             createdAt: Date.now(),
             lastUsed: 0,
             notes: '',
@@ -600,8 +579,8 @@ describe('store.js', () => {
         expect(todayBucket.count).toBe(3);
       });
 
-      test('profiles array contains id/name/color/count', () => {
-        const p = store.create({ name: 'ProfileFields', color: '#FF8C00' });
+      test('profiles array contains id/name/count', () => {
+        const p = store.create({ name: 'ProfileFields' });
         store.recordLaunch(p.id);
         store.recordLaunch(p.id);
         const timeline = store.getLaunchTimeline(7);
@@ -610,13 +589,13 @@ describe('store.js', () => {
         const entry = todayBucket.profiles[0];
         expect(entry.id).toBe(p.id);
         expect(entry.name).toBe('ProfileFields');
-        expect(entry.color).toBe('#FF8C00');
+        // color field removed
         expect(entry.count).toBe(2);
       });
 
       test('multiple profiles in same day are listed separately', () => {
-        const p1 = store.create({ name: 'Multi1', color: '#FF0000' });
-        const p2 = store.create({ name: 'Multi2', color: '#00FF00' });
+        const p1 = store.create({ name: 'Multi1' });
+        const p2 = store.create({ name: 'Multi2' });
         store.recordLaunch(p1.id);
         store.recordLaunch(p1.id);
         store.recordLaunch(p2.id);

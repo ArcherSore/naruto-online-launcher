@@ -181,7 +181,7 @@ jobs:
             🇧🇷 PT · 🇺🇸 EN · 🇫🇷 FR · 🇩🇪 DE · 🇪🇸 ES · 🇵🇱 PL
 
             ### Flash PPAPI
-            Flash binaries are downloaded on-demand on first boot (no binaries committed to repo). Linux shows an actionable error if Flash cannot be provisioned.
+            Flash PPAPI binaries (Linux `.so` + Windows `.dll`) are committed to the repo so the build is fully reproducible offline. Linux shows an actionable error if Flash cannot be provisioned at runtime.
 
   # ── Auto-update README with latest download links ──
   update-readme:
@@ -190,6 +190,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Fetch latest release assets
         id: latest
@@ -218,4 +220,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add README.md
           git commit -m "docs: bump download links to ${{ steps.latest.outputs.version }} [skip ci]" || echo "nothing to commit"
-          git push
+          git push origin main

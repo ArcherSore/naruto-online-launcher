@@ -8,14 +8,18 @@ const fs = require('fs');
 jest.mock('fs');
 jest.mock('path', () => {
   const actual = jest.requireActual('path');
-  return { ...actual, join: jest.fn((...args) => args.join('/')), dirname: jest.fn(() => '/mock/dir') };
+  return {
+    ...actual,
+    join: jest.fn((...args) => args.join('/')),
+    dirname: jest.fn(() => '/mock/dir')
+  };
 });
 jest.mock('os', () => ({ homedir: jest.fn(() => '/home/test') }));
 jest.mock('../../utils/logger', () => ({
   debug: jest.fn(),
   info: jest.fn(),
   warn: jest.fn(),
-  error: jest.fn(),
+  error: jest.fn()
 }));
 
 describe('src/flash/mms.js', () => {
@@ -74,7 +78,7 @@ describe('src/flash/mms.js', () => {
     });
 
     it('faz backup de mms.cfg existente', () => {
-      fs.existsSync.mockImplementation((p) => p.includes('mms.cfg') && !p.endsWith('.bak'));
+      fs.existsSync.mockImplementation(p => p.includes('mms.cfg') && !p.endsWith('.bak'));
       fs.copyFileSync.mockImplementation(() => {});
       fs.writeFileSync.mockImplementation(() => {});
 
@@ -99,7 +103,7 @@ describe('src/flash/mms.js', () => {
 
   describe('restoreMmsCfg', () => {
     it('restaura backup e remove arquivo .bak', () => {
-      fs.existsSync.mockImplementation((p) => p.endsWith('.bak'));
+      fs.existsSync.mockImplementation(p => p.endsWith('.bak'));
       fs.copyFileSync.mockImplementation(() => {});
       fs.unlinkSync.mockImplementation(() => {});
 
@@ -118,7 +122,7 @@ describe('src/flash/mms.js', () => {
     });
 
     it('retorna false quando restore falha', () => {
-      fs.existsSync.mockImplementation((p) => p.endsWith('.bak'));
+      fs.existsSync.mockImplementation(p => p.endsWith('.bak'));
       fs.copyFileSync.mockImplementation(() => {
         throw new Error('read error');
       });

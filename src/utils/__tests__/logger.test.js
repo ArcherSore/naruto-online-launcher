@@ -46,6 +46,13 @@ describe('logger.js', () => {
       logger.warn('warning message');
       expect(electronLog.warn).toHaveBeenCalledWith(expect.stringContaining('[Launcher]'));
     });
+
+    test('aceita dados adicionais', () => {
+      logger.warn('warning message', { key: 'value' });
+      expect(electronLog.warn).toHaveBeenCalledWith(expect.stringContaining('warning message'), {
+        key: 'value'
+      });
+    });
   });
 
   describe('error', () => {
@@ -67,6 +74,13 @@ describe('logger.js', () => {
     test('delega para electron-log.debug', () => {
       logger.debug('debug message');
       expect(electronLog.debug).toHaveBeenCalledTimes(1);
+    });
+
+    test('aceita dados adicionais', () => {
+      logger.debug('debug message', { ctx: 'test' });
+      expect(electronLog.debug).toHaveBeenCalledWith(expect.stringContaining('debug message'), {
+        ctx: 'test'
+      });
     });
   });
 });

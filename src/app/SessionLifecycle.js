@@ -15,6 +15,7 @@
 const logger = require('../utils/logger');
 const vault = require('../profiles/vault');
 const ManagerWindow = require('../ui/manager/ManagerWindow');
+const StallDetector = require('./StallDetector');
 
 /**
  * Carrega a página do jogo com pré-autenticação via API quando possível.
@@ -41,7 +42,10 @@ function _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl) {
         .catch(function (e) {
           if (win.isDestroyed()) return;
           logger.warn(
-            'Login via API falhou para "' + profile.name + '" — fallback form-injection: ' + e.message
+            'Login via API falhou para "' +
+              profile.name +
+              '" — fallback form-injection: ' +
+              e.message
           );
           win.loadURL(url);
         });
@@ -157,6 +161,10 @@ function attach(win, ctx) {
   const getGameUrl = ctx.getGameUrl;
   const LAUNCHER_PARAMS = ctx.LAUNCHER_PARAMS;
 
+  // ── StallDetector instance (auto-F5 quando SWF essencial falha) ──
+  // Anexado em did-finish-load, desanexado em close/reload.
+  var _stallDetector = null;
+
   // ── ISOLAMENTO DE CRASH + AUTO-RECOVERY ──
   // Backoff: max 3 auto-reloads em 10 min por perfil (evita crash loop).
   var _crashTimestamps = [];
@@ -172,13 +180,13 @@ function attach(win, ctx) {
     try {
       const manager = require('../profiles/manager');
       manager.reportCrash(profileId);
-    } catch (_) {
-      /* ignore circular */
+    } catch (e) {
+      logger.debug('render-process-gone: reportCrash(profile) falhou: ' + e.message);
     }
     try {
       require('../memory/guard').reportCrash();
-    } catch (_) {
-      /* ignore */
+    } catch (e) {
+      logger.debug('render-process-gone: reportCrash(memory) falhou: ' + e.message);
     }
 
     // Auto-recovery: reload se webContents ainda válido e dentro do backoff.
@@ -235,8 +243,8 @@ function attach(win, ctx) {
         const sep = url.includes('?') ? '&' : '?';
         win.loadURL(url + sep + LAUNCHER_PARAMS);
       }
-    } catch (_) {
-      /* ignore */
+    } catch (e) {
+      logger.debug('will-navigate: URL parse falhou para ' + url);
     }
   });
 
@@ -251,8 +259,8 @@ function attach(win, ctx) {
           const { shell } = require('electron');
           shell.openExternal(url);
         }
-      } catch (_) {
-        /* ignore */
+      } catch (e) {
+        logger.debug('new-window: URL inválida ignorada — ' + url);
       }
     }
   });
@@ -262,30 +270,98 @@ function attach(win, ctx) {
     if (entry) entry.failLoadRetry = false;
     ses.cookies.flushStore().catch(function () {});
 
-    // CAMADA 1: limpeza leve (ads, cookies, popups)
+    // ── v5.0.0: CPU optimization (cross-platform) ──
+    // Aplicado aqui (e não no ready-to-show) porque getOSProcessId() só retorna
+    // valor válido após o renderer process spawn — que acontece no loadURL.
+    // LINUX: taskset (affinity) + renice (priority) + oom_score_adj (OOM protection).
+    // WINDOWS: PowerShell (affinity) + os.setPriority (priority).
+    // macOS: no-op.
+    try {
+      const cpuOptimizer = require('./CpuOptimizer');
+      const { loadConfig } = require('../config/settings');
+      const cfg = loadConfig();
+      const rendererPid = win.webContents.getOSProcessId();
+      if (rendererPid > 0) {
+        cpuOptimizer
+          .optimizeRenderer(rendererPid, {
+            preset: cfg.optimizationPreset || 'balanced'
+          })
+          .catch(function (e) {
+            logger.debug('CpuOptimizer: falhou (não-fatal) — ' + e.message);
+          });
+      }
+    } catch (e) {
+      logger.debug('CpuOptimizer: skip — ' + e.message);
+    }
+
+    // CAMADA 1: limpeza leve (ads, cookies, popups, poluição do site do jogo)
     win.webContents
       .insertCSS(
         '.ad, .ads, .banner, .ad-banner, .ad-container, [class*="advertisement"], [id*="advertisement"] { display: none !important; }' +
           '.cookie-notice, .cookie-banner, #cookieConsent, .gdpr-banner { display: none !important; }' +
-          '.support-link, .help-link, .external-link, .social-share, .share-buttons { display: none !important; }'
+          '.support-link, .help-link, .external-link, .social-share, .share-buttons { display: none !important; }' +
+          '#flash_guide_main_panel, #fb_like_tag, #preload_element { display: none !important; }' +
+          'iframe[name="conversion_code"], iframe[name="adtrace"] { display: none !important; width:0 !important; height:0 !important; }'
       )
       .catch(function () {});
 
-    // CAMADA 2: fullscreen limpo SOMENTE se há Flash embed (página de jogo)
+    // CAMADA 2: fullscreen limpo — esconde header/footer/sidebars do site e faz
+    // o #oas-player preencher a janela (experiência imersiva só do jogo).
+    //
+    // v5.9.8: Usa MutationObserver + polling (mesmo padrão robusto do auto-login)
+    // em vez de um check único no did-finish-load. O Naruto Online carrega o
+    // embed #oas-player ASYNC via JS — no did-finish-load ele geralmente ainda
+    // não existe no DOM, então o check único falhava e o CSS não injetava.
+    // Resultado: a top bar às vezes sumia (numa sub-navegação onde #oas-player
+    // já existia) e às vezes ficava visível — inconsistente. Agora o observer
+    // detecta #oas-player assim que ele aparece e injeta o CSS de forma confiável.
     win.webContents
       .executeJavaScript(
-        'if (document.querySelector("embed") || document.querySelector("object")) {' +
-          '  var s = document.createElement("style");' +
-          '  s.textContent = ' +
+        '(function(){' +
+          '  if (window.__shinobiFsInjected) return "already";' +
+          '  window.__shinobiFsInjected = true;' +
+          '  var css = ' +
           '    "html, body { margin:0 !important; padding:0 !important; overflow:hidden !important; width:100% !important; height:100% !important; background:#000 !important; }" +' +
-          '    "#oas-bar, .oas-bar, .header, .header-wrap, .site-header, .top-bar, .topbar { display:none !important; height:0 !important; min-height:0 !important; }" +' +
+          '    "#oas-bar, .oas-bar, #oas-bar-hide, .header, .header-wrap, .site-header, .top-bar, .topbar { display:none !important; height:0 !important; min-height:0 !important; }" +' +
           '    "footer, .footer, .site-footer, .footer-wrap, #footer { display:none !important; height:0 !important; }" +' +
           '    ".sidebar, .left-sidebar, .right-sidebar, .nav-sidebar { display:none !important; }" +' +
-          '    "embed, object { width:100vw !important; height:100vh !important; display:block !important; }" +' +
-          '    "body > div { height:100vh !important; overflow:hidden !important; background:#000 !important; }";' +
-          '  document.head.appendChild(s);' +
-          '}'
+          '    "#oas-player { position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; margin:0 !important; }" +' +
+          '    "#oas-player iframe { width:100% !important; height:100% !important; }";' +
+          '  function apply(){' +
+          '    if (window.__shinobiFsApplied) return true;' +
+          '    var flashEl = document.querySelector("#oas-player iframe, #oas-player embed, #oas-player object");' +
+          '    var player = document.querySelector("#oas-player");' +
+          '    if (!flashEl && !player) return false;' +
+          '    var s = document.createElement("style");' +
+          '    s.setAttribute("data-shinobi","fullscreen");' +
+          '    s.textContent = css;' +
+          '    (document.head||document.documentElement).appendChild(s);' +
+          '    window.__shinobiFsApplied = true;' +
+          '    return true;' +
+          '  }' +
+          '  if (apply()) return "applied";' +
+          '  var attempts = 0, maxAttempts = 120;' + // ~30s @ 250ms
+          '  var obs = new MutationObserver(function(){' +
+          '    if (apply()) { obs.disconnect(); try{clearInterval(poll);}catch(e){} }' +
+          '  });' +
+          '  obs.observe(document.documentElement||document.body,{childList:true,subtree:true});' +
+          '  var poll = setInterval(function(){' +
+          '    attempts++;' +
+          '    if (apply()) { clearInterval(poll); obs.disconnect(); return; }' +
+          '    if (attempts >= maxAttempts) { clearInterval(poll); obs.disconnect(); }' +
+          '  }, 250);' +
+          '  return "observing";' +
+          '})()'
       )
+      .then(function (result) {
+        if (result === 'applied') {
+          logger.info('Fullscreen CSS aplicado imediatamente — ' + profile.name);
+        } else if (result === 'observing') {
+          logger.info(
+            'Fullscreen CSS: aguardando #oas-player (MutationObserver) — ' + profile.name
+          );
+        }
+      })
       .catch(function () {});
 
     // Mock FB object — fallback se SDK real não carrega
@@ -299,6 +375,28 @@ function attach(win, ctx) {
       .catch(function () {});
 
     _tryAutoLogin(profileId, win, entry);
+
+    // ── StallDetector: auto-F5 quando SWF essencial falha (v5.9.11) ──
+    // Monitora webRequest.onCompleted + onErrorOccurred. Se 2+ SWFs falham
+    // em 60s, ou 45s sem atividade de rede durante o loading → trigger
+    // reloadWithPreAuth (mesmo fluxo do F5: limpa + pré-auth via API).
+    // Backoff: max 3 auto-reloads em 10 min. Auto-stop após 120s de atividade.
+    if (_stallDetector) {
+      try {
+        _stallDetector.detach();
+      } catch (_) {
+        /* ignore */
+      }
+      _stallDetector = null;
+    }
+    _stallDetector = StallDetector.attach(win, ses, {
+      profileName: profile.name,
+      onStall: function () {
+        if (win.isDestroyed()) return;
+        logger.info('StallDetector disparou auto-F5 (pré-auth) — "' + profile.name + '"');
+        reloadWithPreAuth(profileId, profile, win, ses, getGameUrl);
+      }
+    });
   });
 
   // ── did-fail-load: retry 1x + tela de erro amigável ──
@@ -387,6 +485,15 @@ function attach(win, ctx) {
     if (entry) {
       _clearEntryTimers(entry);
     }
+    // StallDetector cleanup (remove webRequest listeners + interval)
+    if (_stallDetector) {
+      try {
+        _stallDetector.detach();
+      } catch (_) {
+        /* ignore */
+      }
+      _stallDetector = null;
+    }
     // JWT auto-renewal interval cleanup
     if (_renewTimer) {
       clearInterval(_renewTimer);
@@ -443,48 +550,155 @@ function attach(win, ctx) {
   // próximo de expirar (threshold 5 min) e renova via api-login. O JWT do
   // Naruto Online expira em 2h; sem renovação, a sessão cai e o auto-login
   // via form injection reassume — mas renovar evita essa interrupção.
-  _renewTimer = setInterval(
-    function () {
+  //
+  // v5.9.15: Adicionado backoff exponencial. Se a renovação falha N vezes
+  // consecutivas, o intervalo dobra (max 2h). Reseta no próximo sucesso.
+  // Isso evita chamadas inúteis a cada 30min quando o servidor está fora do ar.
+  var _renewConsecutiveFailures = 0;
+  var _renewBaseIntervalMs = 30 * 60 * 1000; // 30 min base
+  _renewTimer = setInterval(function () {
+    if (win.isDestroyed()) {
+      if (_renewTimer) {
+        clearInterval(_renewTimer);
+        _renewTimer = null;
+      }
+      return;
+    }
+    if (!vault.hasCredentials(profileId)) return; // sem creds → não pode renovar
+    const creds = vault.getCredentials(profileId);
+    if (!creds || !creds.user || !creds.pass) return;
+    try {
+      const apiLogin = require('../network/api-login');
+      apiLogin
+        .renewIfNeeded(ses, creds.user, creds.pass, 300)
+        .then(function (r) {
+          if (r.renewed) {
+            // Sucesso → reseta backoff
+            _renewConsecutiveFailures = 0;
+            logger.info(
+              'JWT auto-renovado para "' +
+                profile.name +
+                '" (novo expira em ' +
+                Math.round(r.expiresAt / 1000 - Date.now() / 1000) +
+                's)'
+            );
+          }
+        })
+        .catch(function (e) {
+          _renewConsecutiveFailures++;
+          var backoffMs = Math.min(
+            _renewBaseIntervalMs * Math.pow(2, Math.min(_renewConsecutiveFailures - 1, 3)),
+            2 * 60 * 60 * 1000 // max 2h
+          );
+          if (_renewConsecutiveFailures <= 2) {
+            // Primeiras falhas: log debug (pode ser temporário)
+            logger.debug(
+              'JWT auto-renewal falhou (' +
+                _renewConsecutiveFailures +
+                'x, próximo em ' +
+                Math.round(backoffMs / 60000) +
+                'min): ' +
+                e.message
+            );
+          } else {
+            logger.warn(
+              'JWT auto-renewal falhou ' +
+                _renewConsecutiveFailures +
+                'x consecutivas — backoff ' +
+                Math.round(backoffMs / 60000) +
+                'min (servidor pode estar fora do ar)'
+            );
+          }
+        });
+    } catch (e) {
+      logger.debug('JWT auto-renewal skip: ' + e.message);
+    }
+  }, _renewBaseIntervalMs);
+  if (_renewTimer.unref) _renewTimer.unref();
+}
+
+/**
+ * Recarrega a página do jogo com pré-autenticação (igual ao fluxo do Play).
+ *
+ * Diferente de um reload cru, este método:
+ *   1. Limpa cookies + localStorage + sessionStorage + cache da partition
+ *   2. Pré-autentica via apiLogin.loginAndInject() ANTES de recarregar
+ *      → o cookie oas_user já vem setado → servidor redireciona direto pro jogo,
+ *        sem mostrar a tela de login do Naruto Online (email ficaria visível).
+ *
+ * Se o perfil NÃO tem credenciais no vault, faz só o reload direto (não há como
+ * pré-autenticar). Se o apiLogin falha, faz fallback pro loadURL simples (o
+ * form-injection auto-login via did-finish-load cuida do login depois).
+ *
+ * ANTI-RACE: se já existe um reload em andamento para esta janela, ignora.
+ * Evita que F5 múltiplo rápido cause clearStorageData concorrente + loadURL duplo.
+ *
+ * @param {string} profileId
+ * @param {Object} profile
+ * @param {Electron.BrowserWindow} win
+ * @param {Electron.Session} ses
+ * @param {Function} getGameUrl
+ * @returns {Promise<void>}
+ */
+var _reloadingWindows = new Set();
+
+function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
+  if (!win || win.isDestroyed()) return Promise.resolve();
+  if (!ses) {
+    // Sem session: não há o que limpar, só recarrega.
+    win.webContents.reload();
+    return Promise.resolve();
+  }
+
+  // Anti-race: se já tem um reload em andamento pra esta janela, skip.
+  var winId = win.id;
+  if (_reloadingWindows.has(winId)) {
+    logger.debug('F5 reloadWithPreAuth: já existe reload em andamento (win ' + winId + ') — skip');
+    return Promise.resolve();
+  }
+  _reloadingWindows.add(winId);
+
+  logger.info('F5 reloadWithPreAuth: limpando login + pré-autenticando "' + profile.name + '"');
+
+  // Limpa onbeforeunload/onunload antes (igual ao reload antigo fazia).
+  var clearJs = win.webContents
+    .executeJavaScript('window.onbeforeunload = null; window.onunload = null;')
+    .catch(function () {});
+
+  var clearStorage = ses.clearStorageData({
+    storages: ['cookies', 'localstorage', 'sessionstorage']
+  });
+  var clearCache = ses.clearCache();
+
+  return Promise.all([clearJs, clearStorage, clearCache])
+    .then(function () {
       if (win.isDestroyed()) {
-        if (_renewTimer) {
-          clearInterval(_renewTimer);
-          _renewTimer = null;
-        }
+        _reloadingWindows.delete(winId);
         return;
       }
-      if (!vault.hasCredentials(profileId)) return; // sem creds → não pode renovar
-      const creds = vault.getCredentials(profileId);
-      if (!creds || !creds.user || !creds.pass) return;
-      try {
-        const apiLogin = require('../network/api-login');
-        apiLogin
-          .renewIfNeeded(ses, creds.user, creds.pass, 300)
-          .then(function (r) {
-            if (r.renewed) {
-              logger.info(
-                'JWT auto-renovado para "' +
-                  profile.name +
-                  '" (novo expira em ' +
-                  Math.round(r.expiresAt / 1000 - Date.now() / 1000) +
-                  's)'
-              );
-            }
-          })
-          .catch(function (e) {
-            logger.debug('JWT auto-renewal falhou para ' + profileId + ': ' + e.message);
-          });
-      } catch (e) {
-        logger.debug('JWT auto-renewal skip: ' + e.message);
-      }
-    },
-    30 * 60 * 1000
-  ); // 30 min
-  if (_renewTimer.unref) _renewTimer.unref();
+      logger.info('F5 reloadWithPreAuth: login limpo, pré-autenticando — ' + profile.name);
+      // Reutiliza o MESMO fluxo do Play (apiLogin.loginAndInject antes de loadURL).
+      _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl);
+      // did-finish-load vai disparar e o novo loadURL será assíncrono.
+      // Liberamos o guard após um delay suficiente pro loadURL iniciar.
+      setTimeout(function () {
+        _reloadingWindows.delete(winId);
+      }, 3000);
+    })
+    .catch(function (e) {
+      _reloadingWindows.delete(winId);
+      if (win.isDestroyed()) return;
+      logger.warn('F5 reloadWithPreAuth: erro ao limpar — fallback reload direto: ' + e.message);
+      // Reset do entry formInjectAttempts não é necessário aqui (did-finish-load cuida).
+      win.webContents.reload();
+    });
 }
 
 module.exports = {
   attach: attach,
+  reloadWithPreAuth: reloadWithPreAuth,
   // expostos p/ testes
   _sendWindowStatus: _sendWindowStatus,
-  _sendAutoLoginResult: _sendAutoLoginResult
+  _sendAutoLoginResult: _sendAutoLoginResult,
+  _loadGameWithPreAuth: _loadGameWithPreAuth
 };

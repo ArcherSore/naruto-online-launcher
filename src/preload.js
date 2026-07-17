@@ -21,11 +21,21 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const { DEBUG } = require('./main/debug');
 
-// v5.0 (Fase 3, Decisão B): expõe a feature flag SHINOBI_DEBUG para o renderer.
-// UI de debug (aba Dev, DevTools, inspector, tempmail inbox, JWT decoder) só
-// renderiza quando isto é true (env var) OU quando o atalho Ctrl+Shift+D
-// (hold 2s) destrava o runtime no renderer (localStorage).
-contextBridge.exposeInMainWorld('__SHINOBI_DEBUG__', DEBUG);
+// v5.9.9 (fix preload crash): contextBridge.exposeInMainWorld no Electron 11
+// NÃO aceita primitivos (boolean/string/number) como 2º argumento — só
+// object/function/null. Passar `DEBUG` (boolean) direto crashava o preload
+// inteiro com "TypeError: Error processing argument at index 1, conversion
+// failure from". Consequência: window.__SHINOBI_DEBUG__ ficava undefined E
+// window.narutoLauncher também (a linha de baixo nunca executava) → Dev Tools
+// section nunca aparecia + qualquer bridge IPC futuro quebraria.
+// Correção: expor como objeto { enabled: boolean, isDebug: function }.
+// Renderer adaptado para ler window.__SHINOBI_DEBUG__.enabled (app.js).
+contextBridge.exposeInMainWorld('__SHINOBI_DEBUG__', {
+  enabled: DEBUG,
+  isDebug: function () {
+    return DEBUG;
+  }
+});
 
 contextBridge.exposeInMainWorld('narutoLauncher', {
   /**
