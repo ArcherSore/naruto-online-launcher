@@ -225,11 +225,7 @@ function renderProfiles() {
     card.tabIndex = 0;
     card.style.animationDelay = idx * 60 + 'ms';
     var favClass = p.favorite ? ' fav-card' : '';
-    card.className =
-      'card' +
-      (p.hasVault ? ' has-vault' : '') +
-      favClass +
-      (batchSelected.has(p.id) ? ' batch-selected' : '');
+    card.className = 'card' + (p.hasVault ? ' has-vault' : '') + favClass;
     card.setAttribute('data-card-id', p.id);
     // v4.5: Build stats display (launch count, play time, last used)
     var launchCount = p.launchCount || 0;
@@ -332,13 +328,7 @@ function renderProfiles() {
       '<button class="btn sm btn-icon-only dup-action" data-act="dup" data-tip="Duplicar" title="Duplicar">' +
       '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
       '</button>';
-    // v5.1: Batch checkbox
-    var batchCheckHtml =
-      '<div class="card-batch-check" data-batch-id="' +
-      p.id +
-      '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>';
     card.innerHTML = `
-      ${batchCheckHtml}
       <div class="card-head">
         <div class="card-avatar">${esc(p.name.charAt(0).toUpperCase())}</div>
         <div style="flex:1;min-width:0">
@@ -382,22 +372,6 @@ function renderProfiles() {
         }
       });
     });
-    // v5.1: Batch checkbox handler
-    var batchCheck = card.querySelector('.card-batch-check');
-    if (batchCheck) {
-      batchCheck.addEventListener('click', function (e) {
-        e.stopPropagation();
-        if (batchSelected.has(p.id)) {
-          batchSelected.delete(p.id);
-          batchCheck.classList.remove('checked');
-        } else {
-          batchSelected.add(p.id);
-          batchCheck.classList.add('checked');
-        }
-        updateBatchBar();
-      });
-      if (batchSelected.has(p.id)) batchCheck.classList.add('checked');
-    }
     // v4.5: Server switcher handler
     var serverSelect = card.querySelector('select[data-act="switch-server"]');
     if (serverSelect) {
@@ -578,7 +552,10 @@ function renderRegionTabs() {
 
 function renderEvents(data) {
   if (!data || !data.byRegion) return;
+  // v5.9.12: store globally for updateEventBadge (active events count)
+  lastEventsByRegion = data.byRegion;
   renderEventsSingle(data.byRegion[selectedRegion] || data.byRegion['br'] || []);
+  updateEventBadge();
 }
 
 function renderEventsSingle(list) {
@@ -1361,15 +1338,32 @@ function addActivity(type, text) {
 }
 
 // ── v5.0: Notification Badge on Events ──
+// v5.9.12: badge agora mostra eventos ATIVOS no momento (dentro da janela de
+// duração), em vez de contagem de activity log. Muito menos confuso — o número
+// no botão Eventos significa "X eventos estão rodando agora".
+// Usa lastEventsByRegion (preenchido pelo IPC events:update).
+var lastEventsByRegion = {};
+
 function updateEventBadge() {
   var badge = document.getElementById('eventBadge');
   if (!badge) return;
-  var log = getActivityLog();
-  var unread = log.filter(function (item) {
-    return Date.now() - item.time < 3600000;
-  }).length; // last hour
-  if (unread > 0 && !notificationsMuted) {
-    badge.textContent = unread > 9 ? '9+' : unread;
+  var activeCount = 0;
+  Object.keys(lastEventsByRegion).forEach(function (region) {
+    var events = lastEventsByRegion[region];
+    if (!events || !events.length) return;
+    events.forEach(function (ev) {
+      var durationMin = ev.durationMin || 60;
+      if (
+        ev.nextFireMs !== undefined &&
+        ev.nextFireMs < 0 &&
+        ev.nextFireMs > -(durationMin * 60000)
+      ) {
+        activeCount++;
+      }
+    });
+  });
+  if (activeCount > 0 && !notificationsMuted) {
+    badge.textContent = activeCount > 9 ? '9+' : activeCount;
     badge.classList.add('show');
   } else {
     badge.classList.remove('show');
@@ -1539,71 +1533,6 @@ ipcRenderer.on('auto-login:result', function (_e, data) {
   }
 });
 
-// ── v5.1: Batch Operations ──
-var batchMode = false;
-var batchSelected = new Set();
-
-document.getElementById('batchModeBtn').onclick = function () {
-  batchMode = !batchMode;
-  this.classList.toggle('on', batchMode);
-  document.getElementById('profileGrid').classList.toggle('batch-mode', batchMode);
-  if (!batchMode) {
-    batchSelected.clear();
-    updateBatchBar();
-  }
-  renderProfiles();
-};
-
-function updateBatchBar() {
-  var bar = document.getElementById('batchBar');
-  var count = document.getElementById('batchCount');
-  if (batchMode && batchSelected.size > 0) {
-    bar.classList.add('show');
-    count.textContent = batchSelected.size + ' selecionado' + (batchSelected.size > 1 ? 's' : '');
-  } else {
-    bar.classList.remove('show');
-  }
-}
-
-document.getElementById('batchSelectAll').onclick = function () {
-  if (batchSelected.size === profiles.length) {
-    batchSelected.clear();
-  } else {
-    profiles.forEach(function (p) {
-      batchSelected.add(p.id);
-    });
-  }
-  updateBatchBar();
-  renderProfiles();
-};
-
-document.getElementById('batchCancelBtn').onclick = function () {
-  batchMode = false;
-  batchSelected.clear();
-  document.getElementById('batchModeBtn').classList.remove('on');
-  document.getElementById('profileGrid').classList.remove('batch-mode');
-  updateBatchBar();
-  renderProfiles();
-};
-
-document.getElementById('batchExportBtn').onclick = async function () {
-  if (!batchSelected.size) return;
-  // Export only selected profiles
-  var pwd = prompt('Digite uma senha para criptografar o backup (mín. 6 caracteres):');
-  if (!pwd) return;
-  if (pwd.length < 6) {
-    toast('Senha muito curta', 'err');
-    return;
-  }
-  try {
-    var res = await ipcRenderer.invoke('profiles:export-encrypted', pwd);
-    if (res && res.ok) toast('Backup exportado: ' + res.count + ' perfis', 'ok');
-    else if (res && res.error) toast('Erro: ' + res.error, 'err');
-  } catch (e) {
-    toast('Erro: ' + e.message, 'err');
-  }
-};
-
 // ── v5.9.3: Keyboard handler simplificado ──
 // Atalhos de navegação (1/2/3, Ctrl+N, Ctrl+F, /, ?) e overlay de ajuda
 // foram removidos — a sidebar + botões são suficientes. Apenas Esc fecha modais.
@@ -1621,7 +1550,7 @@ function initDragDrop() {
   var grid = document.getElementById('profileGrid');
   grid.addEventListener('dragstart', function (e) {
     var card = e.target.closest('.card[data-card-id]');
-    if (!card || batchMode) {
+    if (!card) {
       e.preventDefault();
       return;
     }
@@ -1685,36 +1614,14 @@ function initDragDrop() {
 var origRenderProfiles = renderProfiles;
 renderProfiles = function () {
   origRenderProfiles();
-  if (!batchMode) {
-    document.querySelectorAll('.card[data-card-id]').forEach(function (card) {
-      card.setAttribute('draggable', 'true');
-    });
-  }
-};
-
-// ── v5.2: Batch delete ──
-document.getElementById('batchDeleteBtn').onclick = async function () {
-  if (!batchSelected.size) return;
-  if (
-    !confirm(
-      'Excluir ' +
-        batchSelected.size +
-        ' conta(s)? Esta ação é irreversível. Cookies e credenciais serão apagados permanentemente.'
-    )
-  )
-    return;
-  batchSelected.forEach(function (id) {
-    ipcRenderer.send('profile:delete', id);
+  document.querySelectorAll('.card[data-card-id]').forEach(function (card) {
+    card.setAttribute('draggable', 'true');
   });
-  addActivity('info', batchSelected.size + ' conta(s) excluída(s) em lote');
-  batchSelected.clear();
-  updateBatchBar();
-  batchMode = false;
-  document.getElementById('batchModeBtn').classList.remove('on');
-  document.getElementById('profileGrid').classList.remove('batch-mode');
 };
 
 // ── v5.3: Enhanced Event Rendering ──
+// v5.9.12: agora mostra status ("inicia em" / "ativo" / "encerra em") em vez
+// de só o countdown. Eventos ativos (dentro da janela de duração) destacados.
 renderEventsSingle = function (list) {
   var el = document.getElementById('eventList');
   if (!list || !list.length) {
@@ -1739,8 +1646,32 @@ renderEventsSingle = function (list) {
       iconSvg =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>';
     }
+
+    // v5.9.12: Compute event status — "ativo" (within duration window) vs "inicia em"
+    // EventTimers retorna nextFireMs (ms até o próximo disparo). Se nextFireMs < 0,
+    // o evento está disparando agora. Usamos durationMin (default 60) pra saber
+    // quanto tempo o evento fica ativo após o disparo.
+    var durationMin = ev.durationMin || 60;
+    var isActive =
+      ev.nextFireMs !== undefined && ev.nextFireMs < 0 && ev.nextFireMs > -(durationMin * 60000);
+    var statusLabel;
+    var statusClass;
+    if (isActive) {
+      // Evento ativo: quanto tempo até encerrar?
+      var msLeft = durationMin * 60000 + (ev.nextFireMs || 0); // nextFireMs é negativo quando ativo
+      statusLabel = 'encerra em ' + formatCountdown(msLeft);
+      statusClass = 'active';
+    } else if (ev.nextFireMs !== undefined && ev.nextFireMs <= 0) {
+      // nextFireMs muito negativo = disparou há muito tempo, próxima ocorrência é o próximo ciclo
+      statusLabel = 'inicia em ' + (ev.nextFireLabel || '');
+      statusClass = '';
+    } else {
+      statusLabel = 'inicia em ' + (ev.nextFireLabel || '');
+      statusClass = '';
+    }
+
     var item = document.createElement('div');
-    item.className = 'event';
+    item.className = 'event' + (isActive ? ' event-active' : '');
     item.setAttribute('data-type', eventType);
     item.innerHTML =
       '<div class="event-icon ' +
@@ -1752,15 +1683,31 @@ renderEventsSingle = function (list) {
       esc(ev.name) +
       '</div><div class="t">' +
       (ev.userTimeLabel || '') +
-      '</div></div>' +
-      '<div class="cd">' +
-      (ev.nextFireLabel || '') +
+      ' • server</div></div>' +
+      '<div class="cd' +
+      (statusClass ? ' cd-' + statusClass : '') +
+      '">' +
+      statusLabel +
       '</div>';
     el.appendChild(item);
   });
 };
 
 // ── v5.4: Relative time helper ──
+// v5.9.12: Local formatCountdown for the event renderer (EventTimers.js has
+// its own in the backend, but the renderer needs one too).
+function formatCountdown(ms) {
+  if (ms < 0) return 'agora';
+  var totalMin = Math.floor(ms / 60000);
+  var h = Math.floor(totalMin / 60);
+  var m = totalMin % 60;
+  var s = Math.floor((ms % 60000) / 1000);
+  if (h > 24) return Math.floor(h / 24) + 'd ' + (h % 24) + 'h';
+  if (h > 0) return h + 'h ' + m + 'min';
+  if (m > 0) return m + 'min ' + s + 's';
+  return s + 's';
+}
+
 function formatRelativeTime(ts) {
   if (!ts || ts <= 0) return { label: 'nunca', recent: false };
   var diff = Date.now() - ts;
@@ -1809,6 +1756,10 @@ setInterval(function () {
     renderProfiles();
   }
 }, 60000);
+// v5.9.12: Refresh event badge + active event countdowns every 30s
+setInterval(function () {
+  updateEventBadge();
+}, 30000);
 
 // ── v5.7: Advanced Profile Search Filters ──
 var searchFilterRegion = '';

@@ -1,5 +1,67 @@
 # Changelog
 
+## [5.9.12] - 2026-07-17
+
+### Removed — Botão de seleção múltipla (batch mode)
+- **Feedback do user**: "o que e o botao de multipla selecao no launcher? na minha visao nao precisa"
+- Removido completamente o batchModeBtn (botão de seleção múltipla) da toolbar.
+- Removida a batch-bar (barra de operações em lote: selecionar todos, exportar
+  selecionados, excluir selecionados).
+- Removido o card-batch-check (checkbox que aparecia em cada card no modo batch).
+- Removido todo o JS relacionado (batchMode, batchSelected, updateBatchBar,
+  handlers de batchSelectAll/batchCancelBtn/batchExportBtn/batchDeleteBtn).
+- Removido o CSS .batch-bar, .card-batch-check, .batch-mode.
+- Drag-and-drop de cards agora sempre ativo (não mais inibido pelo batchMode).
+
+### Removed — "Sessão efêmera (shadow)" da tela de loading
+- **Feedback do user**: "tire comentarios inuteis como sessao efemera"
+- A tela de loading do jogo não mostra mais o subtítulo "Sessão efêmera (shadow)"
+  ou "Sessão isolada por perfil". Agora mostra apenas "Carregando {nome}" + spinner.
+- Código mais limpo (removido o CSS .s e a lógica condicional isShadow).
+
+### Changed — Eventos agora mostram status "inicia em" / "ATIVO" / "encerra em"
+- **Feedback do user**: "eventos so tem o horario de inicio, seria bom saber a quanto
+  tempo iniciou ou quanto tempo ainda resta do evento"
+- EventTimers.js: adicionado campo `durationMin` (default 60min) em cada evento.
+- renderEventsSingle (app.js): agora mostra status contextual:
+  - Se ativo (dentro da janela de duração): badge "ATIVO" + "encerra em Xh Ymin"
+  - Se não começou: "inicia em Xh Ymin"
+  - Eventos ativos destacados com borda verde + fundo verde claro.
+- Adicionado `formatCountdown` local no renderer (antes só existia no backend).
+- EventTimers.getUpcoming agora retorna `durationMin` no objeto de evento.
+
+### Changed — Badge de notificações agora mostra eventos ATIVOS
+- **Feedback do user**: "os numeros de notificacoes devem ser os eventos ativos no
+  momento ou algo menos confuso que a forma atual"
+- updateEventBadge (app.js): antes contava itens do activity log da última hora
+  (confuso — não representava eventos reais). Agora conta eventos ATIVOS no
+  momento (dentro da janela de duração) em todas as regiões.
+- lastEventsByRegion: cache global preenchido pelo IPC events:update.
+- Badge atualizada a cada 30s (setInterval adicional).
+
+### Added — Script de monitor de rede para console (tools/network-monitor.js)
+- **Feedback do user**: "cria tambem um script para eu colar no console para ele
+  monitorar como funciona todo o trafego de rede"
+- Script standalone que o user cola no F12 DevTools do jogo.
+- Intercepta XHR + fetch, loga cada request com método/URL/status/tempo/tamanho.
+- Categoriza por tipo: auth, game, api, telemetry, asset, other.
+- Destaca falhas (4xx/5xx) e SWFs (importante pro StallDetector).
+- Painel flutuante no canto superior direito com estatísticas live.
+- Detecta stall (45s sem atividade = aviso no console).
+- Captura JWT do cookie oas_user automaticamente.
+- API: __shinobiNet.stop(), .export(), .getStats(), .getRequests({failed:true}),
+  .getRequests({swf:true}), .clear().
+
+### Next.js preview — Eventos com tempo decorrido + restante + badge ativa
+- Eventos agora têm `startsAt` + `endsAt` (antes só `endsAt`).
+- EventsView mostra: "iniciou há Xh" (tempo decorrido) + "encerra em Xh Ymin"
+  (tempo restante) + badge "ATIVO" se o evento está rodando.
+- Abas de região mostram contagem de eventos ativos (badge verde) além do total.
+- Sidebar mostra badge com número de eventos ativos no botão Eventos.
+- Adicionadas funções `elapsedSince()` e `countActiveEvents()` no mock-data.
+- Novas translation keys: events.active, events.started, events.endsIn,
+  events.startsIn, events.ended (PT + EN).
+
 ## [5.9.11] - 2026-07-17
 
 ### Added — StallDetector: auto-F5 quando SWF essencial falha (login trava em 14%)

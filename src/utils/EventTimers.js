@@ -252,6 +252,7 @@ function getUpcoming(region) {
         hours: ev.hours,
         category: ev.category,
         remindMin: ev.remindMin,
+        durationMin: ev.durationMin || 60, // v5.9.12: duração do evento (default 60min)
         region: region,
         nextFireMs: ms,
         nextFireLabel: formatCountdown(ms),

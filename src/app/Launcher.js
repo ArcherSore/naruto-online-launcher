@@ -195,14 +195,10 @@ function launchProfile(profileId, onOpened, onClosed) {
           'border-radius:50%;animation:sp 1s linear infinite;margin-bottom:18px}' +
           '@keyframes sp{to{transform:rotate(360deg)}}' +
           '.t{font-size:15px;font-weight:600;letter-spacing:.2px;color:#f0ede6}' +
-          '.s{font-size:12px;color:#6a6a78;margin-top:6px}' +
           '</style></head><body>' +
           '<div class="spin"></div>' +
           '<div class="t">Carregando ' +
           String(profile.name).replace(/</g, '&lt;') +
-          '</div>' +
-          '<div class="s">' +
-          (isShadow ? 'Sessão efêmera (shadow)' : 'Sessão isolada por perfil') +
           '</div>' +
           '</body></html>'
       )
