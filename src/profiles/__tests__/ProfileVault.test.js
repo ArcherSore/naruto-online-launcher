@@ -277,7 +277,9 @@ describe('ProfileVault.js', () => {
     test('getCredentials retorna strings vazias quando decrypt falha', () => {
       const CryptoService = require('../CryptoService');
       const origDecrypt = CryptoService.decrypt;
-      CryptoService.decrypt = jest.fn(() => { throw new Error('bad ciphertext'); });
+      CryptoService.decrypt = jest.fn(() => {
+        throw new Error('bad ciphertext');
+      });
 
       ProfileVault.setCredentials('p_decfail', 'user_x', 'pass_y');
       const creds = ProfileVault.getCredentials('p_decfail');

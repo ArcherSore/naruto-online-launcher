@@ -85,9 +85,21 @@ const EVENTS_BY_REGION = {
   na: [
     { id: 'na-boss-world', name: 'Boss Mundial', hours: [11, 19], category: 'boss', remindMin: 5 },
     { id: 'na-arena-3v3', name: 'Arena 3v3 (PvP)', hours: [17], category: 'arena', remindMin: 10 },
-    { id: 'na-dungeon', name: 'Dungeon em Time', hours: [13, 20], category: 'dungeon', remindMin: 5 },
+    {
+      id: 'na-dungeon',
+      name: 'Dungeon em Time',
+      hours: [13, 20],
+      category: 'dungeon',
+      remindMin: 5
+    },
     { id: 'na-clan-war', name: 'Guerra de Clã', hours: [19], category: 'social', remindMin: 30 },
-    { id: 'na-guild-arena', name: 'Arena de Guildas', hours: [18], category: 'arena', remindMin: 15 },
+    {
+      id: 'na-guild-arena',
+      name: 'Arena de Guildas',
+      hours: [18],
+      category: 'arena',
+      remindMin: 15
+    },
     {
       id: 'na-bond-checkin',
       name: 'Bond / Check-in Diário',
@@ -100,9 +112,21 @@ const EVENTS_BY_REGION = {
   eu: [
     { id: 'eu-boss-world', name: 'Boss Mundial', hours: [12, 20], category: 'boss', remindMin: 5 },
     { id: 'eu-arena-3v3', name: 'Arena 3v3 (PvP)', hours: [18], category: 'arena', remindMin: 10 },
-    { id: 'eu-dungeon', name: 'Dungeon em Time', hours: [14, 21], category: 'dungeon', remindMin: 5 },
+    {
+      id: 'eu-dungeon',
+      name: 'Dungeon em Time',
+      hours: [14, 21],
+      category: 'dungeon',
+      remindMin: 5
+    },
     { id: 'eu-clan-war', name: 'Guerra de Clã', hours: [20], category: 'social', remindMin: 30 },
-    { id: 'eu-guild-arena', name: 'Arena de Guildas', hours: [19], category: 'arena', remindMin: 15 },
+    {
+      id: 'eu-guild-arena',
+      name: 'Arena de Guildas',
+      hours: [19],
+      category: 'arena',
+      remindMin: 15
+    },
     {
       id: 'eu-bond-checkin',
       name: 'Bond / Check-in Diário',
@@ -115,9 +139,21 @@ const EVENTS_BY_REGION = {
   hk: [
     { id: 'hk-boss-world', name: 'Boss Mundial', hours: [12, 20], category: 'boss', remindMin: 5 },
     { id: 'hk-arena-3v3', name: 'Arena 3v3 (PvP)', hours: [18], category: 'arena', remindMin: 10 },
-    { id: 'hk-dungeon', name: 'Dungeon em Time', hours: [14, 21], category: 'dungeon', remindMin: 5 },
+    {
+      id: 'hk-dungeon',
+      name: 'Dungeon em Time',
+      hours: [14, 21],
+      category: 'dungeon',
+      remindMin: 5
+    },
     { id: 'hk-clan-war', name: 'Guerra de Clã', hours: [20], category: 'social', remindMin: 30 },
-    { id: 'hk-guild-arena', name: 'Arena de Guildas', hours: [19], category: 'arena', remindMin: 15 },
+    {
+      id: 'hk-guild-arena',
+      name: 'Arena de Guildas',
+      hours: [19],
+      category: 'arena',
+      remindMin: 15
+    },
     {
       id: 'hk-bond-checkin',
       name: 'Bond / Check-in Diário',
@@ -242,7 +278,7 @@ function formatCountdown(ms) {
 function formatUserTime(ms, region) {
   var meta = REGION_TZ[region] || REGION_TZ.br;
   var d = new Date(ms);
-  var h = ((d.getUTCHours() + meta.baseOffset) % 24 + 24) % 24;
+  var h = (((d.getUTCHours() + meta.baseOffset) % 24) + 24) % 24;
   var m = d.getUTCMinutes();
   return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }

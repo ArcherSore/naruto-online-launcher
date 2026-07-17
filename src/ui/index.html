@@ -75,12 +75,7 @@
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </button>
-              <button
-                class="wc-btn"
-                id="wcMinimize"
-                aria-label="Minimizar"
-                data-tip="Minimizar"
-              >
+              <button class="wc-btn" id="wcMinimize" aria-label="Minimizar" data-tip="Minimizar">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
@@ -133,9 +128,7 @@
                 <span class="batch-count" id="batchCount">0 selecionados</span>
                 <div class="batch-actions">
                   <button class="btn sm" id="batchSelectAll">Selecionar todos</button>
-                  <button class="btn sm" id="batchExportBtn">
-                    Exportar selecionados
-                  </button>
+                  <button class="btn sm" id="batchExportBtn">Exportar selecionados</button>
                   <button class="btn sm btn-danger" id="batchDeleteBtn">
                     Excluir selecionados
                   </button>
@@ -158,7 +151,9 @@
                   id="searchInput"
                   placeholder="Buscar conta por nome, servidor ou região..."
                 />
-                <button class="search-clear" id="searchClear" aria-label="Limpar busca">&times;</button>
+                <button class="search-clear" id="searchClear" aria-label="Limpar busca">
+                  &times;
+                </button>
               </div>
               <div class="toolbar-right">
                 <span class="account-count" id="accountCount"></span>
@@ -301,16 +296,9 @@
                 </div>
                 <div style="flex: 1">
                   <div class="label">Sobre o launcher</div>
-                  <div class="desc">
-                    Shinobi Launcher v5.9.3 • Electron 11 • Flash PPAPI 34
-                  </div>
+                  <div class="desc">Shinobi Launcher v5.9.3 • Electron 11 • Flash PPAPI 34</div>
                 </div>
-                <a
-                  class="btn sm"
-                  id="advAboutRepo"
-                  href="#"
-                 
-                  title="Abrir repositório no GitHub"
+                <a class="btn sm" id="advAboutRepo" href="#" title="Abrir repositório no GitHub"
                   >GitHub</a
                 >
               </div>
@@ -353,12 +341,7 @@
                       Cria email temporário (mail.tm) + registra no Naruto Online via API. Retorna
                       JWT de 2h — sem Flash, sem CAPTCHA, sem verificação de email.
                     </div>
-                    <button
-                      class="btn sm"
-                      id="devTempmailCreate"
-                     
-                      style="align-self: flex-start"
-                    >
+                    <button class="btn sm" id="devTempmailCreate" style="align-self: flex-start">
                       Criar conta tempmail
                     </button>
                     <div id="devTempmailResult" class="dev-result-box" style="display: none"></div>
@@ -428,9 +411,7 @@
                       <button class="btn sm" id="devApiLoginBtn">Login API</button>
                     </div>
                     <div class="dev-btn-group">
-                      <button class="btn sm" id="devSessionCheck">
-                        Verificar sessão JWT
-                      </button>
+                      <button class="btn sm" id="devSessionCheck">Verificar sessão JWT</button>
                     </div>
                     <div id="devApiLoginResult" class="dev-result-box" style="display: none"></div>
                   </div>
@@ -470,7 +451,6 @@
                         <button
                           class="btn sm primary"
                           id="jwtDecodeBtn"
-                         
                           style="align-self: flex-end"
                         >
                           Decodificar
@@ -511,15 +491,9 @@
                         class="settings-select"
                         style="min-width: 160px"
                       ></select>
-                      <button class="btn sm" id="devInspectorEnable">
-                        Ativar captura
-                      </button>
-                      <button class="btn sm" id="devInspectorDisable" disabled>
-                        Desativar
-                      </button>
-                      <button class="btn sm" id="devInspectorRefresh">
-                        Atualizar
-                      </button>
+                      <button class="btn sm" id="devInspectorEnable">Ativar captura</button>
+                      <button class="btn sm" id="devInspectorDisable" disabled>Desativar</button>
+                      <button class="btn sm" id="devInspectorRefresh">Atualizar</button>
                       <button class="btn sm" id="devInspectorClear">Limpar</button>
                     </div>
                     <div
@@ -565,15 +539,9 @@
                         class="settings-select"
                         style="min-width: 160px"
                       ></select>
-                      <button class="btn sm" id="devExtractSource">
-                        Extrair fonte
-                      </button>
-                      <button class="btn sm" id="devListCookies">
-                        Listar cookies
-                      </button>
-                      <button class="btn sm" id="devReloadGame">
-                        Limpar login (F5)
-                      </button>
+                      <button class="btn sm" id="devExtractSource">Extrair fonte</button>
+                      <button class="btn sm" id="devListCookies">Listar cookies</button>
+                      <button class="btn sm" id="devReloadGame">Limpar login (F5)</button>
                       <button class="btn sm" id="devToggleDt">DevTools (F12)</button>
                     </div>
                     <div
@@ -615,9 +583,7 @@
           <label>Servidor</label>
           <div style="display: flex; gap: 0.5rem; align-items: center">
             <input id="fServer" placeholder="S799" maxlength="20" style="flex: 1" />
-            <button class="btn" id="btnPickServer" style="white-space: nowrap">
-              Buscar
-            </button>
+            <button class="btn" id="btnPickServer" style="white-space: nowrap">Buscar</button>
           </div>
           <div class="hint" id="serverHint">Digite o número do servidor ou clique em Buscar.</div>
         </div>
@@ -642,7 +608,11 @@
           <div class="char-counter" id="notesCounter">0 / 200</div>
         </div>
         <div class="modal-actions">
-          <button class="btn" id="autoCreateBtn" title="Cria conta com email temporário e auto-login">
+          <button
+            class="btn"
+            id="autoCreateBtn"
+            title="Cria conta com email temporário e auto-login"
+          >
             Criar automaticamente
           </button>
           <div style="flex: 1"></div>
@@ -664,13 +634,7 @@
           <label>Senha</label>
           <div class="field-with-toggle">
             <input id="fVaultPass" type="password" placeholder="Senha" autocomplete="off" />
-            <button
-              class="toggle-pass"
-              id="togglePass"
-             
-              tabindex="-1"
-              title="Mostrar senha"
-            >
+            <button class="toggle-pass" id="togglePass" tabindex="-1" title="Mostrar senha">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -697,7 +661,6 @@
     </div>
 
     <div class="toast" id="toast"></div>
-
 
     <script src="app.js"></script>
   </body>
