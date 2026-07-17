@@ -5562,8 +5562,8 @@
       </nav>
 
       <!-- ═══ MAIN ═══ -->
-      <div class="main">
-        <div class="topbar">
+      <main class="main">
+        <header class="topbar">
           <h2 id="viewTitle">Contas</h2>
           <button
             class="btn sm last-profile-btn"
@@ -5714,7 +5714,7 @@
               Nova conta
             </button>
           </div>
-        </div>
+        </header>
 
         <div class="content">
           <!-- ── View: Accounts ── -->
@@ -6621,7 +6621,7 @@
           </div>
         </div>
         <!-- v5.7: Status Bar -->
-        <div class="status-bar" id="statusBar">
+        <div class="status-bar" id="statusBar" role="status" aria-live="polite">
           <div class="sb-section">
             <span class="sb-dot green" id="sbFlashDot"></span>
             <span id="sbFlashLabel">Flash PPAPI</span>
@@ -6641,7 +6641,7 @@
             <span>v5.0.0</span>
           </div>
         </div>
-      </div>
+      </main>
     </div>
 
     <!-- ═══ MODAL: Create/Edit Profile ═══ -->
@@ -6767,7 +6767,7 @@
       </div>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <!-- ═══ Custom Confirm Dialog (v5.2) ═══ -->
     <div class="confirm-overlay" id="confirmOverlay">

@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.9.17] - 2026-07-18
+
+### Changed — Accessibility (semantic HTML + ARIA)
+- `<div class="main">` → `<main>` landmark (screen reader navigation)
+- Topbar wrapped in `<header>` landmark
+- Toast element: added `role="status"` + `aria-live="polite"` (announces
+  toast messages to screen readers)
+- Status bar: added `role="status"` + `aria-live="polite"` (announces
+  Flash/connection status changes to assistive tech)
+- These are purely additive semantic HTML attributes — zero layout change.
+
 ## [5.9.16] - 2026-07-18
 
 ### Fixed — Stability (timers, XSS, Windows fallback)
