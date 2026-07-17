@@ -1323,8 +1323,13 @@ function initDevTools() {
 // O atalho Ctrl+Shift+D e o toggle localStorage foram REMOVIDOS — debug
 // agora é opt-in via scripts/debug.sh (abre terminal + seta SHINOBI_DEBUG=1).
 // Zero complexidade de UI em launches normais.
+// v5.9.9: preload agora expõe __SHINOBI_DEBUG__ como objeto { enabled, isDebug }
+// (Electron 11 não aceita boolean primitivo em exposeInMainWorld). Fallback
+// para boolean direto mantém compat com builds antigas em cache.
 function isDebugActive() {
-  return window.__SHINOBI_DEBUG__ === true;
+  var d = window.__SHINOBI_DEBUG__;
+  if (d && typeof d === 'object') return d.enabled === true;
+  return d === true;
 }
 function applyDebugVisibility() {
   const sec = document.getElementById('devToolsSection');

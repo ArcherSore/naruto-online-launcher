@@ -4,7 +4,9 @@
 
 const {
   BLOCKED_DOMAINS,
+  BLOCKED_PATH_PATTERNS,
   isBlockedDomain,
+  isBlockedPath,
   shouldBlock,
   setupBlocker,
   forgetSession
@@ -94,14 +96,88 @@ describe('blocker.js', () => {
       expect(shouldBlock('https://vipsac.oasgames.com/vip')).toBe(false);
       // Tencent CDN — game needs SWF files from here
       expect(shouldBlock('https://res.huoying.qq.com/empty.swf')).toBe(false);
-      expect(shouldBlock('https://report.huoying.qq.com/crossdomain.xml')).toBe(false);
+      // v5.9.9: crossdomain.xml agora É bloqueado (path pattern) — sempre falha
+      // e só gera ruído/timeout no console. Removido do "não bloqueia".
       expect(shouldBlock('https://cos.huoying.qq.com/assets/game.swf')).toBe(false);
+    });
+
+    test('v5.9.9: bloqueia oss_report.fcgi (telemetria iMSDK no mesmo host do jogo)', () => {
+      // iMSDK reporta server_id + role_id + uin pra Tencent — vazamento de dados
+      // Roda em naruto-pl.oasgames.com (mesmo host do jogo, não dá pra bloquear domínio)
+      expect(
+        shouldBlock(
+          'https://naruto-pl.oasgames.com/oss_report.fcgi?uin=1612222&role_id=0&svr_id=306'
+        )
+      ).toBe(true);
+      expect(shouldBlock('https://naruto.oasgames.com/oss_report.fcgi?log_id=101002')).toBe(true);
+    });
+
+    test('v5.9.9: bloqueia crossdomain.xml em qualquer host (Flash policy sempre falha)', () => {
+      expect(shouldBlock('https://naruto-pl.oasgames.com/crossdomain.xml')).toBe(true);
+      expect(shouldBlock('https://report.huoying.qq.com/crossdomain.xml')).toBe(true);
+      expect(shouldBlock('http://img.oasgames.com/crossdomain.xml')).toBe(true);
+    });
+
+    test('v5.9.9: não bloqueia paths legítimos do jogo no mesmo host', () => {
+      expect(shouldBlock('https://naruto-pl.oasgames.com/main.html')).toBe(false);
+      expect(shouldBlock('https://naruto-pl.oasgames.com/static/css/basic.css')).toBe(false);
+      expect(shouldBlock('https://naruto-pl.oasgames.com/api/instance/list')).toBe(false);
     });
 
     test('não bloqueia oasgames.com', () => {
       expect(shouldBlock('https://naruto.oasgames.com/')).toBe(false);
     });
+  });
 
+  describe('v5.9.9: BLOCKED_PATH_PATTERNS', () => {
+    test('é um array de regexes', () => {
+      expect(Array.isArray(BLOCKED_PATH_PATTERNS)).toBe(true);
+      expect(BLOCKED_PATH_PATTERNS.length).toBeGreaterThan(0);
+      BLOCKED_PATH_PATTERNS.forEach(function (p) {
+        expect(p instanceof RegExp).toBe(true);
+      });
+    });
+
+    test('contém pattern para oss_report.fcgi', () => {
+      expect(
+        BLOCKED_PATH_PATTERNS.some(function (p) {
+          return p.test('/oss_report.fcgi?uin=1');
+        })
+      ).toBe(true);
+    });
+
+    test('contém pattern para crossdomain.xml', () => {
+      expect(
+        BLOCKED_PATH_PATTERNS.some(function (p) {
+          return p.test('/crossdomain.xml');
+        })
+      ).toBe(true);
+    });
+  });
+
+  describe('v5.9.9: isBlockedPath', () => {
+    test('bloqueia /oss_report.fcgi', () => {
+      expect(isBlockedPath('/oss_report.fcgi')).toBe(true);
+      expect(isBlockedPath('/oss_report.fcgi?uin=1&svr_id=306')).toBe(true);
+    });
+
+    test('bloqueia /crossdomain.xml', () => {
+      expect(isBlockedPath('/crossdomain.xml')).toBe(true);
+    });
+
+    test('não bloqueia paths legítimos', () => {
+      expect(isBlockedPath('/main.html')).toBe(false);
+      expect(isBlockedPath('/api/game/list')).toBe(false);
+      expect(isBlockedPath('/static/css/basic.css')).toBe(false);
+    });
+
+    test('não bloqueia path vazio', () => {
+      expect(isBlockedPath('')).toBe(false);
+      expect(isBlockedPath('/')).toBe(false);
+    });
+  });
+
+  describe('shouldBlock edge cases', () => {
     test('retorna false para URL inválida', () => {
       expect(shouldBlock('not-a-url')).toBe(false);
     });

@@ -59,6 +59,16 @@ const BLOCKED_DOMAINS = new Set([
   'cdn.mxpnl.com'
 ]);
 
+// v5.9.9: URL path patterns to block (para telemetry que roda no MESMO domínio
+// do jogo, onde bloquear por hostname quebraria o jogo). Caso constatado no F12:
+// oss_report.fcgi?uin=...&role_id=...&svr_id=... é o iMSDK da Tencent reportando
+// server_id + role_id + uin pra telemetria, no mesmo host naruto-pl.oasgames.com.
+// Bloquear o PATH (não o domínio) preserva o jogo e corta o vazamento.
+const BLOCKED_PATH_PATTERNS = [
+  /\/oss_report\.fcgi\b/i, // Tencent iMSDK telemetry (server_id, role_id, uin)
+  /\/crossdomain\.xml$/i // Flash security policy — sempre falha (404/timeout), só gera ruído
+];
+
 /**
  * Check if a hostname matches any blocked domain
  * @param {string} hostname - Hostname to check
@@ -74,14 +84,30 @@ function isBlockedDomain(hostname) {
 }
 
 /**
- * Check if a URL should be blocked
+ * Check if a URL path matches any blocked path pattern (v5.9.9).
+ * Usado para telemetry que roda no MESMO domínio do jogo (ex: oss_report.fcgi
+ * em naruto-pl.oasgames.com) onde bloquear o hostname quebraria o jogo.
+ * @param {string} pathname - URL pathname to check
+ * @returns {boolean} True if blocked
+ */
+function isBlockedPath(pathname) {
+  for (const pattern of BLOCKED_PATH_PATTERNS) {
+    if (pattern.test(pathname)) return true;
+  }
+  return false;
+}
+
+/**
+ * Check if a URL should be blocked (hostname OR path pattern).
  * @param {string} url - URL to check
  * @returns {boolean} True if should be blocked
  */
 function shouldBlock(url) {
   try {
-    const hostname = new URL(url).hostname;
-    return isBlockedDomain(hostname);
+    const u = new URL(url);
+    if (isBlockedDomain(u.hostname)) return true;
+    if (isBlockedPath(u.pathname)) return true;
+    return false;
   } catch (e) {
     return false;
   }
@@ -117,7 +143,13 @@ function setupBlocker(session) {
     callback({ cancel: false });
   });
 
-  logger.info('Blocker: ' + BLOCKED_DOMAINS.size + ' domínios');
+  logger.info(
+    'Blocker: ' +
+      BLOCKED_DOMAINS.size +
+      ' domínios + ' +
+      BLOCKED_PATH_PATTERNS.length +
+      ' path patterns'
+  );
   return true;
 }
 
@@ -131,7 +163,9 @@ function forgetSession(session) {
 
 module.exports = {
   BLOCKED_DOMAINS: BLOCKED_DOMAINS,
+  BLOCKED_PATH_PATTERNS: BLOCKED_PATH_PATTERNS,
   isBlockedDomain: isBlockedDomain,
+  isBlockedPath: isBlockedPath,
   shouldBlock: shouldBlock,
   setupBlocker: setupBlocker,
   forgetSession: forgetSession

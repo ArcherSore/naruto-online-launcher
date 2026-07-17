@@ -1,5 +1,44 @@
 # Changelog
 
+## [5.9.9] - 2026-07-17
+
+### Fixed — Preload crash (TypeError em exposeInMainWorld)
+- **Sintoma**: log F12 mostrava `Unable to load preload script` + `TypeError:
+  Error processing argument at index 1, conversion failure from` em
+  `contextBridge.exposeInMainWorld`. Consequência: preload crashava INTEIRO →
+  `window.__SHINOBI_DEBUG__` E `window.narutoLauncher` ficavam undefined →
+  Dev Tools section nunca aparecia (mesmo com SHINOBI_DEBUG=1) + qualquer
+  bridge IPC futuro do bot quebraria.
+- **Causa raiz**: Electron 11 **não aceita primitivos** (boolean/string/
+  number) no 2º argumento de `exposeInMainWorld` — só object/function/null.
+  `exposeInMainWorld('__SHINOBI_DEBUG__', DEBUG)` passava boolean direto.
+- **Correção**: preload agora expõe `{ enabled: DEBUG, isDebug: function }`.
+  `app.js` `isDebugActive()` adaptado para ler `.enabled` (com fallback para
+  boolean direto, mantendo compat com builds antigas em cache).
+
+### Fixed — Mixed Content (Flash insecure plugin data)
+- **Sintoma**: log F12 mostrava `Mixed Content: The page at '<URL>' was loaded
+  over HTTPS, but requested an insecure plugin data '<URL>'`. Recorrente.
+- **Causa raiz**: o jogo é servido via HTTPS, mas o plugin Flash PPAPI carrega
+  sub-recursos (assets, sons, crossdomain.xml) via HTTP internamente. Chromium
+  bloqueia "insecure plugin data" em páginas HTTPS por default.
+- **Correção**: `flags.js` agora adiciona `--allow-running-insecure-content` +
+  `--allow-arbitrary-server-certificate-error`. Não afeta o resto da página
+  (que continua com CSP restritivo) — só autoriza conteúdo inseguro DENTRO do
+  plugin Flash, que é necessário pro jogo funcionar.
+
+### Added — Blocker path patterns (telemetria no mesmo host do jogo)
+- **Problema**: F12 mostrava `oss_report.fcgi?uin=...&role_id=...&svr_id=...`
+  rodando em `naruto-pl.oasgames.com` (MESMO host do jogo). Bloquear o domínio
+  quebraria o jogo. Resultado: telemetria iMSDK da Tencent vazando server_id +
+  role_id + uin silenciosamente.
+- **Correção**: `blocker.js` agora suporta `BLOCKED_PATH_PATTERNS` (regex) além
+  de `BLOCKED_DOMAINS`. Novos patterns:
+  - `/oss_report.fcgi` — corta telemetria iMSDK sem quebrar o jogo
+  - `/crossdomain.xml$` — Flash Security Policy sempre falha (404/timeout ~700ms),
+    só gera ruído no console. Bloquear silencia o ruído e poupa os timeouts.
+- Log do blocker agora informa `"X domínios + Y path patterns"`.
+
 ## [5.9.8] - 2026-07-15
 
 ### Fixed — Fullscreen CSS inconsistente (top bar sumia/aparecia aleatoriamente)

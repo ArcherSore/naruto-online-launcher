@@ -53,6 +53,15 @@ function applyAll(opts) {
   app.commandLine.appendSwitch('always-authorize-plugins');
   app.commandLine.appendSwitch('allow-outdated-plugins');
 
+  // v5.9.9 (fix Mixed Content): o jogo é servido via HTTPS, mas o plugin Flash
+  // carrega sub-recursos (assets, sons, crossdomain.xml) via HTTP internamente.
+  // Chromium bloqueia "insecure plugin data" em páginas HTTPS por default →
+  // warning recorrente no console + possível falha silenciosa de assets do Flash.
+  // Estas flags autorizam conteúdo inseguro dentro do plugin Flash (não afeta
+  // o resto da página, que continua com CSP restritivo).
+  app.commandLine.appendSwitch('allow-running-insecure-content');
+  app.commandLine.appendSwitch('allow-arbitrary-server-certificate-error');
+
   // Background throttling off
   [
     'disable-background-timer-throttling',
