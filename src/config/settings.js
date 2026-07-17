@@ -11,6 +11,7 @@ const { app } = require('electron');
 const logger = require('../utils/logger');
 const { isValidRegion, getDefaultRegion } = require('./regions');
 const { isValidProfile, getDefaultProfile } = require('./hardware');
+const { isValidPreset, getDefaultPreset } = require('./optimization');
 
 /**
  * Get the configuration file path
@@ -30,6 +31,8 @@ function validateConfig(rawConfig) {
   const hardwareProfile = rawConfig && rawConfig.hardwareProfile;
   const forceBatata = rawConfig && rawConfig.forceBatata;
 
+  const optimizationPreset = rawConfig && rawConfig.optimizationPreset;
+
   const validated = {
     region: isValidRegion(region) ? region : getDefaultRegion(),
     hardwareProfile: isValidProfile(hardwareProfile) ? hardwareProfile : getDefaultProfile(),
@@ -44,7 +47,11 @@ function validateConfig(rawConfig) {
       rawConfig && ['pt', 'en', 'de', 'es', 'pl', 'fr'].indexOf(rawConfig.language) !== -1
         ? rawConfig.language
         : 'pt',
-    advancedMode: rawConfig && rawConfig.advancedMode === true // Modo Leve Avançado (Flash low quality)
+    advancedMode: rawConfig && rawConfig.advancedMode === true, // Modo Leve Avançado (Flash low quality)
+    // v5.0.0: optimization preset (performance/balanced/quality) — aplicado em flags.js
+    optimizationPreset: isValidPreset(optimizationPreset)
+      ? optimizationPreset
+      : getDefaultPreset()
   };
 
   if (region !== undefined && !isValidRegion(region)) {
@@ -110,7 +117,9 @@ function saveConfig(config) {
         // v3.5
         firstBoot: config.firstBoot === false ? false : true,
         language: config.language || 'pt',
-        advancedMode: config.advancedMode === true
+        advancedMode: config.advancedMode === true,
+        // v5.0.0: optimization preset
+        optimizationPreset: config.optimizationPreset || getDefaultPreset()
       },
       null,
       2

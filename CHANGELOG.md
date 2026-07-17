@@ -1,5 +1,63 @@
 # Changelog
 
+## [5.9.13] - 2026-07-17
+
+### Added — Painel de Otimização (GPU + CPU + Vulkan + Presets)
+- **User request**: "como o launcher trata a otimizacao? tipo recursos vulkan,
+  otimizacoes de gpu especifica por marca, usar o melhor nucleo do cpu ja que
+  e singletreatd e todas as otimizacoes no geral"
+- 3 novos módulos backend (testáveis, 82 novos testes unitários):
+  - **GpuDetector.js** (`src/app/`): detecção real de GPU por marca.
+    - Linux: lê `/sys/class/drm/cardN/device/vendor` (vendor ID PCI).
+    - Fallback `lspci -nn -mm` se /sys não disponível (AppImage minimal).
+    - Windows: `wmic path win32_VideoController` (vendor + name + PNP).
+    - Detecta PRIME (NVIDIA Optimus laptops): iGPU Intel + dGPU NVIDIA.
+    - Vendor IDs: NVIDIA=0x10de, AMD=0x1002, Intel=0x8086.
+    - Cacheia o resultado (detecção é cara, ~50ms com lspci).
+  - **CpuOptimizer.js** (`src/app/`): otimizações de CPU para Flash single-threaded.
+    - Detecta topologia híbrida (Intel Alder Lake+): P-cores vs E-cores via
+      `/sys/devices/cpu_core/cpus` e `/sys/devices/cpu_atom/cpus`.
+    - `taskset -cp <cores> <pid>`: fixa renderer em P-cores (evita cache thrashing).
+    - `renice -n <priority> -p <pid>`: maior prioridade (-5 performance, 0 balanced, +5 quality).
+    - `oom_score_adj=-500`: kernel não mata em OOM (protege sessões longas).
+    - Fallback gracioso: se taskset/renice não disponíveis (AppImage sem CAP_SYS_NICE),
+      falha silenciosamente e continua.
+    - Idempotente: mesmo PID não é re-aplicado. Limpa Set após 50 entradas (memory leak).
+  - **optimization.js** (`src/config/`): 3 presets com flags específicas:
+    - **Performance**: sem vsync (uncap FPS), CPU em P-cores + 1 E-core (GC), nice=-5,
+      OOM protection, Vulkan + ANGLE/Vulkan, GPU rasterization, zero-copy, heap expandido,
+      disable-frame-rate-limit, disable-smooth-scrolling.
+    - **Balanceado** (padrão): vsync 60fps, CPU em P-cores, nice=0, OOM protection,
+      ANGLE desktop GL, GPU rasterization, zero-copy, heap padrão.
+    - **Qualidade**: vsync 60fps, sem affinity (scheduler decide), nice=+5 (cede),
+      sem OOM protection, ANGLE desktop GL, sem GPU rasterization, heap reduzido.
+- **GPU env vars por marca** (aplicadas ANTES do GPU process iniciar):
+  - NVIDIA: `__GL_THREADED_OPTIMIZATIONS=1` (driver threading),
+    `__GL_SYNC_TO_VBLANK=0` (performance), PRIME offload automático em laptops Optimus
+    (`__NV_PRIME_RENDER_OFFLOAD=1` + `__GLX_VENDOR_LIBRARY_NAME=nvidia`).
+  - AMD: `LIBVA_DRIVER_NAME=radeonsi` (VAAPI video decode), `RADEONSI_ZERO_VRAM=1`
+    (evita leak de texturas), `RADEONSI_CLEAR_DB_SHADER_CACHE=1`.
+  - Intel: `LIBVA_DRIVER_NAME=iHD` (Broadwell+) ou `i965` (legacy, <0x1600),
+    `INTEL_DEBUG=norbc` (performance), `vblank_mode=0` (sem vsync em performance).
+  - Comum: `MALLOC_ARENA_MAX=2` (reduz fragmentação V8/Flash single-threaded).
+- **flags.js refactor**: agora integra GpuDetector + presets. Flags aplicadas
+  dinamicamente conforme GPU ativa + preset. Vulkan só ativa em NVIDIA/AMD modernas
+  (Intel iGPU tem suporte parcial instável em ANGLE). Heap JS agora é preset-aware
+  (performance=mais cache, quality=menos pra ceder memória).
+- **SessionLifecycle**: integra CpuOptimizer. Em `did-finish-load`, aplica taskset+nice+oom
+  no renderer PID (`webContents.getOSProcessId()`). Em Windows/macOS, no-op.
+- **UI**: nova seção "Otimização" em Configurações com:
+  - Badge da GPU detectada (NVIDIA verde #76B900, AMD vermelho #ED1C24, Intel azul #0071C5).
+  - Topologia de CPU (total núcleos, P+E em híbrido, processos otimizados, Wayland).
+  - 3 preset cards clicáveis com flags detalhadas (✓/✗ por feature, considerando GPU real).
+  - Hint de reinício (flags Chromium só aplicadas no boot) + botão "Reiniciar agora".
+- **IPC handlers**: `optimization:get-status` (snapshot completo), `optimization:set-preset`,
+  `app:relaunch` (relaunch do app para aplicar novo preset).
+- **Config**: adicionado `optimizationPreset` em config.json (persistido, validado).
+- **Testes**: 82 novos testes (GpuDetector: 29, CpuOptimizer: 31, optimization: 22).
+  Total: 864 → 946 testes, todos passando.
+
+## [5.9.12] - 2026-07-17
 ## [5.9.12] - 2026-07-17
 
 ### Removed — Botão de seleção múltipla (batch mode)

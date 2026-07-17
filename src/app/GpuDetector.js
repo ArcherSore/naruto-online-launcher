@@ -1,0 +1,379 @@
+/**
+ * app/GpuDetector.js — Detecção real de GPU por marca (v1.0.0)
+ *
+ * Responsabilidade ÚNICA: identificar a GPU ativa do sistema (vendor + modelo)
+ * para que o flags.js possa aplicar otimizações específicas por marca.
+ *
+ * Plataformas suportadas:
+ *   - Linux: lê /proc/driver/nvidia (NVIDIA), /sys/class/drm/cardN/device (AMD/Intel),
+ *            fallback lspci (se disponível). Detecta PRIME (Optimus laptops).
+ *   - Windows: lê registry HKLM\SYSTEM\CurrentControlSet\Enum\PCI (vendor ID + desc).
+ *   - macOS: sysctl igpu (Intel) / não suportado (Mac não roda Flash PPAPI).
+ *
+ * Cacheia o resultado em memória (detecção é cara, ~50ms com lspci).
+ * Em AppImage, lspci pode não estar disponível — fallback para /sys/.
+ */
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { execFileSync } = require('child_process');
+const logger = require('../utils/logger');
+
+// PCI Vendor IDs padrão
+const VENDOR_NVIDIA = 0x10de;
+const VENDOR_AMD = 0x1002;
+const VENDOR_INTEL = 0x8086;
+
+// Mapa vendor ID → código interno
+const VENDOR_MAP = {
+  [VENDOR_NVIDIA]: 'nvidia',
+  [VENDOR_AMD]: 'amd',
+  [VENDOR_INTEL]: 'intel'
+};
+
+let _cache = null;
+
+/**
+ * Detecta PRIME (NVIDIA Optimus laptop com dGPU NVIDIA + iGPU Intel).
+ * Em laptops Optimus, o X server roda na Intel e a NVIDIA é offload.
+ * @returns {boolean}
+ */
+function _detectNvidiaPrimeLinux() {
+  // Sinais de PRIME ativo
+  if (process.env.__NV_PRIME_RENDER_OFFLOAD === '1') return true;
+  if (process.env.DRI_PRIME === '1') return true;
+
+  // /proc/driver/nvidia existe apenas quando o driver NVIDIA está carregado.
+  // Em laptop com Intel iGPU + NVIDIA dGPU, ambos estão presentes.
+  try {
+    const hasNvidia = fs.existsSync('/proc/driver/nvidia');
+    const hasIntel = fs.existsSync('/sys/class/drm/card0/device/vendor') &&
+      fs.readFileSync('/sys/class/drm/card0/device/vendor', 'utf8').trim() === '0x8086';
+    return hasNvidia && hasIntel;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Lista GPUs presentes no sistema Linux via /sys/class/drm.
+ * Retorna array de { vendor: 'nvidia'|'amd'|'intel', vendorId, deviceId, description, cardN }.
+ * @returns {Array<Object>}
+ */
+function _listGpusLinuxSysfs() {
+  const gpus = [];
+  try {
+    const drmDir = '/sys/class/drm';
+    if (!fs.existsSync(drmDir)) return gpus;
+
+    const cards = fs.readdirSync(drmDir).filter(function (n) {
+      return /^card\d+$/.test(n);
+    });
+
+    for (const cardN of cards) {
+      const vendorPath = path.join(drmDir, cardN, 'device', 'vendor');
+      const devicePath = path.join(drmDir, cardN, 'device', 'device');
+      const ueventPath = path.join(drmDir, cardN, 'device', 'uevent');
+      try {
+        if (!fs.existsSync(vendorPath)) continue;
+        const vendorRaw = fs.readFileSync(vendorPath, 'utf8').trim();
+        const vendorId = parseInt(vendorRaw, 16);
+        const code = VENDOR_MAP[vendorId];
+        if (!code) continue; // desconhecido (provável não-GPU)
+
+        const deviceRaw = fs.existsSync(devicePath)
+          ? fs.readFileSync(devicePath, 'utf8').trim()
+          : '0x0000';
+        const deviceId = parseInt(deviceRaw, 16);
+
+        // Tenta pegar descrição amigável do uevent (DRM_DRIVER=amdgpu etc)
+        let driver = '';
+        let description = code.toUpperCase() + ' GPU';
+        if (fs.existsSync(ueventPath)) {
+          const uevent = fs.readFileSync(ueventPath, 'utf8');
+          const m = uevent.match(/DRM_DRIVER=(\S+)/);
+          if (m) driver = m[1];
+          const m2 = uevent.match(/PCI_CLASS=(\S+)/);
+          if (m2 && m2[1].toUpperCase().startsWith('030000')) {
+            // 030000 = Display controller (VGA)
+            description = code.toUpperCase() + ' (' + driver + ')';
+          }
+        }
+
+        gpus.push({
+          vendor: code,
+          vendorId: vendorId,
+          deviceId: deviceId,
+          driver: driver,
+          description: description,
+          cardN: cardN
+        });
+      } catch (_) {
+        /* skip */
+      }
+    }
+  } catch (_) {
+    /* skip */
+  }
+  return gpus;
+}
+
+/**
+ * Fallback: lista GPUs via `lspci` (se disponível).
+ * @returns {Array<Object>}
+ */
+function _listGpusLinuxLspci() {
+  try {
+    const out = execFileSync('lspci', ['-nn', '-mm'], {
+      encoding: 'utf8',
+      timeout: 3000,
+      stdio: ['ignore', 'pipe', 'ignore']
+    });
+    const gpus = [];
+    const lines = out.split('\n');
+    for (const line of lines) {
+      // Display controller ou VGA compatible controller
+      if (!/VGA compatible controller|Display controller|3D controller/i.test(line)) continue;
+      // Formato -nn -mm: "00:02.0 "VGA compatible controller" "Intel" "HD Graphics" [-device -vendor]"
+      const m = line.match(/"([^"]+)"\s+"([^"]+)"\s+"([^"]*)"(?:\s+\[([0-9a-f]+):([0-9a-f]+)\])?/i);
+      if (!m) continue;
+      const vendorName = m[2].toLowerCase();
+      let code = null;
+      if (vendorName.indexOf('nvidia') !== -1) code = 'nvidia';
+      else if (vendorName.indexOf('amd') !== -1 || vendorName.indexOf('advanced micro devices') !== -1 ||
+        vendorName.indexOf('radeon') !== -1) code = 'amd';
+      else if (vendorName.indexOf('intel') !== -1) code = 'intel';
+      if (!code) continue;
+
+      const vendorId = m[4] ? parseInt(m[4], 16) : 0;
+      const deviceId = m[5] ? parseInt(m[5], 16) : 0;
+      gpus.push({
+        vendor: code,
+        vendorId: vendorId,
+        deviceId: deviceId,
+        driver: '',
+        description: m[2] + ' ' + (m[3] || ''),
+        cardN: null
+      });
+    }
+    return gpus;
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Lista GPUs no Windows lendo o registry PCI.
+ * @returns {Array<Object>}
+ */
+function _listGpusWindows() {
+  if (process.platform !== 'win32') return [];
+  // Em Electron 11, chamar `reg query /s` é caro e o output é difícil de parsear
+  // (subkeys aninhadas). Preferimos WMIC (presente em Win10/11).
+  return _listGpusWindowsWmic();
+}
+
+/**
+ * Lista GPUs no Windows via wmic (deprecated mas presente em Win10/11).
+ * @returns {Array<Object>}
+ */
+function _listGpusWindowsWmic() {
+  try {
+    const out = execFileSync(
+      'wmic',
+      ['path', 'win32_VideoController', 'get', 'AdapterCompatibility,Name,PNPDeviceID'],
+      { encoding: 'utf8', timeout: 4000, stdio: ['ignore', 'pipe', 'ignore'] }
+    );
+    const gpus = [];
+    const lines = out.split('\n').slice(1); // skip header
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const parts = line.split(/\s{2,}/).filter(Boolean);
+      if (parts.length < 3) continue;
+      const vendorName = parts[0].toLowerCase();
+      const name = parts[1];
+      const pnp = parts[2];
+
+      let code = null;
+      if (vendorName.indexOf('nvidia') !== -1) code = 'nvidia';
+      else if (vendorName.indexOf('amd') !== -1 || vendorName.indexOf('radeon') !== -1) code = 'amd';
+      else if (vendorName.indexOf('intel') !== -1) code = 'intel';
+      if (!code) continue;
+
+      // PNPDeviceID: PCI\VEN_10DE&DEV_...
+      const m = pnp.match(/VEN_([0-9A-Fa-f]{4})&DEV_([0-9A-Fa-f]{4})/);
+      const vendorId = m ? parseInt(m[1], 16) : 0;
+      const deviceId = m ? parseInt(m[2], 16) : 0;
+
+      gpus.push({
+        vendor: code,
+        vendorId: vendorId,
+        deviceId: deviceId,
+        driver: '',
+        description: name,
+        cardN: null
+      });
+    }
+    return gpus;
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Detecta a GPU ATIVA (a que está renderizando o Electron agora).
+ *
+ * Em desktop: a primeira GPU da lista.
+ * Em laptop Optimus: detecta PRIME e marca a NVIDIA como ativa quando
+ * __NV_PRIME_RENDER_OFFLOAD=1, senão a Intel é a ativa (mas a NVIDIA
+ * está disponível para offload).
+ *
+ * @returns {Object} { vendor, vendorId, deviceId, description, isPrime, allGpus }
+ */
+function detect() {
+  if (_cache) return _cache;
+
+  let gpus = [];
+  if (process.platform === 'linux') {
+    gpus = _listGpusLinuxSysfs();
+    if (gpus.length === 0) gpus = _listGpusLinuxLspci();
+  } else if (process.platform === 'win32') {
+    gpus = _listGpusWindows();
+  }
+
+  const isPrime = process.platform === 'linux' && _detectNvidiaPrimeLinux();
+
+  // Determina GPU ativa:
+  // - Em PRIME ativo (__NV_PRIME_RENDER_OFFLOAD=1), NVIDIA é a ativa.
+  // - Senão, em PRIME passivo (Intel iGPU + NVIDIA dGPU disponível), Intel é a ativa.
+  // - Senão, primeira GPU da lista.
+  let active = null;
+  if (gpus.length > 0) {
+    if (isPrime && process.env.__NV_PRIME_RENDER_OFFLOAD === '1') {
+      active = gpus.find(function (g) { return g.vendor === 'nvidia'; }) || gpus[0];
+    } else if (isPrime) {
+      // PRIME passivo: Intel iGPU está ativa (X server roda nela)
+      active = gpus.find(function (g) { return g.vendor === 'intel'; }) || gpus[0];
+    } else {
+      active = gpus[0];
+    }
+  }
+
+  _cache = {
+    vendor: active ? active.vendor : 'unknown',
+    vendorId: active ? active.vendorId : 0,
+    deviceId: active ? active.deviceId : 0,
+    description: active ? active.description : 'Unknown GPU',
+    isPrime: isPrime,
+    hasNvidia: gpus.some(function (g) { return g.vendor === 'nvidia'; }),
+    hasAmd: gpus.some(function (g) { return g.vendor === 'amd'; }),
+    hasIntel: gpus.some(function (g) { return g.vendor === 'intel'; }),
+    allGpus: gpus
+  };
+
+  logger.info(
+    'GpuDetector: active=' + _cache.vendor +
+    ' (' + _cache.description + ')' +
+    (isPrime ? ' [PRIME]' : '') +
+    ' all=[' + gpus.map(function (g) { return g.vendor; }).join(',') + ']'
+  );
+
+  return _cache;
+}
+
+/**
+ * Retorna as variáveis de ambiente específicas da GPU ativa.
+ * Estas são aplicadas NO PROCESSO DO ELECTRON ANTES do Chromium iniciar o
+ * GPU process — portanto devem ser setadas em main.js top-level ou flags.js.
+ *
+ * @param {string} preset - 'performance'|'balanced'|'quality'
+ * @returns {Object} env vars to set
+ */
+function getEnvVars(preset) {
+  const gpu = detect();
+  const env = {};
+
+  // ── Comum a todas as GPUs ──
+  // Reduz fragmentação de memória do V8/Flash (glibc malloc).
+  // 2 arenas é o suficiente para single-threaded-heavy workload como Flash.
+  env.MALLOC_ARENA_MAX = '2';
+
+  if (gpu.vendor === 'nvidia') {
+    // Threaded optimizations: driver NVIDIA cria threads auxiliares para
+    // upload de texturas e command buffer building. OFF por default em alguns
+    // drivers. ON = ganho real de FPS em Flash (que é CPU-bound no renderer).
+    env.__GL_THREADED_OPTIMIZATIONS = '1';
+
+    // Vsync controlado pelo Chromium (não pelo driver). Performance preset
+    // desabilita vsync do driver pra reduzir input lag.
+    if (preset === 'performance') {
+      env.__GL_SYNC_TO_VBLANK = '0';
+    }
+
+    // PRIME offload: se a NVIDIA está disponível mas não ativa, força offload
+    // para renderizar na dGPU (ganho real em laptops Optimus).
+    if (gpu.isPrime && process.env.__NV_PRIME_RENDER_OFFLOAD !== '1') {
+      env.__NV_PRIME_RENDER_OFFLOAD = '1';
+      env.__GLX_VENDOR_LIBRARY_NAME = 'nvidia';
+      logger.info('GpuDetector: PRIME offload ativado (dGPU NVIDIA forçada)');
+    }
+  } else if (gpu.vendor === 'amd') {
+    // Mesa radeonsi (AMD open-source). zerovram = zera VRAM em context destroy
+    // (evita leak de memória de texturas não-liberadas — Flash é ruim nisso).
+    env.RADEONSI_ZERO_VRAM = '1';
+    env.RADEONSI_CLEAR_DB_SHADER_CACHE = '1';
+
+    // VAAPI (Video Acceleration API) para decode de vídeo via GPU
+    env.LIBVA_DRIVER_NAME = 'radeonsi';
+
+    if (preset === 'performance') {
+      // Desabilita shader cache pra evitar I/O em disco no warm-up (ganho de 1-2s
+      // no primeiro frame). Em balanced/quality mantém cache (boot mais rápido).
+      env.MESA_SHADER_CACHE_DISABLE = '0'; // mantém cache (false=enabled, mas MESA nome é confuso)
+    }
+  } else if (gpu.vendor === 'intel') {
+    // iHD driver (Broadwell 2015+). i965 para antigos.
+    // Detecção simples: se deviceId >= 0x1600 (Broadwell), usa iHD.
+    const useIHD = !gpu.deviceId || gpu.deviceId >= 0x1600;
+    env.LIBVA_DRIVER_NAME = useIHD ? 'iHD' : 'i965';
+
+    if (preset === 'performance') {
+      // Desabilita CCS (Color Compression Storage) — em alguns drivers Intel
+      // causa artefatos em Flash. Sem CCS = mais estável, leve perda de perf.
+      env.INTEL_DEBUG = 'norbc';
+    }
+  }
+
+  // ── MESA comum (AMD/Intel) ──
+  if (gpu.vendor === 'amd' || gpu.vendor === 'intel') {
+    // vblank_mode: 0=never sync, 1=sync if desktop compositor active, 3=default
+    if (preset === 'performance') {
+      env.vblank_mode = '0'; // sem vsync
+    }
+  }
+
+  return env;
+}
+
+/**
+ * Reseta o cache (para testes).
+ */
+function _resetCache() {
+  _cache = null;
+}
+
+module.exports = {
+  detect: detect,
+  getEnvVars: getEnvVars,
+  // expostos p/ testes
+  _resetCache: _resetCache,
+  _listGpusLinuxSysfs: _listGpusLinuxSysfs,
+  _listGpusLinuxLspci: _listGpusLinuxLspci,
+  _detectNvidiaPrimeLinux: _detectNvidiaPrimeLinux,
+  VENDOR_NVIDIA: VENDOR_NVIDIA,
+  VENDOR_AMD: VENDOR_AMD,
+  VENDOR_INTEL: VENDOR_INTEL,
+  VENDOR_MAP: VENDOR_MAP
+};

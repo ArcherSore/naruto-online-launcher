@@ -209,6 +209,130 @@
                 </select>
               </div>
             </div>
+
+            <!-- ═══ v5.0.0: Optimization Section ═══ -->
+            <div class="settings-section" id="optimizationSection">
+              <div class="settings-header">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px"
+                >
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+                Otimização
+                <span
+                  style="
+                    font-size: var(--font-xs);
+                    color: var(--text-faint);
+                    font-weight: var(--weight-regular);
+                    margin-left: 0.4rem;
+                  "
+                  >GPU + CPU + Vulkan • v5.0</span
+                >
+              </div>
+
+              <!-- GPU detectada -->
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon purple" id="gpuIconBox">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="6" width="20" height="12" rx="2" />
+                    <circle cx="8" cy="12" r="2" />
+                    <circle cx="16" cy="12" r="2" />
+                    <path d="M2 20h20" />
+                  </svg>
+                </div>
+                <div style="flex: 1">
+                  <div class="label">GPU detectada</div>
+                  <div class="desc" id="gpuDesc">Detectando…</div>
+                </div>
+                <div class="gpu-badge" id="gpuBadge">—</div>
+              </div>
+
+              <!-- CPU topology -->
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="4" y="4" width="16" height="16" rx="2" />
+                    <rect x="9" y="9" width="6" height="6" />
+                    <line x1="9" y1="1" x2="9" y2="4" />
+                    <line x1="15" y1="1" x2="15" y2="4" />
+                    <line x1="9" y1="20" x2="9" y2="23" />
+                    <line x1="15" y1="20" x2="15" y2="23" />
+                    <line x1="20" y1="9" x2="23" y2="9" />
+                    <line x1="20" y1="14" x2="23" y2="14" />
+                    <line x1="1" y1="9" x2="4" y2="9" />
+                    <line x1="1" y1="14" x2="4" y2="14" />
+                  </svg>
+                </div>
+                <div style="flex: 1">
+                  <div class="label">Topologia de CPU</div>
+                  <div class="desc" id="cpuDesc">Detectando núcleos…</div>
+                </div>
+              </div>
+
+              <!-- Preset selector -->
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon red">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5" />
+                    <path d="M2 12l10 5 10-5" />
+                  </svg>
+                </div>
+                <div style="flex: 1">
+                  <div class="label">Preset de Otimização</div>
+                  <div class="desc" id="presetDesc">Carregando presets…</div>
+                </div>
+              </div>
+
+              <!-- Preset cards -->
+              <div class="preset-cards" id="presetCards">
+                <button class="preset-card" data-preset="performance" type="button">
+                  <div class="preset-card-header">
+                    <span class="preset-icon">🚀</span>
+                    <span class="preset-name">Performance</span>
+                  </div>
+                  <div class="preset-card-desc">Máximo FPS • Sem vsync • CPU em P-cores • Prioridade alta</div>
+                  <div class="preset-card-flags" data-preset-flags="performance"></div>
+                </button>
+                <button class="preset-card" data-preset="balanced" type="button">
+                  <div class="preset-card-header">
+                    <span class="preset-icon">⚖️</span>
+                    <span class="preset-name">Balanceado</span>
+                  </div>
+                  <div class="preset-card-desc">Padrão • Vsync 60fps • CPU em P-cores • Estável</div>
+                  <div class="preset-card-flags" data-preset-flags="balanced"></div>
+                </button>
+                <button class="preset-card" data-preset="quality" type="button">
+                  <div class="preset-card-header">
+                    <span class="preset-icon">🌿</span>
+                    <span class="preset-name">Qualidade</span>
+                  </div>
+                  <div class="preset-card-desc">Compatibilidade • Cede prioridade • Sem affinity • Multitarefa</div>
+                  <div class="preset-card-flags" data-preset-flags="quality"></div>
+                </button>
+              </div>
+
+              <!-- Restart hint -->
+              <div class="settings-row with-icon" id="presetRestartHint" style="display: none">
+                <div class="settings-row-icon amber">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </div>
+                <div style="flex: 1">
+                  <div class="label">Reinício necessário</div>
+                  <div class="desc">As flags Chromium só são aplicadas no boot. Reinicie o launcher para ativar o novo preset.</div>
+                </div>
+                <button class="btn sm" id="btnRestartForPreset">Reiniciar agora</button>
+              </div>
+            </div>
+
             <div class="settings-section">
               <div class="settings-header">Preferências</div>
               <div class="settings-row with-icon">

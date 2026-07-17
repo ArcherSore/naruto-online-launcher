@@ -72,6 +72,14 @@ function registerIpcHandlers(handlers) {
     const win = ManagerWindow.getManagerWindow();
     if (win && !win.isDestroyed()) win.minimize();
   });
+
+  // ── v5.0.0: App relaunch (for optimization preset change) ──
+  ipcMain.on('app:relaunch', function () {
+    logger.info('App relaunch requested (preset change)');
+    const { app } = require('electron');
+    app.relaunch();
+    app.exit(0);
+  });
   ipcMain.handle('window:toggle-maximize', function () {
     const win = ManagerWindow.getManagerWindow();
     if (!win || win.isDestroyed()) return null;

@@ -43,7 +43,10 @@ window.api = {
   reloadGame: pid => ipcRenderer.invoke('dev:reload-game', pid),
   toggleDevTools: pid => ipcRenderer.invoke('dev:toggle-devtools', pid),
   // v4.9.2: Export diagnostics zip (logs + config + system info, sanitized)
-  exportDiag: () => ipcRenderer.invoke('diagnostics:export')
+  exportDiag: () => ipcRenderer.invoke('diagnostics:export'),
+  // v5.0.0: Optimization (GPU + CPU + presets)
+  getOptimizationStatus: () => ipcRenderer.invoke('optimization:get-status'),
+  setOptimizationPreset: code => ipcRenderer.invoke('optimization:set-preset', code)
 };
 
 let profiles = [];
@@ -748,7 +751,173 @@ document.getElementById('togglePass').onclick = function () {
 // ── Settings ──
 async function loadSettings() {
   document.getElementById('setNotifications').classList.toggle('on', !notificationsMuted);
+  // v5.0.0: load optimization panel (GPU + CPU + presets)
+  loadOptimization().catch(function (e) {
+    console.error('loadOptimization failed:', e);
+  });
 }
+
+// ── v5.0.0: Optimization Panel ────────────────────────────────────────────
+// Detects GPU (NVIDIA/AMD/Intel/PRIME), CPU topology (P-cores/E-cores),
+// and shows preset cards (performance/balanced/quality). Preset change
+// requires restart (Chromium flags only applied at boot).
+async function loadOptimization() {
+  const status = await window.api.getOptimizationStatus();
+  if (!status) return;
+
+  // GPU badge + description
+  const gpuDesc = document.getElementById('gpuDesc');
+  const gpuBadge = document.getElementById('gpuBadge');
+  const gpuIconBox = document.getElementById('gpuIconBox');
+  if (gpuDesc && gpuBadge) {
+    const g = status.gpu;
+    const vendorLabels = {
+      nvidia: 'NVIDIA',
+      amd: 'AMD',
+      intel: 'Intel',
+      unknown: 'Desconhecida'
+    };
+    const vendorColors = {
+      nvidia: '#76B900',
+      amd: '#ED1C24',
+      intel: '#0071C5',
+      unknown: '#8a8a96'
+    };
+    gpuDesc.textContent = g.description + (g.isPrime ? ' • PRIME (Optimus)' : '');
+    gpuBadge.textContent = vendorLabels[g.vendor] || g.vendor;
+    gpuBadge.style.background = vendorColors[g.vendor] || '#8a8a96';
+    gpuBadge.style.color = '#fff';
+    if (gpuIconBox) {
+      gpuIconBox.style.background = vendorColors[g.vendor] + '22';
+      gpuIconBox.style.color = vendorColors[g.vendor];
+    }
+    if (g.allGpus && g.allGpus.length > 1) {
+      const others = g.allGpus
+        .filter(function (x) { return x.vendor !== g.vendor; })
+        .map(function (x) { return vendorLabels[x.vendor] || x.vendor; });
+      if (others.length > 0) {
+        gpuDesc.textContent += ' (outras: ' + others.join(', ') + ')';
+      }
+    }
+  }
+
+  // CPU topology description
+  const cpuDesc = document.getElementById('cpuDesc');
+  if (cpuDesc) {
+    const c = status.cpu;
+    let txt = c.totalCores + ' núcleos';
+    if (c.isHybrid) {
+      txt += ' • ' + c.pCores + 'P + ' + c.eCores + 'E (híbrido Intel)';
+    }
+    if (c.appliedPids > 0) {
+      txt += ' • ' + c.appliedPids + ' processo(s) otimizado(s)';
+    }
+    if (status.isWayland) {
+      txt += ' • Wayland';
+    }
+    cpuDesc.textContent = txt;
+  }
+
+  // Preset description + active card
+  const presetDesc = document.getElementById('presetDesc');
+  if (presetDesc) {
+    const activePreset = status.presets.find(function (p) { return p.code === status.preset; });
+    if (activePreset) {
+      presetDesc.textContent = 'Ativo: ' + activePreset.name + ' — ' + activePreset.description;
+    }
+  }
+
+  // Highlight active preset card
+  document.querySelectorAll('.preset-card').forEach(function (card) {
+    card.classList.toggle('active', card.dataset.preset === status.preset);
+  });
+
+  // Fill preset flags detail
+  ['performance', 'balanced', 'quality'].forEach(function (code) {
+    const el = document.querySelector('[data-preset-flags="' + code + '"]');
+    if (!el) return;
+    const preset = status.presets.find(function (p) { return p.code === code; });
+    if (!preset) return;
+    const flags = _presetFlags(code, status);
+    el.innerHTML = flags
+      .map(function (f) {
+        const cls = f.on ? 'flag-on' : 'flag-off';
+        const icon = f.on ? '✓' : '✗';
+        return '<span class="' + cls + '">' + icon + ' ' + f.label + '</span>';
+      })
+      .join('');
+  });
+}
+
+// Helper: returns flags array for a preset, considering actual GPU support.
+function _presetFlags(code, status) {
+  const gpuSupportsVulkan = ['nvidia', 'amd'].indexOf(status.gpu.vendor) !== -1;
+  const flags = [];
+  if (code === 'performance') {
+    flags.push({ label: 'Sem vsync (uncap FPS)', on: true });
+    flags.push({ label: 'CPU em P-cores', on: true });
+    flags.push({ label: 'Nice -5 (prioridade)', on: true });
+    flags.push({ label: 'OOM protection', on: true });
+    flags.push({ label: 'Vulkan', on: gpuSupportsVulkan });
+    flags.push({ label: 'GPU rasterization', on: true });
+    flags.push({ label: 'Zero-copy', on: true });
+    flags.push({ label: 'Heap expandido', on: true });
+  } else if (code === 'balanced') {
+    flags.push({ label: 'Vsync 60fps', on: true });
+    flags.push({ label: 'CPU em P-cores', on: true });
+    flags.push({ label: 'Nice 0', on: true });
+    flags.push({ label: 'OOM protection', on: true });
+    flags.push({ label: 'Vulkan', on: false });
+    flags.push({ label: 'GPU rasterization', on: true });
+    flags.push({ label: 'Zero-copy', on: true });
+    flags.push({ label: 'Heap padrão', on: true });
+  } else {
+    flags.push({ label: 'Vsync 60fps', on: true });
+    flags.push({ label: 'CPU em P-cores', on: false });
+    flags.push({ label: 'Nice +5 (cede)', on: true });
+    flags.push({ label: 'OOM protection', on: false });
+    flags.push({ label: 'Vulkan', on: false });
+    flags.push({ label: 'GPU rasterization', on: false });
+    flags.push({ label: 'Zero-copy', on: false });
+    flags.push({ label: 'Heap reduzido', on: true });
+  }
+  return flags;
+}
+
+// Preset card click → set preset + show restart hint
+document.querySelectorAll('.preset-card').forEach(function (card) {
+  card.addEventListener('click', async function () {
+    const code = card.dataset.preset;
+    if (!code) return;
+    try {
+      const res = await window.api.setOptimizationPreset(code);
+      if (res && res.ok) {
+        // Highlight new card
+        document.querySelectorAll('.preset-card').forEach(function (c) {
+          c.classList.toggle('active', c.dataset.preset === code);
+        });
+        const presetDesc = document.getElementById('presetDesc');
+        if (presetDesc) {
+          presetDesc.textContent = 'Alterado para: ' + code + ' — reinicie para aplicar';
+        }
+        const hint = document.getElementById('presetRestartHint');
+        if (hint) hint.style.display = 'flex';
+        toast('Preset alterado para ' + code + ' — reinicie o launcher', 'ok');
+      } else {
+        toast('Erro: ' + (res && res.error ? res.error : 'falha'), 'err');
+      }
+    } catch (e) {
+      toast('Erro: ' + e.message, 'err');
+    }
+  });
+});
+
+// Restart button
+document.getElementById('btnRestartForPreset').onclick = function () {
+  require('electron').ipcRenderer.send('app:relaunch');
+};
+
+// ──────────────────────────────────────────────────────────────────────────
 
 // v4.7: Encrypted backup (uses existing IPC handlers from controller.js)
 document.getElementById('advBackupExport').onclick = async function () {

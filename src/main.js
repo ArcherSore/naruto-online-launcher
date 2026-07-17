@@ -80,7 +80,8 @@ flags.applyAll({
   flashPath: flashPath,
   flashVersion: flashVersion,
   hardwareProfile: config.hardwareProfile,
-  forceBatata: config.forceBatata === true
+  forceBatata: config.forceBatata === true,
+  optimizationPreset: config.optimizationPreset
 });
 
 // Single Instance Lock
@@ -489,6 +490,61 @@ function _initManagerAndLaunch() {
       return memoryGuard.isBatata();
     }
     // v4.9.1: crash reporter removido do Settings
+  });
+
+  // ── v5.0.0: Optimization IPC handlers (GPU + CPU + presets) ──
+  const gpuDetector = require('./app/GpuDetector');
+  const cpuOptimizer = require('./app/CpuOptimizer');
+  const { PRESETS, listForUI, isValidPreset, getDefaultPreset } = require('./config/optimization');
+
+  ipcMain.handle('optimization:get-status', function () {
+    const gpu = gpuDetector.detect();
+    const cpu = cpuOptimizer.getStats();
+    const snap = flags.getAppliedSnapshot();
+    return {
+      preset: config.optimizationPreset || getDefaultPreset(),
+      presets: listForUI(),
+      gpu: {
+        vendor: gpu.vendor,
+        description: gpu.description,
+        isPrime: gpu.isPrime,
+        hasNvidia: gpu.hasNvidia,
+        hasAmd: gpu.hasAmd,
+        hasIntel: gpu.hasIntel,
+        allGpus: gpu.allGpus.map(function (g) {
+          return { vendor: g.vendor, description: g.description };
+        })
+      },
+      cpu: {
+        totalCores: cpu.topology.totalCores,
+        pCores: cpu.topology.pCores.length,
+        eCores: cpu.topology.eCores.length,
+        isHybrid: cpu.topology.isHybrid,
+        appliedPids: cpu.appliedPids,
+        platform: cpu.platform
+      },
+      applied: snap,
+      systemRamGb: flags.SYSTEM_RAM_GB,
+      isLowSpec: flags.IS_LOW_SPEC,
+      isWayland: flags.IS_WAYLAND
+    };
+  });
+
+  ipcMain.handle('optimization:set-preset', function (_e, code) {
+    if (!isValidPreset(code)) {
+      return { ok: false, error: 'invalid-preset', validCodes: Object.keys(PRESETS) };
+    }
+    const previous = config.optimizationPreset;
+    config.optimizationPreset = code;
+    _persistConfig();
+    logger.info('Optimization preset alterado: ' + previous + ' → ' + code +
+      ' (requer reinício para aplicar flags Chromium)');
+    return {
+      ok: true,
+      previous: previous,
+      current: code,
+      requiresRestart: true // flags.applyAll só roda 1x no boot
+    };
   });
 
   // v4.1: Register preload API handlers (game windows use narutoLauncher API)

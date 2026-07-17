@@ -259,6 +259,27 @@ function attach(win, ctx) {
     if (entry) entry.failLoadRetry = false;
     ses.cookies.flushStore().catch(function () {});
 
+    // ── v5.0.0: CPU optimization (taskset + nice + oom_score_adj) ──
+    // Aplicado aqui (e não no ready-to-show) porque getOSProcessId() só retorna
+    // valor válido após o renderer process spawn — que acontece no loadURL.
+    // Em Linux, aplica affinity em P-cores + nice + oom_score_adj=-500.
+    // Em Windows/macOS, no-op (CpuOptimizer retorna not-linux).
+    try {
+      const cpuOptimizer = require('./CpuOptimizer');
+      const { loadConfig } = require('../config/settings');
+      const cfg = loadConfig();
+      const rendererPid = win.webContents.getOSProcessId();
+      if (rendererPid > 0) {
+        cpuOptimizer.optimizeRenderer(rendererPid, {
+          preset: cfg.optimizationPreset || 'balanced'
+        }).catch(function (e) {
+          logger.debug('CpuOptimizer: falhou (não-fatal) — ' + e.message);
+        });
+      }
+    } catch (e) {
+      logger.debug('CpuOptimizer: skip — ' + e.message);
+    }
+
     // CAMADA 1: limpeza leve (ads, cookies, popups, poluição do site do jogo)
     win.webContents
       .insertCSS(
