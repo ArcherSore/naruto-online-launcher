@@ -537,8 +537,13 @@ function _initManagerAndLaunch() {
     const previous = config.optimizationPreset;
     config.optimizationPreset = code;
     _persistConfig();
-    logger.info('Optimization preset alterado: ' + previous + ' → ' + code +
-      ' (requer reinício para aplicar flags Chromium)');
+    logger.info(
+      'Optimization preset alterado: ' +
+        previous +
+        ' → ' +
+        code +
+        ' (requer reinício para aplicar flags Chromium)'
+    );
     return {
       ok: true,
       previous: previous,
@@ -644,8 +649,10 @@ function _persistConfig() {
 }
 
 function _logBanner() {
+  var pkg = require('../package.json');
+  var ver = pkg.version || 'unknown';
   logger.info('═══════════════════════════════════════════');
-  logger.info('  🍥 Shinobi Launcher v5.0.0');
+  logger.info('  🍥 Shinobi Launcher v' + ver);
   logger.info('  🥷 Zero tracking + Exportador de diagnóstico + UI responsiva');
   logger.info('═══════════════════════════════════════════');
   logger.info('Flash PPAPI: ' + (flashPath ? '✅ ' + flashVersion : '❌'));

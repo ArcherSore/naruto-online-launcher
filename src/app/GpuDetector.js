@@ -209,13 +209,18 @@ function _listGpusLinuxLspci() {
  */
 function _listGpusWindows() {
   if (process.platform !== 'win32') return [];
-  // Em Electron 11, chamar `reg query /s` é caro e o output é difícil de parsear
-  // (subkeys aninhadas). Preferimos WMIC (presente em Win10/11).
-  return _listGpusWindowsWmic();
+  // wmic está removido no Windows 11 24H2+ e Windows Server 2025.
+  // Tenta wmic primeiro (rápido, ~1s), fallback PowerShell (mais lento ~3s).
+  var gpus = _listGpusWindowsWmic();
+  if (gpus.length > 0) return gpus;
+  return _listGpusWindowsPowershell();
 }
 
 /**
- * Lista GPUs no Windows via wmic (deprecated mas presente em Win10/11).
+ * Lista GPUs no Windows via wmic.
+ * NOTA: wmic está DEPRECATED e foi REMOVIDO no Windows 11 24H2+.
+ * Ainda funciona em Win10 e Win11 builds anteriores a 26100.
+ * Se falhar, o fallback _listGpusWindowsPowershell() é usado.
  * @returns {Array<Object>}
  */
 function _listGpusWindowsWmic() {
@@ -277,8 +282,23 @@ function detect() {
 
   let gpus = [];
   if (process.platform === 'linux') {
+    // Detecta sandbox (Flatpak/Snap) — GPU detection via sysfs/lspci pode falhar
+    var sandbox = detectLinuxSandbox();
+    if (sandbox) {
+      logger.info(
+        'GpuDetector: detectado sandbox ' + sandbox + ' — GPU detection pode ser limitada'
+      );
+    }
     gpus = _listGpusLinuxSysfs();
     if (gpus.length === 0) gpus = _listGpusLinuxLspci();
+    if (gpus.length === 0 && sandbox) {
+      logger.warn(
+        'GpuDetector: nenhuma GPU detectada em sandbox ' +
+          sandbox +
+          ' — o jogo usará renderização software (swiftshader). ' +
+          'Para GPU passthrough, use flatpak override ou snap interface gpu.'
+      );
+    }
   } else if (process.platform === 'win32') {
     gpus = _listGpusWindows();
   }
@@ -393,8 +413,11 @@ function getEnvVars(preset) {
   } else if (gpu.vendor === 'amd') {
     // Mesa radeonsi (AMD open-source). zerovram = zera VRAM em context destroy
     // (evita leak de memória de texturas não-liberadas — Flash é ruim nisso).
+    // Documentação: https://docs.mesa3d.org/envvars.html
     env.RADEONSI_ZERO_VRAM = '1';
-    env.RADEONSI_CLEAR_DB_SHADER_CACHE = '1';
+    // RADEONSI_CLEAR_DB_SHADER_CACHE removido — não é uma env var reconhecida
+    // pelo Mesa radeonsi. Setá-la era placebo. O cache de DB shader é
+    // gerenciado automaticamente pelo driver (limpo em context destroy).
 
     // VAAPI (Video Acceleration API) para decode de vídeo via GPU
     env.LIBVA_DRIVER_NAME = 'radeonsi';
@@ -434,6 +457,91 @@ function _resetCache() {
   _cache = null;
 }
 
+/**
+ * Fallback: lista GPUs no Windows via PowerShell Get-CimInstance.
+ * Funciona em Win11 24H2+ (onde wmic foi removido) e Windows Server.
+ * Get-CimInstance é o substituto moderno do wmic.
+ * @returns {Array<Object>}
+ */
+function _listGpusWindowsPowershell() {
+  try {
+    var out = execFileSync(
+      'powershell',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        'Get-CimInstance Win32_VideoController | Select-Object AdapterCompatibility,Name,PNPDeviceID | ConvertTo-Csv -NoTypeInformation'
+      ],
+      { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
+    );
+    var gpus = [];
+    var lines = out.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line || line.indexOf('#') === 0) continue;
+      // CSV: "AdapterCompatibility","Name","PNPDeviceID"
+      var parts = [];
+      var current = '';
+      var inQuotes = false;
+      for (var j = 0; j < line.length; j++) {
+        var ch = line[j];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+          parts.push(current.trim());
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      parts.push(current.trim());
+      if (parts.length < 3) continue;
+      var vendorName = parts[0].toLowerCase();
+      var name = parts[1];
+      var pnp = parts[2];
+
+      var code = null;
+      if (vendorName.indexOf('nvidia') !== -1) code = 'nvidia';
+      else if (vendorName.indexOf('amd') !== -1 || vendorName.indexOf('radeon') !== -1)
+        code = 'amd';
+      else if (vendorName.indexOf('intel') !== -1) code = 'intel';
+      if (!code) continue;
+
+      var m = pnp.match(/VEN_([0-9A-Fa-f]{4})&DEV_([0-9A-Fa-f]{4})/);
+      var vendorId = m ? parseInt(m[1], 16) : 0;
+      var deviceId = m ? parseInt(m[2], 16) : 0;
+
+      gpus.push({
+        vendor: code,
+        vendorId: vendorId,
+        deviceId: deviceId,
+        driver: '',
+        description: name,
+        cardN: null
+      });
+    }
+    return gpus;
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Detecta se o launcher está rodando dentro de um sandbox Linux (Flatpak, Snap).
+ * Nestes ambientes, /sys/class/drm e /proc/driver/nvidia podem não estar acessíveis.
+ * A detecção de GPU via sysfs/lspci falha silenciosamente — logamos um aviso.
+ * @returns {string|null} 'flatpak'|'snap'|null
+ */
+function detectLinuxSandbox() {
+  if (process.platform !== 'linux') return null;
+  // Flatpak: FLATPAK_ID é setado pelo runtime
+  if (process.env.FLATPAK_ID) return 'flatpak';
+  // Snap: SNAP_NAME é setado pelo snapd
+  if (process.env.SNAP_NAME) return 'snap';
+  return null;
+}
+
 module.exports = {
   detect: detect,
   getEnvVars: getEnvVars,
@@ -441,9 +549,12 @@ module.exports = {
   _resetCache: _resetCache,
   _listGpusLinuxSysfs: _listGpusLinuxSysfs,
   _listGpusLinuxLspci: _listGpusLinuxLspci,
+  _listGpusWindowsWmic: _listGpusWindowsWmic,
+  _listGpusWindowsPowershell: _listGpusWindowsPowershell,
   _detectNvidiaPrimeLinux: _detectNvidiaPrimeLinux,
   _isMusl: _isMusl,
   _isNvidiaProprietary: _isNvidiaProprietary,
+  detectLinuxSandbox: detectLinuxSandbox,
   VENDOR_NVIDIA: VENDOR_NVIDIA,
   VENDOR_AMD: VENDOR_AMD,
   VENDOR_INTEL: VENDOR_INTEL,

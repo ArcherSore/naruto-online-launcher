@@ -41,17 +41,14 @@ function validateConfig(rawConfig) {
     windowBounds: (rawConfig && rawConfig.windowBounds) || null,
     // v3.5: onboarding + i18n + Modo Leve Avançado
     firstBoot: rawConfig && rawConfig.firstBoot === false ? false : true, // default true até concluir setup
-    // v4.0.1 FIX: antes só aceitava pt/en, mas i18n suporta 6 idiomas (pt/en/de/es/pl/fr).
-    // Usuários que escolhiam de/es/pl/fr no setup tinham a escolha silenciosamente ignorada.
+    // v4.0.1 FIX: antes só aceitava pt/en, depois aceitava 6 idiomas.
+    // v5.9.15: i18n foi reduzido a pt/en (Task 225). Outros idiomas ("em breve")
+    // foram removidos. Aceitar de/es/pl/fr aqui causava idioma sem tradução.
     language:
-      rawConfig && ['pt', 'en', 'de', 'es', 'pl', 'fr'].indexOf(rawConfig.language) !== -1
-        ? rawConfig.language
-        : 'pt',
+      rawConfig && ['pt', 'en'].indexOf(rawConfig.language) !== -1 ? rawConfig.language : 'pt',
     advancedMode: rawConfig && rawConfig.advancedMode === true, // Modo Leve Avançado (Flash low quality)
     // v5.0.0: optimization preset (performance/balanced/quality) — aplicado em flags.js
-    optimizationPreset: isValidPreset(optimizationPreset)
-      ? optimizationPreset
-      : getDefaultPreset()
+    optimizationPreset: isValidPreset(optimizationPreset) ? optimizationPreset : getDefaultPreset()
   };
 
   if (region !== undefined && !isValidRegion(region)) {

@@ -2470,14 +2470,22 @@ input[type='radio'].themed:checked::after {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.preset-card[data-preset='performance']:hover::before { background: #DC2626; }
-.preset-card[data-preset='balanced']:hover::before { background: #10B981; }
-.preset-card[data-preset='quality']:hover::before { background: #3B82F6; }
+.preset-card[data-preset='performance']:hover::before {
+  background: #dc2626;
+}
+.preset-card[data-preset='balanced']:hover::before {
+  background: #10b981;
+}
+.preset-card[data-preset='quality']:hover::before {
+  background: #3b82f6;
+}
 
 .preset-card.active {
   border-color: var(--accent);
   background: rgba(255, 140, 0, 0.06);
-  box-shadow: 0 0 0 1px var(--accent), 0 4px 12px rgba(255, 140, 0, 0.15);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 4px 12px rgba(255, 140, 0, 0.15);
 }
 
 .preset-card.active::before {

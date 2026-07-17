@@ -213,8 +213,16 @@ function applyAll(opts) {
   app.name = 'Naruto Online';
 
   // ── Log banner ──
-  logger.info('flags: preset=' + presetCode + ' gpu=' + gpu.vendor +
-    (gpu.isPrime ? ' [PRIME]' : '') + ' heap=' + _computeHeapMB(opts.forceBatata, presetCode) + 'MB');
+  logger.info(
+    'flags: preset=' +
+      presetCode +
+      ' gpu=' +
+      gpu.vendor +
+      (gpu.isPrime ? ' [PRIME]' : '') +
+      ' heap=' +
+      _computeHeapMB(opts.forceBatata, presetCode) +
+      'MB'
+  );
 }
 
 function isValidPresetOrFallback(code) {

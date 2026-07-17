@@ -760,4 +760,43 @@ describe('SessionLifecycle.js', () => {
       });
     });
   });
+
+  describe('reloadWithPreAuth race guard', () => {
+    test('segunda chamada durante reload em andamento é ignorada (same window)', async () => {
+      const win = {
+        isDestroyed: () => false,
+        id: 42,
+        webContents: {
+          executeJavaScript: jest.fn(() => Promise.resolve()),
+          reload: jest.fn(),
+          isDestroyed: () => false
+        }
+      };
+      const ses = {
+        clearStorageData: jest.fn(() => Promise.resolve()),
+        clearCache: jest.fn(() => Promise.resolve())
+      };
+
+      // Primeira chamada — retorna promise que não resolve imediatamente
+      var resolveFirst;
+      ses.clearStorageData = jest.fn(
+        () =>
+          new Promise(r => {
+            resolveFirst = r;
+          })
+      );
+
+      SessionLifecycle.reloadWithPreAuth('p1', { name: 'test' }, win, ses, jest.fn());
+      SessionLifecycle.reloadWithPreAuth('p1', { name: 'test' }, win, ses, jest.fn());
+
+      // clearStorageData deve ter sido chamado apenas 1 vez (segunda chamada skipou)
+      expect(ses.clearStorageData).toHaveBeenCalledTimes(1);
+
+      // Resolve a primeira promise
+      if (resolveFirst) resolveFirst();
+      // Limpa o guard para não afetar outros testes
+      // (o setTimeout de 3s vai limpar, mas forçamos aqui)
+      await new Promise(r => setTimeout(r, 50));
+    });
+  });
 });

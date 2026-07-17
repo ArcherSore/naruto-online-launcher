@@ -469,4 +469,128 @@ describe('GpuDetector', function () {
       Object.defineProperty(process, 'platform', { value: orig, configurable: true });
     });
   });
+
+  describe('_listGpusWindowsPowershell', function () {
+    test('parses CSV output from Get-CimInstance', function () {
+      child_process.execFileSync.mockReturnValue(
+        '"AdapterCompatibility","Name","PNPDeviceID"\n' +
+          '"NVIDIA","NVIDIA GeForce RTX 3060","PCI\\VEN_10DE&DEV_2504&SUBSYS_..."\n'
+      );
+      var gpus = gpuDetector._listGpusWindowsPowershell();
+      expect(gpus.length).toBe(1);
+      expect(gpus[0].vendor).toBe('nvidia');
+      expect(gpus[0].description).toBe('NVIDIA GeForce RTX 3060');
+      expect(gpus[0].vendorId).toBe(0x10de);
+      expect(gpus[0].deviceId).toBe(0x2504);
+    });
+
+    test('handles multiple GPUs', function () {
+      child_process.execFileSync.mockReturnValue(
+        '"AdapterCompatibility","Name","PNPDeviceID"\n' +
+          '"Intel Corporation","Intel UHD Graphics 630","PCI\\VEN_8086&DEV_3E91"\n' +
+          '"NVIDIA","NVIDIA GeForce RTX 3060","PCI\\VEN_10DE&DEV_2504"\n'
+      );
+      var gpus = gpuDetector._listGpusWindowsPowershell();
+      expect(gpus.length).toBe(2);
+      expect(gpus[0].vendor).toBe('intel');
+      expect(gpus[1].vendor).toBe('nvidia');
+    });
+
+    test('returns empty on error (PowerShell not available)', function () {
+      child_process.execFileSync.mockImplementation(function () {
+        throw new Error('not found');
+      });
+      var gpus = gpuDetector._listGpusWindowsPowershell();
+      expect(gpus).toEqual([]);
+    });
+
+    test('skips unknown vendors', function () {
+      child_process.execFileSync.mockReturnValue(
+        '"AdapterCompatibility","Name","PNPDeviceID"\n' +
+          '"VMware","VMware SVGA 3D","PCI\\VEN_15AD&DEV_0405"\n'
+      );
+      var gpus = gpuDetector._listGpusWindowsPowershell();
+      expect(gpus.length).toBe(0);
+    });
+  });
+
+  describe('detectLinuxSandbox', function () {
+    var origEnv;
+    beforeEach(function () {
+      origEnv = Object.assign({}, process.env);
+    });
+    afterEach(function () {
+      Object.assign(process.env, origEnv);
+    });
+
+    test('returns flatpak when FLATPAK_ID set', function () {
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      process.env.FLATPAK_ID = 'com.example.app';
+      expect(gpuDetector.detectLinuxSandbox()).toBe('flatpak');
+      delete process.env.FLATPAK_ID;
+      Object.defineProperty(process, 'platform', {
+        value: origEnv._platform || process.platform,
+        configurable: true
+      });
+    });
+
+    test('returns snap when SNAP_NAME set', function () {
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      process.env.SNAP_NAME = 'shinobi-launcher';
+      expect(gpuDetector.detectLinuxSandbox()).toBe('snap');
+      delete process.env.SNAP_NAME;
+      Object.defineProperty(process, 'platform', {
+        value: origEnv._platform || process.platform,
+        configurable: true
+      });
+    });
+
+    test('returns null outside linux', function () {
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+      expect(gpuDetector.detectLinuxSandbox()).toBe(null);
+      Object.defineProperty(process, 'platform', {
+        value: origEnv._platform || process.platform,
+        configurable: true
+      });
+    });
+
+    test('returns null when no sandbox env', function () {
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      delete process.env.FLATPAK_ID;
+      delete process.env.SNAP_NAME;
+      expect(gpuDetector.detectLinuxSandbox()).toBe(null);
+      Object.defineProperty(process, 'platform', {
+        value: origEnv._platform || process.platform,
+        configurable: true
+      });
+    });
+  });
+
+  describe('AMD env vars (no placebo)', function () {
+    test('does NOT set RADEONSI_CLEAR_DB_SHADER_CACHE', function () {
+      // Setup: AMD GPU detected via sysfs
+      fs.existsSync.mockImplementation(function (path) {
+        if (path === '/sys/class/drm') return true;
+        if (path.indexOf('card0/device/vendor') !== -1) return true;
+        if (path.indexOf('card0/device/device') !== -1) return true;
+        if (path.indexOf('card0/device/uevent') !== -1) return true;
+        return false;
+      });
+      fs.readdirSync.mockReturnValue(['card0']);
+      fs.readFileSync.mockImplementation(function (path) {
+        if (path.indexOf('vendor') !== -1) return '0x1002\n';
+        if (path.indexOf('device') !== -1) return '0x1636\n';
+        if (path.indexOf('uevent') !== -1) return 'DRIVER=amdgpu\nPCI_CLASS=030000\n';
+        return '';
+      });
+
+      var envVars = gpuDetector.getEnvVars('balanced');
+      // RADEONSI_ZERO_VRAM should be set (real)
+      expect(envVars.RADEONSI_ZERO_VRAM).toBe('1');
+      // RADEONSI_CLEAR_DB_SHADER_CACHE should NOT be set (placebo removed)
+      expect(envVars.RADEONSI_CLEAR_DB_SHADER_CACHE).toBeUndefined();
+      // LIBVA_DRIVER_NAME should be set (real)
+      expect(envVars.LIBVA_DRIVER_NAME).toBe('radeonsi');
+    });
+  });
 });

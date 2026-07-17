@@ -271,11 +271,13 @@ function attach(win, ctx) {
       const cfg = loadConfig();
       const rendererPid = win.webContents.getOSProcessId();
       if (rendererPid > 0) {
-        cpuOptimizer.optimizeRenderer(rendererPid, {
-          preset: cfg.optimizationPreset || 'balanced'
-        }).catch(function (e) {
-          logger.debug('CpuOptimizer: falhou (não-fatal) — ' + e.message);
-        });
+        cpuOptimizer
+          .optimizeRenderer(rendererPid, {
+            preset: cfg.optimizationPreset || 'balanced'
+          })
+          .catch(function (e) {
+            logger.debug('CpuOptimizer: falhou (não-fatal) — ' + e.message);
+          });
       }
     } catch (e) {
       logger.debug('CpuOptimizer: skip — ' + e.message);
@@ -539,42 +541,70 @@ function attach(win, ctx) {
   // próximo de expirar (threshold 5 min) e renova via api-login. O JWT do
   // Naruto Online expira em 2h; sem renovação, a sessão cai e o auto-login
   // via form injection reassume — mas renovar evita essa interrupção.
-  _renewTimer = setInterval(
-    function () {
-      if (win.isDestroyed()) {
-        if (_renewTimer) {
-          clearInterval(_renewTimer);
-          _renewTimer = null;
-        }
-        return;
+  //
+  // v5.9.15: Adicionado backoff exponencial. Se a renovação falha N vezes
+  // consecutivas, o intervalo dobra (max 2h). Reseta no próximo sucesso.
+  // Isso evita chamadas inúteis a cada 30min quando o servidor está fora do ar.
+  var _renewConsecutiveFailures = 0;
+  var _renewBaseIntervalMs = 30 * 60 * 1000; // 30 min base
+  _renewTimer = setInterval(function () {
+    if (win.isDestroyed()) {
+      if (_renewTimer) {
+        clearInterval(_renewTimer);
+        _renewTimer = null;
       }
-      if (!vault.hasCredentials(profileId)) return; // sem creds → não pode renovar
-      const creds = vault.getCredentials(profileId);
-      if (!creds || !creds.user || !creds.pass) return;
-      try {
-        const apiLogin = require('../network/api-login');
-        apiLogin
-          .renewIfNeeded(ses, creds.user, creds.pass, 300)
-          .then(function (r) {
-            if (r.renewed) {
-              logger.info(
-                'JWT auto-renovado para "' +
-                  profile.name +
-                  '" (novo expira em ' +
-                  Math.round(r.expiresAt / 1000 - Date.now() / 1000) +
-                  's)'
-              );
-            }
-          })
-          .catch(function (e) {
-            logger.debug('JWT auto-renewal falhou para ' + profileId + ': ' + e.message);
-          });
-      } catch (e) {
-        logger.debug('JWT auto-renewal skip: ' + e.message);
-      }
-    },
-    30 * 60 * 1000
-  ); // 30 min
+      return;
+    }
+    if (!vault.hasCredentials(profileId)) return; // sem creds → não pode renovar
+    const creds = vault.getCredentials(profileId);
+    if (!creds || !creds.user || !creds.pass) return;
+    try {
+      const apiLogin = require('../network/api-login');
+      apiLogin
+        .renewIfNeeded(ses, creds.user, creds.pass, 300)
+        .then(function (r) {
+          if (r.renewed) {
+            // Sucesso → reseta backoff
+            _renewConsecutiveFailures = 0;
+            logger.info(
+              'JWT auto-renovado para "' +
+                profile.name +
+                '" (novo expira em ' +
+                Math.round(r.expiresAt / 1000 - Date.now() / 1000) +
+                's)'
+            );
+          }
+        })
+        .catch(function (e) {
+          _renewConsecutiveFailures++;
+          var backoffMs = Math.min(
+            _renewBaseIntervalMs * Math.pow(2, Math.min(_renewConsecutiveFailures - 1, 3)),
+            2 * 60 * 60 * 1000 // max 2h
+          );
+          if (_renewConsecutiveFailures <= 2) {
+            // Primeiras falhas: log debug (pode ser temporário)
+            logger.debug(
+              'JWT auto-renewal falhou (' +
+                _renewConsecutiveFailures +
+                'x, próximo em ' +
+                Math.round(backoffMs / 60000) +
+                'min): ' +
+                e.message
+            );
+          } else {
+            logger.warn(
+              'JWT auto-renewal falhou ' +
+                _renewConsecutiveFailures +
+                'x consecutivas — backoff ' +
+                Math.round(backoffMs / 60000) +
+                'min (servidor pode estar fora do ar)'
+            );
+          }
+        });
+    } catch (e) {
+      logger.debug('JWT auto-renewal skip: ' + e.message);
+    }
+  }, _renewBaseIntervalMs);
   if (_renewTimer.unref) _renewTimer.unref();
 }
 
@@ -591,6 +621,9 @@ function attach(win, ctx) {
  * pré-autenticar). Se o apiLogin falha, faz fallback pro loadURL simples (o
  * form-injection auto-login via did-finish-load cuida do login depois).
  *
+ * ANTI-RACE: se já existe um reload em andamento para esta janela, ignora.
+ * Evita que F5 múltiplo rápido cause clearStorageData concorrente + loadURL duplo.
+ *
  * @param {string} profileId
  * @param {Object} profile
  * @param {Electron.BrowserWindow} win
@@ -598,6 +631,8 @@ function attach(win, ctx) {
  * @param {Function} getGameUrl
  * @returns {Promise<void>}
  */
+var _reloadingWindows = new Set();
+
 function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
   if (!win || win.isDestroyed()) return Promise.resolve();
   if (!ses) {
@@ -605,6 +640,14 @@ function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
     win.webContents.reload();
     return Promise.resolve();
   }
+
+  // Anti-race: se já tem um reload em andamento pra esta janela, skip.
+  var winId = win.id;
+  if (_reloadingWindows.has(winId)) {
+    logger.debug('F5 reloadWithPreAuth: já existe reload em andamento (win ' + winId + ') — skip');
+    return Promise.resolve();
+  }
+  _reloadingWindows.add(winId);
 
   logger.info('F5 reloadWithPreAuth: limpando login + pré-autenticando "' + profile.name + '"');
 
@@ -620,12 +663,21 @@ function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
 
   return Promise.all([clearJs, clearStorage, clearCache])
     .then(function () {
-      if (win.isDestroyed()) return;
+      if (win.isDestroyed()) {
+        _reloadingWindows.delete(winId);
+        return;
+      }
       logger.info('F5 reloadWithPreAuth: login limpo, pré-autenticando — ' + profile.name);
       // Reutiliza o MESMO fluxo do Play (apiLogin.loginAndInject antes de loadURL).
       _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl);
+      // did-finish-load vai disparar e o novo loadURL será assíncrono.
+      // Liberamos o guard após um delay suficiente pro loadURL iniciar.
+      setTimeout(function () {
+        _reloadingWindows.delete(winId);
+      }, 3000);
     })
     .catch(function (e) {
+      _reloadingWindows.delete(winId);
       if (win.isDestroyed()) return;
       logger.warn('F5 reloadWithPreAuth: erro ao limpar — fallback reload direto: ' + e.message);
       // Reset do entry formInjectAttempts não é necessário aqui (did-finish-load cuida).

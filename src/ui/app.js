@@ -793,8 +793,12 @@ async function loadOptimization() {
     }
     if (g.allGpus && g.allGpus.length > 1) {
       const others = g.allGpus
-        .filter(function (x) { return x.vendor !== g.vendor; })
-        .map(function (x) { return vendorLabels[x.vendor] || x.vendor; });
+        .filter(function (x) {
+          return x.vendor !== g.vendor;
+        })
+        .map(function (x) {
+          return vendorLabels[x.vendor] || x.vendor;
+        });
       if (others.length > 0) {
         gpuDesc.textContent += ' (outras: ' + others.join(', ') + ')';
       }
@@ -821,7 +825,9 @@ async function loadOptimization() {
   // Preset description + active card
   const presetDesc = document.getElementById('presetDesc');
   if (presetDesc) {
-    const activePreset = status.presets.find(function (p) { return p.code === status.preset; });
+    const activePreset = status.presets.find(function (p) {
+      return p.code === status.preset;
+    });
     if (activePreset) {
       presetDesc.textContent = 'Ativo: ' + activePreset.name + ' — ' + activePreset.description;
     }
@@ -836,7 +842,9 @@ async function loadOptimization() {
   ['performance', 'balanced', 'quality'].forEach(function (code) {
     const el = document.querySelector('[data-preset-flags="' + code + '"]');
     if (!el) return;
-    const preset = status.presets.find(function (p) { return p.code === code; });
+    const preset = status.presets.find(function (p) {
+      return p.code === code;
+    });
     if (!preset) return;
     const flags = _presetFlags(code, status);
     el.innerHTML = flags

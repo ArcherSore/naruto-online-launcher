@@ -1,5 +1,45 @@
 # Changelog
 
+## [5.9.15] - 2026-07-18
+
+### Fixed — Estabilidade + Otimizações reais (CRON-1 run)
+
+1. **GpuDetector.js — Placebo removido + Win11 24H2+ suporte**:
+   - `RADEONSI_CLEAR_DB_SHADER_CACHE=1` removido — não é uma env var
+     reconhecida pelo Mesa radeonsi. Setá-la era placebo.
+   - `_listGpusWindowsPowershell()`: novo fallback via `Get-CimInstance`
+     (PowerShell) para quando wmic não está disponível (removido no
+     Windows 11 24H2+ e Windows Server 2025). wmic continua como primary
+     (mais rápido), PowerShell como fallback.
+   - `detectLinuxSandbox()`: detecta Flatpak (`FLATPAK_ID`) e Snap
+     (`SNAP_NAME`). Loga warning quando GPU não é detectada em sandbox,
+     com instrução de como habilitar GPU passthrough.
+
+2. **SessionLifecycle.js — Anti-race no reloadWithPreAuth**:
+   - F5 múltiplo rápido pode causar `clearStorageData` concorrente +
+     `loadURL` duplo. Adicionado guard `_reloadingWindows` (Set de win IDs).
+   - Segunda chamada durante reload em andamento é silenciosamente ignorada.
+   - Guard liberado após 3s (tempo suficiente pro loadURL iniciar) ou em
+     caso de erro.
+
+3. **SessionLifecycle.js — JWT auto-renewal com backoff exponencial**:
+   - Antes: `renewIfNeeded` falhava a cada 30min para sempre se o servidor
+     estava fora do ar (chamadas inúteis, logs spam).
+   - Agora: backoff exponencial. 1a falha = 30min, 2a = 1h, 3a = 2h (max).
+   - Sucesso reseta o contador. Primeiras 2 falhas = debug log, 3+ = warn.
+
+4. **main.js — _logBanner versão dinâmica**:
+   - Antes: hardcoded `v5.0.0` no banner de log (defasado desde v5.0).
+   - Agora: lê de `package.json` (versão real).
+
+5. **settings.js — Language validation alinhado com i18n real**:
+   - Antes: aceitava `de/es/pl/fr` mas i18n foi reduzido a `pt/en` (Task 225).
+   - Agora: só aceita `pt/en`. Configs com `de/es/pl/fr` fallback para `pt`.
+
+### Tests
+- +10 novos testes (971 total): GpuDetector PowerShell, sandbox detection,
+  AMD placebo check, reloadWithPreAuth race guard.
+
 ## [5.9.14] - 2026-07-17
 
 ### Fixed — Otimizações cross-platform (Windows + Linux breadth) + anti-placebo
