@@ -78,6 +78,16 @@ function _sendWindowStatus(profileId, isOpen) {
 }
 
 /**
+ * Limpa timers pendentes de um entry de lifecycle (autoLogin + failLoad).
+ * @param {Object|null} entry
+ */
+function _clearEntryTimers(entry) {
+  if (!entry) return;
+  if (entry.autoLoginTimer) clearTimeout(entry.autoLoginTimer);
+  if (entry.failLoadTimer) clearTimeout(entry.failLoadTimer);
+}
+
+/**
  * Tenta auto-login injetando credenciais do vault no form da página.
  * Loop guard: max 5 tentativas de form injection por sessão.
  * @param {string} profileId
@@ -372,8 +382,7 @@ function attach(win, ctx) {
     logger.info('Kill switch: fechando ' + profile.name + ' (graceful + fallback destroy)');
 
     if (entry) {
-      if (entry.autoLoginTimer) clearTimeout(entry.autoLoginTimer);
-      if (entry.failLoadTimer) clearTimeout(entry.failLoadTimer);
+      _clearEntryTimers(entry);
     }
     // JWT auto-renewal interval cleanup
     if (_renewTimer) {
@@ -409,10 +418,7 @@ function attach(win, ctx) {
 
   // ── Closed → cleanup final ──
   win.on('closed', function () {
-    if (entry) {
-      if (entry.autoLoginTimer) clearTimeout(entry.autoLoginTimer);
-      if (entry.failLoadTimer) clearTimeout(entry.failLoadTimer);
-    }
+    _clearEntryTimers(entry);
     // gameWindows.delete é responsabilidade do Launcher (que possui o Map)
     _sendWindowStatus(profileId, false);
     logger.info('Perfil fechado: ' + profile.name);

@@ -39,6 +39,14 @@ function _pushProfiles() {
 function _pushEvents() {
   StateBroadcaster.pushEvents();
 }
+/**
+ * Get the manager BrowserWindow if available and not destroyed.
+ * @returns {Electron.BrowserWindow|null}
+ */
+function _getWin() {
+  var w = ManagerWindow.getManagerWindow();
+  return w && !w.isDestroyed() ? w : null;
+}
 
 /**
  * Registra TODOS os handlers IPC. Idempotente (guard _registered).
@@ -55,27 +63,27 @@ function registerIpcHandlers(handlers) {
 
   // ── v5.8: Window Always-on-Top toggle ──
   ipcMain.handle('window:toggle-always-on-top', function (_e, on) {
-    const win = ManagerWindow.getManagerWindow();
-    if (!win || win.isDestroyed()) return { ok: false, error: 'window-unavailable' };
+    const win = _getWin();
+    if (!win) return { ok: false, error: 'window-unavailable' };
     const next = typeof on === 'boolean' ? on : !win.isAlwaysOnTop();
     win.setAlwaysOnTop(next);
     logger.info('Always-on-top: ' + next);
     return { ok: true, alwaysOnTop: next };
   });
   ipcMain.handle('window:get-always-on-top', function () {
-    const win = ManagerWindow.getManagerWindow();
-    if (!win || win.isDestroyed()) return false;
+    const win = _getWin();
+    if (!win) return false;
     return win.isAlwaysOnTop();
   });
 
   // ── v5.8: Window minimize / maximize helpers (for the new window controls) ──
   ipcMain.on('window:minimize', function () {
-    const win = ManagerWindow.getManagerWindow();
-    if (win && !win.isDestroyed()) win.minimize();
+    const win = _getWin();
+    if (win) win.minimize();
   });
   ipcMain.handle('window:toggle-maximize', function () {
-    const win = ManagerWindow.getManagerWindow();
-    if (!win || win.isDestroyed()) return null;
+    const win = _getWin();
+    if (!win) return null;
     if (win.isMaximized()) {
       win.unmaximize();
       return false;
@@ -250,7 +258,7 @@ function registerIpcHandlers(handlers) {
   const diagnostics = require('../../utils/diagnostics');
   ipcMain.handle('diagnostics:export', async function () {
     try {
-      const result = await diagnostics.exportZip(ManagerWindow.getManagerWindow());
+      const result = await diagnostics.exportZip(_getWin());
       if (result.ok) {
         _send('profile:toast', {
           type: 'success',
@@ -525,8 +533,8 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('profiles:export-encrypted', async function (_e, password) {
-    const win = ManagerWindow.getManagerWindow();
-    if (!win || win.isDestroyed()) return { ok: false, error: 'Manager window closed' };
+    const win = _getWin();
+    if (!win) return { ok: false, error: 'Manager window closed' };
     try {
       const profiles = store.getAll();
       const credentialsMap = {};
@@ -556,8 +564,8 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('profiles:import-encrypted', async function (_e, password) {
-    const win = ManagerWindow.getManagerWindow();
-    if (!win || win.isDestroyed()) return { ok: false, error: 'Manager window closed' };
+    const win = _getWin();
+    if (!win) return { ok: false, error: 'Manager window closed' };
     try {
       const result = await dialog.showOpenDialog(win, {
         title: 'Importar backup criptografado',
@@ -606,8 +614,8 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('profiles:export-file', async function () {
-    const win = ManagerWindow.getManagerWindow();
-    if (!win || win.isDestroyed()) return { ok: false };
+    const win = _getWin();
+    if (!win) return { ok: false };
     const json = store.exportJSON();
     const result = await dialog.showSaveDialog(win, {
       title: 'Exportar perfis',
@@ -624,8 +632,8 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('profiles:import-file', async function () {
-    const win = ManagerWindow.getManagerWindow();
-    if (!win || win.isDestroyed()) return { ok: false, imported: 0 };
+    const win = _getWin();
+    if (!win) return { ok: false, imported: 0 };
     const result = await dialog.showOpenDialog(win, {
       title: 'Importar perfis',
       filters: [{ name: 'JSON', extensions: ['json'] }],
