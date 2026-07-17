@@ -26,8 +26,7 @@ jest.mock('../store', function () {
     importJSON: jest.fn(function () {
       return { imported: 0, skipped: 0 };
     }),
-    MAX_PROFILES: 12,
-    PALETTE: ['#e74c3c', '#3498db']
+    MAX_PROFILES: 10
   };
 });
 
@@ -177,11 +176,7 @@ describe('manager.js', function () {
       expect(typeof manager.importAll).toBe('function');
     });
     test('exports MAX_PROFILES from store', function () {
-      expect(manager.MAX_PROFILES).toBe(12);
-    });
-    test('exports PALETTE from store', function () {
-      expect(Array.isArray(manager.PALETTE)).toBe(true);
-      expect(manager.PALETTE.length).toBeGreaterThan(0);
+      expect(manager.MAX_PROFILES).toBe(10);
     });
   });
 

@@ -12,20 +12,6 @@
       })();
 
       const { ipcRenderer } = require('electron');
-      const PALETTE = [
-        '#FF8C00',
-        '#DC2626',
-        '#10B981',
-        '#F59E0B',
-        '#8B5CF6',
-        '#06B6D4',
-        '#EC4899',
-        '#84CC16',
-        '#F97316',
-        '#14B8A6',
-        '#A855F7',
-        '#EAB308'
-      ];
       const REGIONS = {
         br: 'BR',
         na: 'NA',
@@ -64,11 +50,8 @@
       let selectedRegion = 'br';
       let editingId = null;
       let vaultId = null;
-      let selectedColor = PALETTE[0];
       let notificationsMuted = false;
       let searchQuery = '';
-      // v4.5: View mode (grid/list), persisted in localStorage
-      let viewMode = localStorage.getItem('shinobi-view-mode') || 'grid';
       // v4.5: Track open game windows and auto-login status per profile (real-time)
       let openWindows = {}; // { profileId: true }
       let autoLoginStatus = {}; // { profileId: 'idle'|'loading'|'success'|'error' }
@@ -99,44 +82,11 @@
         });
       }
 
-      const LAST_PROFILE_KEY = 'shinobi-last-profile';
-
-      // ── Last Profile (Quick Re-launch) ──
-      // v5.9.3: lastProfileBtn removido do topbar. Função vira no-op seguro.
-      function loadLastProfile() {
-        var btn = document.getElementById('lastProfileBtn');
-        if (!btn) return;
-        var id = localStorage.getItem(LAST_PROFILE_KEY);
-        if (!id) {
-          btn.style.display = 'none';
-          return;
-        }
-        var p = profiles.find(function (x) {
-          return x.id === id;
-        });
-        if (!p) {
-          btn.style.display = 'none';
-          return;
-        }
-        document.getElementById('lastProfileName').textContent = p.name;
-        btn.style.display = 'inline-flex';
-      }
-
-      (function () {
-        var btn = document.getElementById('lastProfileBtn');
-        if (btn)
-          btn.onclick = function () {
-            var id = localStorage.getItem(LAST_PROFILE_KEY);
-            if (id) launch(id);
-          };
-      })();
-
       // ── IPC ──
       ipcRenderer.on('profiles:updated', (_e, list) => {
         profiles = list;
         renderProfiles();
         renderRegionTabs();
-        loadLastProfile();
         populateDevProfileSelects();
       });
       ipcRenderer.on('events:update', (_e, data) => renderEvents(data));
@@ -214,41 +164,10 @@
         renderProfiles();
       };
 
-      // v4.5: View mode toggle (grid/list) — persisted in localStorage
-      // v5.9.3: view-toggle removido do topbar. Handlers viram no-op seguros.
-      (function initViewToggle() {
-        var vg = document.getElementById('viewGrid');
-        var vl = document.getElementById('viewList');
-        if (vg)
-          vg.onclick = function () {
-            if (viewMode === 'grid') return;
-            viewMode = 'grid';
-            localStorage.setItem('shinobi-view-mode', 'grid');
-            this.classList.add('active');
-            if (vl) vl.classList.remove('active');
-            renderProfiles();
-          };
-        if (vl)
-          vl.onclick = function () {
-            if (viewMode === 'list') return;
-            viewMode = 'list';
-            localStorage.setItem('shinobi-view-mode', 'list');
-            this.classList.add('active');
-            if (vg) vg.classList.remove('active');
-            renderProfiles();
-          };
-        if (viewMode === 'list') {
-          if (vl) vl.classList.add('active');
-          if (vg) vg.classList.remove('active');
-        }
-      })();
-
       // ── Render: Profiles ──
       function renderProfiles() {
         const grid = document.getElementById('profileGrid');
-        // v4.5: Apply view mode class
-        grid.className =
-          'grid' + (viewMode === 'list' ? ' list-view' : '');
+        grid.className = 'grid';
         let filtered = profiles;
         if (searchQuery) {
           filtered = profiles.filter(function (p) {
@@ -306,9 +225,7 @@
         filtered.forEach(function (p, idx) {
           const card = document.createElement('div');
           card.tabIndex = 0;
-          card.style.setProperty('--accent', p.color);
           card.style.animationDelay = idx * 60 + 'ms';
-          card.setAttribute('data-card-color', p.color);
           var favClass = p.favorite ? ' fav-card' : '';
           card.className =
             'card' +
@@ -425,12 +342,11 @@
           card.innerHTML = `
       ${batchCheckHtml}
       <div class="card-head">
-        <div class="card-avatar" style="background:${p.color}">${esc(p.name.charAt(0).toUpperCase())}</div>
+        <div class="card-avatar">${esc(p.name.charAt(0).toUpperCase())}</div>
         <div style="flex:1;min-width:0">
           <div class="name">${esc(p.name)}${p.hasVault ? '<span class="lock" title="Auto-login ativo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>' : ''}</div>
           <div class="region" style="margin-top:.1rem">${REGIONS[p.region] || '—'}</div>
         </div>
-        <div class="color-tag" style="background:${p.color}"></div>
       </div>
       <div class="card-body">
         ${serverHtml}
@@ -619,11 +535,9 @@
         var common = [
           1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 100, 200, 500, 799, 999, 9999
         ];
-        var seen = {};
         // If current server is not in the common list, add it first
         if (currentNum && common.indexOf(currentNum) === -1) {
           html += '<option value="S' + currentNum + '">S' + currentNum + ' (atual)</option>';
-          seen[currentNum] = true;
         }
         common.forEach(function (n) {
           var isCurrent = n === currentNum;
@@ -636,7 +550,6 @@
             n +
             (isCurrent ? ' (atual)' : '') +
             '</option>';
-          seen[n] = true;
         });
         // If no current server, show placeholder
         if (!currentNum) {
@@ -693,8 +606,7 @@
           return x.id === id;
         });
         if (p) {
-          localStorage.setItem(LAST_PROFILE_KEY, id);
-          loadLastProfile();
+          localStorage.setItem('shinobi-last-profile', id);
         }
       }
       function edit(id) {
@@ -709,8 +621,6 @@
         var notesEl = document.getElementById('fNotes');
         notesEl.value = p.notes || '';
         updateNotesCounter();
-        selectedColor = p.color;
-        renderColors();
         // v5.9.3: hide auto-create button in edit mode
         document.getElementById('autoCreateBtn').style.display = 'none';
         document.getElementById('profileModal').classList.add('show');
@@ -719,9 +629,8 @@
         if (!confirm('Excluir esta conta? Cookies e credenciais serão apagados.')) return;
         ipcRenderer.send('profile:delete', id);
         // If last profile was this one, clear
-        if (localStorage.getItem(LAST_PROFILE_KEY) === id) {
-          localStorage.removeItem(LAST_PROFILE_KEY);
-          loadLastProfile();
+        if (localStorage.getItem('shinobi-last-profile') === id) {
+          localStorage.removeItem('shinobi-last-profile');
         }
       }
       async function openVault(id) {
@@ -750,8 +659,6 @@
         // v4.5: clear notes
         document.getElementById('fNotes').value = '';
         updateNotesCounter();
-        selectedColor = PALETTE[profiles.length % PALETTE.length];
-        renderColors();
         // v5.9.3: show auto-create button in create mode
         document.getElementById('autoCreateBtn').style.display = '';
         document.getElementById('profileModal').classList.add('show');
@@ -763,7 +670,6 @@
           name: document.getElementById('fName').value.trim(),
           server: document.getElementById('fServer').value.trim(),
           region: document.getElementById('fRegion').value,
-          color: selectedColor,
           notes: document.getElementById('fNotes').value.trim(), // v4.5: save notes
         };
         if (!opts.name) {
@@ -827,21 +733,6 @@
         counter.classList.toggle('warn', len > 180);
       }
       document.getElementById('fNotes').oninput = updateNotesCounter;
-
-      function renderColors() {
-        const row = document.getElementById('colorRow');
-        row.innerHTML = '';
-        PALETTE.forEach(c => {
-          const dot = document.createElement('span');
-          dot.className = 'color-dot' + (c === selectedColor ? ' sel' : '');
-          dot.style.background = c;
-          dot.addEventListener('click', () => {
-            selectedColor = c;
-            renderColors();
-          });
-          row.appendChild(dot);
-        });
-      }
 
       // ── Modal: Vault ──
       document.getElementById('cancelVault').onclick = () =>
@@ -975,44 +866,6 @@
           desc.style.color = 'var(--text-faint)';
         }
       };
-
-      // ── Topbar buttons ──
-      // v5.9.3: muteBtn removido do topbar. Handler vira no-op se ausente.
-      (function () {
-        var mb = document.getElementById('muteBtn');
-        if (!mb) return;
-        mb.classList.toggle('on', notificationsMuted);
-        mb.onclick = function () {
-          notificationsMuted = !notificationsMuted;
-          this.classList.toggle('on', notificationsMuted);
-          var sn = document.getElementById('setNotifications');
-          if (sn) sn.classList.toggle('on', !notificationsMuted);
-          ipcRenderer.send('events:set-muted', notificationsMuted);
-          toast(notificationsMuted ? 'Notificações mutadas' : 'Notificações ativas', 'ok');
-        };
-      })();
-
-      // v5.9.3: sidebar-footer Importar/Exportar removidos (redundante c/ Settings → Avançado).
-      // Handlers viram no-op se ausentes.
-      (function () {
-        var ex = document.getElementById('exportBtn');
-        if (ex)
-          ex.onclick = async () => {
-            const r = await ipcRenderer.invoke('profiles:export-file');
-            if (r.ok) toast('Exportado', 'ok');
-            else if (r.error) toast('Erro: ' + r.error, 'err');
-          };
-      })();
-
-      (function () {
-        var im = document.getElementById('importBtn');
-        if (im)
-          im.onclick = async () => {
-            const r = await ipcRenderer.invoke('profiles:import-file');
-            if (r.ok) toast('Importados ' + r.imported + ' perfis', 'ok');
-            else if (r.error) toast('Erro: ' + r.error, 'err');
-          };
-      })();
 
       // ── Server Selector ──
       document.getElementById('btnPickServer').onclick = async () => {
@@ -1738,25 +1591,6 @@
         renderProfiles();
       };
 
-      document.getElementById('batchDeleteBtn').onclick = async function () {
-        if (!batchSelected.size) return;
-        if (
-          !confirm(
-            'Excluir ' + batchSelected.size + ' conta(s)? Cookies e credenciais serão apagados.'
-          )
-        )
-          return;
-        batchSelected.forEach(function (id) {
-          ipcRenderer.send('profile:delete', id);
-        });
-        addActivity('info', batchSelected.size + ' conta(s) excluída(s) em lote');
-        batchSelected.clear();
-        updateBatchBar();
-        batchMode = false;
-        document.getElementById('batchModeBtn').classList.remove('on');
-        document.getElementById('profileGrid').classList.remove('batch-mode');
-      };
-
       document.getElementById('batchExportBtn').onclick = async function () {
         if (!batchSelected.size) return;
         // Export only selected profiles
@@ -1958,7 +1792,6 @@
 
       // ── Init ──
       ipcRenderer.send('manager:ready');
-      loadLastProfile();
       initI18n();
       initDevTools();
       initDebugFlag();
@@ -2107,47 +1940,6 @@
         });
       })();
 
-      // ── v5.7: Add card-expand section to profile cards (v5.8: childList only — was subtree:true which over-fired) ──
-      // We patch the existing card innerHTML to add an expand section
-      // This is tricky since the card template is inline. We'll use a MutationObserver.
-      (function initCardExpandObserver() {
-        var grid = document.getElementById('profileGrid');
-        if (!grid) return;
-        var observer = new MutationObserver(function () {
-          grid.querySelectorAll('.card[data-card-id]').forEach(function (card) {
-            if (card.querySelector('.card-expand')) return; // already has expand
-            var id = card.getAttribute('data-card-id');
-            var p = profiles.find(function (x) {
-              return x.id === id;
-            });
-            if (!p) return;
-            var expandHtml = '<div class="card-expand">';
-            if (p.notes)
-              expandHtml +=
-                '<div style="font-size:var(--font-xs);color:var(--text-faint);margin-top:.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
-                esc(p.notes) +
-                '</div>';
-            if (p.launchCount > 0 || (p.totalPlayMs || 0) > 0) {
-              expandHtml +=
-                '<div style="display:flex;gap:var(--space-3);margin-top:.2rem;font-size:var(--font-xs);color:var(--text-dim)">';
-              if (p.launchCount > 0) expandHtml += '<span>🚀 ' + p.launchCount + 'x</span>';
-              if ((p.totalPlayMs || 0) > 0)
-                expandHtml += '<span>⏱ ' + formatPlayTime(p.totalPlayMs || 0) + '</span>';
-              expandHtml += '</div>';
-            }
-            expandHtml += '</div>';
-            // Insert before the card-actions area
-            var actions = card.querySelector('.card-actions');
-            if (actions) {
-              actions.insertAdjacentHTML('beforebegin', expandHtml);
-            } else {
-              card.insertAdjacentHTML('beforeend', expandHtml);
-            }
-          });
-        });
-        observer.observe(grid, { childList: true });
-      })();
-
       // ── v5.7: Init sequence ──
       initSearchFilters();
       // Show skeleton briefly on first load
@@ -2231,70 +2023,6 @@
             view.classList.add('view-enter-v58');
           });
         });
-      })();
-
-      // ── v5.8: Toast slide-in with bounce (refined) ──
-      // NOTE: Use a unique var name (_origToastV58) — v5.5 already declared _origToast,
-      // and reusing the same name would cause infinite recursion (both wrappers would
-      // reference the same script-scope variable, with the later wrapper pointing back
-      // to itself via the earlier wrapper's closure).
-      (function wireToastEnterV58() {
-        if (typeof toast !== 'function') return;
-        var _origToastV58 = toast;
-        toast = function (msg, type) {
-          _origToastV58(msg, type);
-          // Find the most recent toast element and add the v58 enter class
-          var container =
-            document.getElementById('toastContainer') || document.querySelector('.toast-container');
-          if (!container) return;
-          var lastToast = container.lastElementChild;
-          if (lastToast) {
-            lastToast.classList.remove('toast-enter-v58');
-            void lastToast.offsetWidth;
-            lastToast.classList.add('toast-enter-v58');
-          }
-        };
-      })();
-
-      // ── v5.8: Button loading state helper (for async actions) ──
-      // Usage: withButtonLoading(btnEl, asyncFn) — disables btn, shows spinner, restores on settle
-      function withButtonLoading(btn, asyncFn) {
-        if (!btn || typeof asyncFn !== 'function') return Promise.resolve();
-        if (btn.classList.contains('loading')) return Promise.resolve(); // already loading
-        btn.classList.add('loading');
-        btn.disabled = true;
-        return Promise.resolve(asyncFn())
-          .then(function (r) {
-            return r;
-          })
-          .catch(function (e) {
-            throw e;
-          })
-          .finally(function () {
-            btn.classList.remove('loading');
-            btn.disabled = false;
-          });
-      }
-
-      // ── v5.8: Wire button loading to key async actions ──
-      (function wireButtonLoading() {
-        // Export backup button
-        var exportBtn = document.getElementById('advBackupExport');
-        if (exportBtn) {
-          var orig = exportBtn.onclick;
-          if (orig)
-            exportBtn.onclick = function () {
-              withButtonLoading(exportBtn, orig);
-            };
-        }
-        var importBtn = document.getElementById('advBackupImport');
-        if (importBtn) {
-          var orig2 = importBtn.onclick;
-          if (orig2)
-            importBtn.onclick = function () {
-              withButtonLoading(importBtn, orig2);
-            };
-        }
       })();
 
       // ── v5.8: Replace sidebar version text with a version pill ──

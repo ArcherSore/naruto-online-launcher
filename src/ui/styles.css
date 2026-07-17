@@ -3,60 +3,7 @@
         margin: 0;
         padding: 0;
       }
-      :root {
-        /* v5.9.3: Paleta dourada — unificada com o site (naruto-online-launcher-site).
-           Gold #c8a23d no lugar do laranja, fundo levemente arroxeado (#070709),
-           cards #1a1a24, bordas #13131a. Identidade visual consistente. */
-        --bg: #070709;
-        --bg-elev: #0d0d12;
-        --bg-elev-2: #1a1a24;
-        --surface: #11111a;
-        --surface-hover: #1a1a24;
-        --border: #13131a;
-        --border-hover: #5c5c6f;
-        --border-focus: #c8a23d;
-        --text: #f0ede6;
-        --text-dim: #9a9aab;
-        --text-faint: #5c5c6f;
-        --accent: #c8a23d;
-        --accent-hover: #e2c66d;
-        --accent-2: #8b7230;
-        --ok: #10b981;
-        --warn: #f59e0b;
-        --danger: #dc2626;
-        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.6);
-        --shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
-        --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.85);
-        --space-1: 0.25rem;
-        --space-2: 0.5rem;
-        --space-3: 0.75rem;
-        --space-4: 1rem;
-        --space-5: 1.5rem;
-        --space-6: 2rem;
-        --font-xs: 0.6875rem;
-        --font-sm: 0.75rem;
-        --font-base: 0.8125rem;
-        --font-md: 0.875rem;
-        --font-lg: 1rem;
-        --font-xl: 1.25rem;
-        --font-2xl: 1.5rem;
-        --weight-regular: 400;
-        --weight-medium: 500;
-        --weight-semibold: 600;
-        --weight-bold: 700;
-        --radius-sm: 0.25rem;
-        --radius: 0.5rem;
-        --radius-lg: 0.625rem;
-        --radius-full: 9999px;
-        --transition: 150ms ease;
-        --transition-slow: 300ms ease;
-        --focus-ring: 0 0 0 2px var(--accent);
-        --z-base: 1;
-        --z-overlay: 100;
-        --z-toast: 200;
-        --z-modal: 300;
-        --font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
-      }
+
       html,
       body {
         height: 100%;
@@ -183,16 +130,6 @@
           box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
         }
       }
-      @keyframes toastIn {
-        from {
-          opacity: 0;
-          transform: translateX(-50%) translateY(16px) scale(0.96);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(-50%) translateY(0) scale(1);
-        }
-      }
       @keyframes toastOut {
         from {
           opacity: 1;
@@ -204,14 +141,6 @@
         }
       }
       @keyframes toastProgress {
-        from {
-          width: 100%;
-        }
-        to {
-          width: 0%;
-        }
-      }
-      @keyframes toastProgressOk {
         from {
           width: 100%;
         }
@@ -247,24 +176,6 @@
         right: 0;
         height: 1px;
         background: linear-gradient(90deg, transparent, rgba(255, 140, 0, 0.35), transparent);
-      }
-
-      /* Sidebar ambient particles */
-      .sidebar-particles {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        overflow: hidden;
-        z-index: 0;
-      }
-      .particle {
-        position: absolute;
-        width: 3px;
-        height: 3px;
-        border-radius: 50%;
-        background: rgba(255, 140, 0, 0.12);
-        box-shadow: 0 0 8px rgba(255, 140, 0, 0.08);
-        animation: particleDrift 10s ease-in-out infinite;
       }
 
       .sidebar-logo {
@@ -357,38 +268,6 @@
         background: var(--border);
         margin: var(--space-3) var(--space-4);
       }
-      .nav-stat {
-        padding: var(--space-2) var(--space-4);
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        position: relative;
-        z-index: 1;
-      }
-      .nav-stat .dot {
-        width: 0.4rem;
-        height: 0.4rem;
-        border-radius: var(--radius-full);
-        background: var(--ok);
-        flex-shrink: 0;
-      }
-      .sidebar-footer {
-        padding: var(--space-3) var(--space-4);
-        border-top: 1px solid var(--border);
-        display: flex;
-        gap: var(--space-2);
-        position: relative;
-        z-index: 1;
-      }
-      .sidebar-footer .btn {
-        flex: 1;
-        justify-content: center;
-        font-size: var(--font-xs);
-      }
-
-      /* Flash PPAPI indicator with pulse */
       .flash-indicator {
         padding: var(--space-2) var(--space-4);
         border-top: 1px solid var(--border);
@@ -536,19 +415,6 @@
         position: relative;
         z-index: 1;
       }
-      /* v4.9.2: wider scrollbars for easier targeting on high-DPI displays */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      .content::-webkit-scrollbar {
-        width: 8px;
-      }
-      .content::-webkit-scrollbar-thumb {
-        background: var(--border-hover);
-        border-radius: var(--radius-sm);
-      }
-
       /* ── Profile Cards Grid ── */
       .grid {
         display: grid;
@@ -634,11 +500,7 @@
         line-height: 1.3;
       }
       .card-head .color-tag {
-        width: 0.75rem;
-        height: 0.75rem;
-        border-radius: var(--radius-full);
-        flex-shrink: 0;
-        margin-top: 0.2rem;
+        display: none;
       }
       .card-body {
         margin-top: var(--space-2);
@@ -746,23 +608,6 @@
       .empty-shuriken {
         margin-bottom: var(--space-5);
         animation: shurikenSpin 20s linear infinite;
-      }
-      .empty-shuriken svg {
-        width: 4rem;
-        height: 4rem;
-        color: var(--accent);
-        opacity: 0.4;
-      }
-      .empty h3 {
-        font-size: var(--font-lg);
-        font-weight: var(--weight-semibold);
-        margin-bottom: var(--space-2);
-        color: var(--text-dim);
-      }
-      .empty p {
-        font-size: var(--font-sm);
-        color: var(--text-faint);
-        margin-bottom: var(--space-5);
       }
       .empty .btn.primary {
         box-shadow: 0 0 12px rgba(255, 140, 0, 0.15);
@@ -980,33 +825,6 @@
         color: var(--text-faint);
       }
 
-      /* ── Last Profile Button ── */
-      .last-profile-btn {
-        display: none;
-        align-items: center;
-        gap: 0.3rem;
-        border-color: rgba(255, 140, 0, 0.25);
-        color: var(--accent);
-        background: rgba(255, 140, 0, 0.06);
-        max-width: 10rem;
-        font-size: var(--font-xs);
-        padding: var(--space-1) var(--space-2);
-      }
-      .last-profile-btn:hover {
-        background: rgba(255, 140, 0, 0.12);
-        border-color: rgba(255, 140, 0, 0.4);
-      }
-      .last-profile-btn svg {
-        width: 0.75rem;
-        height: 0.75rem;
-        flex-shrink: 0;
-      }
-      .last-profile-btn span {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
       /* ── Modal ── */
       .overlay {
         position: fixed;
@@ -1122,25 +940,6 @@
       .toggle-pass svg {
         width: 0.9rem;
         height: 0.9rem;
-      }
-      .color-row {
-        display: flex;
-        gap: var(--space-2);
-        flex-wrap: wrap;
-      }
-      .color-dot {
-        width: 1.5rem;
-        height: 1.5rem;
-        border-radius: var(--radius-full);
-        cursor: pointer;
-        border: 2px solid transparent;
-        transition:
-          transform 200ms ease,
-          border-color 200ms ease;
-      }
-      .color-dot.sel {
-        border-color: #fff;
-        transform: scale(1.15);
       }
       .modal-actions {
         display: flex;
@@ -1266,121 +1065,6 @@
           animation-iteration-count: 1 !important;
           transition-duration: 0.01ms !important;
         }
-      }
-
-      /* ── v4.5: View Mode Toggle ── */
-      .view-toggle {
-        display: flex;
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-        flex-shrink: 0;
-      }
-      .view-toggle button {
-        padding: var(--space-1) var(--space-2);
-        background: transparent;
-        border: none;
-        color: var(--text-dim);
-        cursor: pointer;
-        transition: var(--transition);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 2rem;
-        height: 2rem;
-      }
-      .view-toggle button:hover {
-        color: var(--text);
-        background: var(--surface);
-      }
-      .view-toggle button.active {
-        background: rgba(255, 140, 0, 0.12);
-        color: var(--accent);
-      }
-      .view-toggle button svg {
-        width: 0.9rem;
-        height: 0.9rem;
-      }
-      .view-toggle .divider {
-        width: 1px;
-        background: var(--border);
-        margin: 0;
-      }
-
-      /* ── v4.5: List View Mode ── */
-      .grid.list-view {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-      }
-      .grid.list-view .card {
-        display: grid;
-        grid-template-columns: auto 1fr auto auto;
-        gap: var(--space-4);
-        align-items: center;
-        padding: var(--space-3) var(--space-4);
-        animation: none;
-      }
-      .grid.list-view .card:hover {
-        transform: none;
-      }
-      .grid.list-view .card::before {
-        width: 4px;
-        height: auto;
-        min-height: 100%;
-        left: 0;
-        top: 0;
-        bottom: 0;
-      }
-      .grid.list-view .card-head {
-        flex-direction: row;
-        align-items: center;
-        gap: var(--space-2);
-        min-width: 8rem;
-      }
-      .grid.list-view .card-body {
-        margin-top: 0;
-        flex-direction: row;
-        gap: var(--space-3);
-        align-items: center;
-      }
-      .grid.list-view .card-body .server {
-        font-size: var(--font-sm);
-      }
-      .grid.list-view .card-body .region {
-        font-size: var(--font-xs);
-      }
-      .grid.list-view .card-badges {
-        margin-top: 0;
-        flex-wrap: nowrap;
-      }
-      .grid.list-view .card-stats {
-        margin-top: 0;
-        flex-direction: row;
-        gap: var(--space-3);
-        font-size: var(--font-xs);
-      }
-      .grid.list-view .card-actions {
-        margin-top: 0;
-        min-width: 8rem;
-      }
-      .grid.list-view .card-actions .btn-play {
-        flex: 0 0 auto;
-        padding: var(--space-1) var(--space-3);
-      }
-      .grid.list-view .card-actions .secondary-actions {
-        opacity: 1;
-        margin-left: 0;
-      }
-      .grid.list-view .card-notes {
-        margin-top: 0;
-        max-width: 14rem;
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
       }
 
       /* ── v4.5: Card Stats Display ── */
@@ -1685,77 +1369,6 @@
         opacity: 0.8;
       }
 
-      /* ── v4.6: Tooltip System (CSS-only) ── */
-      [data-tip] {
-        position: relative;
-      }
-      [data-tip]::after {
-        content: attr(data-tip);
-        position: absolute;
-        bottom: calc(100% + 6px);
-        left: 50%;
-        transform: translateX(-50%) translateY(4px);
-        background: #1a1a24;
-        color: #e8e8f0;
-        padding: 0.3rem 0.55rem;
-        border-radius: var(--radius-sm);
-        font-size: var(--font-xs);
-        white-space: nowrap;
-        pointer-events: none;
-        opacity: 0;
-        transition:
-          opacity 0.15s ease,
-          transform 0.15s ease;
-        z-index: 1000;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-        border: 1px solid var(--border);
-        font-weight: var(--weight-medium);
-        letter-spacing: 0.2px;
-      }
-      [data-tip]::before {
-        content: '';
-        position: absolute;
-        bottom: calc(100% + 2px);
-        left: 50%;
-        transform: translateX(-50%) translateY(4px);
-        border: 4px solid transparent;
-        border-top-color: var(--border);
-        pointer-events: none;
-        opacity: 0;
-        transition:
-          opacity 0.15s ease,
-          transform 0.15s ease;
-        z-index: 1000;
-      }
-      [data-tip]:hover::after {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-      }
-      [data-tip]:hover::before {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-      }
-      [data-tip-pos='right']::after {
-        bottom: auto;
-        top: 50%;
-        left: calc(100% + 6px);
-        transform: translateY(-50%) translateX(-4px);
-      }
-      [data-tip-pos='right']:hover::after {
-        transform: translateY(-50%) translateX(0);
-      }
-      [data-tip-pos='right']::before {
-        bottom: auto;
-        top: 50%;
-        left: calc(100% + 2px);
-        transform: translateY(-50%) translateX(-4px);
-        border: 4px solid transparent;
-        border-right-color: var(--border);
-      }
-      [data-tip-pos='right']:hover::before {
-        transform: translateY(-50%) translateX(0);
-      }
-
       /* ── v4.6: Loading Skeletons ── */
       .skeleton-card {
         background: var(--surface);
@@ -1790,18 +1403,6 @@
         background: var(--bg-elev-2);
         border-radius: var(--radius-sm);
         margin-bottom: 0.5rem;
-      }
-      .skel-line.w-60 {
-        width: 60%;
-      }
-      .skel-line.w-40 {
-        width: 40%;
-      }
-      .skel-line.w-80 {
-        width: 80%;
-      }
-      .skel-line.w-30 {
-        width: 30%;
       }
       .skel-circle {
         width: 2.25rem;
@@ -1853,20 +1454,6 @@
       .btn:active:not(:disabled) {
         transform: scale(0.96);
       }
-      .btn-primary-glow {
-        box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.4);
-        animation: btn-glow-pulse 2.5s ease-in-out infinite;
-      }
-      @keyframes btn-glow-pulse {
-        0%,
-        100% {
-          box-shadow: 0 0 0 0 rgba(255, 140, 0, 0);
-        }
-        50% {
-          box-shadow: 0 0 0 4px rgba(255, 140, 0, 0.08);
-        }
-      }
-
       /* ── v5.0: JWT Decoder Widget ── */
       .jwt-decoder {
         background: var(--bg);
@@ -2158,13 +1745,7 @@
         box-shadow:
           0 10px 28px rgba(0, 0, 0, 0.35),
           0 0 0 1px rgba(255, 140, 0, 0.1),
-          0 0 20px color-mix(in srgb, var(--card-color, var(--accent)) 15%, transparent);
-      }
-      .card[data-card-color]:hover {
-        box-shadow:
-          0 10px 28px rgba(0, 0, 0, 0.35),
-          0 0 0 1px color-mix(in srgb, var(--card-color) 30%, transparent),
-          0 0 16px color-mix(in srgb, var(--card-color) 12%, transparent);
+          0 0 20px color-mix(in srgb, var(--accent) 12%, transparent);
       }
 
       /* ── v5.1: Batch Operations ── */
@@ -2309,25 +1890,6 @@
         filter: brightness(1.1);
       }
 
-      /* ── v5.3: Enhanced Event Cards ── */
-      .event {
-        position: relative;
-        overflow: hidden;
-      }
-      .event::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        border-radius: 2px;
-        opacity: 0;
-        transition: opacity 200ms ease;
-      }
-      .event:hover::before {
-        opacity: 1;
-      }
       .event[data-type='daily']::before {
         background: var(--accent);
       }
@@ -2537,6 +2099,7 @@
         font-size: var(--font-lg);
         font-weight: var(--weight-bold);
         color: #0a0a0f;
+        background: var(--accent);
         flex-shrink: 0;
         text-transform: uppercase;
         border: 2px solid rgba(255, 255, 255, 0.08);
@@ -2595,12 +2158,6 @@
         50% {
           box-shadow: 0 0 14px var(--accent);
         }
-      }
-
-      /* ── v5.6: Sidebar footer hover ── */
-      .sidebar-footer .btn:hover {
-        border-color: var(--accent);
-        color: var(--accent);
       }
 
       /* ── v5.6: Event card enhanced ── */
@@ -2810,27 +2367,6 @@
         }
       }
 
-      /* ── v5.8: Toast slide-in with subtle bounce ── */
-      @keyframes toastSlideV58 {
-        0% {
-          transform: translateX(120%);
-          opacity: 0;
-        }
-        60% {
-          transform: translateX(-8px);
-          opacity: 1;
-        }
-        80% {
-          transform: translateX(4px);
-        }
-        100% {
-          transform: translateX(0);
-        }
-      }
-      .toast.toast-enter-v58 {
-        animation: toastSlideV58 380ms cubic-bezier(0.2, 0.8, 0.3, 1);
-      }
-
       /* ── v5.8: Tooltip fade animation ── */
       [data-tip] {
         position: relative;
@@ -2846,7 +2382,7 @@
         border: 1px solid var(--border-hover);
         border-radius: var(--radius-sm);
         padding: 0.2rem 0.5rem;
-        font-size: var(--font-2xs);
+        font-size: 0.625rem;
         white-space: nowrap;
         opacity: 0;
         pointer-events: none;
@@ -2930,7 +2466,7 @@
         border-radius: var(--radius-full);
         background: rgba(255, 140, 0, 0.1);
         color: var(--accent);
-        font-size: var(--font-2xs);
+        font-size: 0.625rem;
         font-weight: var(--weight-semibold);
         border: 1px solid rgba(255, 140, 0, 0.2);
       }

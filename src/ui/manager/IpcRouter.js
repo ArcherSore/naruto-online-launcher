@@ -167,7 +167,6 @@ function registerIpcHandlers(handlers) {
       server: src.server,
       region: src.region,
       language: src.language,
-      color: src.color,
       notes: src.notes || '',
       tags: src.tags || [] // v5.3: copy tags
     });
@@ -566,8 +565,7 @@ function registerIpcHandlers(handlers) {
             server: p.server,
             region: p.region,
             language: p.language,
-            notificationsEnabled: p.notificationsEnabled,
-            color: p.color
+            notificationsEnabled: p.notificationsEnabled
           });
           if (newProfile) {
             imported++;

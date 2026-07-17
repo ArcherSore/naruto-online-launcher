@@ -33,7 +33,7 @@ const logger = require('../utils/logger');
 const PROFILES_DIR = 'profiles';
 const PROFILES_FILE = 'profiles.json';
 const BACKUP_FILE = 'profiles.json.bak';
-const MAX_PROFILES = 12;
+const MAX_PROFILES = 10;
 const MAX_FILE_BYTES = 1024 * 1024; // 1MB sane limit
 
 // v5.5: Launch log (timeline) — persisted separado de profiles.json para
@@ -41,22 +41,6 @@ const MAX_FILE_BYTES = 1024 * 1024; // 1MB sane limit
 // previne crescimento ilimitado (~6 meses de uso intensivo).
 const LAUNCH_LOG_FILE = 'launch-log.json';
 const MAX_LAUNCH_LOG_ENTRIES = 5000;
-
-// Cores para identificação visual rápida (paleta Naruto)
-const PALETTE = [
-  '#FF8C00',
-  '#DC2626',
-  '#10B981',
-  '#F59E0B',
-  '#8B5CF6',
-  '#06B6D4',
-  '#EC4899',
-  '#84CC16',
-  '#F97316',
-  '#14B8A6',
-  '#A855F7',
-  '#EAB308'
-];
 
 // Schema validator — nunca confiar em dados lidos do disco
 // v3.4: adicionado language (pt/en) e notificationsEnabled (boolean) por perfil
@@ -72,7 +56,6 @@ function isValidProfile(p) {
   // v3.4: notificationsEnabled opcional (default true para retrocompatibilidade)
   if (p.notificationsEnabled !== undefined && typeof p.notificationsEnabled !== 'boolean')
     return false;
-  if (typeof p.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(p.color)) return false;
   if (typeof p.createdAt !== 'number' || p.createdAt < 0) return false;
   if (typeof p.lastUsed !== 'number' || p.lastUsed < 0) return false;
   // v4.5: notes opcional (string, max 200 chars)
@@ -325,10 +308,6 @@ function create(opts) {
     language: ['pt', 'en'].includes(opts.language) ? opts.language : 'pt',
     notificationsEnabled:
       typeof opts.notificationsEnabled === 'boolean' ? opts.notificationsEnabled : true,
-    color:
-      typeof opts.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(opts.color)
-        ? opts.color
-        : PALETTE[_profiles.length % PALETTE.length],
     // v4.5: novos campos
     notes: typeof opts.notes === 'string' ? opts.notes.slice(0, 200) : '',
     launchCount: 0,
@@ -374,8 +353,6 @@ function update(id, updates) {
   if (['pt', 'en'].includes(updates.language)) p.language = updates.language;
   if (typeof updates.notificationsEnabled === 'boolean')
     p.notificationsEnabled = updates.notificationsEnabled;
-  if (typeof updates.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(updates.color))
-    p.color = updates.color;
   // v4.5: notes (string, max 200)
   if (typeof updates.notes === 'string') p.notes = updates.notes.slice(0, 200);
   // v4.6: favorite (boolean)
@@ -712,7 +689,7 @@ function recordLaunch(profileId) {
 /**
  * v5.5: Retorna timeline de lançamentos dos últimos `days` dias.
  * Array de tamanho `days`, oldest first → newest last.
- * Cada entrada: { date: 'YYYY-MM-DD', count: number, profiles: [{id, name, color, count}] }
+ * Cada entrada: { date: 'YYYY-MM-DD', count: number, profiles: [{id, name, count}] }
  * Entradas sem lançamentos aparecem com count 0 e profiles vazio.
  * @param {number} [days=7]
  * @returns {Array}
@@ -750,7 +727,7 @@ function getLaunchTimeline(days) {
     });
     if (!p) return; // perfil deletado — não conta no profiles array
     if (!b._byId[entry.id]) {
-      b._byId[entry.id] = { id: entry.id, name: p.name, color: p.color, count: 0 };
+      b._byId[entry.id] = { id: entry.id, name: p.name, count: 0 };
       b.profiles.push(b._byId[entry.id]);
     }
     b._byId[entry.id].count++;
@@ -810,7 +787,6 @@ module.exports = {
     return 'persist:profile-' + id;
   },
   MAX_PROFILES: MAX_PROFILES,
-  PALETTE: PALETTE,
   // v5.5: launch log (timeline)
   recordLaunch: recordLaunch,
   getLaunchTimeline: getLaunchTimeline,
