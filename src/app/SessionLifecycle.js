@@ -265,22 +265,63 @@ function attach(win, ctx) {
       )
       .catch(function () {});
 
-    // CAMADA 2: fullscreen limpo SOMENTE se há Flash embed visível (página de jogo)
+    // CAMADA 2: fullscreen limpo — esconde header/footer/sidebars do site e faz
+    // o #oas-player preencher a janela (experiência imersiva só do jogo).
+    //
+    // v5.9.8: Usa MutationObserver + polling (mesmo padrão robusto do auto-login)
+    // em vez de um check único no did-finish-load. O Naruto Online carrega o
+    // embed #oas-player ASYNC via JS — no did-finish-load ele geralmente ainda
+    // não existe no DOM, então o check único falhava e o CSS não injetava.
+    // Resultado: a top bar às vezes sumia (numa sub-navegação onde #oas-player
+    // já existia) e às vezes ficava visível — inconsistente. Agora o observer
+    // detecta #oas-player assim que ele aparece e injeta o CSS de forma confiável.
     win.webContents
       .executeJavaScript(
-        'var flashEl = document.querySelector("#oas-player iframe, #oas-player embed, #oas-player object");' +
-          'if (flashEl || document.querySelector("#oas-player")) {' +
-          '  var s = document.createElement("style");' +
-          '  s.textContent = ' +
+        '(function(){' +
+          '  if (window.__shinobiFsInjected) return "already";' +
+          '  window.__shinobiFsInjected = true;' +
+          '  var css = ' +
           '    "html, body { margin:0 !important; padding:0 !important; overflow:hidden !important; width:100% !important; height:100% !important; background:#000 !important; }" +' +
           '    "#oas-bar, .oas-bar, #oas-bar-hide, .header, .header-wrap, .site-header, .top-bar, .topbar { display:none !important; height:0 !important; min-height:0 !important; }" +' +
           '    "footer, .footer, .site-footer, .footer-wrap, #footer { display:none !important; height:0 !important; }" +' +
           '    ".sidebar, .left-sidebar, .right-sidebar, .nav-sidebar { display:none !important; }" +' +
           '    "#oas-player { position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; margin:0 !important; }" +' +
           '    "#oas-player iframe { width:100% !important; height:100% !important; }";' +
-          '  document.head.appendChild(s);' +
-          '}'
+          '  function apply(){' +
+          '    if (window.__shinobiFsApplied) return true;' +
+          '    var flashEl = document.querySelector("#oas-player iframe, #oas-player embed, #oas-player object");' +
+          '    var player = document.querySelector("#oas-player");' +
+          '    if (!flashEl && !player) return false;' +
+          '    var s = document.createElement("style");' +
+          '    s.setAttribute("data-shinobi","fullscreen");' +
+          '    s.textContent = css;' +
+          '    (document.head||document.documentElement).appendChild(s);' +
+          '    window.__shinobiFsApplied = true;' +
+          '    return true;' +
+          '  }' +
+          '  if (apply()) return "applied";' +
+          '  var attempts = 0, maxAttempts = 120;' + // ~30s @ 250ms
+          '  var obs = new MutationObserver(function(){' +
+          '    if (apply()) { obs.disconnect(); try{clearInterval(poll);}catch(e){} }' +
+          '  });' +
+          '  obs.observe(document.documentElement||document.body,{childList:true,subtree:true});' +
+          '  var poll = setInterval(function(){' +
+          '    attempts++;' +
+          '    if (apply()) { clearInterval(poll); obs.disconnect(); return; }' +
+          '    if (attempts >= maxAttempts) { clearInterval(poll); obs.disconnect(); }' +
+          '  }, 250);' +
+          '  return "observing";' +
+          '})()'
       )
+      .then(function (result) {
+        if (result === 'applied') {
+          logger.info('Fullscreen CSS aplicado imediatamente — ' + profile.name);
+        } else if (result === 'observing') {
+          logger.info(
+            'Fullscreen CSS: aguardando #oas-player (MutationObserver) — ' + profile.name
+          );
+        }
+      })
       .catch(function () {});
 
     // Mock FB object — fallback se SDK real não carrega

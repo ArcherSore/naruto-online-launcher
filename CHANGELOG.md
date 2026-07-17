@@ -1,5 +1,30 @@
 # Changelog
 
+## [5.9.8] - 2026-07-15
+
+### Fixed — Fullscreen CSS inconsistente (top bar sumia/aparecia aleatoriamente)
+- **Sintoma**: ao abrir o jogo, a top bar do site (header/footer/sidebars do
+  Naruto Online) às vezes sumia ("tela cheia") e às vezes ficava visível —
+  comportamento inconsistente entre sessões e sub-navegações.
+- **Causa raiz**: a "CAMADA 2: fullscreen limpo" em `SessionLifecycle.js`
+  fazia um check ÚNICO no `did-finish-load`: `if (#oas-player existe) injeta CSS`.
+  Mas o Naruto Online carrega o embed `#oas-player` ASYNC via JS — no momento
+  do `did-finish-load` ele geralmente ainda NÃO está no DOM, então o CSS não
+  injetava. Só injetava em sub-navegações onde `#oas-player` já existia no
+  momento do evento → comportamento não-determinístico.
+- **Correção**: CAMADA 2 agora usa `MutationObserver` + polling fallback (mesmo
+  padrão robusto já usado pelo auto-login em `ProfileVault.buildAutoLoginScript`).
+  Assim que `#oas-player` aparece no DOM (síncrono ou async), o CSS é injetado
+  de forma confiável. Guards `__shinobiFsInjected`/`__shinobiFsApplied` evitam
+  dupla injeção. Log agora registra `"applied"` ou `"aguardando #oas-player"`.
+
+### Added — F5 auto-re-login (v5.9.7, não documentado)
+- `SessionLifecycle.reloadWithPreAuth()`: F5 agora limpa cookies/storage/cache
+  da partition E pré-autentica via `apiLogin.loginAndInject()` ANTES de
+  recarregar (igual ao botão Play) → a tela de login do Naruto Online não
+  aparece, email não fica visível. `KeyboardShortcuts.attach` aceita callback
+  `onClearLogin` que delega ao Launcher.
+
 ## [5.0.0] - 2026-07-14
 
 ### Changed — Refatoração SOLID + Clean Code (Fase 3, Decisão C)
