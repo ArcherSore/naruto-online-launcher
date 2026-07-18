@@ -1,5 +1,47 @@
 # Changelog
 
+## [5.9.28] - 2026-07-18
+
+### Estabilidade — CRON-1 Placebo Audit + Otimizações Reais
+
+- **GpuDetector.getEnvVars() agora é chamada em main.js**: Antes as env vars
+  de GPU (`__GL_THREADED_OPTIMIZATIONS`, `RADEONSI_ZERO_VRAM`, `MALLOC_ARENA_MAX`,
+  etc.) eram dead code — a função existia mas nunca era invocada. Agora são
+  aplicadas via `process.env` ANTES de `app.whenReady()`, permitindo que o
+  GPU process do Chromium herde as vars. Ganho REAL em NVIDIA (threaded opts)
+  e AMD (zero VRAM leak em reloads).
+
+- **Dead code removido de optimization.js**: Os campos `chromiumFlags`,
+  `cpu`, `memory` e `gpuEnv` dos presets NUNCA foram consumidos por código
+  de produção — CpuOptimizer hardcodeia a lógica baseado no preset string.
+  Removidos ~60 linhas de configuração morta. Presets agora contém apenas
+  `name`, `description`, `icon`, `color` (usados pela UI via `listForUI()`).
+
+- **LIBVA_DRIVER_NAME removido (placebo para Flash PPAPI)**: VAAPI é para
+  HTML5 `<video>` hardware decode. Flash PPAPI faz decode internamente —
+  setar `LIBVA_DRIVER_NAME=radeonsi/iHD/i965` não tinha efeito algum.
+
+- **StallDetector: fix de listener leak**: `ses.webRequest.onCompleted(null)`
+  no detach removia TODOS os listeners da session, não apenas o nosso.
+  Com múltiplas janelas, isso causava StallDetectors de outras janelas a
+  pararem de funcionar. Fix: usa `WeakMap` para rastrear filtros por session
+  e passa o filtro específico no detach. Flag `stopped` garante handlers
+  são no-op mesmo se a remoção falhar.
+
+- **pwsh.exe fallback para Windows**: `_applyWindowsAffinity` e
+  `_listGpusWindowsPowershell` agora tentam `powershell.exe` (v5.1) primeiro,
+  fallback `pwsh.exe` (PowerShell 7+). Necessário para Windows 11 24H2+
+  (onde PowerShell 5.1 pode não estar presente) e Windows Server Core.
+
+- **NixOS/Steam Deck: fallback de CPU topology**: `detectCoreTopology()`
+  agora tenta `/sys/devices/system/cpu/cpu*/topology/core_type` quando
+  `/sys/devices/cpu_core` e `cpu_atom` não existem (comum em NixOS e
+  kernels customizados do Steam Deck). Detecta `performance` vs `efficiency`.
+
+- **flags.js: flags placebo documentadas honestamente**: 6 flags Chromium
+  (`disable-background-networking`, `disable-component-update`, etc.) são
+  placebo para Flash PPAPI mas harmless — comentado como tal.
+
 ## [5.9.27] - 2026-07-18
 
 ### Segurança — Hardening de validação IPC + bloqueador

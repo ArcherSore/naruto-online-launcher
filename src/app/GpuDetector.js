@@ -419,17 +419,12 @@ function getEnvVars(preset) {
     // pelo Mesa radeonsi. Setá-la era placebo. O cache de DB shader é
     // gerenciado automaticamente pelo driver (limpo em context destroy).
 
-    // VAAPI (Video Acceleration API) para decode de vídeo via GPU
-    env.LIBVA_DRIVER_NAME = 'radeonsi';
-
     // MESA_SHADER_CACHE: mantém cache habilitado em todos os presets (default).
     // Desabilitar (MESA_SHADER_CACHE_DISABLE=1) só ajuda em benchmarks sintéticos
     // — no uso real, o cache economiza 1-3s no warm-up de shaders. Removido.
   } else if (gpu.vendor === 'intel') {
-    // iHD driver (Broadwell 2015+). i965 para antigos.
-    // Detecção simples: se deviceId >= 0x1600 (Broadwell), usa iHD.
-    const useIHD = !gpu.deviceId || gpu.deviceId >= 0x1600;
-    env.LIBVA_DRIVER_NAME = useIHD ? 'iHD' : 'i965';
+    // NOTE: LIBVA_DRIVER_NAME removido — VAAPI é para HTML5 <video> hardware decode.
+    // Flash PPAPI faz decode de vídeo internamente; VAAPI não afeta Flash.
 
     if (preset === 'performance') {
       // norbc = NO Render Buffer Compression. É um flag de DEBUG de estabilidade
@@ -460,13 +455,31 @@ function _resetCache() {
 /**
  * Fallback: lista GPUs no Windows via PowerShell Get-CimInstance.
  * Funciona em Win11 24H2+ (onde wmic foi removido) e Windows Server.
+ * Tenta powershell.exe (v5.1) primeiro, fallback pwsh.exe (PowerShell 7+).
  * Get-CimInstance é o substituto moderno do wmic.
  * @returns {Array<Object>}
  */
 function _listGpusWindowsPowershell() {
   try {
+    // Tenta powershell.exe primeiro, fallback pwsh.exe
+    var out = _tryPowershellGpu('powershell');
+    if (!out) out = _tryPowershellGpu('pwsh');
+    if (!out) return [];
+    return _parsePowershellGpuCsv(out);
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Executa Get-CimInstance via um binário PowerShell específico.
+ * @param {string} bin - 'powershell' ou 'pwsh'
+ * @returns {string|null} stdout ou null se falhou
+ */
+function _tryPowershellGpu(bin) {
+  try {
     var out = execFileSync(
-      'powershell',
+      bin,
       [
         '-NoProfile',
         '-NonInteractive',
@@ -475,56 +488,65 @@ function _listGpusWindowsPowershell() {
       ],
       { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
     );
-    var gpus = [];
-    var lines = out.split('\n');
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i].trim();
-      if (!line || line.indexOf('#') === 0) continue;
-      // CSV: "AdapterCompatibility","Name","PNPDeviceID"
-      var parts = [];
-      var current = '';
-      var inQuotes = false;
-      for (var j = 0; j < line.length; j++) {
-        var ch = line[j];
-        if (ch === '"') {
-          inQuotes = !inQuotes;
-        } else if (ch === ',' && !inQuotes) {
-          parts.push(current.trim());
-          current = '';
-        } else {
-          current += ch;
-        }
-      }
-      parts.push(current.trim());
-      if (parts.length < 3) continue;
-      var vendorName = parts[0].toLowerCase();
-      var name = parts[1];
-      var pnp = parts[2];
-
-      var code = null;
-      if (vendorName.indexOf('nvidia') !== -1) code = 'nvidia';
-      else if (vendorName.indexOf('amd') !== -1 || vendorName.indexOf('radeon') !== -1)
-        code = 'amd';
-      else if (vendorName.indexOf('intel') !== -1) code = 'intel';
-      if (!code) continue;
-
-      var m = pnp.match(/VEN_([0-9A-Fa-f]{4})&DEV_([0-9A-Fa-f]{4})/);
-      var vendorId = m ? parseInt(m[1], 16) : 0;
-      var deviceId = m ? parseInt(m[2], 16) : 0;
-
-      gpus.push({
-        vendor: code,
-        vendorId: vendorId,
-        deviceId: deviceId,
-        driver: '',
-        description: name,
-        cardN: null
-      });
-    }
-    return gpus;
+    return out;
   } catch (_) {
-    return [];
+    return null;
   }
+}
+
+/**
+ * Parseia CSV do Get-CimInstance Win32_VideoController.
+ * @param {string} out
+ * @returns {Array<Object>}
+ */
+function _parsePowershellGpuCsv(out) {
+  var gpus = [];
+  var lines = out.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line || line.indexOf('#') === 0) continue;
+    // CSV: "AdapterCompatibility","Name","PNPDeviceID"
+    var parts = [];
+    var current = '';
+    var inQuotes = false;
+    for (var j = 0; j < line.length; j++) {
+      var ch = line[j];
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        parts.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    parts.push(current.trim());
+    if (parts.length < 3) continue;
+    var vendorName = parts[0].toLowerCase();
+    var name = parts[1];
+    var pnp = parts[2];
+
+    var code = null;
+    if (vendorName.indexOf('nvidia') !== -1) code = 'nvidia';
+    else if (vendorName.indexOf('amd') !== -1 || vendorName.indexOf('radeon') !== -1)
+      code = 'amd';
+    else if (vendorName.indexOf('intel') !== -1) code = 'intel';
+    if (!code) continue;
+
+    var m = pnp.match(/VEN_([0-9A-Fa-f]{4})&DEV_([0-9A-Fa-f]{4})/);
+    var vendorId = m ? parseInt(m[1], 16) : 0;
+    var deviceId = m ? parseInt(m[2], 16) : 0;
+
+    gpus.push({
+      vendor: code,
+      vendorId: vendorId,
+      deviceId: deviceId,
+      driver: '',
+      description: name,
+      cardN: null
+    });
+  }
+  return gpus;
 }
 
 /**

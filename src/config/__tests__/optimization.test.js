@@ -29,62 +29,21 @@ describe('config/optimization.js', function () {
       });
     });
 
-    test('each preset has chromiumFlags, cpu, memory, gpuEnv', function () {
+    test('presets have NO chromiumFlags/cpu/memory/gpuEnv (dead code removed)', function () {
       Object.keys(opt.PRESETS).forEach(function (code) {
         const p = opt.PRESETS[code];
-        expect(p.chromiumFlags).toBeDefined();
-        expect(p.cpu).toBeDefined();
-        expect(p.memory).toBeDefined();
-        expect(p.gpuEnv).toBeDefined();
+        expect(p.chromiumFlags).toBeUndefined();
+        expect(p.cpu).toBeUndefined();
+        expect(p.memory).toBeUndefined();
+        expect(p.gpuEnv).toBeUndefined();
       });
     });
 
-    test('performance disables vsync, quality keeps vsync', function () {
-      expect(opt.PRESETS.performance.chromiumFlags.disableVsync).toBe(true);
-      expect(opt.PRESETS.balanced.chromiumFlags.disableVsync).toBe(false);
-      expect(opt.PRESETS.quality.chromiumFlags.disableVsync).toBe(false);
-    });
-
-    test('performance enables Vulkan, balanced/quality disable', function () {
-      expect(opt.PRESETS.performance.chromiumFlags.enableVulkan).toBe(true);
-      expect(opt.PRESETS.balanced.chromiumFlags.enableVulkan).toBe(false);
-      expect(opt.PRESETS.quality.chromiumFlags.enableVulkan).toBe(false);
-    });
-
-    test('quality disables GPU rasterization (more stable)', function () {
-      expect(opt.PRESETS.performance.chromiumFlags.enableGpuRasterization).toBe(true);
-      expect(opt.PRESETS.balanced.chromiumFlags.enableGpuRasterization).toBe(true);
-      expect(opt.PRESETS.quality.chromiumFlags.enableGpuRasterization).toBe(false);
-    });
-
-    test('performance uses ANGLE/Vulkan, balanced/quality use desktop', function () {
-      expect(opt.PRESETS.performance.chromiumFlags.useAngle).toBe('vulkan');
-      expect(opt.PRESETS.balanced.chromiumFlags.useAngle).toBe('desktop');
-      expect(opt.PRESETS.quality.chromiumFlags.useAngle).toBe('desktop');
-    });
-
-    test('performance has nice -5, balanced 0, quality +5', function () {
-      expect(opt.PRESETS.performance.cpu.niceTarget).toBe(-5);
-      expect(opt.PRESETS.balanced.cpu.niceTarget).toBe(0);
-      expect(opt.PRESETS.quality.cpu.niceTarget).toBe(5);
-    });
-
-    test('quality disables affinity (ceder to scheduler)', function () {
-      expect(opt.PRESETS.performance.cpu.applyAffinity).toBe(true);
-      expect(opt.PRESETS.balanced.cpu.applyAffinity).toBe(true);
-      expect(opt.PRESETS.quality.cpu.applyAffinity).toBe(false);
-    });
-
-    test('all presets use MALLOC_ARENA_MAX=2', function () {
-      expect(opt.PRESETS.performance.memory.mallocArenaMax).toBe(2);
-      expect(opt.PRESETS.balanced.memory.mallocArenaMax).toBe(2);
-      expect(opt.PRESETS.quality.memory.mallocArenaMax).toBe(2);
-    });
-
-    test('performance/quality have OOM protection, quality disables', function () {
-      expect(opt.PRESETS.performance.cpu.oomScoreAdj).toBe(-500);
-      expect(opt.PRESETS.balanced.cpu.oomScoreAdj).toBe(-500);
-      expect(opt.PRESETS.quality.cpu.oomScoreAdj).toBe(0);
+    test('CPU logic is in CpuOptimizer, not in presets', function () {
+      // Presets are UI-only. CpuOptimizer hardcodes: performance→nice=-5, balanced→nice=0, quality→nice=+5
+      // This test documents that the preset object does NOT own CPU config.
+      expect(opt.PRESETS.performance.name).toBe('Performance');
+      expect(opt.PRESETS.quality.name).toBe('Qualidade');
     });
   });
 

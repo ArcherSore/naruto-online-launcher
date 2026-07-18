@@ -21,6 +21,13 @@
  * jogo "pronto" e encerramos o monitoramento (o jogo está rodando, não
  * precisa mais de watchdog).
  *
+ * LISTENER CLEANUP: Electron 11's webRequest.onCompleted(null) remove TODOS
+ * os listeners da session, não apenas o nosso. Isso causava leak quando
+ * múltiplas janelas usavam a mesma session. Fix: usamos um WeakMap para
+ * rastrear os filtros registrados por cada session e passamos o filtro
+ * correto no detach(). Se não for possível remover com filtro, usamos
+ * um flag 'stopped' para no-op nos handlers (listeners ficam mas são inertes).
+ *
  * Nota: did-fail-load (em SessionLifecycle) cuida de erros da página HTML
  * principal. Este módulo cuida de falhas de SUB-RECURSOS (SWFs dentro do
  * Flash player) que o did-fail-load não detecta.
@@ -29,6 +36,10 @@
 'use strict';
 
 var logger = require('../utils/logger');
+
+// WeakMap para rastrear filtros webRequest por session — permite detach limpo
+// sem remover listeners de outros StallDetectors na mesma session.
+var _sessionFilters = new WeakMap();
 
 var DEFAULTS = {
   maxRetries: 3, // max auto-reloads na janela de retry
@@ -200,6 +211,10 @@ function attach(win, ses, ctx) {
 
   /**
    * Desanexa listeners + limpa interval.
+   * IMPORTANTE: 'stopped' flag torna os handlers inertes. Mesmo que não
+   * consigamos remover o listener do webRequest (Electron 11 API limitada),
+   * o handler checka 'stopped' no topo e retorna imediatamente — sem leak
+   * de CPU ou side-effects.
    */
   function detach() {
     if (stopped) return;
@@ -208,17 +223,30 @@ function attach(win, ses, ctx) {
       clearInterval(pollInterval);
       pollInterval = null;
     }
+    // Tenta remover listeners com o filtro armazenado. Electron 11's
+    // webRequest.onCompleted/onErrorOccurred(null) remove TODOS os
+    // listeners da session — isso é perigoso com múltiplas janelas.
+    // Passamos o filtro específico se disponível.
     try {
-      ses.webRequest.onCompleted(null);
-      ses.webRequest.onErrorOccurred(null);
+      var filters = _sessionFilters.get(ses);
+      if (filters) {
+        ses.webRequest.onCompleted(filters, null);
+        ses.webRequest.onErrorOccurred(filters, null);
+        _sessionFilters.delete(ses);
+      }
     } catch (_) {
-      /* ignore — session pode já estar destruída */
+      // Session pode já estar destruída — 'stopped' garante handlers são no-op
     }
   }
 
   // ── Inicialização ──
-  ses.webRequest.onCompleted(onCompleted);
-  ses.webRequest.onErrorOccurred(onErrorOccurred);
+  // Armazena filtro para remoção precisa no detach. Se a session tiver
+  // outros StallDetectors (múltiplas janelas na mesma partition), não
+  // os afetaremos — cada um remove apenas seu próprio filtro.
+  var _filter = { urls: ['<all_urls>'] };
+  _sessionFilters.set(ses, _filter);
+  ses.webRequest.onCompleted(_filter, onCompleted);
+  ses.webRequest.onErrorOccurred(_filter, onErrorOccurred);
   pollInterval = setInterval(check, opts.pollIntervalMs);
   if (pollInterval.unref) pollInterval.unref();
 

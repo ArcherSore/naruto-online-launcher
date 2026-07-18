@@ -12,6 +12,8 @@ const StallDetector = require('../StallDetector');
 /**
  * Cria um mock de session com webRequest.onCompleted + onErrorOccurred.
  * Os callbacks ficam acessíveis pra invocação manual nos testes.
+ * v5.9.28: StallDetector agora passa filtro { urls: ['<all_urls>'] } no attach,
+ * então o mock recebe (filter, handler) em vez de (handler).
  */
 function makeMockSession() {
   var callbacks = {
@@ -20,11 +22,12 @@ function makeMockSession() {
   };
   return {
     webRequest: {
-      onCompleted: jest.fn(function (cb) {
-        callbacks.onCompleted = cb;
+      onCompleted: jest.fn(function (filter, cb) {
+        // Se cb é null (detach), não atualiza callback
+        if (cb) callbacks.onCompleted = cb;
       }),
-      onErrorOccurred: jest.fn(function (cb) {
-        callbacks.onErrorOccurred = cb;
+      onErrorOccurred: jest.fn(function (filter, cb) {
+        if (cb) callbacks.onErrorOccurred = cb;
       })
     },
     _callbacks: callbacks
@@ -321,10 +324,12 @@ describe('StallDetector.js', function () {
 
       inst.detach();
 
-      // onCompleted(null) e onErrorOccurred(null) chamados pra limpar
+      // detach agora passa o filtro { urls: ['<all_urls>'] } para remoção precisa
       var calls = ses.webRequest.onCompleted.mock.calls;
+      // A última chamada é o detach (filtro + null). A primeira é o attach (filtro + handler).
       var lastCall = calls[calls.length - 1];
-      expect(lastCall[0]).toBeNull();
+      expect(lastCall[0]).toEqual({ urls: ['<all_urls>'] });
+      expect(lastCall[1]).toBeNull();
     });
 
     test('detach é idempotente (chamar 2x não quebra)', function () {

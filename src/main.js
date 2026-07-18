@@ -66,6 +66,22 @@ let config = loadConfig();
 const flashPath = findFlashPlugin();
 const flashVersion = flashPath ? getFlashVersion(path.dirname(flashPath)) : null;
 
+// ══ APLICAR GPU ENV VARS ANTES DE READY ══
+// GpuDetector.getEnvVars() retorna env vars específicas da GPU ativa
+// (NVIDIA __GL_*, AMD RADEONSI_ZERO_VRAM, Intel INTEL_DEBUG, MALLOC_ARENA_MAX, etc.)
+// Devem ser setadas ANTES de app.whenReady() para o GPU process herdar.
+// Antes v5.9.28: getEnvVars() existia mas nunca era chamado — env vars eram dead code.
+const gpuDetector = require('./app/GpuDetector');
+const gpuEnvVars = gpuDetector.getEnvVars(config.optimizationPreset || 'balanced');
+for (var _envKey in gpuEnvVars) {
+  if (Object.prototype.hasOwnProperty.call(gpuEnvVars, _envKey)) {
+    process.env[_envKey] = gpuEnvVars[_envKey];
+  }
+}
+if (Object.keys(gpuEnvVars).length > 0) {
+  logger.info('GPU env vars aplicadas: ' + Object.keys(gpuEnvVars).join(', '));
+}
+
 // ══ APLICAR TODAS AS FLAGS ANTES DE READY ══
 // (main/flags.js é a ÚNICA autoridade sobre commandLine.appendSwitch)
 flags.applyAll({
@@ -482,7 +498,7 @@ function _initManagerAndLaunch() {
   });
 
   // ── v5.0.0: Optimization IPC handlers (GPU + CPU + presets) ──
-  const gpuDetector = require('./app/GpuDetector');
+  // gpuDetector já é requerido no top-level (para getEnvVars antes de ready)
   const cpuOptimizer = require('./app/CpuOptimizer');
   const { PRESETS, listForUI, isValidPreset, getDefaultPreset } = require('./config/optimization');
 

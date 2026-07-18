@@ -5,18 +5,21 @@
  * e suas configurações específicas. Aplicados em main/flags.js + CpuOptimizer.js.
  *
  * PRESETS:
- *   - performance: máx FPS, desliga vsync, fixa CPU em P-cores, nice=-5,
- *                  OOM protection, MALLOC_ARENA_MAX=2, Vulkan (se suportado),
- *                  disable-frame-rate-limit (uncap FPS), disable smooth scrolling.
+ *   Os presets controlam apenas: nome, descrição, ícone e cor para a UI.
+ *   A lógica REAL de otimização (CPU affinity, nice, OOM) é hardcoded em
+ *   CpuOptimizer.optimizeRenderer() baseado no preset STRING, não nos campos
+ *   deste objeto. As env vars de GPU são aplicadas via GpuDetector.getEnvVars()
+ *   em main.js antes de app.whenReady().
+ *
+ *   - performance: máx FPS, fixa CPU em P-cores, nice=-5, OOM protection,
+ *                  env vars GPU (NVIDIA threaded opts, PRIME offload, etc.).
  *                  Trade-off: mais consumo de energia, fan mais alto, PC esquenta.
  *
- *   - balanced:    padrão. vsync ON (60fps estável), CPU em P-cores apenas,
- *                  nice=0, OOM protection, MALLOC_ARENA_MAX=2, ANGLE desktop GL.
+ *   - balanced:    padrão. CPU em P-cores, nice=0, OOM protection.
  *                  Trade-off: nenhum. Recomendado para maioria dos users.
  *
- *   - quality:     máxima compatibilidade. vsync ON, sem CPU affinity (scheduler decide),
- *                  nice=+5 (cede prioridade a outras apps), sem OOM protection,
- *                  MALLOC_ARENA_MAX=2, ANGLE desktop GL.
+ *   - quality:     máxima compatibilidade. Sem CPU affinity (scheduler decide),
+ *                  nice=+5 (cede prioridade a outras apps), sem OOM protection.
  *                  Trade-off: menos FPS em PCs fracos. Recomendado para quem
  *                  roda o jogo em segundo plano enquanto trabalha.
  */
@@ -26,96 +29,23 @@
 const PRESETS = {
   performance: {
     name: 'Performance',
-    description: 'Máximo FPS • Sem vsync • CPU em P-cores • Prioridade alta',
+    description: 'Máximo FPS • CPU em P-cores • Prioridade alta',
     icon: '\u{1F680}',
-    color: '#DC2626',
-    // Chromium flags específicas
-    // NOTA: Flash PPAPI tem framerate INTERNO (stage.frameRate ~24-30fps no Naruto Online).
-    // Flags abaixo afetam o COMPOSITOR do Chromium, não o framerate interno do Flash.
-    // Ganho real vem de CPU affinity + GPU env vars + zero-copy, não de uncap de FPS.
-    chromiumFlags: {
-      disableFrameRateLimit: true, // afeta compositor Chromium, NÃO Flash internal fps (placebo parcial)
-      disableSmoothScrolling: true, // não afeta Flash (placebo p/ jogo), reduz input lag marginal
-      enableGpuRasterization: true, // REAL: GPU rasteriza conteúdo DOM (não o Flash plugin surface)
-      enableZeroCopy: true, // REAL: evita cópia CPU→GPU na composição
-      enableVulkan: true, // só ativa se GPU suportar (decidido em flags.js). Chromium 87 Vulkan é experimental
-      useAngle: 'vulkan', // ANGLE em cima de Vulkan (mais estável que Vulkan puro)
-      disableVsync: true // REAL: desabilita vsync do compositor (reduz input lag)
-    },
-    // CPU
-    cpu: {
-      applyAffinity: true,
-      niceTarget: -5,
-      oomScoreAdj: -500,
-      useECoreForGc: true
-    },
-    // Memória
-    memory: {
-      mallocArenaMax: 2,
-      heapMb: 'auto' // calculado em flags.js baseado em RAM
-    },
-    // GPU env
-    gpuEnv: {
-      disableVsync: true
-    }
+    color: '#DC2626'
   },
 
   balanced: {
     name: 'Balanceado',
-    description: 'Padrão • Vsync 60fps • CPU em P-cores • Estável',
+    description: 'Padrão • CPU em P-cores • Estável',
     icon: '\u{2696}\u{FE0F}',
-    color: '#10B981',
-    chromiumFlags: {
-      disableFrameRateLimit: false,
-      disableSmoothScrolling: false,
-      enableGpuRasterization: true,
-      enableZeroCopy: true,
-      enableVulkan: false, // Vulkan pode causar issues em alguns drivers, deixa OFF em balanced
-      useAngle: 'desktop', // GL desktop nativo (estável)
-      disableVsync: false
-    },
-    cpu: {
-      applyAffinity: true,
-      niceTarget: 0,
-      oomScoreAdj: -500,
-      useECoreForGc: false
-    },
-    memory: {
-      mallocArenaMax: 2,
-      heapMb: 'auto'
-    },
-    gpuEnv: {
-      disableVsync: false
-    }
+    color: '#10B981'
   },
 
   quality: {
     name: 'Qualidade',
     description: 'Compatibilidade • Cede prioridade • Sem affinity • Multitarefa',
     icon: '\u{1F33F}',
-    color: '#3B82F6',
-    chromiumFlags: {
-      disableFrameRateLimit: false,
-      disableSmoothScrolling: false,
-      enableGpuRasterization: false, // mais estável, sem rasterização GPU
-      enableZeroCopy: false,
-      enableVulkan: false,
-      useAngle: 'desktop',
-      disableVsync: false
-    },
-    cpu: {
-      applyAffinity: false,
-      niceTarget: 5,
-      oomScoreAdj: 0,
-      useECoreForGc: false
-    },
-    memory: {
-      mallocArenaMax: 2,
-      heapMb: 'auto'
-    },
-    gpuEnv: {
-      disableVsync: false
-    }
+    color: '#3B82F6'
   }
 };
 

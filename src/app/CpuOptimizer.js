@@ -51,6 +51,41 @@ function _winPrioConstants() {
 let _appliedPids = new Set(); // pids já otimizados (evita reapply)
 
 /**
+ * Tenta executar um comando via PowerShell (Windows).
+ * Win11 24H2+ e Windows Server Core podem não ter powershell.exe (v5.1).
+ * Fallback: pwsh.exe (PowerShell 7+), que pode estar instalado separadamente.
+ * Se nenhum estiver disponível, falha silenciosamente.
+ * @param {string} script - comando PowerShell (sem -Command wrapper)
+ * @param {number} timeout - timeout em ms
+ * @returns {Promise<{ok: boolean, stdout?: string, error?: string}>}
+ */
+function _execPowershell(script, timeout) {
+  return new Promise(function (resolve) {
+    _tryPwsh('powershell', script, timeout, function (result) {
+      if (result.ok) return resolve(result);
+      // Fallback: pwsh.exe (PowerShell 7+)
+      _tryPwsh('pwsh', script, timeout, function (result2) {
+        resolve(result2);
+      });
+    });
+  });
+}
+
+function _tryPwsh(bin, script, timeout, callback) {
+  execFile(
+    bin,
+    ['-NoProfile', '-NonInteractive', '-Command', script],
+    { timeout: timeout, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true },
+    function (err, stdout) {
+      if (err) {
+        return callback({ ok: false, error: bin + ': ' + err.message });
+      }
+      callback({ ok: true, stdout: stdout });
+    }
+  );
+}
+
+/**
  * Detecta o layout de núcleos P (performance) vs E (efficiency) em CPUs híbridas.
  *
  * Em Intel Alder Lake+ (12a gen+), o kernel Linux expõe em
@@ -79,6 +114,37 @@ function detectCoreTopology() {
         _parseCpuList(raw).forEach(function (n) {
           eCores.push(n);
         });
+      }
+      // NixOS fallback: /sys/devices/system/cpu/cpu*/topology/core_type
+      // NixOS expõe topology diferente de distros padrão. Se cpu_core/cpu_atom
+      // não existem, tenta detectar via core_type (disponível no kernel 5.17+).
+      if (pCores.length === 0 && eCores.length === 0) {
+        var cpuDir = '/sys/devices/system/cpu';
+        try {
+          var cpuEntries = fs.readdirSync(cpuDir).filter(function (n) {
+            return /^cpu\d+$/.test(n);
+          });
+          for (var i = 0; i < cpuEntries.length; i++) {
+            try {
+              var coreTypePath =
+                cpuDir + '/' + cpuEntries[i] + '/topology/core_type';
+              if (fs.existsSync(coreTypePath)) {
+                var coreType = fs.readFileSync(coreTypePath, 'utf8').trim();
+                var cpuNum = parseInt(cpuEntries[i].replace('cpu', ''), 10);
+                if (coreType === 'efficiency') {
+                  eCores.push(cpuNum);
+                } else {
+                  // 'performance' ou desconhecido → assume P-core
+                  pCores.push(cpuNum);
+                }
+              }
+            } catch (_) {
+              /* skip individual CPU */
+            }
+          }
+        } catch (_) {
+          /* cpuDir não existe — muito improvável */
+        }
       }
     } catch (_) {
       /* ignore */
@@ -243,23 +309,9 @@ function _applyWindowsAffinity(pid, cores) {
     if (mask === 0) {
       return resolve({ ok: false, error: 'empty-mask' });
     }
-    const script = '(Get-Process -Id ' + pid + ').ProcessorAffinity = ' + mask;
-    execFile(
-      'powershell',
-      ['-NoProfile', '-NonInteractive', '-Command', script],
-      {
-        timeout: 3000,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        windowsHide: true
-      },
-      function (err) {
-        if (err) {
-          // PowerShell não disponível (Windows Server Core minimal) ou sem permissão
-          logger.debug(
-            'CpuOptimizer: win affinity falhou pid=' + pid + ' mask=' + mask + ' — ' + err.message
-          );
-          return resolve({ ok: false, error: err.message });
-        }
+    var script = '(Get-Process -Id ' + pid + ').ProcessorAffinity = ' + mask;
+    _execPowershell(script, 3000).then(function (result) {
+      if (result.ok) {
         logger.info(
           'CpuOptimizer: win affinity aplicada pid=' +
             pid +
@@ -270,8 +322,13 @@ function _applyWindowsAffinity(pid, cores) {
             ']'
         );
         resolve({ ok: true, mask: mask });
+      } else {
+        logger.debug(
+          'CpuOptimizer: win affinity falhou pid=' + pid + ' mask=' + mask + ' — ' + result.error
+        );
+        resolve({ ok: false, error: result.error });
       }
-    );
+    });
   });
 }
 

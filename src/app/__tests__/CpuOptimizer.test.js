@@ -347,7 +347,7 @@ describe('CpuOptimizer', function () {
       Object.defineProperty(process, 'platform', { value: orig, configurable: true });
     });
 
-    test('handles execFile error gracefully', async function () {
+    test('handles execFile error gracefully (fallback pwsh also fails)', async function () {
       const orig = process.platform;
       Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
       child_process.execFile.mockImplementation(function (cmd, args, opts, cb) {
@@ -355,7 +355,8 @@ describe('CpuOptimizer', function () {
       });
       const res = await cpuOptimizer._applyWindowsAffinity(1234, [0, 1]);
       expect(res.ok).toBe(false);
-      expect(res.error).toBe('powershell not found');
+      // Error now prefixed with 'pwsh:' since powershell failed and pwsh was tried as fallback
+      expect(res.error).toContain('not found');
       Object.defineProperty(process, 'platform', { value: orig, configurable: true });
     });
   });

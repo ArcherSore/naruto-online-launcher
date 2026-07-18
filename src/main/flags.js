@@ -59,6 +59,10 @@ function applyAll(opts) {
   app.commandLine.appendSwitch('allow-outdated-plugins');
 
   // Background throttling off
+  // NOTE: disable-background-networking, disable-component-update, disable-default-apps,
+  // disable-extensions, disable-translate, disable-domain-reliability, disable-client-side-
+  // phishing-detection são PLACEBO para Flash PPAPI (não afetam o plugin), mas são
+  // harmlessness e reduzem ruído de rede/processos. Mantidos.
   [
     'disable-background-timer-throttling',
     'disable-renderer-backgrounding',

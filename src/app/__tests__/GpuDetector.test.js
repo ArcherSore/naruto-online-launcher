@@ -314,7 +314,7 @@ describe('GpuDetector', function () {
       expect(env.__GL_SYNC_TO_VBLANK).toBe('0');
     });
 
-    test('AMD sets LIBVA_DRIVER_NAME=radeonsi', function () {
+    test('AMD sets RADEONSI_ZERO_VRAM=1, NO LIBVA_DRIVER_NAME (placebo removed)', function () {
       gpuDetector._resetCache();
       fs.existsSync.mockImplementation(function (p) {
         if (p === '/sys/class/drm') return true;
@@ -327,11 +327,12 @@ describe('GpuDetector', function () {
         return '';
       });
       const env = gpuDetector.getEnvVars('balanced');
-      expect(env.LIBVA_DRIVER_NAME).toBe('radeonsi');
+      // LIBVA_DRIVER_NAME removido — VAAPI é placebo para Flash PPAPI
+      expect(env.LIBVA_DRIVER_NAME).toBeUndefined();
       expect(env.RADEONSI_ZERO_VRAM).toBe('1');
     });
 
-    test('Intel modern (deviceId >= 0x1600) uses iHD driver', function () {
+    test('Intel modern (deviceId >= 0x1600) — NO LIBVA_DRIVER_NAME (placebo removed)', function () {
       gpuDetector._resetCache();
       fs.existsSync.mockImplementation(function (p) {
         if (p === '/sys/class/drm') return true;
@@ -346,10 +347,11 @@ describe('GpuDetector', function () {
         return '';
       });
       const env = gpuDetector.getEnvVars('balanced');
-      expect(env.LIBVA_DRIVER_NAME).toBe('iHD');
+      // LIBVA_DRIVER_NAME removido — VAAPI é placebo para Flash PPAPI
+      expect(env.LIBVA_DRIVER_NAME).toBeUndefined();
     });
 
-    test('Intel legacy (deviceId < 0x1600) uses i965 driver', function () {
+    test('Intel legacy (deviceId < 0x1600) — NO LIBVA_DRIVER_NAME (placebo removed)', function () {
       gpuDetector._resetCache();
       fs.existsSync.mockImplementation(function (p) {
         if (p === '/sys/class/drm') return true;
@@ -364,7 +366,8 @@ describe('GpuDetector', function () {
         return '';
       });
       const env = gpuDetector.getEnvVars('balanced');
-      expect(env.LIBVA_DRIVER_NAME).toBe('i965');
+      // LIBVA_DRIVER_NAME removido — VAAPI é placebo para Flash PPAPI
+      expect(env.LIBVA_DRIVER_NAME).toBeUndefined();
     });
 
     test('Intel performance sets INTEL_DEBUG=norbc', function () {
@@ -589,8 +592,8 @@ describe('GpuDetector', function () {
       expect(envVars.RADEONSI_ZERO_VRAM).toBe('1');
       // RADEONSI_CLEAR_DB_SHADER_CACHE should NOT be set (placebo removed)
       expect(envVars.RADEONSI_CLEAR_DB_SHADER_CACHE).toBeUndefined();
-      // LIBVA_DRIVER_NAME should be set (real)
-      expect(envVars.LIBVA_DRIVER_NAME).toBe('radeonsi');
+      // LIBVA_DRIVER_NAME removido — VAAPI é placebo para Flash PPAPI
+      expect(envVars.LIBVA_DRIVER_NAME).toBeUndefined();
     });
   });
 });
