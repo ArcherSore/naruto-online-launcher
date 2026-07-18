@@ -1,5 +1,84 @@
 # Changelog
 
+## [5.9.40] - 2026-07-18
+
+### Cleanup — Finish forbidden-features removal + CRON-2 fluff
+
+Conclui o trabalho que o v5.9.31 não terminou. Auditoria
+`AUDIT-LAUNCHER-UI-FOR-FLUFF` identificou cirurgicamente o que sobrou;
+esta release remove sem refatorar nada além da lista.
+
+- **Remove glass backdrop-filter (6 overlays)** — feature proibida que
+  o v5.9.31 deixou escapar em `.overlay`, `.kb-overlay`, `.confirm-overlay`,
+  `.cmdk-overlay` (2 linhas), `.onboard-overlay` (2 linhas). Os overlays
+  continuam escurecendo o conteúdo atrás via `background: rgba(0,0,0,*)`.
+- **Remove memory bar (live memory usage)** — HTML (`<div class="nav-stat">`
+  com `memVal`/`ramDot`, `<div class="sidebar-membar">`), CSS (5 seletores
+  `.sidebar-membar*`), JS (`updateSidebarMemBar` function + override de
+  `renderMemory`). Listener `ipcRenderer.on('memory:update')` mantido
+  porque também alimenta o painel de Desempenho (opt-in em Settings).
+- **Remove analytics-bar** (topo da view Accounts, 4 cards sempre visíveis)
+  — HTML + CSS (`.analytics-bar`, `.analytics-card`, sub-regras, skeleton
+  loading) + JS (`updateAnalytics`, `animateValue`, override,
+  `prevAnalytics`, keyframe `countUp`).
+- **Remove stats-dashboard** (topo da view Events, 4 cards com count-up
+  animation) — HTML + CSS (`.stats-dashboard`, `.stat-card`, sub-regras) +
+  JS (`loadStatsDashboard`, `animateCountUp`, todos os callers).
+  `loadHeatmap` continua — só o dashboard de stats saiu.
+- **NÃO remove stats-grid** (Settings → Estatísticas) — é opt-in, não é
+  poluição sempre-visível.
+
+### CRON-2 fluff cosmético
+
+- **Remove 4 microanimações `:active`** (`.card`, `.nav-item`, `.btn`,
+  `.wc-btn`) — transform/scale no clique. `:hover`/`:focus-visible`
+  preservados.
+- **Remove `role="article"` + `aria-label` redundante** no card de perfil
+  — anti-pattern WAI-ARIA (card não é article; screen reader já anuncia
+  conteúdo).
+- **Remove `role="grid"`/`role="gridcell"` do heatmap** — ARIA incorreta
+  (heatmap não é grid interativo de células selecionáveis). `tabindex`,
+  `aria-label` por célula, e keyboard handler mantidos.
+- **Remove 5 `aria-label`s redundantes** em botões com texto visível
+  (`#newBtn`, `#batchSelectAll`, `#batchExportBtn`, `#batchDeleteBtn`,
+  `#batchCancelBtn`) — anti-pattern. aria-label de botões só-ícone
+  preservado.
+
+### Dead code
+
+- **Remove `removeVault.onclick` handler duplicado** — handler original
+  (6668-6694) era sobrescrito pelo override em 8028. Override capturava
+  `origRemoveVault` mas nunca chamava — captura morta também removida.
+- **Remove `renderEventsSingle` original** (6410-6424) — sobrescrito por
+  versão v5.3 enhanced. Override `var origRenderEventsSingle = ...`
+  também removido (capture morto).
+- **Remove `getWebviewStats` de `window.api`** (index.html) — definido
+  mas nunca chamado neste arquivo. Backend MemoryGuard/IpcRouter mantêm
+  suas próprias definições.
+- **Remove `.btn-primary-glow` + `@keyframes btn-glow-pulse`** — classe
+  CSS definida mas nunca usada em HTML/JS.
+- **Remove `tags:` field do `profile:update`** em saveProfile — campo
+  morto (ProfileVault não armazena tags; era resquício do v5.3 abortado).
+- **Remove comentário órfão** `// ── v5.3: Profile Tags System ──`.
+- **Remove CSS duplicado** `.search-wrap:focus-within .search-icon`
+  (v5.4 versão simples — morta, sobreposta pela v5.7 enhanced).
+
+### Bug fix
+
+- **`_vaultTrapCleanup()` no handler ativo de removeVault** — antes era
+  chamado ANTES do `try { await vault:remove }`, destruindo o focus trap
+  mesmo se vault:remove falhasse (modal ficava aberto sem trap). Agora
+  chamado DEPOIS do `await vault:remove` sucesso, junto com
+  `modal.classList.remove('show')`.
+
+### Validação
+
+- JS syntax OK (inline script, 163,845 chars).
+- 1234/1234 testes passam (38 suites).
+- Lint 0 erros.
+- Prettier clean em `src/**/*.{js,html,css,json}` e `tests/**/*.js`.
+- ~755 linhas removidas do `src/ui/index.html` (10,389 → 9,634).
+
 ## [5.9.39] - 2026-07-18
 
 ### CI/CD — Cross-platform tests (CpuOptimizer + GpuDetector)
