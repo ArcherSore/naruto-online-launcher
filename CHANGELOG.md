@@ -1,5 +1,40 @@
 # Changelog
 
+## [5.9.42] - 2026-07-18
+
+### Cleanup — Despoluição visual do launcher
+
+Reduz drasticamente a poluição visual identificada pela análise
+VLM (glm-4.6v) em 4 telas. Três frentes cirúrgicas, sem remover
+funcionalidade — só reorganiza e esconde o que é irrelevante por contexto.
+
+- **Topbar contextual** — botões irrelevantes agora se escondem por view.
+  Em Eventos e Configurações, somem: Grade/List toggle, Seleção múltipla,
+  Nova conta, Relançar último perfil. Cada view mostra só o que faz sentido.
+  Implementado via `data-views="accounts"` + CSS `body.view-X .actions [data-views]`.
+- **Card overflow menu (···)** — 5 botões secundários (Desfavoritar, Duplicar,
+  Editar, Credenciais, Excluir) colapsados em 1 trigger "···" que abre dropdown.
+  Fica visível só Play + Favoritar + "···". Menu fecha em outside-click e Escape.
+  Cada card passou de 7 botões para 3.
+- **Eventos sem gráficos vazios** — heatmap (365 dias) e bar chart (7 dias)
+  agora se escondem quando não há dados, em vez de ocupar metade da tela com
+  placeholder "Nenhuma atividade ainda". Aparecem automaticamente quando o
+  user joga.
+
+Resultado: clutter score médio caiu de 6.7/10 para ~3/10 (VLM). Topbar de
+Eventos/Configurações passou de 10 botões para 5 (Notificações, Atalhos,
+Sempre visível, Minimizar, Maximizar — controles globais). Cards de 7 para
+3 ações visíveis. Eventos sem dados mostra só a lista de eventos + log.
+
+Tests: 1234/1234. Lint: 0. Prettier: clean.
+
+## [5.9.41] - 2026-07-18
+
+### Cleanup — Delete dead CSS (styles.css + variables.css)
+
+Both files had ZERO references anywhere in the codebase. Removes 2,649 lines
+of unreferenced CSS bloat (54KB + 2.8KB). Tests: 1234/1234.
+
 ## [5.9.40] - 2026-07-18
 
 ### Cleanup — Finish forbidden-features removal + CRON-2 fluff

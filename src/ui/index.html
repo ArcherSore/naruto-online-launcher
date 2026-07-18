@@ -455,6 +455,11 @@
         gap: var(--space-2);
         align-items: center;
       }
+      /* v5.9.42: Contextual topbar — hide account-only buttons in other views */
+      body.view-events .topbar .actions [data-views='accounts'],
+      body.view-settings .topbar .actions [data-views='accounts'] {
+        display: none !important;
+      }
       /* ── Buttons ── */
       .btn {
         display: inline-flex;
@@ -727,6 +732,62 @@
       .card:focus-within .secondary-actions,
       .card:focus .secondary-actions {
         opacity: 1;
+      }
+      /* v5.9.42: Card overflow menu (···) — replaces 4 secondary buttons with a dropdown */
+      .secondary-actions {
+        position: relative;
+      }
+      .card-overflow-menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        min-width: 160px;
+        background: var(--bg-elev-2);
+        border: 1px solid var(--border-hover);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-lg);
+        padding: var(--space-1);
+        z-index: var(--z-overlay);
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .card-overflow-menu[hidden] {
+        display: none;
+      }
+      .card-overflow-menu button {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        background: transparent;
+        border: 0;
+        color: var(--text);
+        font-size: var(--font-md);
+        font-family: inherit;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        text-align: left;
+        transition: var(--transition);
+      }
+      .card-overflow-menu button:hover,
+      .card-overflow-menu button:focus-visible {
+        background: var(--surface-hover);
+        outline: none;
+      }
+      .card-overflow-menu button.danger {
+        color: var(--danger);
+      }
+      .card-overflow-menu button.danger:hover {
+        background: rgba(220, 38, 38, 0.12);
+      }
+      .card-overflow-menu button svg {
+        flex-shrink: 0;
+        opacity: 0.7;
+      }
+      .overflow-trigger[aria-expanded='true'] {
+        background: var(--surface-hover);
+        color: var(--accent);
       }
 
       /* ── Empty State ── */
@@ -4339,6 +4400,7 @@
           <button
             class="btn sm last-profile-btn"
             id="lastProfileBtn"
+            data-views="accounts"
             title="Relançar último perfil"
           >
             <svg viewBox="0 0 24 24" fill="currentColor">
@@ -4359,8 +4421,13 @@
               <span class="conn-dot" id="connDot"></span>
               <span id="connLabel">Online</span>
             </div>
-            <!-- v4.5: View Mode Toggle (grid/list) -->
-            <div class="view-toggle" id="viewToggle" title="Alternar visualização">
+            <!-- v4.5: View Mode Toggle (grid/list) — accounts only -->
+            <div
+              class="view-toggle"
+              id="viewToggle"
+              data-views="accounts"
+              title="Alternar visualização"
+            >
               <button id="viewGrid" class="active" title="Grade" aria-label="Visualização em grade">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="3" y="3" width="7" height="7" />
@@ -4434,13 +4501,18 @@
                 </svg>
               </button>
             </div>
-            <button class="btn icon" id="batchModeBtn" title="Seleção múltipla">
+            <button
+              class="btn icon"
+              id="batchModeBtn"
+              data-views="accounts"
+              title="Seleção múltipla"
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 11 12 14 22 4" />
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
               </svg>
             </button>
-            <button class="btn primary" id="newBtn" title="Criar nova conta">
+            <button class="btn primary" id="newBtn" data-views="accounts" title="Criar nova conta">
               <svg
                 width="14"
                 height="14"
@@ -5769,7 +5841,14 @@
           document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
           document.getElementById('view-' + view).classList.add('active');
           document.getElementById('viewTitle').textContent = item.textContent.trim();
+          // v5.9.42: Contextual topbar — set body class so CSS can hide irrelevant buttons
+          document.body.className = document.body.className.replace(/view-\w+/g, '').trim();
+          document.body.classList.add('view-' + view);
           if (view === 'settings') loadSettings();
+          if (view === 'events') {
+            setTimeout(loadHeatmap, 120);
+            setTimeout(loadTimeline, 120);
+          }
         });
         item.addEventListener('keydown', function (e) {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -6037,10 +6116,13 @@
         <button class="btn sm btn-play" data-act="launch"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play</button>
         <div class="secondary-actions">
           ${favBtnHtml}
-          ${dupBtnHtml}
-          <button class="btn sm btn-icon-only" data-act="edit" data-tip="Editar" title="Editar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-          <button class="btn sm btn-icon-only" data-act="vault" data-tip="Credenciais" title="Credenciais"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
-          <button class="btn sm btn-icon-only" data-act="del" data-tip="Excluir" title="Excluir"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+          <button class="btn sm btn-icon-only overflow-trigger" data-act="overflow" data-tip="Mais ações" title="Mais ações" aria-haspopup="true" aria-expanded="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+          <div class="card-overflow-menu" role="menu" hidden>
+            <button type="button" role="menuitem" data-act="dup"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicar</button>
+            <button type="button" role="menuitem" data-act="edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Editar</button>
+            <button type="button" role="menuitem" data-act="vault"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Credenciais</button>
+            <button type="button" role="menuitem" data-act="del" class="danger"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Excluir</button>
+          </div>
         </div>
       </div>`;
           card.addEventListener('click', () => launch(p.id));
@@ -6057,11 +6139,20 @@
               e.stopPropagation();
               const act = btn.dataset.act;
               if (act === 'launch') launch(p.id);
-              else if (act === 'edit') edit(p.id);
-              else if (act === 'vault') openVault(p.id);
-              else if (act === 'del') del(p.id);
-              else if (act === 'fav') toggleFavorite(p.id);
-              else if (act === 'dup') duplicateProfile(p.id);
+              else if (act === 'edit') {
+                closeAllOverflowMenus();
+                edit(p.id);
+              } else if (act === 'vault') {
+                closeAllOverflowMenus();
+                openVault(p.id);
+              } else if (act === 'del') {
+                closeAllOverflowMenus();
+                del(p.id);
+              } else if (act === 'fav') toggleFavorite(p.id);
+              else if (act === 'dup') {
+                closeAllOverflowMenus();
+                duplicateProfile(p.id);
+              } else if (act === 'overflow') toggleOverflowMenu(btn);
               else if (act === 'health') {
                 var resultEl = document.getElementById('healthResult-' + p.id);
                 if (resultEl) runHealthCheck(p.id, resultEl);
@@ -6826,6 +6917,35 @@
           c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
         );
       }
+      // v5.9.42: Card overflow menu helpers (··· dropdown)
+      function closeAllOverflowMenus() {
+        document.querySelectorAll('.card-overflow-menu:not([hidden])').forEach(m => {
+          m.hidden = true;
+        });
+        document.querySelectorAll('.overflow-trigger[aria-expanded="true"]').forEach(t => {
+          t.setAttribute('aria-expanded', 'false');
+        });
+      }
+      function toggleOverflowMenu(triggerBtn) {
+        var menu = triggerBtn.parentElement.querySelector('.card-overflow-menu');
+        if (!menu) return;
+        var isOpen = !menu.hidden;
+        closeAllOverflowMenus();
+        if (!isOpen) {
+          menu.hidden = false;
+          triggerBtn.setAttribute('aria-expanded', 'true');
+          // Focus first item for keyboard access
+          var firstItem = menu.querySelector('button');
+          if (firstItem) setTimeout(() => firstItem.focus(), 0);
+        }
+      }
+      // Close overflow menus on outside click or Escape
+      document.addEventListener('click', e => {
+        if (!e.target.closest('.secondary-actions')) closeAllOverflowMenus();
+      });
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeAllOverflowMenus();
+      });
       let toastT;
       function toast(msg, type) {
         const t = document.getElementById('toast');
@@ -8437,6 +8557,7 @@
       async function loadTimeline() {
         var chart = document.getElementById('timelineChart');
         if (!chart) return;
+        var section = chart.closest('.timeline-section');
         var data;
         try {
           data = await ipcRenderer.invoke('profile:launch-timeline', 7);
@@ -8446,10 +8567,11 @@
           return;
         }
         if (!Array.isArray(data) || !data.length) {
-          chart.innerHTML =
-            '<div class="timeline-empty-msg">Nenhuma atividade ainda. Jogue para ver o gráfico ganhar vida!</div>';
+          // v5.9.42: Hide empty timeline section instead of showing placeholder
+          if (section) section.style.display = 'none';
           return;
         }
+        if (section) section.style.display = '';
         var maxCount = 1;
         var totalCount = 0;
         data.forEach(function (d) {
@@ -9169,14 +9291,15 @@
         var grid = document.getElementById('heatmapGrid');
         var monthsEl = document.getElementById('heatmapMonths');
         if (!grid || !monthsEl) return;
+        var section = grid.closest('.heatmap-section');
         try {
           var timeline = await ipcRenderer.invoke('profile:launch-timeline', 365);
           if (!timeline || !timeline.length) {
-            grid.innerHTML =
-              '<div style="grid-column:1/-1;color:var(--text-faint);font-size:var(--font-sm);padding:1rem 0">Sem dados de atividade ainda.</div>';
-            monthsEl.innerHTML = '';
+            // v5.9.42: Hide empty heatmap section instead of showing placeholder
+            if (section) section.style.display = 'none';
             return;
           }
+          if (section) section.style.display = '';
           // Build a date → count map for the last 365 days
           var today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -9549,6 +9672,8 @@
       // ── v5.8: Init sequence ──
       initAltNumberHotkeys();
       initWindowControls();
+      // v5.9.42: Set initial body view class for contextual topbar
+      document.body.classList.add('view-accounts');
       // Lazy-load stats/heatmap on first Events view visit (handled in wireViewTransitionsV58).
       // Also do an initial load in case the user starts on the Events view.
       setTimeout(function () {
