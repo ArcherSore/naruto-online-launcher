@@ -1,5 +1,71 @@
 # Changelog
 
+## [5.10.5] - 2026-07-19
+
+### Identidade Visual "Shinobi Gold" — coesão total com a estética do ícone
+
+Reformulação completa da paleta e linguagem visual para criar identidade
+visual coerente com o ícone do launcher (gradiente dourado+âmbar, detalhe
+laranja, prata metálica, preto profundo — estilo anime/shonen focado).
+
+#### Paleta unificada ( Shinobi Gold identity )
+
+- `--gold: #ffd700` / `--gold-bright: #ffe54a` / `--amber: #ffa500` — família dourada principal
+- `--accent-warm: #ff6600` — laranja de detalhe (linhas da roupa do ícone)
+- `--silver: #c0c0c0` / `--silver-dim: #808080` — prata metálica (tiara)
+- `--bg: #08080a` (preto profundo) + `--bg-elev/card/hover` coesos
+- `--accent-glow: rgba(255,165,0,0.28)` + `--shadow-gold` para profundidade
+
+#### Cohesão de componentes (todos seguem a MESMA linguagem)
+
+- **Brand mark**: gradiente dourado→âmbar + listra diagonal laranja (ecoa linhas da roupa do ícone) + SVG shuriken (substitui play triangle genérico)
+- **Wordmark "Shinobi"**: gradiente dourado→âmbar com clip-text + glow
+- **Splash**: shuriken dourado girando + radial glow (substitui spinner genérico)
+- **Top accent line**: faixa dourada 2px no topo do app (estilo bandana ninja)
+- **Sidebar watermark**: shuriken dourado subtle no canto inferior (SVG inline)
+- **Nav active**: barra dourada 3px lateral + glow + texto dourado
+- **Topbar h2**: barra dourada vertical antes do título
+- **Cards**: border-top dourado 2px UNIFICADO (removidas 8 cores por região — azul/roxo/rosa/teal quebravam identidade)
+- **Card avatar**: borda prata metálica (tiara-inspired)
+- **Botões primary/Play**: gradiente dourado→âmbar + shadow glow (não flat)
+- **Badges**: dourado para OK/active (verde reservado só para "ativo/rodando" semântico)
+- **Status dots**: dourado para "pronto/online" (verde só para erro/offline)
+- **Toggles on**: gradiente dourado→âmbar
+- **Focos**: todos com ring dourado + accent-dim backdrop
+
+#### Remoção de ruído técnico (visual cleanliness)
+
+- "Flash PPAPI ✓" → "Pronto" (texto simples, dot dourado)
+- "Electron 11 • Flash PPAPI 34" → removido do Sobre (só "Shinobi Launcher v5.10.5")
+- `flashCacheInfo` block removido do HTML (cache version é tech detail que não importa ao usuário comum)
+- Mock still returns cache-info mas o elemento não existe mais (guards no app.js previnem erros)
+
+#### Classes CSS adicionadas (antes referenciadas mas faltando)
+
+- `.version-pill` — pill dourado com borda sutil (app.js wireVersionPill referenciava)
+- `@keyframes cardEnterV58` + `.card-enter-v58` — entrance stagger (app.js wireCardEnterV58)
+- `@keyframes viewEnterV58` + `.view-enter-v58` — view fade (app.js nav handler)
+
+#### Watermark de conteúdo
+
+- `.content::before` — radial gradient dourado subtle no canto superior direito (profundidade sem distração)
+
+#### Hover states unificados (todos dourado)
+
+- `.btn:hover` → bg accent-dim, border accent, text gold
+- `.btn-icon-only:hover` → gold tint (antes era só bg-hover, pouco visível)
+- `.sidebar-footer button:hover` → gold tint
+- `.nav-item:hover` → gold tint (antes era só bg-hover)
+- `.card:hover` → border gold + shadow + glow ring
+
+#### Validação
+
+- 1234/1234 testes Jest (38 suites) ✓
+- ESLint 0 erros (4 warnings pré-existentes) ✓
+- Braces balanceados (240/240) ✓
+- VLM: paleta 8/10, identidade 7/10, **nenhum ruído técnico**, hovers visíveis ✓
+- agent-browser: splash shuriken ✓, 3 nav views ✓, cards render ✓, interatividade ✓
+
 ## [5.10.3] - 2026-07-18
 
 ### REFORMULA — Heroic-inspired + contrato DOM completo do app.js

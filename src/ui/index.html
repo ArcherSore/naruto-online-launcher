@@ -14,29 +14,47 @@
         padding: 0;
       }
       :root {
-        --bg: #0a0a0c;
-        --bg-elev: #131316;
-        --bg-card: #1a1a1e;
-        --bg-hover: #222226;
-        --border: #26262b;
-        --border-hover: #36363c;
-        --text: #f0f0f2;
-        --text-faint: #8a8a92;
-        --text-dim: #56565c;
-        --accent: #ff8c00;
-        --accent-hover: #ffa033;
-        --accent-dim: rgba(255, 140, 0, 0.14);
+        /* ── Shinobi Gold identity ──
+           Inspired by the launcher icon: golden background, amber gradient,
+           orange detail lines, silver metallic tiara, deep black clothing. */
+        --bg: #08080a;
+        --bg-elev: #121214;
+        --bg-card: #18181b;
+        --bg-hover: #1f1f23;
+        --border: #2a2a2e;
+        --border-hover: #3a3a40;
+        --text: #f5f5f6;
+        --text-faint: #8c8c93;
+        --text-dim: #54545a;
+
+        /* Gold family — the Shinobi signature */
+        --gold: #ffd700;
+        --gold-bright: #ffe54a;
+        --amber: #ffa500;
+        --accent: #ffa500;
+        --accent-hover: #ffbd33;
+        --accent-dim: rgba(255, 165, 0, 0.14);
+        --accent-warm: #ff6600;
+        --accent-glow: rgba(255, 165, 0, 0.28);
+
+        /* Silver metallic (tiara-inspired highlights) */
+        --silver: #c0c0c0;
+        --silver-dim: #808080;
+
+        /* Status — kept subtle, only for semantic meaning */
         --ok: #34d399;
         --err: #f87171;
         --warn: #fbbf24;
+
         --radius: 8px;
         --radius-sm: 5px;
         --radius-lg: 12px;
         --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
         --mono: 'SF Mono', 'JetBrains Mono', Consolas, monospace;
         --transition: 150ms ease;
-        --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+        --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.7);
+        --shadow-gold: 0 4px 16px rgba(255, 165, 0, 0.22);
       }
       html,
       body {
@@ -51,26 +69,38 @@
         user-select: none;
       }
 
-      /* ═══ SPLASH ═══ */
+      /* ═══ SPLASH ── shuriken mark, gold glow ═══ */
       .splash {
         position: fixed;
         inset: 0;
-        background: var(--bg);
+        background: radial-gradient(circle at center, #15120a 0%, var(--bg) 70%);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 9999;
         transition: opacity 250ms ease;
       }
+      .splash::before {
+        content: '';
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
+        filter: blur(8px);
+      }
       .splash.hidden {
         opacity: 0;
         pointer-events: none;
       }
-      .splash svg {
-        width: 36px;
-        height: 36px;
-        color: var(--accent);
-        animation: spin 0.8s linear infinite;
+      .splash .shuriken {
+        width: 56px;
+        height: 56px;
+        color: var(--gold);
+        filter: drop-shadow(0 0 12px var(--accent-glow));
+        animation: spin 1.4s linear infinite;
+        position: relative;
+        z-index: 1;
       }
       @keyframes spin {
         to {
@@ -78,11 +108,24 @@
         }
       }
 
-      /* ═══ APP LAYOUT — Heroic grid ═══ */
+      /* ── APP LAYOUT — Heroic grid ═══ */
       .app {
         display: grid;
         grid-template-columns: 232px 1fr;
         height: 100vh;
+        position: relative;
+      }
+      /* Shinobi headband — gold accent line across the very top */
+      .app::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent 0%, var(--gold) 20%, var(--amber) 50%, var(--gold) 80%, transparent 100%);
+        z-index: 100;
+        pointer-events: none;
       }
 
       /* ── SIDEBAR ── */
@@ -92,6 +135,23 @@
         display: flex;
         flex-direction: column;
         padding: 18px 0 0;
+        position: relative;
+      }
+      /* Subtle shuriken watermark in sidebar bottom */
+      .sidebar::after {
+        content: '';
+        position: absolute;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120px;
+        height: 120px;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffa500' opacity='0.08'><path d='M12 2 L14 9 L21 7 L16 12 L21 17 L14 15 L12 22 L10 15 L3 17 L8 12 L3 7 L10 9 Z'/></svg>");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: contain;
+        pointer-events: none;
+        opacity: 0.5;
       }
       .sidebar-brand {
         display: flex;
@@ -102,25 +162,48 @@
         margin-bottom: 14px;
       }
       .sidebar-brand .mark {
-        width: 32px;
-        height: 32px;
+        width: 34px;
+        height: 34px;
         border-radius: var(--radius-sm);
-        background: linear-gradient(135deg, var(--accent), #d97706);
+        background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        box-shadow: 0 2px 8px rgba(255, 140, 0, 0.3);
+        box-shadow: 0 2px 10px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        position: relative;
+        overflow: hidden;
+      }
+      /* Diagonal accent stripe — echoes the icon's clothing detail lines */
+      .sidebar-brand .mark::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          115deg,
+          transparent 38%,
+          rgba(255, 102, 0, 0.55) 42%,
+          rgba(255, 102, 0, 0.55) 48%,
+          transparent 52%
+        );
+        pointer-events: none;
       }
       .sidebar-brand .mark svg {
-        width: 16px;
-        height: 16px;
+        width: 18px;
+        height: 18px;
         color: #000;
+        position: relative;
+        z-index: 1;
       }
       .sidebar-brand h1 {
-        font-size: 14px;
-        font-weight: 700;
-        letter-spacing: 0.3px;
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 12px var(--accent-glow);
       }
       .sidebar-brand .ver {
         font-size: 10px;
@@ -149,12 +232,12 @@
         position: relative;
       }
       .nav-item:hover {
-        background: var(--bg-hover);
-        color: var(--text);
+        background: var(--accent-dim);
+        color: var(--gold);
       }
       .nav-item.active {
         background: var(--accent-dim);
-        color: var(--accent);
+        color: var(--gold);
       }
       .nav-item.active::before {
         content: '';
@@ -164,8 +247,9 @@
         transform: translateY(-50%);
         width: 3px;
         height: 18px;
-        background: var(--accent);
+        background: linear-gradient(180deg, var(--gold), var(--amber));
         border-radius: 0 2px 2px 0;
+        box-shadow: 0 0 8px var(--accent-glow);
       }
       .nav-item svg {
         width: 17px;
@@ -174,7 +258,7 @@
       }
       .nav-badge {
         margin-left: auto;
-        background: var(--accent);
+        background: linear-gradient(135deg, var(--gold), var(--amber));
         color: #000;
         font-size: 10px;
         font-weight: 700;
@@ -182,6 +266,7 @@
         border-radius: 10px;
         min-width: 18px;
         text-align: center;
+        box-shadow: 0 0 6px var(--accent-glow);
       }
       .nav-badge:not(.show) {
         display: none;
@@ -204,8 +289,8 @@
         width: 7px;
         height: 7px;
         border-radius: 50%;
-        background: var(--ok);
-        box-shadow: 0 0 6px var(--ok);
+        background: var(--gold);
+        box-shadow: 0 0 6px var(--accent-glow);
       }
       .flash-cache-info {
         background: var(--bg);
@@ -218,7 +303,7 @@
       }
       .flash-cache-info .cache-version {
         font-family: var(--mono);
-        color: var(--accent);
+        color: var(--gold);
         font-weight: 600;
       }
 
@@ -248,9 +333,9 @@
         gap: 5px;
       }
       .sidebar-footer button:hover {
-        color: var(--text);
-        border-color: var(--border-hover);
-        background: var(--bg-hover);
+        color: var(--gold);
+        border-color: var(--accent);
+        background: var(--accent-dim);
       }
       .sidebar-footer button svg {
         width: 13px;
@@ -276,6 +361,19 @@
         font-size: 17px;
         font-weight: 700;
         letter-spacing: -0.2px;
+        position: relative;
+        padding-left: 12px;
+      }
+      .topbar h2::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 18px;
+        background: linear-gradient(180deg, var(--gold), var(--amber));
+        border-radius: 0 2px 2px 0;
       }
       .topbar .spacer {
         flex: 1;
@@ -295,8 +393,8 @@
         width: 7px;
         height: 7px;
         border-radius: 50%;
-        background: var(--ok);
-        box-shadow: 0 0 6px var(--ok);
+        background: var(--gold);
+        box-shadow: 0 0 6px var(--accent-glow);
       }
       .conn-indicator.off .conn-dot {
         background: var(--err);
@@ -319,7 +417,8 @@
       }
       .search input:focus {
         outline: none;
-        border-color: var(--accent);
+        border-color: var(--gold);
+        box-shadow: 0 0 0 3px var(--accent-dim);
       }
       .search input::placeholder {
         color: var(--text-dim);
@@ -369,7 +468,7 @@
       }
       .sort-select:focus {
         outline: none;
-        border-color: var(--accent);
+        border-color: var(--gold);
       }
       .view-toggle {
         display: flex;
@@ -390,8 +489,8 @@
         justify-content: center;
       }
       .view-toggle button.active {
-        background: var(--bg-hover);
-        color: var(--accent);
+        background: var(--accent-dim);
+        color: var(--gold);
       }
       .view-toggle button svg {
         width: 14px;
@@ -414,18 +513,21 @@
         white-space: nowrap;
       }
       .btn:hover {
-        background: var(--bg-hover);
-        border-color: var(--border-hover);
+        background: var(--accent-dim);
+        border-color: var(--accent);
+        color: var(--gold);
       }
       .btn.primary {
-        background: var(--accent);
-        border-color: var(--accent);
+        background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
+        border-color: var(--amber);
         color: #000;
-        font-weight: 600;
+        font-weight: 700;
+        box-shadow: 0 2px 8px var(--accent-glow);
       }
       .btn.primary:hover {
-        background: var(--accent-hover);
+        background: linear-gradient(135deg, var(--gold-bright) 0%, var(--accent-hover) 100%);
         border-color: var(--accent-hover);
+        box-shadow: 0 4px 14px var(--accent-glow);
       }
       .btn.sm {
         padding: 5px 10px;
@@ -472,7 +574,7 @@
         align-items: center;
         gap: 10px;
         background: var(--accent-dim);
-        border: 1px solid rgba(255, 140, 0, 0.3);
+        border: 1px solid rgba(255, 165, 0, 0.3);
         border-radius: var(--radius);
         padding: 9px 13px;
         margin-bottom: 14px;
@@ -482,8 +584,8 @@
         display: flex;
       }
       .batch-count {
-        font-weight: 600;
-        color: var(--accent);
+        font-weight: 700;
+        color: var(--gold);
       }
       .batch-bar .spacer {
         flex: 1;
@@ -505,7 +607,7 @@
         margin-bottom: 16px;
       }
       .empty-shuriken {
-        color: var(--accent);
+        color: var(--gold);
         opacity: 0.5;
         margin-bottom: 16px;
       }
@@ -579,27 +681,29 @@
         }
       }
       .card:hover {
-        border-color: var(--border-hover);
+        border-color: var(--accent);
         transform: translateY(-2px);
-        box-shadow: var(--shadow);
+        box-shadow: var(--shadow), 0 0 0 1px var(--accent-glow);
       }
       .card:focus-visible {
-        outline: 2px solid var(--accent);
+        outline: 2px solid var(--gold);
         outline-offset: 2px;
       }
       .card.fav-card {
-        border-color: rgba(255, 140, 0, 0.45);
+        border-color: rgba(255, 215, 0, 0.45);
       }
       .card.fav-card::after {
         content: '';
         position: absolute;
         inset: 0;
         border-radius: var(--radius);
-        box-shadow: inset 0 0 0 1px rgba(255, 140, 0, 0.15);
+        box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.18);
         pointer-events: none;
       }
 
-      /* Cover banner — cohesive dark, subtle region accent line */
+      /* Cover banner — cohesive dark with unified gold accent stripe.
+         Region differentiation now via text badge, not color noise.
+         This creates visual identity consistency with the launcher icon. */
       .card-head {
         height: 78px;
         padding: 12px;
@@ -608,7 +712,7 @@
         gap: 10px;
         position: relative;
         background: linear-gradient(135deg, #1f1f24 0%, #131316 100%);
-        border-top: 2px solid var(--region-accent, var(--border));
+        border-top: 2px solid var(--gold);
       }
       .card-head::after {
         content: '';
@@ -616,42 +720,21 @@
         inset: 0;
         background: radial-gradient(
           120% 90% at 100% 0%,
-          var(--region-glow, transparent) 0%,
+          var(--accent-glow) 0%,
           transparent 60%
         );
         pointer-events: none;
       }
-      .card.region-br {
-        --region-accent: #d97706;
-        --region-glow: rgba(217, 119, 6, 0.16);
-      }
-      .card.region-na {
-        --region-accent: #3b82f6;
-        --region-glow: rgba(59, 130, 246, 0.14);
-      }
-      .card.region-eu {
-        --region-accent: #10b981;
-        --region-glow: rgba(16, 185, 129, 0.14);
-      }
-      .card.region-hk {
-        --region-accent: #a855f7;
-        --region-glow: rgba(168, 85, 247, 0.14);
-      }
-      .card.region-de {
-        --region-accent: #eab308;
-        --region-glow: rgba(234, 179, 8, 0.14);
-      }
-      .card.region-es {
-        --region-accent: #ef4444;
-        --region-glow: rgba(239, 68, 68, 0.14);
-      }
-      .card.region-pl {
-        --region-accent: #ec4899;
-        --region-glow: rgba(236, 72, 153, 0.14);
-      }
+      /* All regions share the Shinobi gold accent — single visual identity */
+      .card.region-br,
+      .card.region-na,
+      .card.region-eu,
+      .card.region-hk,
+      .card.region-de,
+      .card.region-es,
+      .card.region-pl,
       .card.region-fr {
-        --region-accent: #14b8a6;
-        --region-glow: rgba(20, 184, 166, 0.14);
+        /* unified: gold stripe + warm glow, no per-region hue noise */
       }
       /* Favorite star on cover (Heroic-style) */
       .card-fav-star {
@@ -677,8 +760,8 @@
         color: #fff;
       }
       .card-fav-star.active {
-        color: var(--accent);
-        background: rgba(255, 140, 0, 0.18);
+        color: var(--gold);
+        background: rgba(255, 215, 0, 0.18);
       }
       .card-fav-star svg {
         width: 13px;
@@ -691,7 +774,7 @@
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.15);
         backdrop-filter: blur(8px);
-        border: 2px solid rgba(255, 255, 255, 0.6);
+        border: 2px solid var(--silver);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -722,7 +805,7 @@
       }
       .card-head .name .lock {
         display: inline-flex;
-        color: var(--accent);
+        color: var(--gold);
       }
       .card-head .name .lock svg {
         width: 11px;
@@ -758,7 +841,7 @@
       }
       .server-switch select:focus {
         outline: none;
-        border-color: var(--accent);
+        border-color: var(--gold);
       }
       .card-notes {
         padding: 6px 8px;
@@ -798,8 +881,8 @@
       }
       .badge.ok,
       .status-badge.idle {
-        background: rgba(52, 211, 153, 0.15);
-        color: var(--ok);
+        background: var(--accent-dim);
+        color: var(--gold);
       }
       .status-badge .dot {
         width: 5px;
@@ -808,16 +891,12 @@
         background: currentColor;
       }
       .status-badge.active {
-        background: rgba(255, 140, 0, 0.18);
-        color: var(--accent);
+        background: rgba(255, 215, 0, 0.18);
+        color: var(--gold);
       }
       .status-badge.open {
         background: rgba(52, 211, 153, 0.18);
         color: var(--ok);
-      }
-      .status-badge.error {
-        background: rgba(248, 113, 113, 0.18);
-        color: var(--err);
       }
 
       .card-actions {
@@ -830,8 +909,8 @@
       }
       .btn-play {
         flex: 1;
-        background: var(--accent);
-        border-color: var(--accent);
+        background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
+        border-color: var(--amber);
         color: #000;
         font-weight: 700;
         font-size: 12px;
@@ -839,10 +918,12 @@
         justify-content: center;
         text-transform: uppercase;
         letter-spacing: 0.4px;
+        box-shadow: 0 2px 8px var(--accent-glow);
       }
       .btn-play:hover {
-        background: var(--accent-hover);
+        background: linear-gradient(135deg, var(--gold-bright) 0%, var(--accent-hover) 100%);
         border-color: var(--accent-hover);
+        box-shadow: 0 4px 14px var(--accent-glow);
       }
       .btn-play svg {
         width: 12px;
@@ -850,9 +931,10 @@
       }
       .btn-play.launching {
         background: var(--bg-hover);
-        color: var(--accent);
-        border-color: var(--accent);
+        color: var(--gold);
+        border-color: var(--gold);
         pointer-events: none;
+        box-shadow: none;
       }
       .secondary-actions {
         display: flex;
@@ -871,13 +953,13 @@
         transition: var(--transition);
       }
       .btn-icon-only:hover {
-        color: var(--text);
-        border-color: var(--border-hover);
-        background: var(--bg-hover);
+        color: var(--gold);
+        border-color: var(--accent);
+        background: var(--accent-dim);
       }
       .btn-icon-only.fav {
-        color: var(--accent);
-        border-color: rgba(255, 140, 0, 0.4);
+        color: var(--gold);
+        border-color: rgba(255, 215, 0, 0.4);
       }
 
       /* ── EVENTS VIEW ── */
@@ -909,8 +991,8 @@
         color: var(--text);
       }
       .tab.active {
-        color: var(--accent);
-        border-bottom-color: var(--accent);
+        color: var(--gold);
+        border-bottom-color: var(--gold);
       }
       .event-card,
       .event {
@@ -930,7 +1012,7 @@
         background: var(--bg-hover);
       }
       .event[data-type='exp'] {
-        border-left: 3px solid var(--accent);
+        border-left: 3px solid var(--gold);
       }
       .event[data-type='pvp'] {
         border-left: 3px solid var(--err);
@@ -943,7 +1025,7 @@
         height: 40px;
         border-radius: var(--radius-sm);
         background: var(--accent-dim);
-        color: var(--accent);
+        color: var(--gold);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -993,6 +1075,10 @@
         background: var(--bg-hover);
         color: var(--text-faint);
         flex-shrink: 0;
+      }
+      .status-badge.error {
+        background: rgba(248, 113, 113, 0.18);
+        color: var(--err);
       }
       .event-status.active,
       .event .cd-active {
@@ -1055,7 +1141,7 @@
       }
       .settings-select:focus {
         outline: none;
-        border-color: var(--accent);
+        border-color: var(--gold);
       }
       .toggle {
         width: 38px;
@@ -1079,13 +1165,13 @@
         transition: var(--transition);
       }
       .toggle.on {
-        background: var(--accent);
+        background: linear-gradient(135deg, var(--gold), var(--amber));
       }
       .toggle.on::after {
         left: 18px;
       }
       .toggle:focus-visible {
-        outline: 2px solid var(--accent);
+        outline: 2px solid var(--gold);
         outline-offset: 2px;
       }
 
@@ -1109,8 +1195,9 @@
         background: var(--bg-hover);
       }
       .preset-card.active {
-        border-color: var(--accent);
+        border-color: var(--gold);
         background: var(--accent-dim);
+        box-shadow: 0 0 0 1px var(--accent-glow);
       }
       .preset-card .preset-name {
         font-size: 13px;
@@ -1219,7 +1306,7 @@
       .dev-btn-group input:focus,
       .dev-btn-group select:focus {
         outline: none;
-        border-color: var(--accent);
+        border-color: var(--gold);
       }
       .dev-result-box {
         background: var(--bg);
@@ -1256,8 +1343,8 @@
         font-family: var(--font);
       }
       .copy-float:hover {
-        color: var(--accent);
-        border-color: var(--accent);
+        color: var(--gold);
+        border-color: var(--gold);
       }
       .jwt-decoder {
         display: flex;
@@ -1282,7 +1369,7 @@
       }
       .jwt-input-wrap textarea:focus {
         outline: none;
-        border-color: var(--accent);
+        border-color: var(--gold);
       }
       .jwt-output {
         background: var(--bg);
@@ -1382,7 +1469,8 @@
       .field select:focus,
       .field textarea:focus {
         outline: none;
-        border-color: var(--accent);
+        border-color: var(--gold);
+        box-shadow: 0 0 0 3px var(--accent-dim);
       }
       .field textarea {
         resize: vertical;
@@ -1446,7 +1534,72 @@
         border-color: var(--err);
       }
       .toast.info {
-        border-color: var(--accent);
+        border-color: var(--gold);
+      }
+
+      /* ── VERSION PILL (Shinobi gold) ── */
+      .version-pill {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        color: var(--gold);
+        background: var(--accent-dim);
+        border: 1px solid rgba(255, 165, 0, 0.25);
+        padding: 1px 6px;
+        border-radius: 8px;
+      }
+
+      /* ── CARD ENTRANCE (v58 stagger) ── */
+      @keyframes cardEnterV58 {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      .card-enter-v58 {
+        animation: cardEnterV58 0.35s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+      }
+
+      /* ── VIEW ENTER (v58 fade) ── */
+      @keyframes viewEnterV58 {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .view-enter-v58 {
+        animation: viewEnterV58 0.25s ease both;
+      }
+
+      /* ── SHINOBI WATERMARK ── subtle spiral in main content bg */
+      .content {
+        position: relative;
+      }
+      .content::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        width: 180px;
+        height: 180px;
+        background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+        opacity: 0.4;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .content > * {
+        position: relative;
+        z-index: 1;
       }
 
       /* ── RESPONSIVE ── */
@@ -1477,8 +1630,8 @@
   </head>
   <body>
     <div class="splash" id="splash">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+      <svg class="shuriken" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2 L14 9 L21 7 L16 12 L21 17 L14 15 L12 22 L10 15 L3 17 L8 12 L3 7 L10 9 Z" />
       </svg>
     </div>
 
@@ -1488,12 +1641,12 @@
         <div class="sidebar-brand">
           <div class="mark">
             <svg viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3" />
+              <path d="M12 2 L14 9 L21 7 L16 12 L21 17 L14 15 L12 22 L10 15 L3 17 L8 12 L3 7 L10 9 Z" />
             </svg>
           </div>
           <div>
             <h1>Shinobi</h1>
-            <div class="ver" id="version">v5.10.3</div>
+            <div class="ver" id="version">v5.10.5</div>
           </div>
         </div>
 
@@ -1531,11 +1684,7 @@
         <div class="sidebar-status">
           <div class="flash-status">
             <span class="dot"></span>
-            <span id="flashStatus">Flash PPAPI ✓</span>
-          </div>
-          <div class="flash-cache-info" id="flashCacheInfo" style="display: none">
-            <div>Cache: <span class="cache-version" id="flashCacheVersion">—</span></div>
-            <div id="flashCacheDate" style="margin-top: 2px"></div>
+            <span id="flashStatus">Pronto</span>
           </div>
         </div>
 
@@ -2008,9 +2157,7 @@
               <div class="settings-row">
                 <div>
                   <div class="label">Sobre</div>
-                  <div class="desc" id="advAboutVersion">
-                    Shinobi Launcher v5.10.4 • Electron 11 • Flash PPAPI 34
-                  </div>
+                  <div class="desc" id="advAboutVersion">Shinobi Launcher v5.10.5</div>
                 </div>
                 <a class="btn sm" id="advAboutRepo" href="#" type="button" title="GitHub">GitHub</a>
               </div>
