@@ -623,8 +623,7 @@ function attach(win, ctx) {
           .catch(function (e) {
             _renewConsecutiveFailures++;
             var backoffMs = Math.min(
-              _renewBaseIntervalMs *
-                Math.pow(2, Math.min(_renewConsecutiveFailures - 1, 3)),
+              _renewBaseIntervalMs * Math.pow(2, Math.min(_renewConsecutiveFailures - 1, 3)),
               2 * 60 * 60 * 1000 // max 2h
             );
             if (_renewConsecutiveFailures <= 2) {

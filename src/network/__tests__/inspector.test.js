@@ -56,7 +56,7 @@ describe('inspector.js - KNOWN_ENDPOINTS', () => {
   });
 
   test('cada endpoint tem type e label', () => {
-    Object.keys(KNOWN_ENDPOINTS).forEach((domain) => {
+    Object.keys(KNOWN_ENDPOINTS).forEach(domain => {
       expect(KNOWN_ENDPOINTS[domain].type).toBeDefined();
       expect(KNOWN_ENDPOINTS[domain].label).toBeDefined();
     });

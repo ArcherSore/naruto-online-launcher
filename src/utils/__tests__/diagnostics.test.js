@@ -3,12 +3,7 @@
  * Cobertura: _sanitize, _sanitizeObj, _collectSystemInfo, exportZip
  */
 
-const {
-  _sanitize,
-  _sanitizeObj,
-  _collectSystemInfo,
-  exportZip
-} = require('../diagnostics');
+const { _sanitize, _sanitizeObj, _collectSystemInfo, exportZip } = require('../diagnostics');
 
 describe('diagnostics.js - _sanitize', () => {
   test('remove paths absolutos Linux', () => {

@@ -1208,7 +1208,9 @@ describe('IpcRouter.js', () => {
     test('retorna empty para filter como array (proto pollution guard)', async () => {
       var insp = { getEntries: jest.fn(), getStats: jest.fn() };
       const inspector = require('../../../network/inspector');
-      inspector.create = jest.fn(function () { return insp; });
+      inspector.create = jest.fn(function () {
+        return insp;
+      });
       // Need to re-register to get inspector into the map
       store.get.mockReturnValue({ id: 'p_001' });
       var result = await handleHandlers['inspector:entries']({}, 'p_001', ['__proto__']);
@@ -1263,7 +1265,11 @@ describe('IpcRouter.js', () => {
     });
 
     test('retorna ok:false quando diálogo cancelado', async () => {
-      ManagerWindow.getManagerWindow.mockReturnValue({ isDestroyed: function () { return false; } });
+      ManagerWindow.getManagerWindow.mockReturnValue({
+        isDestroyed: function () {
+          return false;
+        }
+      });
       const dialog = require('electron').dialog;
       dialog.showSaveDialog.mockResolvedValue({ canceled: true, filePath: '' });
       store.exportJSON.mockReturnValue('[]');
@@ -1283,7 +1289,11 @@ describe('IpcRouter.js', () => {
     });
 
     test('retorna ok:false quando diálogo cancelado', async () => {
-      ManagerWindow.getManagerWindow.mockReturnValue({ isDestroyed: function () { return false; } });
+      ManagerWindow.getManagerWindow.mockReturnValue({
+        isDestroyed: function () {
+          return false;
+        }
+      });
       const dialog = require('electron').dialog;
       dialog.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
       const handler = handleHandlers['profiles:import-file'];
@@ -1303,7 +1313,11 @@ describe('IpcRouter.js', () => {
     });
 
     test('retorna canceled quando diálogo cancelado', async () => {
-      ManagerWindow.getManagerWindow.mockReturnValue({ isDestroyed: function () { return false; } });
+      ManagerWindow.getManagerWindow.mockReturnValue({
+        isDestroyed: function () {
+          return false;
+        }
+      });
       store.getAll.mockReturnValue([]);
       const dialog = require('electron').dialog;
       dialog.showSaveDialog.mockResolvedValue({ canceled: true, filePath: '' });
@@ -1314,7 +1328,11 @@ describe('IpcRouter.js', () => {
     });
 
     test('retorna erro quando vault.exportEncryptedBackup falha', async () => {
-      ManagerWindow.getManagerWindow.mockReturnValue({ isDestroyed: function () { return false; } });
+      ManagerWindow.getManagerWindow.mockReturnValue({
+        isDestroyed: function () {
+          return false;
+        }
+      });
       store.getAll.mockReturnValue([{ id: 'p_1' }]);
       const vault = require('../../../profiles/vault');
       vault.exportEncryptedBackup.mockImplementation(function () {
@@ -1339,7 +1357,11 @@ describe('IpcRouter.js', () => {
     });
 
     test('retorna canceled quando diálogo cancelado', async () => {
-      ManagerWindow.getManagerWindow.mockReturnValue({ isDestroyed: function () { return false; } });
+      ManagerWindow.getManagerWindow.mockReturnValue({
+        isDestroyed: function () {
+          return false;
+        }
+      });
       const dialog = require('electron').dialog;
       dialog.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
       const handler = handleHandlers['profiles:import-encrypted'];
@@ -1352,8 +1374,12 @@ describe('IpcRouter.js', () => {
   describe('window:toggle-maximize success paths', () => {
     test('unmaximizes when already maximized', async () => {
       ManagerWindow.getManagerWindow.mockReturnValue({
-        isDestroyed: function () { return false; },
-        isMaximized: function () { return true; },
+        isDestroyed: function () {
+          return false;
+        },
+        isMaximized: function () {
+          return true;
+        },
         unmaximize: jest.fn(),
         maximize: jest.fn()
       });
@@ -1364,8 +1390,12 @@ describe('IpcRouter.js', () => {
 
     test('maximizes when not maximized', async () => {
       ManagerWindow.getManagerWindow.mockReturnValue({
-        isDestroyed: function () { return false; },
-        isMaximized: function () { return false; },
+        isDestroyed: function () {
+          return false;
+        },
+        isMaximized: function () {
+          return false;
+        },
         unmaximize: jest.fn(),
         maximize: jest.fn()
       });
@@ -1378,8 +1408,12 @@ describe('IpcRouter.js', () => {
   describe('window:get-always-on-top success', () => {
     test('retorna true quando sempre no topo', async () => {
       ManagerWindow.getManagerWindow.mockReturnValue({
-        isDestroyed: function () { return false; },
-        isAlwaysOnTop: function () { return true; }
+        isDestroyed: function () {
+          return false;
+        },
+        isAlwaysOnTop: function () {
+          return true;
+        }
       });
       const handler = handleHandlers['window:get-always-on-top'];
       var result = await handler();

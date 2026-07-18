@@ -94,62 +94,135 @@ describe('jwt.js', () => {
     });
 
     test('fallback para playerId quando nickname ausente', () => {
-      const tok = makeJWT({ playerId: '12345', username: 'a@b.com', iat: 1000000, exp: 1007200, lifetime: 7200, loginGrantType: 'registerAndLogin', roles: ['ROLE_USER'] });
+      const tok = makeJWT({
+        playerId: '12345',
+        username: 'a@b.com',
+        iat: 1000000,
+        exp: 1007200,
+        lifetime: 7200,
+        loginGrantType: 'registerAndLogin',
+        roles: ['ROLE_USER']
+      });
       const s = jwt.summarize(tok);
       expect(s).toContain('Player: 12345');
     });
 
     test('fallback para ? quando nickname e playerId ausentes', () => {
-      const tok = makeJWT({ username: 'a@b.com', iat: 1000000, exp: 1007200, lifetime: 7200, roles: [] });
+      const tok = makeJWT({
+        username: 'a@b.com',
+        iat: 1000000,
+        exp: 1007200,
+        lifetime: 7200,
+        roles: []
+      });
       const s = jwt.summarize(tok);
       expect(s).toContain('Player: ?');
     });
 
     test('fallback para ? quando username ausente', () => {
-      const tok = makeJWT({ nickname: 'Test', playerId: '1', iat: 1000000, exp: 1007200, lifetime: 7200, loginGrantType: 'x', roles: [] });
+      const tok = makeJWT({
+        nickname: 'Test',
+        playerId: '1',
+        iat: 1000000,
+        exp: 1007200,
+        lifetime: 7200,
+        loginGrantType: 'x',
+        roles: []
+      });
       const s = jwt.summarize(tok);
       expect(s).toContain('Email: ?');
     });
 
     test('fallback para uuid quando playerId ausente', () => {
-      const tok = makeJWT({ uuid: 'uuid-abc', nickname: 'N', username: 'u@b.com', iat: 1000000, exp: 1007200, lifetime: 7200, loginGrantType: 'x', roles: [] });
+      const tok = makeJWT({
+        uuid: 'uuid-abc',
+        nickname: 'N',
+        username: 'u@b.com',
+        iat: 1000000,
+        exp: 1007200,
+        lifetime: 7200,
+        loginGrantType: 'x',
+        roles: []
+      });
       const s = jwt.summarize(tok);
       expect(s).toContain('ID: uuid-abc');
     });
 
     test('fallback para ? quando playerId e uuid ausentes', () => {
-      const tok = makeJWT({ nickname: 'N', username: 'u', iat: 1000000, exp: 1007200, lifetime: 7200, roles: [] });
+      const tok = makeJWT({
+        nickname: 'N',
+        username: 'u',
+        iat: 1000000,
+        exp: 1007200,
+        lifetime: 7200,
+        roles: []
+      });
       const s = jwt.summarize(tok);
       expect(s).toContain('ID: ?');
     });
 
     test('mostra ? quando iat ausente', () => {
-      const tok = makeJWT({ nickname: 'N', username: 'u', exp: 1007200, lifetime: 7200, loginGrantType: 'x', roles: [] });
+      const tok = makeJWT({
+        nickname: 'N',
+        username: 'u',
+        exp: 1007200,
+        lifetime: 7200,
+        loginGrantType: 'x',
+        roles: []
+      });
       const s = jwt.summarize(tok);
       expect(s).toContain('Emitido: ?');
     });
 
     test('mostra ? quando exp ausente (sem [EXPIRADO])', () => {
-      const tok = makeJWT({ nickname: 'N', username: 'u', iat: 1000000, lifetime: 7200, loginGrantType: 'x', roles: [] });
+      const tok = makeJWT({
+        nickname: 'N',
+        username: 'u',
+        iat: 1000000,
+        lifetime: 7200,
+        loginGrantType: 'x',
+        roles: []
+      });
       const s = jwt.summarize(tok);
       expect(s).toContain('Expira: ?');
       expect(s).not.toContain('[EXPIRADO]');
     });
 
     test('mostra ? quando lifetime ausente', () => {
-      const tok = makeJWT({ nickname: 'N', username: 'u', iat: 1000000, exp: 1007200, loginGrantType: 'x', roles: [] });
+      const tok = makeJWT({
+        nickname: 'N',
+        username: 'u',
+        iat: 1000000,
+        exp: 1007200,
+        loginGrantType: 'x',
+        roles: []
+      });
       const s = jwt.summarize(tok);
       expect(s).toContain('Lifetime: ?');
     });
 
     test('mostra [] quando roles ausente', () => {
-      const tok = makeJWT({ nickname: 'N', username: 'u', iat: 1000000, exp: 1007200, lifetime: 7200, loginGrantType: 'x' });
+      const tok = makeJWT({
+        nickname: 'N',
+        username: 'u',
+        iat: 1000000,
+        exp: 1007200,
+        lifetime: 7200,
+        loginGrantType: 'x'
+      });
       const s = jwt.summarize(tok);
       expect(s).toContain('Roles: []');
     });
 
     test('mostra ? quando loginGrantType ausente', () => {
-      const tok = makeJWT({ nickname: 'N', username: 'u', iat: 1000000, exp: 1007200, lifetime: 7200, roles: [] });
+      const tok = makeJWT({
+        nickname: 'N',
+        username: 'u',
+        iat: 1000000,
+        exp: 1007200,
+        lifetime: 7200,
+        roles: []
+      });
       const s = jwt.summarize(tok);
       expect(s).toContain('GrantType: ?');
     });

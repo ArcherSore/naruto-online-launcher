@@ -126,8 +126,7 @@ function detectCoreTopology() {
           });
           for (var i = 0; i < cpuEntries.length; i++) {
             try {
-              var coreTypePath =
-                cpuDir + '/' + cpuEntries[i] + '/topology/core_type';
+              var coreTypePath = cpuDir + '/' + cpuEntries[i] + '/topology/core_type';
               if (fs.existsSync(coreTypePath)) {
                 var coreType = fs.readFileSync(coreTypePath, 'utf8').trim();
                 var cpuNum = parseInt(cpuEntries[i].replace('cpu', ''), 10);

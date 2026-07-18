@@ -53,7 +53,8 @@ function isValidProfile(p) {
   if (!['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(p.region)) return false;
   // v3.4: language opcional (default 'pt' para retrocompatibilidade)
   // v4.0.1 FIX: sync with settings.js — i18n supports 6 languages
-  if (p.language !== undefined && !['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(p.language)) return false;
+  if (p.language !== undefined && !['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(p.language))
+    return false;
   // v3.4: notificationsEnabled opcional (default true para retrocompatibilidade)
   if (p.notificationsEnabled !== undefined && typeof p.notificationsEnabled !== 'boolean')
     return false;
@@ -353,7 +354,8 @@ function update(id, updates) {
   if (['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(updates.region))
     p.region = updates.region;
   // v4.0.1 FIX: sync with settings.js — i18n supports 6 languages
-  if (['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(updates.language)) p.language = updates.language;
+  if (['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(updates.language))
+    p.language = updates.language;
   if (typeof updates.notificationsEnabled === 'boolean')
     p.notificationsEnabled = updates.notificationsEnabled;
   // v4.5: notes (string, max 200)

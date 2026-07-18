@@ -528,8 +528,7 @@ function _parsePowershellGpuCsv(out) {
 
     var code = null;
     if (vendorName.indexOf('nvidia') !== -1) code = 'nvidia';
-    else if (vendorName.indexOf('amd') !== -1 || vendorName.indexOf('radeon') !== -1)
-      code = 'amd';
+    else if (vendorName.indexOf('amd') !== -1 || vendorName.indexOf('radeon') !== -1) code = 'amd';
     else if (vendorName.indexOf('intel') !== -1) code = 'intel';
     if (!code) continue;
 

@@ -128,8 +128,16 @@ function registerIpcHandlers(handlers) {
     // v5.9.15: Whitelist updatable fields to prevent renderer from overwriting
     // internal fields (id, createdAt, stats, launchCount, lastPlayed, etc.)
     const ALLOWED = [
-      'name', 'server', 'region', 'language', 'color', 'notes',
-      'tags', 'favorite', 'notificationsEnabled', 'hardwareProfile'
+      'name',
+      'server',
+      'region',
+      'language',
+      'color',
+      'notes',
+      'tags',
+      'favorite',
+      'notificationsEnabled',
+      'hardwareProfile'
     ];
     var safe = { id: data.id };
     for (var i = 0; i < ALLOWED.length; i++) {
@@ -162,7 +170,11 @@ function registerIpcHandlers(handlers) {
     // Limpa inspector se existir (evita leak no Map _inspectors)
     var insp = _inspectors.get(id);
     if (insp) {
-      try { insp.disable(); } catch (_) { /* ignore */ }
+      try {
+        insp.disable();
+      } catch (_) {
+        /* ignore */
+      }
       _inspectors.delete(id);
     }
     vault.removeCredentials(id);
@@ -206,7 +218,12 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.on('profile:update-notes', function (_e, data) {
-    if (typeof data !== 'object' || data === null || typeof data.id !== 'string' || typeof data.notes !== 'string')
+    if (
+      typeof data !== 'object' ||
+      data === null ||
+      typeof data.id !== 'string' ||
+      typeof data.notes !== 'string'
+    )
       return;
     store.update(data.id, { notes: data.notes.slice(0, 200) });
     _pushProfiles();
@@ -452,7 +469,11 @@ function registerIpcHandlers(handlers) {
 
   ipcMain.handle('inspector:entries', function (_e, profileId, filter) {
     if (typeof profileId !== 'string') return { ok: true, data: { entries: [], stats: null } };
-    if (filter !== null && filter !== undefined && (typeof filter !== 'object' || Array.isArray(filter))) {
+    if (
+      filter !== null &&
+      filter !== undefined &&
+      (typeof filter !== 'object' || Array.isArray(filter))
+    ) {
       return { ok: true, data: { entries: [], stats: null } };
     }
     const insp = _inspectors.get(profileId);
@@ -711,7 +732,8 @@ function registerIpcHandlers(handlers) {
     try {
       const filePath = result.filePaths[0];
       const stat = fs.statSync(filePath);
-      if (stat.size > 10 * 1024 * 1024) return { ok: false, error: 'File too large (max 10MB)', imported: 0 };
+      if (stat.size > 10 * 1024 * 1024)
+        return { ok: false, error: 'File too large (max 10MB)', imported: 0 };
       const raw = fs.readFileSync(filePath, 'utf8');
       const res = store.importJSON(raw);
       _pushProfiles();

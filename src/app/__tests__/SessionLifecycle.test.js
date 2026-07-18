@@ -608,9 +608,7 @@ describe('SessionLifecycle.js', () => {
             pass: 'p'
           }));
           var apiLogin = require('../../network/api-login');
-          apiLogin.renewIfNeeded.mockImplementation(() =>
-            Promise.reject(new Error('server down'))
-          );
+          apiLogin.renewIfNeeded.mockImplementation(() => Promise.reject(new Error('server down')));
 
           SessionLifecycle.attach(win, ctx);
 
@@ -899,19 +897,37 @@ describe('SessionLifecycle.js', () => {
 
   describe('reloadWithPreAuth — edge cases', () => {
     test('retorna Promise.resolve() quando win é null', async () => {
-      var result = await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, null, {}, jest.fn());
+      var result = await SessionLifecycle.reloadWithPreAuth(
+        'p1',
+        { name: 't' },
+        null,
+        {},
+        jest.fn()
+      );
       expect(result).toBeUndefined();
     });
 
     test('retorna Promise.resolve() quando win.isDestroyed() true', async () => {
       var win = { isDestroyed: () => true, webContents: { isDestroyed: () => true } };
-      var result = await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, {}, jest.fn());
+      var result = await SessionLifecycle.reloadWithPreAuth(
+        'p1',
+        { name: 't' },
+        win,
+        {},
+        jest.fn()
+      );
       expect(result).toBeUndefined();
     });
 
     test('retorna Promise.resolve() quando webContents.isDestroyed() true', async () => {
       var win = { isDestroyed: () => false, id: 99, webContents: { isDestroyed: () => true } };
-      var result = await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, null, jest.fn());
+      var result = await SessionLifecycle.reloadWithPreAuth(
+        'p1',
+        { name: 't' },
+        win,
+        null,
+        jest.fn()
+      );
       expect(result).toBeUndefined();
     });
 
@@ -941,7 +957,13 @@ describe('SessionLifecycle.js', () => {
         clearCache: jest.fn(() => Promise.resolve())
       };
 
-      await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, ses, () => 'https://game.url');
+      await SessionLifecycle.reloadWithPreAuth(
+        'p1',
+        { name: 't' },
+        win,
+        ses,
+        () => 'https://game.url'
+      );
 
       expect(ses.clearStorageData).toHaveBeenCalledWith({
         storages: ['cookies', 'localstorage', 'sessionstorage']
@@ -989,7 +1011,13 @@ describe('SessionLifecycle.js', () => {
         clearCache: jest.fn(() => Promise.resolve())
       };
 
-      await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, ses, () => 'https://game.url');
+      await SessionLifecycle.reloadWithPreAuth(
+        'p1',
+        { name: 't' },
+        win,
+        ses,
+        () => 'https://game.url'
+      );
 
       // loadURL não deve ser chamado (win destruído no meio)
       // _loadGameWithPreAuth checa win.isDestroyed internamente

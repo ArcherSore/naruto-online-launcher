@@ -1,7 +1,7 @@
 {
   "name": "naruto-online-launcher",
-  "version": "5.9.35",
-  "description": "Shinobi Launcher \u2014 Multi-account isolated Flash game launcher for Naruto Online. GC inteligente, multi-conta, cross-platform Linux+Windows.",
+  "version": "5.9.38",
+  "description": "Shinobi Launcher — Multi-account isolated Flash game launcher for Naruto Online. GC inteligente, multi-conta, cross-platform Linux+Windows.",
   "main": "src/main.js",
   "author": "Chrispsz",
   "license": "MIT",
@@ -89,7 +89,7 @@
       "icon": "assets/icon.png",
       "desktop": {
         "Name": "Naruto Online",
-        "Comment": "Play Naruto Online with Flash PPAPI \u2014 Native Linux Launcher",
+        "Comment": "Play Naruto Online with Flash PPAPI — Native Linux Launcher",
         "GenericName": "Game Launcher",
         "Categories": "Game;RolePlaying;",
         "Keywords": "game;naruto;flash;browser;mmo;anime;rpg;",

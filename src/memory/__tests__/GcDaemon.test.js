@@ -156,77 +156,77 @@ describe('MemoryGuard.js (split)', () => {
   });
 });
 
-  // ── CRON-3: Additional coverage tests ──
+// ── CRON-3: Additional coverage tests ──
 
-  describe('collect — caminhos normais', () => {
-    test('retorna resultado com beforeMB/afterMB quando GC executa', async () => {
-      // Garante que não está throttled (ja passou o tempo)
-      await new Promise(function (r) {
-        setTimeout(r, 100);
-      });
-      const r = await GcDaemon.collect({ manual: false });
-      // Pode ser throttled se a chamada anterior foi recente
-      if (!r.throttled && !r.busy) {
-        expect(r).toHaveProperty('beforeMB');
-        expect(r).toHaveProperty('afterMB');
-        expect(r).toHaveProperty('savedMB');
-        expect(r.throttled).toBe(false);
-      }
+describe('collect — caminhos normais', () => {
+  test('retorna resultado com beforeMB/afterMB quando GC executa', async () => {
+    // Garante que não está throttled (ja passou o tempo)
+    await new Promise(function (r) {
+      setTimeout(r, 100);
     });
-
-    test('retorna {busy:true} quando collect já em execução', async () => {
-      // Força _collecting=true simulando uma chamada lenta
-      // A forma mais confiável: chamar collect() que retarda, depois chamar outra
-      // mas _collecting é resetado via finally. Usamos o throttle path.
-      // Chamada dupla rápida → segunda deve ser busy ou throttled.
-      var p1 = GcDaemon.collect({ manual: true });
-      var p2 = GcDaemon.collect({ manual: true });
-      var r2 = await p2;
-      // r2 deve ser busy (primeira ainda em execução) ou throttled
-      expect(r2.busy === true || r2.throttled === true).toBe(true);
-      await p1;
-    }, 15000);
+    const r = await GcDaemon.collect({ manual: false });
+    // Pode ser throttled se a chamada anterior foi recente
+    if (!r.throttled && !r.busy) {
+      expect(r).toHaveProperty('beforeMB');
+      expect(r).toHaveProperty('afterMB');
+      expect(r).toHaveProperty('savedMB');
+      expect(r.throttled).toBe(false);
+    }
   });
 
-  describe('collect — camadas de erro', () => {
-    test('não lança se MemoryGuard.getStats falhar', async () => {
-      jest.spyOn(MemoryGuard, 'getStats').mockImplementation(function () {
-        throw new Error('stats boom');
-      });
-      // Precisa esperar throttle passar
-      await new Promise(function (r) {
-        setTimeout(r, 100);
-      });
-      // Deve ser capturado pelo try/catch no collect
-      var threw = false;
-      try {
-        await GcDaemon.collect({ manual: true });
-      } catch (e) {
-        threw = true;
-      }
-      // collect nunca lança (finally reseta _collecting)
-      expect(threw).toBe(false);
-      MemoryGuard.getStats.mockRestore();
-    }, 15000);
+  test('retorna {busy:true} quando collect já em execução', async () => {
+    // Força _collecting=true simulando uma chamada lenta
+    // A forma mais confiável: chamar collect() que retarda, depois chamar outra
+    // mas _collecting é resetado via finally. Usamos o throttle path.
+    // Chamada dupla rápida → segunda deve ser busy ou throttled.
+    var p1 = GcDaemon.collect({ manual: true });
+    var p2 = GcDaemon.collect({ manual: true });
+    var r2 = await p2;
+    // r2 deve ser busy (primeira ainda em execução) ou throttled
+    expect(r2.busy === true || r2.throttled === true).toBe(true);
+    await p1;
+  }, 15000);
+});
+
+describe('collect — camadas de erro', () => {
+  test('não lança se MemoryGuard.getStats falhar', async () => {
+    jest.spyOn(MemoryGuard, 'getStats').mockImplementation(function () {
+      throw new Error('stats boom');
+    });
+    // Precisa esperar throttle passar
+    await new Promise(function (r) {
+      setTimeout(r, 100);
+    });
+    // Deve ser capturado pelo try/catch no collect
+    var threw = false;
+    try {
+      await GcDaemon.collect({ manual: true });
+    } catch (e) {
+      threw = true;
+    }
+    // collect nunca lança (finally reseta _collecting)
+    expect(threw).toBe(false);
+    MemoryGuard.getStats.mockRestore();
+  }, 15000);
+});
+
+describe('start — daemon behavior', () => {
+  test('start cria timer e stop limpa', () => {
+    GcDaemon.start();
+    GcDaemon.stop();
+    // Se não lançou, passou
   });
 
-  describe('start — daemon behavior', () => {
-    test('start cria timer e stop limpa', () => {
-      GcDaemon.start();
-      GcDaemon.stop();
-      // Se não lançou, passou
-    });
-
-    test('stop é safe quando nunca startou', () => {
-      GcDaemon.stop();
-    });
-
-    test('start é idempotente — segundo start ignora', () => {
-      GcDaemon.start();
-      GcDaemon.start();
-      GcDaemon.stop();
-    });
+  test('stop é safe quando nunca startou', () => {
+    GcDaemon.stop();
   });
+
+  test('start é idempotente — segundo start ignora', () => {
+    GcDaemon.start();
+    GcDaemon.start();
+    GcDaemon.stop();
+  });
+});
 
 describe('guard.js facade', () => {
   const guard = require('../guard');
@@ -274,10 +274,16 @@ describe('GcDaemon — additional coverage', () => {
 
   test('collect não lança se process.gc(true) throws', async () => {
     const origGc = process.gc;
-    process.gc = jest.fn(() => { throw new Error('gc boom'); });
+    process.gc = jest.fn(() => {
+      throw new Error('gc boom');
+    });
     await new Promise(r => setTimeout(r, 35000));
     var threw = false;
-    try { await GcDaemon.collect({ manual: true }); } catch (_) { threw = true; }
+    try {
+      await GcDaemon.collect({ manual: true });
+    } catch (_) {
+      threw = true;
+    }
     expect(threw).toBe(false);
     process.gc = origGc;
   }, 60000);
@@ -286,7 +292,11 @@ describe('GcDaemon — additional coverage', () => {
     jest.spyOn(GcDaemon, '_clearIdleSessions').mockRejectedValue(new Error('layer1'));
     await new Promise(r => setTimeout(r, 35000));
     var threw = false;
-    try { await GcDaemon.collect({ manual: true }); } catch (_) { threw = true; }
+    try {
+      await GcDaemon.collect({ manual: true });
+    } catch (_) {
+      threw = true;
+    }
     expect(threw).toBe(false);
   }, 60000);
 

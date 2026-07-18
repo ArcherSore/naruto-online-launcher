@@ -726,7 +726,9 @@
         animation: spin 0.8s linear infinite;
       }
       @keyframes spin {
-        to { transform: rotate(360deg); }
+        to {
+          transform: rotate(360deg);
+        }
       }
       .card-actions .btn-icon-only {
         width: 2rem;
@@ -2734,7 +2736,6 @@
         justify-content: center;
       }
 
-
       /* ── v5.2: View Transitions ── */
       .view {
         display: none;
@@ -2755,7 +2756,6 @@
           transform: translateY(0);
         }
       }
-
 
       .card {
         transition:
@@ -2793,7 +2793,9 @@
         border: 1px solid var(--border);
         margin-right: var(--space-2);
         cursor: pointer;
-        transition: border-color 0.2s, color 0.2s;
+        transition:
+          border-color 0.2s,
+          color 0.2s;
       }
       .conn-indicator:hover {
         border-color: var(--accent);
@@ -2814,7 +2816,6 @@
         background: var(--warn);
         animation: pulseRing 0.8s ease-in-out infinite;
       }
-
 
       /* ── v5.3: Sidebar Uptime Counter ── */
       .sidebar-uptime {
@@ -3019,7 +3020,6 @@
       .accent-swatch[data-color='amber'] {
         background: #f59e0b;
       }
-
 
       /* ── v5.4: Last Played Chip ── */
       .last-played-chip {
@@ -3291,7 +3291,6 @@
         outline-offset: 2px;
       }
 
-
       /* ── v5.5: Enhanced empty state ── */
       .empty {
         position: relative;
@@ -3327,7 +3326,6 @@
         max-width: 340px;
         line-height: 1.5;
       }
-
 
       /* ── v5.5: Theme Variants ── */
       .theme-variants {
@@ -3953,7 +3951,6 @@
         box-shadow: 0 0 12px rgba(255, 140, 0, 0.25);
       }
 
-
       /* ── v5.6: Badge pop animation ── */
       @keyframes badgePop {
         0% {
@@ -4537,7 +4534,13 @@
         </div>
 
         <div class="nav">
-          <div class="nav-item active" data-view="accounts" tabindex="0" role="tab" aria-selected="true">
+          <div
+            class="nav-item active"
+            data-view="accounts"
+            tabindex="0"
+            role="tab"
+            aria-selected="true"
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
@@ -4634,9 +4637,16 @@
             </svg>
             <span id="lastProfileName"></span>
           </button>
-          <div class="actions" style="flex-wrap:wrap;gap:0.4rem">
+          <div class="actions" style="flex-wrap: wrap; gap: 0.4rem">
             <!-- v5.3: Connection Health Indicator -->
-            <div class="conn-indicator" id="connIndicator" title="Status de conexão — clique para verificar" role="button" tabindex="0" aria-label="Verificar conexão">
+            <div
+              class="conn-indicator"
+              id="connIndicator"
+              title="Status de conexão — clique para verificar"
+              role="button"
+              tabindex="0"
+              aria-label="Verificar conexão"
+            >
               <span class="conn-dot" id="connDot"></span>
               <span id="connLabel">Online</span>
             </div>
@@ -4721,7 +4731,12 @@
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
               </svg>
             </button>
-            <button class="btn primary" id="newBtn" title="Criar nova conta" aria-label="Criar nova conta">
+            <button
+              class="btn primary"
+              id="newBtn"
+              title="Criar nova conta"
+              aria-label="Criar nova conta"
+            >
               <svg
                 width="14"
                 height="14"
@@ -4790,14 +4805,38 @@
               <div class="batch-bar" id="batchBar">
                 <span class="batch-count" id="batchCount">0 selecionados</span>
                 <div class="batch-actions">
-                  <button class="btn sm" id="batchSelectAll" type="button" aria-label="Selecionar todas as contas">Selecionar todos</button>
-                  <button class="btn sm" id="batchExportBtn" type="button" aria-label="Exportar contas selecionadas">
+                  <button
+                    class="btn sm"
+                    id="batchSelectAll"
+                    type="button"
+                    aria-label="Selecionar todas as contas"
+                  >
+                    Selecionar todos
+                  </button>
+                  <button
+                    class="btn sm"
+                    id="batchExportBtn"
+                    type="button"
+                    aria-label="Exportar contas selecionadas"
+                  >
                     Exportar selecionados
                   </button>
-                  <button class="btn sm btn-danger" id="batchDeleteBtn" type="button" aria-label="Excluir contas selecionadas">
+                  <button
+                    class="btn sm btn-danger"
+                    id="batchDeleteBtn"
+                    type="button"
+                    aria-label="Excluir contas selecionadas"
+                  >
                     Excluir selecionados
                   </button>
-                  <button class="btn sm" id="batchCancelBtn" type="button" aria-label="Cancelar seleção">Cancelar</button>
+                  <button
+                    class="btn sm"
+                    id="batchCancelBtn"
+                    type="button"
+                    aria-label="Cancelar seleção"
+                  >
+                    Cancelar
+                  </button>
                 </div>
               </div>
               <div class="search-wrap">
@@ -4914,16 +4953,41 @@
                 </h4>
                 <div class="heatmap-legend">
                   <span>Menos</span>
-                  <span class="hm-swatch" aria-hidden="true" style="background: var(--bg-elev)"></span>
-                  <span class="hm-swatch" aria-hidden="true" style="background: rgba(255, 140, 0, 0.25)"></span>
-                  <span class="hm-swatch" aria-hidden="true" style="background: rgba(255, 140, 0, 0.45)"></span>
-                  <span class="hm-swatch" aria-hidden="true" style="background: rgba(255, 140, 0, 0.7)"></span>
-                  <span class="hm-swatch" aria-hidden="true" style="background: var(--accent)"></span>
+                  <span
+                    class="hm-swatch"
+                    aria-hidden="true"
+                    style="background: var(--bg-elev)"
+                  ></span>
+                  <span
+                    class="hm-swatch"
+                    aria-hidden="true"
+                    style="background: rgba(255, 140, 0, 0.25)"
+                  ></span>
+                  <span
+                    class="hm-swatch"
+                    aria-hidden="true"
+                    style="background: rgba(255, 140, 0, 0.45)"
+                  ></span>
+                  <span
+                    class="hm-swatch"
+                    aria-hidden="true"
+                    style="background: rgba(255, 140, 0, 0.7)"
+                  ></span>
+                  <span
+                    class="hm-swatch"
+                    aria-hidden="true"
+                    style="background: var(--accent)"
+                  ></span>
                   <span>Mais</span>
                 </div>
               </div>
               <div class="heatmap-wrap">
-                <div class="heatmap-grid" id="heatmapGrid" role="grid" aria-label="Mapa de atividade — últimos 365 dias"></div>
+                <div
+                  class="heatmap-grid"
+                  id="heatmapGrid"
+                  role="grid"
+                  aria-label="Mapa de atividade — últimos 365 dias"
+                ></div>
                 <div class="heatmap-months" id="heatmapMonths"></div>
               </div>
             </div>
@@ -5027,7 +5091,13 @@
                   <div class="label">Notificações</div>
                   <div class="desc">Alertas de eventos do jogo — mesmo toggle do sino no topo</div>
                 </div>
-                <div class="toggle on" id="setNotifications" role="switch" aria-checked="true" tabindex="0"></div>
+                <div
+                  class="toggle on"
+                  id="setNotifications"
+                  role="switch"
+                  aria-checked="true"
+                  tabindex="0"
+                ></div>
               </div>
             </div>
             <div class="settings-section">
@@ -5234,42 +5304,54 @@
                     title="Laranja (padrão)"
                   ></div>
                   <div
-                    role="button" tabindex="0" class="accent-swatch"
+                    role="button"
+                    tabindex="0"
+                    class="accent-swatch"
                     data-color="cyan"
                     data-hex="#06B6D4"
                     data-hover="#22D3EE"
                     title="Ciano"
                   ></div>
                   <div
-                    role="button" tabindex="0" class="accent-swatch"
+                    role="button"
+                    tabindex="0"
+                    class="accent-swatch"
                     data-color="emerald"
                     data-hex="#10B981"
                     data-hover="#34D399"
                     title="Esmeralda"
                   ></div>
                   <div
-                    role="button" tabindex="0" class="accent-swatch"
+                    role="button"
+                    tabindex="0"
+                    class="accent-swatch"
                     data-color="pink"
                     data-hex="#EC4899"
                     data-hover="#F472B6"
                     title="Rosa"
                   ></div>
                   <div
-                    role="button" tabindex="0" class="accent-swatch"
+                    role="button"
+                    tabindex="0"
+                    class="accent-swatch"
                     data-color="purple"
                     data-hex="#8B5CF6"
                     data-hover="#A78BFA"
                     title="Roxo"
                   ></div>
                   <div
-                    role="button" tabindex="0" class="accent-swatch"
+                    role="button"
+                    tabindex="0"
+                    class="accent-swatch"
                     data-color="red"
                     data-hex="#DC2626"
                     data-hover="#EF4444"
                     title="Vermelho"
                   ></div>
                   <div
-                    role="button" tabindex="0" class="accent-swatch"
+                    role="button"
+                    tabindex="0"
+                    class="accent-swatch"
                     data-color="amber"
                     data-hex="#F59E0B"
                     data-hover="#FBBF24"
@@ -5292,7 +5374,9 @@
                   </div>
                   <div class="theme-variants" id="themeVariants" style="margin-top: 0.6rem">
                     <div
-                      role="button" tabindex="0" class="theme-variant-card active"
+                      role="button"
+                      tabindex="0"
+                      class="theme-variant-card active"
                       data-variant="midnight"
                       title="Midnight Shinobi (padrão)"
                     >
@@ -5303,7 +5387,13 @@
                       </div>
                       <div class="tv-name">Midnight</div>
                     </div>
-                    <div role="button" tabindex="0" class="theme-variant-card" data-variant="crimson" title="Crimson Dawn">
+                    <div
+                      role="button"
+                      tabindex="0"
+                      class="theme-variant-card"
+                      data-variant="crimson"
+                      title="Crimson Dawn"
+                    >
                       <div class="tv-swatches">
                         <span style="background: #000000"></span
                         ><span style="background: #dc2626"></span
@@ -5311,7 +5401,13 @@
                       </div>
                       <div class="tv-name">Crimson</div>
                     </div>
-                    <div role="button" tabindex="0" class="theme-variant-card" data-variant="forest" title="Forest Mist">
+                    <div
+                      role="button"
+                      tabindex="0"
+                      class="theme-variant-card"
+                      data-variant="forest"
+                      title="Forest Mist"
+                    >
                       <div class="tv-swatches">
                         <span style="background: #000000"></span
                         ><span style="background: #10b981"></span
@@ -5319,7 +5415,13 @@
                       </div>
                       <div class="tv-name">Forest</div>
                     </div>
-                    <div role="button" tabindex="0" class="theme-variant-card" data-variant="arctic" title="Arctic Glow">
+                    <div
+                      role="button"
+                      tabindex="0"
+                      class="theme-variant-card"
+                      data-variant="arctic"
+                      title="Arctic Glow"
+                    >
                       <div class="tv-swatches">
                         <span style="background: #000000"></span
                         ><span style="background: #06b6d4"></span
@@ -5351,7 +5453,13 @@
               </div>
               <!-- Tempmail -->
               <div class="dev-subsection">
-                <div class="dev-subsection-header" role="button" tabindex="0" aria-expanded="true" data-dev-toggle>
+                <div
+                  class="dev-subsection-header"
+                  role="button"
+                  tabindex="0"
+                  aria-expanded="true"
+                  data-dev-toggle
+                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -5387,7 +5495,13 @@
               </div>
               <!-- API Login -->
               <div class="dev-subsection">
-                <div class="dev-subsection-header" role="button" tabindex="0" aria-expanded="true" data-dev-toggle>
+                <div
+                  class="dev-subsection-header"
+                  role="button"
+                  tabindex="0"
+                  aria-expanded="true"
+                  data-dev-toggle
+                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -5458,7 +5572,13 @@
               </div>
               <!-- JWT Decoder -->
               <div class="dev-subsection">
-                <div class="dev-subsection-header" role="button" tabindex="0" aria-expanded="true" data-dev-toggle>
+                <div
+                  class="dev-subsection-header"
+                  role="button"
+                  tabindex="0"
+                  aria-expanded="true"
+                  data-dev-toggle
+                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -5503,7 +5623,13 @@
               </div>
               <!-- Inspector -->
               <div class="dev-subsection">
-                <div class="dev-subsection-header" role="button" tabindex="0" aria-expanded="true" data-dev-toggle>
+                <div
+                  class="dev-subsection-header"
+                  role="button"
+                  tabindex="0"
+                  aria-expanded="true"
+                  data-dev-toggle
+                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -5557,7 +5683,13 @@
               </div>
               <!-- Source Extractor -->
               <div class="dev-subsection">
-                <div class="dev-subsection-header" role="button" tabindex="0" aria-expanded="true" data-dev-toggle>
+                <div
+                  class="dev-subsection-header"
+                  role="button"
+                  tabindex="0"
+                  aria-expanded="true"
+                  data-dev-toggle
+                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -5684,12 +5816,7 @@
           <label for="fVaultPass">Senha</label>
           <div class="field-with-toggle">
             <input id="fVaultPass" type="password" placeholder="Senha" autocomplete="off" />
-            <button
-              class="toggle-pass"
-              id="togglePass"
-              type="button"
-              title="Mostrar senha"
-            >
+            <button class="toggle-pass" id="togglePass" type="button" title="Mostrar senha">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -5719,7 +5846,13 @@
 
     <!-- ═══ Custom Confirm Dialog (v5.2) ═══ -->
     <div class="confirm-overlay" id="confirmOverlay">
-      <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+      <div
+        class="confirm-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirmTitle"
+        aria-describedby="confirmMessage"
+      >
         <div class="confirm-icon danger" id="confirmIcon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path
@@ -5737,7 +5870,6 @@
         </div>
       </div>
     </div>
-
 
     <!-- ═══ Keyboard Shortcuts Overlay (v5.1) ═══ -->
     <div class="kb-overlay" id="kbOverlay" tabindex="-1">
@@ -5782,9 +5914,7 @@
             </div>
             <div class="kb-row">
               <span class="kb-action">Buscar contas</span
-              ><span class="kb-keys"
-                ><span class="kb-key accent">/</span></span
-              >
+              ><span class="kb-keys"><span class="kb-key accent">/</span></span>
             </div>
             <div class="kb-row">
               <span class="kb-action">Command Palette</span
@@ -6116,8 +6246,7 @@
       function renderProfiles() {
         const grid = document.getElementById('profileGrid');
         // v4.5: Apply view mode class
-        grid.className =
-          'grid' + (viewMode === 'list' ? ' list-view' : '');
+        grid.className = 'grid' + (viewMode === 'list' ? ' list-view' : '');
         let filtered = profiles;
         if (searchQuery) {
           filtered = profiles.filter(function (p) {
@@ -6176,7 +6305,14 @@
           const card = document.createElement('div');
           card.tabIndex = 0;
           card.setAttribute('role', 'article');
-          card.setAttribute('aria-label', p.name + ' \u2014 ' + (p.server || 'sem servidor') + ' \u2014 ' + (REGIONS[p.region] || p.region));
+          card.setAttribute(
+            'aria-label',
+            p.name +
+              ' \u2014 ' +
+              (p.server || 'sem servidor') +
+              ' \u2014 ' +
+              (REGIONS[p.region] || p.region)
+          );
           card.style.setProperty('--accent', p.color);
           card.style.animationDelay = idx * 60 + 'ms';
           card.setAttribute('data-card-color', p.color);
@@ -6298,7 +6434,8 @@
           // v5.1: Batch checkbox
           var batchCheckHtml =
             '<div class="card-batch-check" role="checkbox" aria-checked="false" aria-label="Selecionar ' +
-            esc(p.name) + '" tabindex="0" data-batch-id="' +
+            esc(p.name) +
+            '" tabindex="0" data-batch-id="' +
             p.id +
             '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>';
           card.innerHTML = `
@@ -6478,7 +6615,10 @@
         // Find the specific dup button for this card
         var card = document.querySelector('[data-card-id="' + id + '"]');
         if (card) dupBtn = card.querySelector('[data-act="dup"]');
-        if (dupBtn) { dupBtn.disabled = true; dupBtn.style.opacity = '0.6'; }
+        if (dupBtn) {
+          dupBtn.disabled = true;
+          dupBtn.style.opacity = '0.6';
+        }
         try {
           var r = await ipcRenderer.invoke('profile:duplicate', id);
           if (r.ok) {
@@ -6487,7 +6627,10 @@
             toast('Erro ao duplicar: ' + (r.error || 'desconhecido'), 'err');
           }
         } finally {
-          if (dupBtn) { dupBtn.disabled = false; dupBtn.style.opacity = ''; }
+          if (dupBtn) {
+            dupBtn.disabled = false;
+            dupBtn.style.opacity = '';
+          }
         }
       }
 
@@ -6645,12 +6788,23 @@
             ipcRenderer.invoke('events:get', selectedRegion).then(renderEventsSingle);
           }
           t.addEventListener('click', activateTab);
-          t.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activateTab(); }
+          t.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              activateTab();
+            }
             var tabList = Array.from(tabs.children);
             var idx = tabList.indexOf(t);
-            if (e.key === 'ArrowRight') { var next = tabList[(idx + 1) % tabList.length]; next.focus(); next.click(); }
-            if (e.key === 'ArrowLeft') { var prev = tabList[(idx - 1 + tabList.length) % tabList.length]; prev.focus(); prev.click(); }
+            if (e.key === 'ArrowRight') {
+              var next = tabList[(idx + 1) % tabList.length];
+              next.focus();
+              next.click();
+            }
+            if (e.key === 'ArrowLeft') {
+              var prev = tabList[(idx - 1 + tabList.length) % tabList.length];
+              prev.focus();
+              prev.click();
+            }
           });
           tabs.setAttribute('role', 'tablist');
           tabs.appendChild(t);
@@ -6685,7 +6839,8 @@
         if (playBtn && !playBtn.classList.contains('launching')) {
           playBtn.classList.add('launching');
           var origHtml = playBtn.innerHTML;
-          playBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:0.7rem;height:0.7rem;fill:#0a0a0f"><path d="M12 2a10 10 0 0 1 10 10h-3a7 7 0 0 0-7-7V2z"/></svg> Abrindo...';
+          playBtn.innerHTML =
+            '<svg viewBox="0 0 24 24" style="width:0.7rem;height:0.7rem;fill:#0a0a0f"><path d="M12 2a10 10 0 0 1 10 10h-3a7 7 0 0 0-7-7V2z"/></svg> Abrindo...';
           setTimeout(function () {
             playBtn.classList.remove('launching');
             playBtn.innerHTML = origHtml;
@@ -6790,10 +6945,16 @@
         window._profileTrapCleanup = trapFocus(document.querySelector('#profileModal .modal'));
       };
       document.getElementById('cancelProfile').onclick = () => {
-        if (window._profileTrapCleanup) { window._profileTrapCleanup(); window._profileTrapCleanup = null; }
+        if (window._profileTrapCleanup) {
+          window._profileTrapCleanup();
+          window._profileTrapCleanup = null;
+        }
         document.getElementById('profileModal').classList.remove('show');
-        if (window._profileFocusReturn) { window._profileFocusReturn.focus(); window._profileFocusReturn = null; }
-      }
+        if (window._profileFocusReturn) {
+          window._profileFocusReturn.focus();
+          window._profileFocusReturn = null;
+        }
+      };
       document.getElementById('saveProfile').onclick = () => {
         const opts = {
           name: document.getElementById('fName').value.trim(),
@@ -6801,7 +6962,13 @@
           region: document.getElementById('fRegion').value,
           color: selectedColor,
           notes: document.getElementById('fNotes').value.trim(), // v4.5: save notes
-          tags: editingId ? ((profiles.find(function(x){return x.id===editingId})||{}).tags||[]) : []
+          tags: editingId
+            ? (
+                profiles.find(function (x) {
+                  return x.id === editingId;
+                }) || {}
+              ).tags || []
+            : []
         };
         if (!opts.name) {
           toast('Informe um nome', 'err');
@@ -6812,9 +6979,15 @@
         } else {
           ipcRenderer.send('profile:create', opts);
         }
-        if (window._profileTrapCleanup) { window._profileTrapCleanup(); window._profileTrapCleanup = null; }
+        if (window._profileTrapCleanup) {
+          window._profileTrapCleanup();
+          window._profileTrapCleanup = null;
+        }
         document.getElementById('profileModal').classList.remove('show');
-        if (window._profileFocusReturn) { window._profileFocusReturn.focus(); window._profileFocusReturn = null; }
+        if (window._profileFocusReturn) {
+          window._profileFocusReturn.focus();
+          window._profileFocusReturn = null;
+        }
       };
 
       // v4.5: Notes char counter
@@ -6842,8 +7015,12 @@
             selectedColor = c;
             renderColors();
           });
-          dot.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectedColor = c; renderColors(); }
+          dot.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              selectedColor = c;
+              renderColors();
+            }
           });
           row.appendChild(dot);
         });
@@ -6852,10 +7029,16 @@
       // ── Modal: Vault ──
       window._vaultFocusReturn = null;
       document.getElementById('cancelVault').onclick = () => {
-        if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
+        if (window._vaultTrapCleanup) {
+          window._vaultTrapCleanup();
+          window._vaultTrapCleanup = null;
+        }
         document.getElementById('vaultModal').classList.remove('show');
-        if (window._vaultFocusReturn) { window._vaultFocusReturn.focus(); window._vaultFocusReturn = null; }
-      }
+        if (window._vaultFocusReturn) {
+          window._vaultFocusReturn.focus();
+          window._vaultFocusReturn = null;
+        }
+      };
       document.getElementById('saveVault').onclick = async () => {
         const u = document.getElementById('fVaultUser').value;
         const p = document.getElementById('fVaultPass').value;
@@ -6874,9 +7057,15 @@
             return;
           }
           toast('Credenciais salvas', 'ok');
-          if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
+          if (window._vaultTrapCleanup) {
+            window._vaultTrapCleanup();
+            window._vaultTrapCleanup = null;
+          }
           document.getElementById('vaultModal').classList.remove('show');
-          if (window._vaultFocusReturn) { window._vaultFocusReturn.focus(); window._vaultFocusReturn = null; }
+          if (window._vaultFocusReturn) {
+            window._vaultFocusReturn.focus();
+            window._vaultFocusReturn = null;
+          }
         } catch (e) {
           toast('Erro ao salvar: ' + e.message, 'err');
         } finally {
@@ -6894,11 +7083,20 @@
         if (!confirmed) return;
         try {
           var res = await ipcRenderer.invoke('vault:remove', vaultId);
-          if (res && res.error) { toast('Erro: ' + res.error, 'err'); return; }
+          if (res && res.error) {
+            toast('Erro: ' + res.error, 'err');
+            return;
+          }
           toast('Credenciais removidas', 'ok');
-          if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
+          if (window._vaultTrapCleanup) {
+            window._vaultTrapCleanup();
+            window._vaultTrapCleanup = null;
+          }
           document.getElementById('vaultModal').classList.remove('show');
-          if (window._vaultFocusReturn) { window._vaultFocusReturn.focus(); window._vaultFocusReturn = null; }
+          if (window._vaultFocusReturn) {
+            window._vaultFocusReturn.focus();
+            window._vaultFocusReturn = null;
+          }
         } catch (e) {
           toast('Erro ao remover: ' + e.message, 'err');
         }
@@ -7007,7 +7205,10 @@
       }
       notifToggle.onclick = toggleNotifications;
       notifToggle.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleNotifications(); }
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleNotifications();
+        }
       });
 
       document.getElementById('setMode').onchange = function () {
@@ -7073,9 +7274,13 @@
         try {
           const servers = await window.api.fetchServers(region);
           if (!servers || !servers.length) {
-            hint.innerHTML = 'Nenhum servidor encontrado. <button class="btn sm" id="serverRetryBtn" style="margin-top:0.3rem">Tentar novamente</button> — ou selecione outra região.';
+            hint.innerHTML =
+              'Nenhum servidor encontrado. <button class="btn sm" id="serverRetryBtn" style="margin-top:0.3rem">Tentar novamente</button> — ou selecione outra região.';
             var retryBtn = document.getElementById('serverRetryBtn');
-            if (retryBtn) retryBtn.onclick = function() { document.getElementById('btnPickServer').click(); };
+            if (retryBtn)
+              retryBtn.onclick = function () {
+                document.getElementById('btnPickServer').click();
+              };
           } else {
             const recent = servers
               .slice(0, 20)
@@ -7854,7 +8059,7 @@
           });
         }
         localStorage.setItem(LAST_SESSION_KEY, JSON.stringify(lastSession));
-        });
+      });
       // Track auto-login results as activities
       ipcRenderer.on('auto-login:result', function (_e, data) {
         var p = profiles.find(function (x) {
@@ -7881,7 +8086,10 @@
       };
       document.getElementById('kbClose').onclick = function () {
         toggleKbOverlay(false);
-        if (window._kbFocusReturn) { window._kbFocusReturn.focus(); window._kbFocusReturn = null; }
+        if (window._kbFocusReturn) {
+          window._kbFocusReturn.focus();
+          window._kbFocusReturn = null;
+        }
       };
       kbOverlay.addEventListener('click', function (e) {
         if (e.target === kbOverlay) toggleKbOverlay(false);
@@ -8142,9 +8350,15 @@
             return;
           }
           document.getElementById('profileModal').classList.remove('show');
-          if (window._profileTrapCleanup) { window._profileTrapCleanup(); window._profileTrapCleanup = null; }
+          if (window._profileTrapCleanup) {
+            window._profileTrapCleanup();
+            window._profileTrapCleanup = null;
+          }
           document.getElementById('vaultModal').classList.remove('show');
-          if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
+          if (window._vaultTrapCleanup) {
+            window._vaultTrapCleanup();
+            window._vaultTrapCleanup = null;
+          }
         }
       });
 
@@ -8167,13 +8381,21 @@
         function handler(e) {
           if (e.key !== 'Tab') return;
           if (e.shiftKey) {
-            if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+            if (document.activeElement === first) {
+              e.preventDefault();
+              last.focus();
+            }
           } else {
-            if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+            if (document.activeElement === last) {
+              e.preventDefault();
+              first.focus();
+            }
           }
         }
         container.addEventListener('keydown', handler);
-        return function () { container.removeEventListener('keydown', handler); };
+        return function () {
+          container.removeEventListener('keydown', handler);
+        };
       }
 
       var _confirmResolve = null;
@@ -8200,8 +8422,14 @@
       }
       document.getElementById('confirmCancel').onclick = function () {
         document.getElementById('confirmOverlay').classList.remove('show');
-        if (_confirmTrapCleanup) { _confirmTrapCleanup(); _confirmTrapCleanup = null; }
-        if (_confirmFocusReturn) { _confirmFocusReturn.focus(); _confirmFocusReturn = null; }
+        if (_confirmTrapCleanup) {
+          _confirmTrapCleanup();
+          _confirmTrapCleanup = null;
+        }
+        if (_confirmFocusReturn) {
+          _confirmFocusReturn.focus();
+          _confirmFocusReturn = null;
+        }
         if (_confirmResolve) {
           _confirmResolve(false);
           _confirmResolve = null;
@@ -8209,8 +8437,14 @@
       };
       document.getElementById('confirmOk').onclick = function () {
         document.getElementById('confirmOverlay').classList.remove('show');
-        if (_confirmTrapCleanup) { _confirmTrapCleanup(); _confirmTrapCleanup = null; }
-        if (_confirmFocusReturn) { _confirmFocusReturn.focus(); _confirmFocusReturn = null; }
+        if (_confirmTrapCleanup) {
+          _confirmTrapCleanup();
+          _confirmTrapCleanup = null;
+        }
+        if (_confirmFocusReturn) {
+          _confirmFocusReturn.focus();
+          _confirmFocusReturn = null;
+        }
         if (_confirmResolve) {
           _confirmResolve(true);
           _confirmResolve = null;
@@ -8219,7 +8453,10 @@
       document.getElementById('confirmOverlay').addEventListener('click', function (e) {
         if (e.target === this) {
           this.classList.remove('show');
-          if (_confirmTrapCleanup) { _confirmTrapCleanup(); _confirmTrapCleanup = null; }
+          if (_confirmTrapCleanup) {
+            _confirmTrapCleanup();
+            _confirmTrapCleanup = null;
+          }
           if (_confirmResolve) {
             _confirmResolve(false);
             _confirmResolve = null;
@@ -8255,13 +8492,22 @@
           { type: 'warn', okText: 'Remover' }
         );
         if (!confirmed) return;
-        if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
+        if (window._vaultTrapCleanup) {
+          window._vaultTrapCleanup();
+          window._vaultTrapCleanup = null;
+        }
         try {
           var res = await ipcRenderer.invoke('vault:remove', vaultId);
-          if (res && res.error) { toast('Erro: ' + res.error, 'err'); return; }
+          if (res && res.error) {
+            toast('Erro: ' + res.error, 'err');
+            return;
+          }
           toast('Credenciais removidas', 'ok');
           document.getElementById('vaultModal').classList.remove('show');
-          if (window._vaultFocusReturn) { window._vaultFocusReturn.focus(); window._vaultFocusReturn = null; }
+          if (window._vaultFocusReturn) {
+            window._vaultFocusReturn.focus();
+            window._vaultFocusReturn = null;
+          }
         } catch (e) {
           toast('Erro ao remover: ' + e.message, 'err');
         }
@@ -8389,7 +8635,10 @@
       if (connEl) {
         connEl.addEventListener('click', checkConnection);
         connEl.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); checkConnection(); }
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            checkConnection();
+          }
         });
       }
 
@@ -8529,10 +8778,12 @@
           }
           swatch.onclick = activateSwatch;
           swatch.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activateSwatch(); }
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              activateSwatch();
+            }
           });
         });
-
       }
 
       // ── v5.4: Quick Launch Sidebar Widget (top 3 most-used) ──
@@ -8623,7 +8874,6 @@
           return p.lastUsed && Date.now() - p.lastUsed < sevenDaysMs;
         }).length;
         active7dEl.textContent = active7d;
-
       }
 
       // ── v5.4: Dev Tools Subsection Collapsible ──
@@ -8638,7 +8888,10 @@
           }
           header.onclick = toggleDevSection;
           header.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDevSection(); }
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              toggleDevSection();
+            }
           });
         });
       }
@@ -8768,10 +9021,12 @@
           }
           card.onclick = activateVariant;
           card.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activateVariant(); }
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              activateVariant();
+            }
           });
         });
-
       }
 
       // ── v5.5: Activity Timeline (7-day bar chart) ──
@@ -8783,7 +9038,8 @@
         try {
           data = await ipcRenderer.invoke('profile:launch-timeline', 7);
         } catch (e) {
-          chart.innerHTML = '<div class="timeline-empty-msg">Erro ao carregar atividade.<button onclick="loadTimeline()">Tentar novamente</button></div>';
+          chart.innerHTML =
+            '<div class="timeline-empty-msg">Erro ao carregar atividade.<button onclick="loadTimeline()">Tentar novamente</button></div>';
           return;
         }
         if (!Array.isArray(data) || !data.length) {
@@ -9099,8 +9355,14 @@
       function closeCmdk() {
         var overlay = document.getElementById('cmdkOverlay');
         if (overlay) overlay.hidden = true;
-        if (window._cmdkTrapCleanup) { window._cmdkTrapCleanup(); window._cmdkTrapCleanup = null; }
-        if (_cmdkFocusReturn) { _cmdkFocusReturn.focus(); _cmdkFocusReturn = null; }
+        if (window._cmdkTrapCleanup) {
+          window._cmdkTrapCleanup();
+          window._cmdkTrapCleanup = null;
+        }
+        if (_cmdkFocusReturn) {
+          _cmdkFocusReturn.focus();
+          _cmdkFocusReturn = null;
+        }
       }
       function initCommandPalette() {
         var overlay = document.getElementById('cmdkOverlay');
@@ -9220,8 +9482,14 @@
         var overlay = document.getElementById('onboardOverlay');
         if (!overlay) return;
         overlay.hidden = true;
-        if (window._onboardTrapCleanup) { window._onboardTrapCleanup(); window._onboardTrapCleanup = null; }
-        if (window._onboardFocusReturn) { window._onboardFocusReturn.focus(); window._onboardFocusReturn = null; }
+        if (window._onboardTrapCleanup) {
+          window._onboardTrapCleanup();
+          window._onboardTrapCleanup = null;
+        }
+        if (window._onboardFocusReturn) {
+          window._onboardFocusReturn.focus();
+          window._onboardFocusReturn = null;
+        }
         try {
           localStorage.setItem(ONBOARD_KEY, '1');
         } catch (_) {}
@@ -9621,10 +9889,15 @@
           if (statsGrid && !statsGrid.querySelector('.stats-error')) {
             var errDiv = document.createElement('div');
             errDiv.className = 'stats-error';
-            errDiv.style.cssText = 'grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:var(--font-sm);padding:0.5rem 0;';
-            errDiv.innerHTML = 'Erro ao carregar estatísticas. <button class="btn sm" id="statsRetryBtn" style="margin-top:0.3rem">Tentar novamente</button>';
+            errDiv.style.cssText =
+              'grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:var(--font-sm);padding:0.5rem 0;';
+            errDiv.innerHTML =
+              'Erro ao carregar estatísticas. <button class="btn sm" id="statsRetryBtn" style="margin-top:0.3rem">Tentar novamente</button>';
             statsGrid.appendChild(errDiv);
-            document.getElementById('statsRetryBtn').onclick = function() { errDiv.remove(); loadStatsDashboard(); };
+            document.getElementById('statsRetryBtn').onclick = function () {
+              errDiv.remove();
+              loadStatsDashboard();
+            };
           }
         }
       }
@@ -9732,7 +10005,10 @@
             '<div style="color:var(--danger);font-size:var(--font-sm);padding:1rem 0;display:flex;flex-direction:column;align-items:center;gap:0.4rem">Erro ao carregar heatmap.<button class="btn sm" id="heatmapRetryBtn">Tentar novamente</button></div>';
           console.warn('Heatmap load failed:', e.message);
           var hmRetry = document.getElementById('heatmapRetryBtn');
-          if (hmRetry) hmRetry.onclick = function() { loadHeatmap(); };
+          if (hmRetry)
+            hmRetry.onclick = function () {
+              loadHeatmap();
+            };
         }
       }
       function _heatmapDateKey(d) {
@@ -10081,7 +10357,14 @@
     </div>
 
     <!-- v5.6: Onboarding Tooltip Tour -->
-    <div class="onboard-overlay" id="onboardOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="onboardTitle">
+    <div
+      class="onboard-overlay"
+      id="onboardOverlay"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboardTitle"
+    >
       <div class="onboard-card">
         <div class="onboard-header">
           <div class="ob-icon" id="onboardIcon">
@@ -10099,7 +10382,6 @@
         </div>
       </div>
     </div>
-
 
     <!-- v5.8: Heatmap tooltip -->
     <div class="heatmap-tooltip" id="heatmapTooltip"></div>

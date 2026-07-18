@@ -100,13 +100,13 @@ describe('settings.js - validateConfig', () => {
   });
 
   test('aceita idiomas suportados (pt, en)', () => {
-    ['pt', 'en'].forEach((lang) => {
+    ['pt', 'en'].forEach(lang => {
       expect(validateConfig({ language: lang }).language).toBe(lang);
     });
   });
 
   test('rejeita idiomas não suportados (de, es, pl, fr) e usa pt', () => {
-    ['de', 'es', 'pl', 'fr', 'ru', 'ja'].forEach((lang) => {
+    ['de', 'es', 'pl', 'fr', 'ru', 'ja'].forEach(lang => {
       expect(validateConfig({ language: lang }).language).toBe('pt');
     });
   });
@@ -205,12 +205,14 @@ describe('settings.js - loadConfig', () => {
 
   test('lê e valida config do arquivo', () => {
     mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue(JSON.stringify({
-      region: 'en',
-      hardwareProfile: 'legacy',
-      language: 'en',
-      advancedMode: true
-    }));
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({
+        region: 'en',
+        hardwareProfile: 'legacy',
+        language: 'en',
+        advancedMode: true
+      })
+    );
     const config = loadConfig();
     expect(config.region).toBe('en');
     expect(config.hardwareProfile).toBe('legacy');
@@ -255,11 +257,13 @@ describe('settings.js - loadConfig', () => {
   test('sanitiza valores inválidos do arquivo', () => {
     mockExistsSync.mockReturnValue(true);
     mockStatSync.mockReturnValue({ size: 512 });
-    mockReadFileSync.mockReturnValue(JSON.stringify({
-      region: 'invalid_region',
-      hardwareProfile: 'unknown_profile',
-      language: 'ru'
-    }));
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({
+        region: 'invalid_region',
+        hardwareProfile: 'unknown_profile',
+        language: 'ru'
+      })
+    );
     const config = loadConfig();
     expect(config.region).toBe('pt');
     expect(config.hardwareProfile).toBe('modern');

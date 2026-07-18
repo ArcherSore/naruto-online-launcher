@@ -156,7 +156,7 @@ describe('store.js', () => {
     });
 
     test('accepts all 6 supported languages', () => {
-      ['pt', 'en', 'de', 'es', 'pl', 'fr'].forEach((lang) => {
+      ['pt', 'en', 'de', 'es', 'pl', 'fr'].forEach(lang => {
         const p = store.create({ language: lang });
         expect(p.language).toBe(lang);
       });
@@ -225,8 +225,6 @@ describe('store.js', () => {
       store.update(p.id, { region: 'invalid' });
       expect(store.get(p.id).region).toBe('br');
     });
-
-
 
     test('updates favorite flag', () => {
       const p = store.create({ favorite: false });
@@ -761,7 +759,21 @@ describe('store.js', () => {
       const json = JSON.stringify({
         version: 2,
         profiles: [
-          { id: 'p_aabbccdd', name: 'Valid', server: 's1', region: 'br', language: 'pt', notificationsEnabled: true, createdAt: 1, lastUsed: 0, notes: '', launchCount: 0, totalPlayMs: 0, favorite: false, tags: [] },
+          {
+            id: 'p_aabbccdd',
+            name: 'Valid',
+            server: 's1',
+            region: 'br',
+            language: 'pt',
+            notificationsEnabled: true,
+            createdAt: 1,
+            lastUsed: 0,
+            notes: '',
+            launchCount: 0,
+            totalPlayMs: 0,
+            favorite: false,
+            tags: []
+          },
           { id: 'p_ffffffff', name: 'NoServer' } // missing server, region, etc
         ]
       });
@@ -782,9 +794,19 @@ describe('store.js', () => {
       var profiles = [];
       for (var j = 0; j < 3; j++) {
         profiles.push({
-          id: 'p_feed00' + j.toString().padStart(6, '0'), name: 'Import' + j, server: 's' + j, region: 'br',
-          language: 'pt', notificationsEnabled: true, createdAt: 1, lastUsed: 0,
-          notes: '', launchCount: 0, totalPlayMs: 0, favorite: false, tags: []
+          id: 'p_feed00' + j.toString().padStart(6, '0'),
+          name: 'Import' + j,
+          server: 's' + j,
+          region: 'br',
+          language: 'pt',
+          notificationsEnabled: true,
+          createdAt: 1,
+          lastUsed: 0,
+          notes: '',
+          launchCount: 0,
+          totalPlayMs: 0,
+          favorite: false,
+          tags: []
         });
       }
       const json = JSON.stringify({ version: 2, profiles: profiles });
@@ -798,9 +820,21 @@ describe('store.js', () => {
       const all = store.getAll();
       if (all.length > 0) store.remove(all[all.length - 1].id);
       const json = JSON.stringify([
-        { id: 'p_cafe1122', name: 'Bare', server: 's1', region: 'br', language: 'pt',
-          notificationsEnabled: true, createdAt: 1, lastUsed: 0,
-          notes: '', launchCount: 0, totalPlayMs: 0, favorite: false, tags: [] }
+        {
+          id: 'p_cafe1122',
+          name: 'Bare',
+          server: 's1',
+          region: 'br',
+          language: 'pt',
+          notificationsEnabled: true,
+          createdAt: 1,
+          lastUsed: 0,
+          notes: '',
+          launchCount: 0,
+          totalPlayMs: 0,
+          favorite: false,
+          tags: []
+        }
       ]);
       const result = store.importJSON(json);
       expect(result.imported).toBe(1);

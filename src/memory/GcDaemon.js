@@ -178,10 +178,16 @@ function _emptyWorkingSetWindows() {
         const alt = exec(
           'powershell -NoProfile -Command "[System.Diagnostics.Process]::GetCurrentProcess().MinWorkingSet = [System.IntPtr]::Zero; [System.Diagnostics.Process]::GetCurrentProcess().MaxWorkingSet = [System.IntPtr]::Zero"',
           { timeout: 5000, windowsHide: true },
-          function () { resolve(); }
+          function () {
+            resolve();
+          }
         );
         setTimeout(function () {
-          try { alt.kill(); } catch (_) { /* ignore */ }
+          try {
+            alt.kill();
+          } catch (_) {
+            /* ignore */
+          }
           resolve();
         }, 6000);
         return;
