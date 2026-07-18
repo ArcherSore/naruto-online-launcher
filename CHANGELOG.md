@@ -1,5 +1,99 @@
 # Changelog
 
+## [5.10.0] - 2026-07-18
+
+### BREAKING — UI rewrite: minimalismo utilitário (3 blocos)
+
+O launcher acumulou feature creep desde v5.4 (accent picker, compact mode,
+quick launch, stats grid) até v5.8 (statistics dashboard, activity heatmap,
+always-on-top). A aba "Eventos" mostrava histórico de atividade do usuário
+em vez de eventos do jogo. A topbar tinha 9 controles. O card de conta tinha
+14 elementos. Tudo isso era "sujeira visual" que o user repetidamente pediu
+para remover.
+
+Esta versão **reescreve o index.html do zero** — não é cleanup, é rewrite.
+9,711 → 1,259 linhas (−87%). Mantém todos os canais IPC do backend (profiles,
+vault, events, servers, flash) — só o frontend mudou.
+
+#### Estrutura: 3 blocos funcionais
+
+**Bloco 1 — Sidebar (atalhos diretos, 64px)**
+
+- Tela cheia / Janela (toggle)
+- Configurações técnicas (Vídeo, Áudio, Sistema)
+- Reparar arquivos do jogo
+- Sair
+
+**Bloco 2 — Centro (foco absoluto)**
+
+- Botão JOGAR circular proeminente (200px)
+- Seletor de conta minimalista (avatar + nome + região) — dropdown só quando clicado
+- Status do servidor (Online/Offline/Verificando)
+- Barra de download ultra-discreta (2px, só quando há update)
+
+**Bloco 3 — Painel direito (eventos ativos, 300px)**
+
+- Lista apenas eventos diários ATIVOS do jogo
+- Cada item: nome + timer de término (ex: "2d 23h restantes")
+- Sem heatmap, sem timeline, sem gráficos, sem região tabs
+- Atualiza timer a cada 30s
+
+#### O que foi REMOVIDO (feature creep banido)
+
+- ❌ Statistics dashboard (v5.8)
+- ❌ Activity heatmap de 365 dias (v5.8)
+- ❌ Activity timeline de 7 dias (v5.5)
+- ❌ Accent picker / theme variants (v5.4, v5.5)
+- ❌ Quick launch panel (v5.4)
+- ❌ Stats grid (v5.4)
+- ❌ Compact mode (v5.4)
+- ❌ Command palette Ctrl+K (v5.5)
+- ❌ Notifications center (v5.5)
+- ❌ Glass morphism (v5.5)
+- ❌ Profile comparison (v5.6)
+- ❌ Onboarding tour (v5.6)
+- ❌ Parallax tilt (v5.6)
+- ❌ Nav pulse (v5.6)
+- ❌ Card avatars grandes / expand (v5.6, v5.7)
+- ❌ Search filters (v5.7)
+- ❌ Loading skeletons (v5.7)
+- ❌ Status bar (v5.7)
+- ❌ Alt+1..9 hotkeys (v5.8)
+- ❌ Always-on-top + window controls complexos (v5.8)
+- ❌ Card overflow menu (era solução paliativa — não precisa mais, card simplificado)
+- ❌ Topbar contextual (não precisa — sidebar substitui)
+- ❌ Region tabs em eventos (mostra só a região da conta selecionada)
+- ❌ Múltiplos modos de janela (só toggle tela cheia/janela)
+- ❌ Descrições longas, notícias, abas redundantes
+
+#### O que foi MANTIDO
+
+- ✅ Multi-conta (6 perfis no mock, dropdown minimalista)
+- ✅ Auto-login (toggle em Configurações → Sistema)
+- ✅ Vault de credenciais (IPC intacto no backend)
+- ✅ Eventos do jogo reais (via `events:get` IPC)
+- ✅ Status do servidor (via `servers:fetch` IPC)
+- ✅ Reparo de arquivos (via `flash:cache-info` IPC)
+- ✅ Settings técnicos (Qualidade, GPU, Volume, Auto-login, Close-on-play)
+- ✅ Dark mode AMOLED puro (#000) + accent laranja #ff8c00
+- ✅ Keyboard: Escape fecha modal/menu, Enter/Space em toggles
+
+#### Validação
+
+- VLM clutter score: **3/10** ("limpa e direta, foco no botão Jogar")
+- agent-browser: 3 blocos renderizados, settings modal abre, account dropdown (6 items), play button launching state, server status online, eventos mostrando "Double EXP Weekend — 2d 23h restantes"
+- 1234/1234 testes passando (backend intacto)
+- Lint 0 erros, prettier clean
+- JS syntax OK
+
+#### Decisão analítica
+
+Análise do git log mostrou que a "melhor UI/UX" foi v5.0–v5.1 (2,241–2,600
+linhas, antes do feature creep). Mas reverter perderia melhorias funcionais
+reais (multi-account, vault, auto-login). Em vez de downgrade, rewrite:
+manter o backend IPC, substituir o frontend. O resultado é mais limpo que
+v5.0 porque não herda dívida técnica visual acumulada.
+
 ## [5.9.43] - 2026-07-18
 
 ### Cleanup — Topbar enxuta + card sem badge redundante
