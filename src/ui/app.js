@@ -55,6 +55,7 @@ let editingId = null;
 let vaultId = null;
 let notificationsMuted = false;
 let searchQuery = '';
+let viewMode = localStorage.getItem('shinobi-view-mode') || 'grid';
 // v4.5: Track open game windows and auto-login status per profile (real-time)
 let openWindows = {}; // { profileId: true }
 let autoLoginStatus = {}; // { profileId: 'idle'|'loading'|'success'|'error' }
@@ -168,7 +169,7 @@ document.getElementById('searchClear').onclick = function () {
 // ── Render: Profiles ──
 function renderProfiles() {
   const grid = document.getElementById('profileGrid');
-  grid.className = 'grid';
+  grid.className = 'grid' + (viewMode === 'list' ? ' list-view' : '');
   let filtered = profiles;
   if (searchQuery) {
     filtered = profiles.filter(function (p) {
@@ -228,50 +229,11 @@ function renderProfiles() {
     card.tabIndex = 0;
     card.style.animationDelay = idx * 60 + 'ms';
     var favClass = p.favorite ? ' fav-card' : '';
-    card.className = 'card' + (p.hasVault ? ' has-vault' : '') + favClass;
+    card.className =
+      'card region-' + (p.region || 'br') + (p.hasVault ? ' has-vault' : '') + favClass;
     card.setAttribute('data-card-id', p.id);
-    // v4.5: Build stats display (launch count, play time, last used)
-    var launchCount = p.launchCount || 0;
-    var playMs = p.totalPlayMs || 0;
-    var lastUsed = p.lastUsed || 0;
+    // v5.10.3: stats removidos (ban list) — card foca em identidade + ação
     var statsHtml = '';
-    if (launchCount > 0 || playMs > 0) {
-      statsHtml = '<div class="card-stats">';
-      if (launchCount > 0) {
-        statsHtml +=
-          '<div class="stat-item" title="Número de vezes que esta conta foi lançada">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>' +
-          '<span class="val">' +
-          launchCount +
-          'x</span>' +
-          '</div>';
-      }
-      if (playMs > 0) {
-        statsHtml +=
-          '<div class="stat-item" title="Tempo total de jogo">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
-          '<span class="val">' +
-          formatPlayTime(playMs) +
-          '</span>' +
-          '</div>';
-      }
-      // v5.4: Last played relative time chip
-      if (lastUsed > 0) {
-        var rel = formatRelativeTime(lastUsed);
-        statsHtml +=
-          '<div class="stat-item last-played-chip ' +
-          (rel.recent ? 'recent' : 'stale') +
-          '" title="Última vez jogada: ' +
-          new Date(lastUsed).toLocaleString('pt-BR') +
-          '">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
-          '<span class="val">' +
-          rel.label +
-          '</span>' +
-          '</div>';
-      }
-      statsHtml += '</div>';
-    }
     // v4.5: Build server dropdown (quick switcher)
     var serverOptionsHtml = buildServerOptions(p.server);
     var serverHtml =
@@ -1821,14 +1783,7 @@ function initDragDrop() {
   });
 }
 
-// Make cards draggable after render
-var origRenderProfiles = renderProfiles;
-renderProfiles = function () {
-  origRenderProfiles();
-  document.querySelectorAll('.card[data-card-id]').forEach(function (card) {
-    card.setAttribute('draggable', 'true');
-  });
-};
+// v5.10.3: drag-drop reorder removido (ban list)
 
 // ── v5.3: Enhanced Event Rendering ──
 // v5.9.12: agora mostra status ("inicia em" / "ativo" / "encerra em") em vez
@@ -2215,3 +2170,204 @@ async function initWindowControls() {
 
 // ── v5.8: Init sequence ──
 initWindowControls();
+
+// ═══════════════════════════════════════════════════════════════════════
+// v5.10.3: Supplementary init — handlers not in original app.js
+// (import/export, quit, view toggle, batch, flash, version, splash, conn)
+// Appended in same script scope so it can access `let` vars (profiles, viewMode, etc.)
+// ═══════════════════════════════════════════════════════════════════════
+(function initV5103() {
+  // Splash hide
+  var splash = document.getElementById('splash');
+  function hideSplash() {
+    if (splash) splash.classList.add('hidden');
+  }
+  setTimeout(hideSplash, 500);
+
+  // Trigger main to send profiles + events
+  // (app.js already calls ipcRenderer.send('manager:ready') at line ~1909)
+
+  // Version
+  try {
+    ipcRenderer
+      .invoke('launcher:get-version')
+      .then(function (v) {
+        var el = document.getElementById('version');
+        if (el && v && typeof v === 'string') el.textContent = v;
+      })
+      .catch(function () {});
+  } catch (_) {}
+
+  // Flash cache info
+  function loadFlashCacheInfo() {
+    try {
+      ipcRenderer
+        .invoke('flash:cache-info')
+        .then(function (info) {
+          var el = document.getElementById('flashCacheInfo');
+          if (!info || !info.version) {
+            if (el) el.style.display = 'none';
+            return;
+          }
+          if (el) el.style.display = 'block';
+          var v = document.getElementById('flashCacheVersion');
+          var d = document.getElementById('flashCacheDate');
+          if (v) v.textContent = 'Flash ' + info.version;
+          if (d) d.textContent = info.downloadDate || info.date || '';
+        })
+        .catch(function () {});
+    } catch (_) {}
+  }
+  loadFlashCacheInfo();
+
+  // Connection indicator
+  function updateConn() {
+    var ind = document.getElementById('connIndicator');
+    if (!ind) return;
+    var online = navigator.onLine;
+    ind.classList.toggle('off', !online);
+    var lbl = document.getElementById('connLabel');
+    if (lbl) lbl.textContent = online ? 'Online' : 'Offline';
+  }
+  updateConn();
+  window.addEventListener('online', updateConn);
+  window.addEventListener('offline', updateConn);
+
+  // View toggle (grid/list) — viewMode is the `let` from app.js scope
+  var viewGrid = document.getElementById('viewGrid');
+  var viewList = document.getElementById('viewList');
+  if (viewGrid)
+    viewGrid.onclick = function () {
+      if (viewMode === 'grid') return;
+      viewMode = 'grid';
+      localStorage.setItem('shinobi-view-mode', 'grid');
+      viewGrid.classList.add('active');
+      if (viewList) viewList.classList.remove('active');
+      renderProfiles();
+    };
+  if (viewList)
+    viewList.onclick = function () {
+      if (viewMode === 'list') return;
+      viewMode = 'list';
+      localStorage.setItem('shinobi-view-mode', 'list');
+      viewList.classList.add('active');
+      if (viewGrid) viewGrid.classList.remove('active');
+      renderProfiles();
+    };
+  // Apply initial view mode
+  if (viewMode === 'list' && viewList) {
+    viewList.classList.add('active');
+    if (viewGrid) viewGrid.classList.remove('active');
+  }
+
+  // Import / Export / Quit
+  var exportBtn = document.getElementById('exportBtn');
+  if (exportBtn)
+    exportBtn.onclick = async function () {
+      try {
+        var r = await ipcRenderer.invoke('profiles:export-file');
+        if (r && r.ok) toast('Backup exportado', 'ok');
+        else if (r && r.error) toast('Erro: ' + r.error, 'err');
+      } catch (e) {
+        toast('Erro: ' + e.message, 'err');
+      }
+    };
+  var importBtn = document.getElementById('importBtn');
+  if (importBtn)
+    importBtn.onclick = async function () {
+      try {
+        var r = await ipcRenderer.invoke('profiles:import-file');
+        if (r && r.ok) toast('Importados ' + (r.imported || r.count || 0) + ' perfis', 'ok');
+        else if (r && r.error) toast('Erro: ' + r.error, 'err');
+      } catch (e) {
+        toast('Erro: ' + e.message, 'err');
+      }
+    };
+  var quitBtn = document.getElementById('quitBtn');
+  if (quitBtn)
+    quitBtn.onclick = function () {
+      try {
+        ipcRenderer.send('app:quit');
+      } catch (_) {
+        window.close();
+      }
+    };
+
+  // Batch mode (simplified)
+  var batchModeBtn = document.getElementById('batchModeBtn');
+  var batchBar = document.getElementById('batchBar');
+  var batchMode = false;
+  var batchSelected = new Set();
+  function updateBatchBar() {
+    var c = document.getElementById('batchCount');
+    if (c) c.textContent = batchSelected.size + ' selecionados';
+  }
+  if (batchModeBtn)
+    batchModeBtn.onclick = function () {
+      batchMode = !batchMode;
+      batchModeBtn.classList.toggle('on', batchMode);
+      if (batchBar) batchBar.classList.toggle('show', batchMode);
+      if (!batchMode) {
+        batchSelected.clear();
+        updateBatchBar();
+      }
+      renderProfiles();
+    };
+  var batchCancel = document.getElementById('batchCancelBtn');
+  if (batchCancel)
+    batchCancel.onclick = function () {
+      batchMode = false;
+      batchSelected.clear();
+      if (batchModeBtn) batchModeBtn.classList.remove('on');
+      if (batchBar) batchBar.classList.remove('show');
+      renderProfiles();
+    };
+  var batchSelectAll = document.getElementById('batchSelectAll');
+  if (batchSelectAll)
+    batchSelectAll.onclick = function () {
+      profiles.forEach(function (p) {
+        batchSelected.add(p.id);
+      });
+      updateBatchBar();
+      renderProfiles();
+    };
+  var batchDeleteBtn = document.getElementById('batchDeleteBtn');
+  if (batchDeleteBtn)
+    batchDeleteBtn.onclick = function () {
+      if (!batchSelected.size) return;
+      if (!confirm('Excluir ' + batchSelected.size + ' perfis?')) return;
+      batchSelected.forEach(function (id) {
+        try {
+          ipcRenderer.send('profile:delete', id);
+        } catch (_) {}
+      });
+      batchMode = false;
+      batchSelected.clear();
+      if (batchModeBtn) batchModeBtn.classList.remove('on');
+      if (batchBar) batchBar.classList.remove('show');
+    };
+  var batchExportBtn = document.getElementById('batchExportBtn');
+  if (batchExportBtn)
+    batchExportBtn.onclick = function () {
+      ipcRenderer.invoke('profiles:export-file').then(function (r) {
+        if (r && r.ok) toast('Backup exportado', 'ok');
+      });
+    };
+
+  // Nav: load settings/optimization on settings view
+  document.querySelectorAll('.nav-item').forEach(function (item) {
+    item.addEventListener('click', function () {
+      var view = item.getAttribute('data-view');
+      if (view === 'settings') {
+        if (typeof loadSettings === 'function') loadSettings();
+        if (typeof loadOptimization === 'function') loadOptimization();
+      }
+    });
+  });
+
+  // Init dev tools + debug flag + copy buttons
+  // (app.js already calls initDevTools/initDebugFlag/initCopyButtons at line ~1911-1917)
+
+  // Fallback splash hide
+  setTimeout(hideSplash, 2500);
+})();

@@ -1,5 +1,52 @@
 # Changelog
 
+## [5.10.3] - 2026-07-18
+
+### REFORMULA — Heroic-inspired + contrato DOM completo do app.js
+
+Análise cirúrgica de todos os 145 commits identificou onde o cron destruiu
+(a partir de v5.5: command palette, themes, activity timeline, glass morphism)
+e onde estava o sweet spot (v5.0-v5.2: 2.241-2.861L — Dev Tools, batch ops,
+health check, sem creep).
+
+Esta versão combina: **layout Heroic do v5.10.1** + **contrato DOM completo
+do app.js (2.171 linhas de lógica real)** + **só features importantes**.
+
+#### Layout (Heroic Games Launcher inspired)
+
+- Sidebar 232px: brand + nav (Contas/Eventos/Config) + flash status + cache info + footer (Importar/Exportar/Minimizar/Maximizar/Sair)
+- Library grid: auto-fill minmax(218px, 1fr), toggle grid/lista
+- Card Heroic-style: cover gradient por região (8 regiões) + avatar + nome + lock + região + server dropdown + Play proeminente + overflow (fav/dup/edit/vault/del)
+- Topbar contextual: conn indicator + search + count + sort + view toggle + batch + Nova conta
+- Events: region tabs + cards horizontais (ícone por tipo, status ativo/inicia em)
+- Settings: Geral, Preferências, Otimização (GPU+CPU+3 presets), Avançado (backup+diag+sobre)
+
+#### Features mantidas (do app.js — 107 funções)
+
+- Dev Tools (tempmail + API login + inspector + JWT decode + source extractor)
+- Auto-login vault + pre-auth + auto-recovery
+- Health check, connection indicator, batch ops, flash cache info
+- Multi-conta: create/edit/delete/duplicate/favorite/launch/switch-server
+- Search, sort, view toggle (grid/list), region tabs, favoritos
+- Otimização: GPU detect + CPU topology + 3 presets (performance/balanced/quality)
+- Backup criptografado (AES-256-GCM) + diagnóstico .zip
+
+#### Features banidas (permanecem fora)
+
+- stats dashboard, heatmap, activity timeline, analytics bar
+- themes/accent picker, command palette (Ctrl+K), onboarding
+- quick-launch panel, muteBtn/notifications bell, membar, uptime
+- always-on-top, context menu, custom confirm, drag-drop reorder, compact mode
+- glass morphism, parallax tilt, card avatars coloridos
+
+#### Mudanças técnicas
+
+- `src/ui/index.html`: reescrito (10.562 → 2.025 linhas, −81%)
+- `src/ui/app.js`: patches mínimos (region class no card, viewMode, stats removidos, drag-drop removido) + init suplementar (import/export/quit/view-toggle/batch/flash/version/splash/conn)
+- Mock shim: adiciona launcher:get-version, optimization:get-status, downloadDate, exported response
+- Hidden stubs (confirmOverlay/kbOverlay/cmdkOverlay/muteBtn/wcAlwaysOnTop) para app.js não crashar
+- 1234/1234 testes passando, lint 0 erros, prettier clean
+
 ## [5.10.2] - 2026-07-18
 
 ### REVERT — restaura base funcional v5.9.31 (sem downgrade)
