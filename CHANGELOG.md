@@ -1,5 +1,22 @@
 # Changelog
 
+## [5.9.30] - 2026-07-18
+
+### Estabilidade — CRON-3/CRON-1 Node 24 Compatibility Fix
+
+- **Jest mock resolution**: `jest.mock()` em `setupFiles` não intercepta
+  `require()` corretamente no Node 24 (provável mudança de cache em
+  `Module._resolveFilename`). Mocks de `electron` e `electron-log`
+  migrados de `tests/setup.js` para `__mocks__/` directory, que é
+  resolvido pelo sistema de módulos do Jest diretamente e funciona
+  de forma confiável em todas as versões do Node.
+
+- **isolateModules + __mocks__**: Testes de `flags.test.js` que usavam
+  `jest.isolateModules` agora referenciam `require('electron')` dentro
+  do escopo isolado (variável `innerElectron`), não a referência externa.
+  Antes o `isolateModules` criava um registry separado e a referência
+  externa apontava para uma instância diferente do mock.
+
 ## [5.9.29] - 2026-07-18
 
 ### Acessibilidade — CRON-2 Focus Trap + ARIA

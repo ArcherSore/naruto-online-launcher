@@ -269,9 +269,10 @@ describe('flags.js', () => {
             }
           };
         });
+        var innerElectron = require('electron');
         var flags = require('../flags');
         flags.applyAll({ flashPath: '/fake/flash.so' });
-        var jsFlags = electron.app.commandLine.appendSwitch.mock.calls.find(function (c) {
+        var jsFlags = innerElectron.app.commandLine.appendSwitch.mock.calls.find(function (c) {
           return c[0] === 'js-flags';
         });
         expect(jsFlags[1]).toContain('--max-old-space-size=768');
@@ -290,9 +291,10 @@ describe('flags.js', () => {
             }
           };
         });
+        var innerElectron = require('electron');
         var flags = require('../flags');
         flags.applyAll({ hardwareProfile: 'cpu' });
-        var calls = electron.app.commandLine.appendSwitch.mock.calls;
+        var calls = innerElectron.app.commandLine.appendSwitch.mock.calls;
         var hasDisableGpu = calls.some(function (c) {
           return c[0] === 'disable-gpu';
         });
@@ -317,9 +319,10 @@ describe('flags.js', () => {
             }
           };
         });
+        var innerElectron = require('electron');
         var flags = require('../flags');
         flags.applyAll({ flashPath: '/tmp/libpepflashplayer.so', flashVersion: '32.0.0.453' });
-        var calls = electron.app.commandLine.appendSwitch.mock.calls;
+        var calls = innerElectron.app.commandLine.appendSwitch.mock.calls;
         var hasPath = calls.some(function (c) {
           return c[0] === 'ppapi-flash-path' && c[1] === '/tmp/libpepflashplayer.so';
         });
