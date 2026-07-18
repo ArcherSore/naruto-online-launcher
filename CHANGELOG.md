@@ -1,5 +1,40 @@
 # Changelog
 
+## [5.9.35] - 2026-07-18
+
+### Acessibilidade — CRON-2: keyboard navigation + focus management
+
+- **Profile cards: Enter/Space para lançar** — cards com `tabindex="0"`
+  agora respondem a Enter/Space para abrir o jogo (antes só click).
+  Botões internos (Play, Edit, etc.) não são afetados.
+- **Quick-launch Enter corrigido** — Enter em item do quick-launch agora
+  chama `launch(id)` diretamente (antes clicava em `.ql-play` que estava
+  `display:none` sem hover, falhando silenciosamente via teclado).
+- **Batch checkboxes: role + teclado** — adicionados `role="checkbox"`,
+  `aria-checked`, `aria-label`, `tabindex`, handler para Enter/Space.
+- **Accent swatches: teclado** — `role="button"`, `tabindex`, Enter/Space
+  para trocar cor de destaque.
+- **Color picker dots: teclado** — `role="button"`, `tabindex`, `aria-label`,
+  Enter/Space para selecionar cor.
+- **Theme variant cards: teclado** — `role="button"`, `tabindex`, Enter/Space
+  para trocar tema.
+- **Dev subsection toggles: teclado** — `role="button"`, `tabindex`,
+  `aria-expanded`, Enter/Space para colapsar/expandir.
+- **Notifications toggle: teclado** — Enter/Space para ativar/desativar
+  notificações (já tinha `role="switch"`, faltava o keydown).
+- **Command palette: aria-modal + focus trap + focus return** — adicionado
+  `aria-modal="true"`, `trapFocus()` ao abrir, foco retorna ao elemento
+  que abriu a paleta ao fechar.
+- **Modal focus return** — profile modal, vault modal, confirm dialog e
+  keyboard help overlay agora salvam `document.activeElement` antes de
+  abrir e restauram o foco ao fechar.
+- **Sidebar import/export: loading state** — botões agora ficam
+  `disabled` + `opacity: 0.6` durante a operação IPC.
+- **Topbar actions: flex-wrap** — `.actions` agora usa `flex-wrap` para
+  não transbordar em janelas estreitas.
+- **Next.js preview: footer link** — link externo de release notes agora
+  tem `target="_blank" rel="noopener noreferrer"`.
+
 ## [5.9.34] - 2026-07-18
 
 ### Correções — CRON-1: 3 bugs P2 + 3 bugs P3 (estabilidade)
