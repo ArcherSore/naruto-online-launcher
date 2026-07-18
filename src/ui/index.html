@@ -6474,11 +6474,20 @@
           return x.id === id;
         });
         var pName = p ? p.name : id;
-        var r = await ipcRenderer.invoke('profile:duplicate', id);
-        if (r.ok) {
-          toast('Perfil duplicado: ' + pName + ' (cópia)', 'ok');
-        } else {
-          toast('Erro ao duplicar: ' + (r.error || 'desconhecido'), 'err');
+        var dupBtn = document.querySelector('[data-act="dup"][data-tip]');
+        // Find the specific dup button for this card
+        var card = document.querySelector('[data-card-id="' + id + '"]');
+        if (card) dupBtn = card.querySelector('[data-act="dup"]');
+        if (dupBtn) { dupBtn.disabled = true; dupBtn.style.opacity = '0.6'; }
+        try {
+          var r = await ipcRenderer.invoke('profile:duplicate', id);
+          if (r.ok) {
+            toast('Perfil duplicado: ' + pName + ' (cópia)', 'ok');
+          } else {
+            toast('Erro ao duplicar: ' + (r.error || 'desconhecido'), 'err');
+          }
+        } finally {
+          if (dupBtn) { dupBtn.disabled = false; dupBtn.style.opacity = ''; }
         }
       }
 
@@ -6737,17 +6746,30 @@
         vaultId = id;
         document.getElementById('vaultProfileName').textContent =
           p.name + (p.server ? ' • ' + p.server : '');
-        const creds = await ipcRenderer.invoke('vault:get', id);
-        document.getElementById('fVaultUser').value = creds ? creds.user : '';
-        document.getElementById('fVaultPass').value = creds ? creds.pass : '';
-        // Reset password visibility
-        document.getElementById('fVaultPass').type = 'password';
-        document.getElementById('eyeIcon').innerHTML =
-          '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+        var vaultUserEl = document.getElementById('fVaultUser');
+        var vaultPassEl = document.getElementById('fVaultPass');
+        vaultUserEl.value = '';
+        vaultPassEl.value = '';
+        vaultUserEl.disabled = true;
+        vaultPassEl.disabled = true;
         window._vaultFocusReturn = document.activeElement;
         document.getElementById('vaultModal').classList.add('show');
         document.getElementById('fVaultUser').focus();
         window._vaultTrapCleanup = trapFocus(document.querySelector('#vaultModal .modal'));
+        try {
+          const creds = await ipcRenderer.invoke('vault:get', id);
+          vaultUserEl.value = creds ? creds.user : '';
+          vaultPassEl.value = creds ? creds.pass : '';
+        } catch (e) {
+          toast('Erro ao carregar credenciais: ' + e.message, 'err');
+        } finally {
+          vaultUserEl.disabled = false;
+          vaultPassEl.disabled = false;
+        }
+        // Reset password visibility
+        document.getElementById('fVaultPass').type = 'password';
+        document.getElementById('eyeIcon').innerHTML =
+          '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
       }
 
       // ── Modal: Profile ──
@@ -6841,11 +6863,27 @@
           toast('Usuário e senha obrigatórios', 'err');
           return;
         }
-        if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
-        await ipcRenderer.invoke('vault:set', vaultId, u, p);
-        toast('Credenciais salvas', 'ok');
-        document.getElementById('vaultModal').classList.remove('show');
-        if (window._vaultFocusReturn) { window._vaultFocusReturn.focus(); window._vaultFocusReturn = null; }
+        var saveBtn = document.getElementById('saveVault');
+        var origSaveText = saveBtn.textContent;
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = '0.6';
+        try {
+          var res = await ipcRenderer.invoke('vault:set', vaultId, u, p);
+          if (res && res.error) {
+            toast('Erro: ' + res.error, 'err');
+            return;
+          }
+          toast('Credenciais salvas', 'ok');
+          if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
+          document.getElementById('vaultModal').classList.remove('show');
+          if (window._vaultFocusReturn) { window._vaultFocusReturn.focus(); window._vaultFocusReturn = null; }
+        } catch (e) {
+          toast('Erro ao salvar: ' + e.message, 'err');
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.style.opacity = '';
+          saveBtn.textContent = origSaveText;
+        }
       };
       document.getElementById('removeVault').onclick = async () => {
         var confirmed = await customConfirm(
@@ -6854,9 +6892,16 @@
           { type: 'danger', okText: 'Remover' }
         );
         if (!confirmed) return;
-        await ipcRenderer.invoke('vault:remove', vaultId);
-        toast('Credenciais removidas', 'ok');
-        document.getElementById('vaultModal').classList.remove('show');
+        try {
+          var res = await ipcRenderer.invoke('vault:remove', vaultId);
+          if (res && res.error) { toast('Erro: ' + res.error, 'err'); return; }
+          toast('Credenciais removidas', 'ok');
+          if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
+          document.getElementById('vaultModal').classList.remove('show');
+          if (window._vaultFocusReturn) { window._vaultFocusReturn.focus(); window._vaultFocusReturn = null; }
+        } catch (e) {
+          toast('Erro ao remover: ' + e.message, 'err');
+        }
       };
 
       // ── Password visibility toggle ──
@@ -7941,12 +7986,20 @@
           toast('Senha muito curta', 'err');
           return;
         }
+        var btn = document.getElementById('batchExportBtn');
+        var origText = btn.textContent;
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
         try {
           var res = await ipcRenderer.invoke('profiles:export-encrypted', pwd);
           if (res && res.ok) toast('Backup exportado: ' + res.count + ' perfis', 'ok');
           else if (res && res.error) toast('Erro: ' + res.error, 'err');
         } catch (e) {
           toast('Erro: ' + e.message, 'err');
+        } finally {
+          btn.disabled = false;
+          btn.style.opacity = '';
+          btn.textContent = origText;
         }
       };
 
@@ -8203,10 +8256,15 @@
         );
         if (!confirmed) return;
         if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
-        await ipcRenderer.invoke('vault:remove', vaultId);
-        toast('Credenciais removidas', 'ok');
-        document.getElementById('vaultModal').classList.remove('show');
-        if (window._vaultFocusReturn) { window._vaultFocusReturn.focus(); window._vaultFocusReturn = null; }
+        try {
+          var res = await ipcRenderer.invoke('vault:remove', vaultId);
+          if (res && res.error) { toast('Erro: ' + res.error, 'err'); return; }
+          toast('Credenciais removidas', 'ok');
+          document.getElementById('vaultModal').classList.remove('show');
+          if (window._vaultFocusReturn) { window._vaultFocusReturn.focus(); window._vaultFocusReturn = null; }
+        } catch (e) {
+          toast('Erro ao remover: ' + e.message, 'err');
+        }
       };
       // ── v5.2: Batch delete uses custom confirm ──
       var origBatchDelete = document.getElementById('batchDeleteBtn').onclick;
@@ -9557,8 +9615,17 @@
             else streakSubEl.textContent = 'Novo recorde! 🎉';
           }
         } catch (e) {
-          // Stats are non-critical; fail silently
           console.warn('Stats dashboard load failed:', e.message);
+          // Show error indicator instead of misleading zeros
+          var statsGrid = document.querySelector('.stats-grid');
+          if (statsGrid && !statsGrid.querySelector('.stats-error')) {
+            var errDiv = document.createElement('div');
+            errDiv.className = 'stats-error';
+            errDiv.style.cssText = 'grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:var(--font-sm);padding:0.5rem 0;';
+            errDiv.innerHTML = 'Erro ao carregar estatísticas. <button class="btn sm" id="statsRetryBtn" style="margin-top:0.3rem">Tentar novamente</button>';
+            statsGrid.appendChild(errDiv);
+            document.getElementById('statsRetryBtn').onclick = function() { errDiv.remove(); loadStatsDashboard(); };
+          }
         }
       }
 
@@ -9662,8 +9729,10 @@
           _wireHeatmapTooltips();
         } catch (e) {
           grid.innerHTML =
-            '<div style="color:var(--danger);font-size:var(--font-sm);padding:1rem 0">Erro ao carregar heatmap.</div>';
+            '<div style="color:var(--danger);font-size:var(--font-sm);padding:1rem 0;display:flex;flex-direction:column;align-items:center;gap:0.4rem">Erro ao carregar heatmap.<button class="btn sm" id="heatmapRetryBtn">Tentar novamente</button></div>';
           console.warn('Heatmap load failed:', e.message);
+          var hmRetry = document.getElementById('heatmapRetryBtn');
+          if (hmRetry) hmRetry.onclick = function() { loadHeatmap(); };
         }
       }
       function _heatmapDateKey(d) {

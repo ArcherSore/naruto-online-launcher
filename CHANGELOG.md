@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.9.37] - 2026-07-18
+
+### UX — CRON-2: loading states + error handling
+
+- **saveVault: loading + error** — botao Salvar fica disabled durante
+  IPC. try/catch captura erros e mostra toast. Modal so fecha em sucesso.
+- **removeVault: error handling** — ambas versoes (original + override) agora
+  verificam `res.error` e capturam excecoes. Modal so fecha em sucesso.
+- **openVault: loading placeholder** — modal abre imediatamente com campos
+  desabilitados enquanto credenciais sao descriptografadas. Erro mostrado
+  via toast se falhar.
+- **duplicateProfile: loading** — botao duplicar fica disabled durante
+  operacao (disk I/O para copiar cookies/cache).
+- **batchExportBtn: loading** — botao de exportar em lote fica disabled
+  durante exportacao criptografada.
+- **Stats dashboard: erro visivel** — falha silenciosa que mostrava "0"
+  enganoso agora exibe mensagem de erro + botao "Tentar novamente".
+- **Heatmap erro: retry** — erro ao carregar heatmap agora tem botao
+  "Tentar novamente".
+
 ## [5.9.36] - 2026-07-18
 
 ### Acessibilidade — CRON-2: onboarding, heatmap, server empty state
