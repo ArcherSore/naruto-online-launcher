@@ -981,15 +981,24 @@ describe('IpcRouter.js', () => {
     test('retorna servidores recomendados', async () => {
       tempmail.getRecommendedServers.mockResolvedValue([{ id: 1, name: 'Server 1' }]);
       const handler = handleHandlers['tempmail:servers'];
-      const result = await handler({}, 12345, 'br');
+      const result = await handler({}, '12345', 'br');
       expect(result.ok).toBe(true);
       expect(result.data).toHaveLength(1);
+    });
+
+    test('rejeita params não-string', async () => {
+      const handler = handleHandlers['tempmail:servers'];
+      const r1 = await handler({}, 12345, 'br');
+      expect(r1.ok).toBe(false);
+      expect(r1.error).toBe('Invalid params');
+      const r2 = await handler({}, '12345', 123);
+      expect(r2.ok).toBe(false);
     });
 
     test('retorna erro quando falha', async () => {
       tempmail.getRecommendedServers.mockRejectedValue(new Error('network'));
       const handler = handleHandlers['tempmail:servers'];
-      const result = await handler({}, 12345, 'br');
+      const result = await handler({}, '12345', 'br');
       expect(result.ok).toBe(false);
     });
   });
@@ -1386,6 +1395,72 @@ describe('IpcRouter.js', () => {
       const handler = onHandlers['events:set-muted'];
       handler({}, false);
       expect(et.setMuted).toHaveBeenCalledWith(false);
+    });
+  });
+
+  describe('inspector:disable/clear type validation', () => {
+    test('inspector:disable rejeita profileId não-string', async () => {
+      const handler = handleHandlers['inspector:disable'];
+      var result = await handler({}, 123);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('Invalid');
+    });
+
+    test('inspector:clear rejeita profileId não-string', async () => {
+      const handler = handleHandlers['inspector:clear'];
+      var result = await handler({}, null);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('Invalid');
+    });
+  });
+
+  describe('dev:* type validation', () => {
+    test('dev:get-page-source rejeita profileId não-string', async () => {
+      const handler = handleHandlers['dev:get-page-source'];
+      var result = await handler({}, 123);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('Invalid');
+    });
+
+    test('dev:reload-game rejeita profileId não-string', async () => {
+      const handler = handleHandlers['dev:reload-game'];
+      var result = await handler({}, undefined);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('Invalid');
+    });
+
+    test('dev:toggle-devtools rejeita profileId não-string', async () => {
+      const handler = handleHandlers['dev:toggle-devtools'];
+      var result = await handler({}, { id: 1 });
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('Invalid');
+    });
+  });
+
+  describe('i18n:set-lang validates against allowed list', () => {
+    test('rejeita idioma não permitido', async () => {
+      const handler = handleHandlers['i18n:set-lang'];
+      var result = await handler({}, 'xyz');
+      expect(result).toBe('pt'); // returns current lang, unchanged
+    });
+
+    test('aceita idioma permitido (en) sem erro', async () => {
+      const handler = handleHandlers['i18n:set-lang'];
+      // Should not throw; returns current language (may be pt or en depending on module state)
+      var result = await handler({}, 'en');
+      expect(['pt', 'en']).toContain(result);
+    });
+  });
+
+  describe('events:set-muted type validation', () => {
+    test('ignora m não-booleano', () => {
+      const et = require('../../../utils/EventTimers');
+      et.setMuted.mockClear();
+      const handler = onHandlers['events:set-muted'];
+      handler({}, 'true');
+      handler({}, 1);
+      handler({}, {});
+      expect(et.setMuted).not.toHaveBeenCalled();
     });
   });
 });

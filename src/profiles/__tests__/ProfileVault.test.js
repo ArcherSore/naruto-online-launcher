@@ -274,7 +274,7 @@ describe('ProfileVault.js', () => {
       expect(cb).toHaveBeenCalled();
     });
 
-    test('getCredentials retorna strings vazias quando decrypt falha', () => {
+    test('getCredentials retorna null quando decrypt falha (tag mismatch / key changed)', () => {
       const CryptoService = require('../CryptoService');
       const origDecrypt = CryptoService.decrypt;
       CryptoService.decrypt = jest.fn(() => {
@@ -284,9 +284,7 @@ describe('ProfileVault.js', () => {
       ProfileVault.setCredentials('p_decfail', 'user_x', 'pass_y');
       const creds = ProfileVault.getCredentials('p_decfail');
 
-      expect(creds).not.toBeNull();
-      expect(creds.user).toBe('');
-      expect(creds.pass).toBe('');
+      expect(creds).toBeNull();
 
       CryptoService.decrypt = origDecrypt;
     });

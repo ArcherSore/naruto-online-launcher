@@ -56,8 +56,8 @@ function _decryptWithMachineKey(payload) {
   try {
     return CryptoService.decrypt(payload, PasswordManager.getMachineKey());
   } catch (e) {
-    logger.debug('ProfileVault: decrypt falhou: ' + e.message);
-    return '';
+    logger.debug('ProfileVault: decrypt falhou (tag mismatch or key changed)');
+    return null;
   }
 }
 
@@ -146,10 +146,11 @@ function getCredentials(profileId) {
   _ensureLoaded();
   const entry = _store[profileId];
   if (!entry) return null;
-  return {
-    user: _decryptWithMachineKey(entry.user),
-    pass: _decryptWithMachineKey(entry.pass)
-  };
+  const user = _decryptWithMachineKey(entry.user);
+  const pass = _decryptWithMachineKey(entry.pass);
+  // If decrypt fails (key changed, tampered vault), return null to skip auto-login
+  if (user === null || pass === null) return null;
+  return { user: user, pass: pass };
 }
 
 /**

@@ -377,6 +377,9 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('tempmail:servers', async function (_e, playerId, gamecode) {
+    if (typeof playerId !== 'string' || typeof gamecode !== 'string') {
+      return { ok: false, error: 'Invalid params' };
+    }
     try {
       const servers = await tempmail.getRecommendedServers(playerId, gamecode);
       return { ok: true, data: servers };
@@ -418,6 +421,7 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('inspector:disable', function (_e, profileId) {
+    if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     const insp = _inspectors.get(profileId);
     if (insp) insp.disable();
     return { ok: true };
@@ -434,6 +438,7 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('inspector:clear', function (_e, profileId) {
+    if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     const insp = _inspectors.get(profileId);
     if (insp) insp.clear();
     return { ok: true };
@@ -452,6 +457,7 @@ function registerIpcHandlers(handlers) {
   // ── DevTools helpers (v4.9.1) ──
   const gameLauncher = require('../game-launcher');
   ipcMain.handle('dev:get-page-source', async function (_e, profileId) {
+    if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     try {
       const wc = gameLauncher.getWebContents(profileId);
       if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
@@ -492,6 +498,7 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('dev:reload-game', function (_e, profileId) {
+    if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     try {
       const wc = gameLauncher.getWebContents(profileId);
       if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
@@ -503,6 +510,7 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('dev:toggle-devtools', function (_e, profileId) {
+    if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     try {
       const wc = gameLauncher.getWebContents(profileId);
       if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
@@ -518,8 +526,9 @@ function registerIpcHandlers(handlers) {
   ipcMain.handle('i18n:get-lang', function () {
     return i18n.getLanguage();
   });
+  const ALLOWED_LANGS = ['pt', 'en', 'de', 'es', 'pl', 'fr'];
   ipcMain.handle('i18n:set-lang', function (_e, lang) {
-    if (typeof lang !== 'string') return i18n.getLanguage();
+    if (typeof lang !== 'string' || !ALLOWED_LANGS.includes(lang)) return i18n.getLanguage();
     i18n.setLanguage(lang);
     return i18n.getLanguage();
   });
@@ -533,9 +542,11 @@ function registerIpcHandlers(handlers) {
 
   // ── Events ──
   ipcMain.handle('events:get', function (_e, region) {
+    if (region && typeof region !== 'string') region = 'br';
     return et.getUpcoming(region || 'br');
   });
   ipcMain.on('events:set-muted', function (_e, m) {
+    if (typeof m !== 'boolean') return;
     if (_handlers.setMuted) {
       _handlers.setMuted(m);
     } else {

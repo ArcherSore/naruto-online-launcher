@@ -178,12 +178,12 @@ describe('blocker.js', () => {
   });
 
   describe('shouldBlock edge cases', () => {
-    test('retorna false para URL inválida', () => {
-      expect(shouldBlock('not-a-url')).toBe(false);
+    test('bloqueia URL inválida (fail-closed)', () => {
+      expect(shouldBlock('not-a-url')).toBe(true);
     });
 
-    test('retorna false para URL vazia', () => {
-      expect(shouldBlock('')).toBe(false);
+    test('bloqueia URL vazia (fail-closed)', () => {
+      expect(shouldBlock('')).toBe(true);
     });
   });
 

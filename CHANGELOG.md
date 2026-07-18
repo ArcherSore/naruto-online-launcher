@@ -1,5 +1,37 @@
 # Changelog
 
+## [5.9.27] - 2026-07-18
+
+### Segurança — Hardening de validação IPC + bloqueador
+- **IpcRouter: 8 handlers com validação de tipo adicionada**: `tempmail:servers`
+  (playerId/gamecode), `dev:get-page-source/reload-game/toggle-devtools`
+  (profileId), `inspector:disable/clear` (profileId), `events:get` (region),
+  `events:set-muted` (boolean check), `i18n:set-lang` (whitelist de idiomas).
+- **blocker.js: fail-closed para URLs malformadas**: `shouldBlock()` agora
+  retorna `true` (bloqueia) para URLs que `new URL()` não consegue parsear,
+  em vez de `false` (permitir). URLs legítimas do jogo sempre parseiam.
+- **ProfileVault: decrypt falha retorna `null` em vez de `''`**: Se a chave
+  de máquina mudar (reinstal, troca de user) ou o vault for adulterado,
+  `getCredentials()` agora retorna `null` em vez de `{user:'', pass:''}`.
+  Isso evita injeção de credenciais em branco no jogo (causaria rate-limit).
+  Todos os callers (`SessionLifecycle.js`) já tratavam `null` corretamente.
+
+### Cobertura de testes — +23 testes
+- **jwt.js**: +10 testes para fallbacks do `summarize()` (nickname, playerId,
+  uuid, username, iat, exp, lifetime, roles, loginGrantType ausentes).
+- **MemoryGuard.js**: +4 testes (destroyed callback, once() throw, listener
+  error resilience em `_notify`/`_recordGC`, `process.memoryUsage` throw).
+- **GcDaemon.js**: +8 testes (process.gc mock, _clearIdleSessions error paths,
+  camada 1 reject, partition clearCache/clearStorageData reject, partition
+  not loaded throw).
+- **IpcRouter.test.js**: +8 testes (tempmail type validation, dev/inspector
+  type guards, i18n:set-lang whitelist, events:set-muted boolean check).
+
+### Qualidade — JSDoc + documentação
+- **i18n.js**: Header atualizado para refletir restrição pt/en do settings.js.
+  Adicionado JSDoc a todas as 5 funções exportadas.
+- **ProfileVault.js**: JSDoc `_decryptWithMachineKey` atualizado (returns `string|null`).
+
 ## [5.9.26] - 2026-07-18
 
 ### UI/UX — Microinteractions e performance de busca

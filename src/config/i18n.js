@@ -1,17 +1,13 @@
 /**
- * config/i18n.js — Internationalization (6 idiomas) ultra-leve
- * v2.0.0 — v3.5.0 (6 regiões)
+ * config/i18n.js — Internationalization ultra-leve
+ * v2.1.0 — v5.9.15+ (settings.js restringe config.language a pt/en)
  *
  * Dicionário nativo sem dependências. ~8KB.
  * Strings organizadas por contexto: setup, settings, modes, common.
  *
- * IDIOMAS SUPORTADOS (extraído dos servidores Oasis):
- *   en — English      (NA/EU servers)
- *   pt — Português    (BR servers)
- *   de — Deutsch      (DE servers)
- *   es — Español      (ES servers)
- *   pl — Polski       (PL servers)
- *   fr — Français     (FR servers)
+ * NOTA: settings.js:validateConfig restringe config.language a 'pt' e 'en'.
+ * Os dicionários de/de/es/pl/fr existem mas estão incompletos (apenas setup +
+ * common). O IPC i18n:set-lang valida contra a lista completa (SUPPORTED).
  */
 
 'use strict';
@@ -330,26 +326,34 @@ const DICTIONARY = {
 
 let _currentLang = 'pt';
 
+/**
+ * Define o idioma atual. Ignora silenciosamente se o idioma não existir no dicionário.
+ * @param {string} lang — código do idioma (ex: 'pt', 'en')
+ */
 function setLanguage(lang) {
   if (DICTIONARY[lang]) {
     _currentLang = lang;
   }
 }
 
+/** Retorna o idioma atual. @returns {string} */
 function getLanguage() {
   return _currentLang;
 }
 
+/** Traduz uma chave para o idioma atual, com fallback para pt. @param {string} key @returns {string} */
 function t(key) {
   const dict = DICTIONARY[_currentLang] || DICTIONARY.pt;
   return dict[key] || DICTIONARY.pt[key] || key;
 }
 
+/** Traduz uma chave para um idioma específico, com fallback para pt. @param {string} key @param {string} lang @returns {string} */
 function tl(key, lang) {
   const dict = DICTIONARY[lang] || DICTIONARY.pt;
   return dict[key] || DICTIONARY.pt[key] || key;
 }
 
+/** Retorna o dicionário completo para um idioma (ou o atual). @param {string} [lang] @returns {Object} */
 function getAll(lang) {
   const l = lang || _currentLang;
   return DICTIONARY[l] || DICTIONARY.pt;

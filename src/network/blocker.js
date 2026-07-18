@@ -109,7 +109,8 @@ function shouldBlock(url) {
     if (isBlockedPath(u.pathname)) return true;
     return false;
   } catch (e) {
-    return false;
+    // Fail-closed: unparseable URLs are blocked (legitimate game URLs always parse)
+    return true;
   }
 }
 

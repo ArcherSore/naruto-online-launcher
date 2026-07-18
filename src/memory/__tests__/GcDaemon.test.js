@@ -248,3 +248,84 @@ describe('guard.js facade', () => {
     expect(() => guard.stop()).not.toThrow();
   });
 });
+
+describe('GcDaemon — additional coverage', () => {
+  afterEach(() => {
+    GcDaemon.stop();
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+    // Re-ensure store.getAll returns valid data after restore
+    store.getAll.mockReturnValue([
+      { id: 'p_active', name: 'Active' },
+      { id: 'p_idle', name: 'Idle' }
+    ]);
+  });
+
+  test('collect chama process.gc(true) quando disponível', async () => {
+    const origGc = process.gc;
+    process.gc = jest.fn();
+    // The previous test's collect may have set _lastGC recently.
+    // We mock MemoryGuard.getStats to control the flow and wait long enough.
+    await new Promise(r => setTimeout(r, 35000));
+    await GcDaemon.collect({ manual: true });
+    expect(process.gc).toHaveBeenCalledWith(true);
+    process.gc = origGc;
+  }, 60000);
+
+  test('collect não lança se process.gc(true) throws', async () => {
+    const origGc = process.gc;
+    process.gc = jest.fn(() => { throw new Error('gc boom'); });
+    await new Promise(r => setTimeout(r, 35000));
+    var threw = false;
+    try { await GcDaemon.collect({ manual: true }); } catch (_) { threw = true; }
+    expect(threw).toBe(false);
+    process.gc = origGc;
+  }, 60000);
+
+  test('collect camada 1: não lança se _clearIdleSessions rejects', async () => {
+    jest.spyOn(GcDaemon, '_clearIdleSessions').mockRejectedValue(new Error('layer1'));
+    await new Promise(r => setTimeout(r, 35000));
+    var threw = false;
+    try { await GcDaemon.collect({ manual: true }); } catch (_) { threw = true; }
+    expect(threw).toBe(false);
+  }, 60000);
+
+  test('_clearIdleSessions tolera defaultSession.clearCache rejection', async () => {
+    jest.spyOn(MemoryGuard, 'getActiveProfileIds').mockReturnValue([]);
+    electron.session.defaultSession.clearCache.mockRejectedValueOnce(new Error('dc err'));
+    await expect(GcDaemon._clearIdleSessions()).resolves.toBeUndefined();
+  });
+
+  test('_clearIdleSessions tolera defaultSession.clearStorageData rejection', async () => {
+    jest.spyOn(MemoryGuard, 'getActiveProfileIds').mockReturnValue([]);
+    electron.session.defaultSession.clearStorageData.mockRejectedValueOnce(new Error('dsd err'));
+    await expect(GcDaemon._clearIdleSessions()).resolves.toBeUndefined();
+  });
+
+  test('_clearIdleSessions tolera partition clearCache rejection', async () => {
+    jest.spyOn(MemoryGuard, 'getActiveProfileIds').mockReturnValue([]);
+    electron.session.fromPartition.mockReturnValueOnce({
+      clearCache: jest.fn(() => Promise.reject(new Error('pcc'))),
+      clearStorageData: jest.fn(() => Promise.resolve())
+    });
+    await expect(GcDaemon._clearIdleSessions()).resolves.toBeUndefined();
+  });
+
+  test('_clearIdleSessions tolera partition clearStorageData rejection', async () => {
+    jest.spyOn(MemoryGuard, 'getActiveProfileIds').mockReturnValue([]);
+    electron.session.fromPartition.mockReturnValueOnce({
+      clearCache: jest.fn(() => Promise.resolve()),
+      clearStorageData: jest.fn(() => Promise.reject(new Error('psd')))
+    });
+    await expect(GcDaemon._clearIdleSessions()).resolves.toBeUndefined();
+  });
+
+  test('_clearIdleSessions tolera getPartitionName throw (partition not loaded)', async () => {
+    jest.spyOn(MemoryGuard, 'getActiveProfileIds').mockReturnValue([]);
+    partition.getPartitionName.mockImplementation(function (p) {
+      if (p.id === 'p_idle') throw new Error('no partition');
+      return 'persist:profile-' + p.id;
+    });
+    await expect(GcDaemon._clearIdleSessions()).resolves.toBeUndefined();
+  });
+});

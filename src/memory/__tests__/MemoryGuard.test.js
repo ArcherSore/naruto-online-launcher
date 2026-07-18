@@ -243,6 +243,23 @@ describe('MemoryGuard.js', () => {
       expect(cb1).toHaveBeenCalled();
       expect(cb2).toHaveBeenCalled();
     });
+
+    test('_notify continues calling listeners even if one throws', () => {
+      const bad = jest.fn(() => { throw new Error('boom'); });
+      const good = jest.fn();
+      MemoryGuard.onMemoryUpdate(bad);
+      MemoryGuard.onMemoryUpdate(good);
+      expect(() => MemoryGuard._notify()).not.toThrow();
+      expect(good).toHaveBeenCalled();
+    });
+
+    test('getStats returns totalMB=0 when process.memoryUsage throws', () => {
+      const origMU = process.memoryUsage;
+      process.memoryUsage = jest.fn(() => { throw new Error('mu fail'); });
+      const stats = MemoryGuard.getStats();
+      expect(stats.totalMB).toBe(0);
+      process.memoryUsage = origMU;
+    });
   });
 
   describe('onGC / _recordGC', () => {
@@ -266,6 +283,15 @@ describe('MemoryGuard.js', () => {
       MemoryGuard._recordGC(false, {});
       const after = MemoryGuard.getStats().autoGCCount;
       expect(after).toBe(before + 1);
+    });
+
+    test('_recordGC continues firing listeners even if one throws', () => {
+      const bad = jest.fn(() => { throw new Error('gc boom'); });
+      const good = jest.fn();
+      MemoryGuard.onGC(bad);
+      MemoryGuard.onGC(good);
+      MemoryGuard._recordGC(true, { test: true });
+      expect(good).toHaveBeenCalled();
     });
   });
 
@@ -311,6 +337,22 @@ describe('MemoryGuard.js', () => {
       const mockWC = { once: jest.fn() };
       MemoryGuard.registerGameWebContents('p_test_destroy', mockWC);
       expect(mockWC.once).toHaveBeenCalledWith('destroyed', expect.any(Function));
+    });
+
+    test('registerGameWebContents removes profile from registry on destroyed callback', () => {
+      const destroyCb = jest.fn();
+      const mockWC = { once: jest.fn((evt, cb) => { destroyCb.mockImplementation(cb); }) };
+      MemoryGuard.registerGameWebContents('p_destroy_cb', mockWC);
+      expect(MemoryGuard.getActiveProfileIds()).toContain('p_destroy_cb');
+      destroyCb();
+      expect(MemoryGuard.getActiveProfileIds()).not.toContain('p_destroy_cb');
+    });
+
+    test('registerGameWebContents tolerates once() throwing', () => {
+      const badWC = { once: jest.fn(() => { throw new Error('no once'); }) };
+      // Entry is added before once() is called, so it stays in registry
+      MemoryGuard.registerGameWebContents('p_bad_once', badWC);
+      expect(MemoryGuard.getActiveProfileIds()).toContain('p_bad_once');
     });
 
     test('unregisterGameWebContents removes entry from registry', () => {
