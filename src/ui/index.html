@@ -410,6 +410,9 @@
         background: var(--surface);
         color: var(--text);
       }
+      .nav-item:active {
+        background: var(--surface-hover);
+      }
       .nav-item.active {
         color: var(--accent);
         border-left-color: var(--accent);
@@ -669,6 +672,12 @@
       .card:hover::before {
         opacity: 1;
       }
+      .card:active {
+        transform: translateY(-1px);
+        box-shadow:
+          0 4px 12px rgba(0, 0, 0, 0.3),
+          0 0 0 1px rgba(255, 140, 0, 0.1);
+      }
       .card:focus-visible {
         outline: none;
         box-shadow: var(--focus-ring);
@@ -791,6 +800,16 @@
         width: 0.7rem;
         height: 0.7rem;
         fill: #0a0a0f;
+      }
+      .card-actions .btn-play.launching {
+        opacity: 0.7;
+        pointer-events: none;
+      }
+      .card-actions .btn-play.launching svg {
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
       }
       .card-actions .btn-icon-only {
         width: 2rem;
@@ -7126,14 +7145,20 @@
         });
       });
 
-      // ── Search ──
+      // ── Search (debounced 150ms) ──
+      var _searchTimer = null;
       document.getElementById('searchInput').oninput = function () {
-        searchQuery = this.value.trim().toLowerCase();
-        document.getElementById('searchClear').style.display = searchQuery ? 'flex' : 'none';
-        renderProfiles();
+        var val = this.value.trim().toLowerCase();
+        document.getElementById('searchClear').style.display = val ? 'flex' : 'none';
+        clearTimeout(_searchTimer);
+        _searchTimer = setTimeout(function () {
+          searchQuery = val;
+          renderProfiles();
+        }, 150);
       };
 
       document.getElementById('searchClear').onclick = function () {
+        clearTimeout(_searchTimer);
         document.getElementById('searchInput').value = '';
         searchQuery = '';
         this.style.display = 'none';
@@ -7707,6 +7732,17 @@
 
       // ── Actions ──
       function launch(id) {
+        // Show loading state on the play button for 2s
+        var playBtn = document.querySelector('[data-card-id="' + id + '"] .btn-play');
+        if (playBtn && !playBtn.classList.contains('launching')) {
+          playBtn.classList.add('launching');
+          var origHtml = playBtn.innerHTML;
+          playBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:0.7rem;height:0.7rem;fill:#0a0a0f"><path d="M12 2a10 10 0 0 1 10 10h-3a7 7 0 0 0-7-7V2z"/></svg> Abrindo...';
+          setTimeout(function () {
+            playBtn.classList.remove('launching');
+            playBtn.innerHTML = origHtml;
+          }, 2000);
+        }
         ipcRenderer.send('profile:launch', id);
         var p = profiles.find(function (x) {
           return x.id === id;

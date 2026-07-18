@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.9.26] - 2026-07-18
+
+### UI/UX — Microinteractions e performance de busca
+- **Busca com debounce (150ms)**: `oninput` na barra de pesquisa agora aguarda
+  150ms antes de re-renderizar perfis, eliminando re-renders desnecessários a
+  cada tecla digitada. Botão de limpar cancela o timer pendente.
+- **Play button loading state**: Ao clicar em "Play", o botão mostra spinner
+  animado + texto "Abrindo..." por 2s com `pointer-events: none`, evitando
+  cliques duplicados durante o lançamento da janela do jogo.
+- **Card `:active` press feedback**: Cards agora respondem ao clique com
+  `translateY(-1px)` + sombra reduzida, dando feedback tátil ao pressionar.
+- **Nav item `:active` press feedback**: Itens do menu lateral agora tem
+  estado `:active` com fundo `--surface-hover`.
+
 ## [5.9.25] - 2026-07-18
 
 ### Coverage — store.js 86.59% → 90.35%, IpcRouter.js 76.83% → 84.05%
