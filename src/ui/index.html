@@ -460,6 +460,10 @@
       body.view-settings .topbar .actions [data-views='accounts'] {
         display: none !important;
       }
+      /* v5.9.43: Web preview — hide Electron-only window controls (they do nothing without a real BrowserWindow) */
+      body.web-preview .topbar .window-controls {
+        display: none !important;
+      }
       /* ── Buttons ── */
       .btn {
         display: inline-flex;
@@ -4397,17 +4401,6 @@
       <main class="main">
         <header class="topbar">
           <h2 id="viewTitle">Contas</h2>
-          <button
-            class="btn sm last-profile-btn"
-            id="lastProfileBtn"
-            data-views="accounts"
-            title="Relançar último perfil"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-            <span id="lastProfileName"></span>
-          </button>
           <div class="actions" style="flex-wrap: wrap; gap: 0.4rem">
             <!-- v5.3: Connection Health Indicator -->
             <div
@@ -4448,12 +4441,6 @@
                 </svg>
               </button>
             </div>
-            <button class="btn icon" id="muteBtn" title="Notificações">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-            </button>
             <button class="btn icon" id="kbHelpBtn" title="Atalhos de teclado (?)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="2" y="6" width="20" height="12" rx="2" />
@@ -5746,28 +5733,11 @@
 
       const LAST_PROFILE_KEY = 'shinobi-last-profile';
 
-      // ── Last Profile (Quick Re-launch) ──
+      // ── Last Profile tracking (data only — button removed in v5.9.43 for topbar declutter) ──
+      // localStorage still tracks the last launched profile so other features can use it.
       function loadLastProfile() {
-        var id = localStorage.getItem(LAST_PROFILE_KEY);
-        if (!id) {
-          document.getElementById('lastProfileBtn').style.display = 'none';
-          return;
-        }
-        var p = profiles.find(function (x) {
-          return x.id === id;
-        });
-        if (!p) {
-          document.getElementById('lastProfileBtn').style.display = 'none';
-          return;
-        }
-        document.getElementById('lastProfileName').textContent = p.name;
-        document.getElementById('lastProfileBtn').style.display = 'inline-flex';
+        /* no-op: topbar button removed; tracking kept for future use */
       }
-
-      document.getElementById('lastProfileBtn').onclick = function () {
-        var id = localStorage.getItem(LAST_PROFILE_KEY);
-        if (id) launch(id);
-      };
 
       // ── IPC ──
       ipcRenderer.on('profiles:updated', (_e, list) => {
@@ -6071,18 +6041,7 @@
             (p.favorite ? 'currentColor' : 'none') +
             '" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
             '</button>';
-          // v4.6: Duplicate button
-          var dupBtnHtml =
-            '<button class="btn sm btn-icon-only dup-action" data-act="dup" data-tip="Duplicar" title="Duplicar">' +
-            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
-            '</button>';
-          // v5.1: Health check button
-          var healthBtnHtml =
-            '<button class="health-check-btn" data-health-id="' +
-            p.id +
-            '" data-act="health" title="Verificar saúde do perfil">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Verificar' +
-            '</button>';
+          // v5.9.43: dupBtnHtml + healthBtnHtml removed — both buttons live in card overflow menu now.
           // v5.1: Batch checkbox
           var batchCheckHtml =
             '<div class="card-batch-check" role="checkbox" aria-checked="false" aria-label="Selecionar ' +
@@ -6105,10 +6064,8 @@
       </div>
       ${notesHtml}
       <div class="card-badges">
-        ${p.hasVault ? '<span class="badge ok">auto-login</span>' : ''}
         ${autoLoginBadgeHtml}
         ${windowBadgeHtml}
-        ${healthBtnHtml}
       </div>
       ${statsHtml}
       <div class="health-result" id="healthResult-${p.id}"></div>
@@ -6118,6 +6075,7 @@
           ${favBtnHtml}
           <button class="btn sm btn-icon-only overflow-trigger" data-act="overflow" data-tip="Mais ações" title="Mais ações" aria-haspopup="true" aria-expanded="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
           <div class="card-overflow-menu" role="menu" hidden>
+            <button type="button" role="menuitem" data-act="health"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Verificar saúde</button>
             <button type="button" role="menuitem" data-act="dup"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicar</button>
             <button type="button" role="menuitem" data-act="edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Editar</button>
             <button type="button" role="menuitem" data-act="vault"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Credenciais</button>
@@ -6154,6 +6112,7 @@
                 duplicateProfile(p.id);
               } else if (act === 'overflow') toggleOverflowMenu(btn);
               else if (act === 'health') {
+                closeAllOverflowMenus();
                 var resultEl = document.getElementById('healthResult-' + p.id);
                 if (resultEl) runHealthCheck(p.id, resultEl);
               } else if (act === 'switch-server') {
@@ -6808,7 +6767,6 @@
         notifToggle.classList.toggle('on', !notificationsMuted);
         notifToggle.setAttribute('aria-checked', String(!notificationsMuted));
         ipcRenderer.send('events:set-muted', notificationsMuted);
-        document.getElementById('muteBtn').classList.toggle('on', notificationsMuted);
       }
       notifToggle.onclick = toggleNotifications;
       notifToggle.addEventListener('keydown', function (e) {
@@ -6830,13 +6788,7 @@
       };
 
       // ── Topbar buttons ──
-      document.getElementById('muteBtn').onclick = function () {
-        notificationsMuted = !notificationsMuted;
-        this.classList.toggle('on', notificationsMuted);
-        document.getElementById('setNotifications').classList.toggle('on', !notificationsMuted);
-        ipcRenderer.send('events:set-muted', notificationsMuted);
-        toast(notificationsMuted ? 'Notificações mutadas' : 'Notificações ativas', 'ok');
-      };
+      // muteBtn removed in v5.9.43 — notifications toggle lives in Configurações → Preferências.
 
       document.getElementById('exportBtn').onclick = async () => {
         var btn = document.getElementById('exportBtn');

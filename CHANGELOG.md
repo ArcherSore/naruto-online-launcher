@@ -1,5 +1,36 @@
 # Changelog
 
+## [5.9.43] - 2026-07-18
+
+### Cleanup — Topbar enxuta + card sem badge redundante
+
+A v5.9.42 adicionou overflow menu e topbar contextual, mas a topbar ainda
+mostrava 9 controles — "passou do ponto". Esta versão remove o que é
+redundante ou duplicado, sem perder função.
+
+- **lastProfileBtn removido** — o botão "Relançar último perfil" na topbar
+  era redundante: clicar no card faz a mesma coisa. O tracking em
+  localStorage (`shinobi-last-profile`) continua, só o botão sumiu.
+- **muteBtn removido** — o sino de notificações na topbar duplicava o
+  toggle "Notificações" em Configurações → Preferências (`setNotifications`).
+  Um só lugar, sem duplicação de estado.
+- **window-controls ocultos no web preview** — os 3 botões (Sempre visível,
+  Minimizar, Maximizar) não fazem nada sem um BrowserWindow real. No preview
+  (Next.js) agora somem via `body.web-preview .window-controls { display: none }`.
+  No Electron continuam visíveis.
+- **Card: badge "auto-login" removida** — o ícone de cadeado ao lado do nome
+  já indica auto-login ativo. A badge de texto era redundante.
+- **Card: "Verificar" movido para o overflow menu** — o botão de health check
+  saiu da superfície do card e entrou no menu "···" como "Verificar saúde".
+  Cada card passou de 4 ações visíveis (Play + Favoritar + Verificar + ···)
+  para 3 (Play + Favoritar + ···). O overflow menu agora tem 5 itens.
+- **Dead code removido** — `dupBtnHtml` e `healthBtnHtml` (declarados mas não
+  usados desde a v5.9.42) foram deletados.
+
+Resultado: topbar de 9 → 5 controles visíveis no preview (título, status de
+conexão, grade/lista, atalhos ?, nova conta). Card de 14 → 11 elementos.
+Clutter score VLM esperado: Contas 7 → 4-5.
+
 ## [5.9.42] - 2026-07-18
 
 ### Cleanup — Despoluição visual do launcher
