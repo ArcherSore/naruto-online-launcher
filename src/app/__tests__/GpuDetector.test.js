@@ -24,6 +24,13 @@ describe('GpuDetector', function () {
     fs.readFileSync.mockReset();
     fs.readdirSync.mockReset();
     child_process.execFileSync.mockReset();
+
+    // Default: assume Linux. Em Windows CI, process.platform real é 'win32' e:
+    //  - detect() vai pro branch Windows (sem sysfs/lspci) → vendor='unknown'
+    //  - path.join usa backslashes → mocks de fs.readFileSync(p.endsWith('/vendor')) falham
+    //  - _isMusl()/_isNvidiaProprietary() short-circuitam em platform !== 'linux'
+    // Testes que exercitam paths win32/darwin setam platform explicitamente.
+    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
   });
 
   describe('constants', function () {

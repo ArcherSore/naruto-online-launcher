@@ -1,5 +1,31 @@
 # Changelog
 
+## [5.9.39] - 2026-07-18
+
+### CI/CD — Cross-platform tests (CpuOptimizer + GpuDetector)
+
+- **Build Windows #141 corrigido** — os testes `CpuOptimizer.test.js` e
+  `GpuDetector.test.js` assumiam `process.platform === 'linux'` (porque
+  rodavam em Ubuntu dev/CI) sem setar isso explicitamente. No Windows CI,
+  `process.platform === 'win32'` real, então:
+  - `_applyTaskset` / `_applyOomScoreAdj` retornavam `'not-linux'` no guard
+    antes de exercitar o comportamento testado (expected `'invalid-args'`
+    ou `'permission denied'`).
+  - `optimizeRenderer` entrava no path Windows e chamava `_winPrioConstants()`
+    que crasheava em `os.constants.priority` (mock de `os` só tinha `cpus`).
+  - `GpuDetector.detect()` ia pro branch Windows (`_listGpusWindows`) e
+    `path.join` usava backslashes → mocks de `fs.readFileSync(p.endsWith('/vendor'))`
+    não matcheavam → vendor='unknown'.
+  - `_isMusl()` / `_isNvidiaProprietary()` short-circuitavam em `platform !== 'linux'`.
+- **Fix CpuOptimizer.test.js** — `beforeEach` agora seta `process.platform='linux'`
+  (testes win32/darwin setam explicitamente) + completa o mock de `os` com
+  `constants.priority` + `setPriority`.
+- **Fix GpuDetector.test.js** — `beforeEach` agora seta `process.platform='linux'`
+  (testes win32 setam explicitamente no próprio corpo).
+- **Sem mudanças em código de produção** — fix exclusivamente nos testes.
+- Validado: 1234/1234 testes passam no Linux; simulação de `process.platform='win32'`
+  via `setupFiles` confirma que os 2 arquivos afetados (83 testes) passam no Windows.
+
 ## [5.9.38] - 2026-07-18
 
 ### CI/CD — Fix build failures + cleanup
@@ -260,7 +286,7 @@
   resolvido pelo sistema de módulos do Jest diretamente e funciona
   de forma confiável em todas as versões do Node.
 
-- **isolateModules + **mocks****: Testes de `flags.test.js` que usavam
+- **isolateModules + **mocks\*\*\*\*: Testes de `flags.test.js` que usavam
   `jest.isolateModules` agora referenciam `require('electron')` dentro
   do escopo isolado (variável `innerElectron`), não a referência externa.
   Antes o `isolateModules` criava um registry separado e a referência

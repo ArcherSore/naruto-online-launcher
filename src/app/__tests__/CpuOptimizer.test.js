@@ -31,6 +31,25 @@ describe('CpuOptimizer', function () {
     fs.readFile.mockReset && fs.readFile.mockReset();
     fs.writeFile.mockReset();
     child_process.execFile.mockReset();
+
+    // Garante os.constants.priority existe (testes cross-platform no Windows CI
+    // onde o mock de `os` só tinha `cpus`). _winPrioConstants() lê esses valores
+    // quando o código de produção entra no path Windows.
+    const os = require('os');
+    os.constants = {
+      priority: {
+        PRIORITY_ABOVE_NORMAL: -7,
+        PRIORITY_NORMAL: 0,
+        PRIORITY_BELOW_NORMAL: 10
+      }
+    };
+    os.setPriority = jest.fn();
+
+    // Default: assume Linux. Testes que exercitam paths win32/darwin setam
+    // explicitamente via Object.defineProperty (e restauram no finally).
+    // Em Windows CI, process.platform real é 'win32' e os guards de produção
+    // retornam 'not-linux' antes dos testes poderem exercitar o comportamento.
+    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
   });
 
   describe('_parseCpuList', function () {
