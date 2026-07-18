@@ -30,12 +30,15 @@ let _inspectors = new Map(); // profileId -> inspector instance
 const _launchTimes = new Map();
 let _registered = false;
 
+/** @param {string} channel @param {*} payload */
 function _send(channel, payload) {
   ManagerWindow.send(channel, payload);
 }
+/** Push current profiles to renderer. */
 function _pushProfiles() {
   StateBroadcaster.pushProfiles();
 }
+/** Push current events to renderer. */
 function _pushEvents() {
   StateBroadcaster.pushEvents();
 }
@@ -102,6 +105,7 @@ function registerIpcHandlers(handlers) {
 
   // ── Profile CRUD ──
   ipcMain.on('profile:create', function (_e, opts) {
+    if (typeof opts !== 'object' || opts === null) return;
     const p = store.create(opts);
     if (p) {
       _pushProfiles();
@@ -115,6 +119,7 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('profile:get', function (_e, id) {
+    if (typeof id !== 'string') return null;
     return store.get(id);
   });
 
@@ -394,6 +399,7 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('inspector:enable', function (_e, profileId) {
+    if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     try {
       const profile = store.get(profileId);
       if (!profile) return { ok: false, error: 'Perfil não encontrado' };
@@ -418,6 +424,10 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('inspector:entries', function (_e, profileId, filter) {
+    if (typeof profileId !== 'string') return { ok: true, data: { entries: [], stats: null } };
+    if (filter !== null && filter !== undefined && (typeof filter !== 'object' || Array.isArray(filter))) {
+      return { ok: true, data: { entries: [], stats: null } };
+    }
     const insp = _inspectors.get(profileId);
     if (!insp) return { ok: true, data: { entries: [], stats: null } };
     return { ok: true, data: { entries: insp.getEntries(filter), stats: insp.getStats() } };
@@ -509,6 +519,7 @@ function registerIpcHandlers(handlers) {
     return i18n.getLanguage();
   });
   ipcMain.handle('i18n:set-lang', function (_e, lang) {
+    if (typeof lang !== 'string') return i18n.getLanguage();
     i18n.setLanguage(lang);
     return i18n.getLanguage();
   });
@@ -516,6 +527,7 @@ function registerIpcHandlers(handlers) {
     return i18n.getAll();
   });
   ipcMain.handle('i18n:t', function (_e, key) {
+    if (typeof key !== 'string') return '';
     return i18n.t(key);
   });
 
@@ -547,6 +559,9 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('profiles:export-encrypted', async function (_e, password) {
+    if (typeof password !== 'string' || password.length < 8) {
+      return { ok: false, error: 'Senha deve ter pelo menos 8 caracteres' };
+    }
     const win = _getWin();
     if (!win) return { ok: false, error: 'Manager window closed' };
     try {
@@ -578,6 +593,9 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('profiles:import-encrypted', async function (_e, password) {
+    if (typeof password !== 'string') {
+      return { ok: false, error: 'Senha obrigatória' };
+    }
     const win = _getWin();
     if (!win) return { ok: false, error: 'Manager window closed' };
     try {

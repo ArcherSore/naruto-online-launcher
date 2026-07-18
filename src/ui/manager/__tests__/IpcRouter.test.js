@@ -1160,5 +1160,88 @@ describe('IpcRouter.js', () => {
       var result = await handler({}, 'p_001');
       expect(result).toEqual({ id: 'p_001', name: 'Test' });
     });
+
+    test('retorna null para id não-string', async () => {
+      const handler = handleHandlers['profile:get'];
+      var result = await handler({}, 123);
+      expect(result).toBeNull();
+      result = await handler({}, null);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('profile:create handler', () => {
+    test('ignora opts não-objeto', () => {
+      const handler = onHandlers['profile:create'];
+      handler({}, null);
+      handler({}, 'string');
+      handler({}, 42);
+      expect(store.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('inspector:enable type validation', () => {
+    test('retorna erro para profileId não-string', async () => {
+      const handler = handleHandlers['inspector:enable'];
+      var result = await handler({}, 123);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('Invalid');
+    });
+  });
+
+  describe('inspector:entries type validation', () => {
+    test('retorna empty para profileId não-string', async () => {
+      const handler = handleHandlers['inspector:entries'];
+      var result = await handler({}, 123, null);
+      expect(result.data.entries).toEqual([]);
+    });
+
+    test('retorna empty para filter como array (proto pollution guard)', async () => {
+      var insp = { getEntries: jest.fn(), getStats: jest.fn() };
+      const inspector = require('../../../network/inspector');
+      inspector.create = jest.fn(function () { return insp; });
+      // Need to re-register to get inspector into the map
+      store.get.mockReturnValue({ id: 'p_001' });
+      var result = await handleHandlers['inspector:entries']({}, 'p_001', ['__proto__']);
+      expect(result.data.entries).toEqual([]);
+    });
+  });
+
+  describe('i18n handlers type validation', () => {
+    test('i18n:set-lang retorna idioma atual para lang não-string', async () => {
+      const handler = handleHandlers['i18n:set-lang'];
+      var result = await handler({}, 123);
+      expect(result).toBe('pt');
+    });
+
+    test('i18n:t retorna string vazia para key não-string', async () => {
+      const handler = handleHandlers['i18n:t'];
+      var result = await handler({}, 123);
+      expect(result).toBe('');
+    });
+  });
+
+  describe('profiles:export-encrypted type validation', () => {
+    test('rejeita senha curta (<8 chars)', async () => {
+      const handler = handleHandlers['profiles:export-encrypted'];
+      var result = await handler({}, 'ab');
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('8 caracteres');
+    });
+
+    test('rejeita senha não-string', async () => {
+      const handler = handleHandlers['profiles:export-encrypted'];
+      var result = await handler({}, 123);
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('profiles:import-encrypted type validation', () => {
+    test('rejeita password não-string', async () => {
+      const handler = handleHandlers['profiles:import-encrypted'];
+      var result = await handler({}, 123);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('obrigatória');
+    });
   });
 });

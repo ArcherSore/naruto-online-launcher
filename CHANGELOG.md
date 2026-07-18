@@ -1,5 +1,31 @@
 # Changelog
 
+## [5.9.24] - 2026-07-18
+
+### Security — IPC type validation hardening
+- **IpcRouter.js**: Added `typeof` guards on 6 previously-unvalidated IPC handlers:
+  `profile:create` (opts must be object), `profile:get` (id must be string),
+  `inspector:enable` (profileId must be string), `inspector:entries`
+  (profileId string + filter proto-pollution guard rejecting arrays),
+  `i18n:set-lang` (lang must be string), `i18n:t` (key must be string).
+  `profiles:export-encrypted` and `profiles:import-encrypted` now validate
+  password is a string (export also enforces >= 8 chars).
+- **CryptoService.js**: Increased backup password minimum from 4 to 8
+  characters (4-char passwords are trivially brute-forced even with
+  PBKDF2 200k iterations).
+
+### Coverage — vault.js 0% -> ~100%
+- Created `vault.test.js` (8 tests) covering the facade's encrypt/decrypt
+  delegation, invalid payload handling, and export verification.
+
+### Coverage — IpcRouter.js +18 tests
+- Added 9 tests for new type validation guards (profile:get null,
+  profile:create non-object, inspector:enable/entries non-string,
+  i18n non-string, encrypted backup short/non-string password).
+
+### JSDoc — IpcRouter internal helpers
+- Added JSDoc to `_send()`, `_pushProfiles()`, `_pushEvents()`.
+
 ## [5.9.23] - 2026-07-18
 
 ### Fixed — Critical: `flags.getAppliedSnapshot` not exported (runtime crash)

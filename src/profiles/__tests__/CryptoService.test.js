@@ -78,27 +78,27 @@ describe('CryptoService.js', () => {
     const creds = { p_1: { user: 'u1', pass: 's1' } };
 
     test('round-trip recupera perfis + credenciais', () => {
-      const enc = Cs.exportEncryptedBackup(profiles, creds, 'masterpw');
+      const enc = Cs.exportEncryptedBackup(profiles, creds, 'masterpw12');
       expect(typeof enc).toBe('string');
-      const payload = Cs.importEncryptedBackup(enc, 'masterpw');
+      const payload = Cs.importEncryptedBackup(enc, 'masterpw12');
       expect(payload.profiles).toHaveLength(2);
       expect(payload.profiles[0].id).toBe('p_1');
       expect(payload.credentials.p_1.user).toBe('u1');
       expect(payload.exportedAt).toBeGreaterThan(0);
     });
 
-    test('export rejeita senha curta (<4 chars)', () => {
+    test('export rejeita senha curta (<8 chars)', () => {
       expect(() => Cs.exportEncryptedBackup(profiles, creds, 'ab')).toThrow(
-        /pelo menos 4 caracteres/
+        /pelo menos 8 caracteres/
       );
     });
 
     test('export rejeita profiles não-array', () => {
-      expect(() => Cs.exportEncryptedBackup(null, creds, 'masterpw')).toThrow(/perfis inválida/);
+      expect(() => Cs.exportEncryptedBackup(null, creds, 'masterpw12')).toThrow(/perfis inválida/);
     });
 
     test('import com senha errada lança "Senha incorreta"', () => {
-      const enc = Cs.exportEncryptedBackup(profiles, creds, 'masterpw');
+      const enc = Cs.exportEncryptedBackup(profiles, creds, 'masterpw12');
       expect(() => Cs.importEncryptedBackup(enc, 'wrongpw')).toThrow(/Senha incorreta|corrompido/);
     });
 
@@ -114,7 +114,7 @@ describe('CryptoService.js', () => {
     });
 
     test('envelope tem versão e kdf documentados', () => {
-      const enc = Cs.exportEncryptedBackup(profiles, creds, 'masterpw');
+      const enc = Cs.exportEncryptedBackup(profiles, creds, 'masterpw12');
       const envelope = JSON.parse(Buffer.from(enc, 'base64').toString('utf8'));
       expect(envelope.version).toBe(Cs.BACKUP_VERSION);
       expect(envelope.kdf.algorithm).toBe('pbkdf2');

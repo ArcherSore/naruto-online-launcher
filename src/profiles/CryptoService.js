@@ -71,8 +71,8 @@ function decrypt(payload, key) {
  * @returns {string} base64 do envelope criptografado
  */
 function exportEncryptedBackup(profiles, credentialsMap, password) {
-  if (!password || String(password).length < 4) {
-    throw new Error('Senha mestre deve ter pelo menos 4 caracteres');
+  if (!password || String(password).length < 8) {
+    throw new Error('Senha mestre deve ter pelo menos 8 caracteres');
   }
   if (!Array.isArray(profiles)) {
     throw new Error('Lista de perfis inválida');
