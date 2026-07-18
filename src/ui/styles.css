@@ -397,6 +397,11 @@ body {
   color: var(--accent);
   background: rgba(255, 140, 0, 0.08);
 }
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 .btn-danger {
   color: var(--danger);
   border-color: rgba(220, 38, 38, 0.3);
@@ -2441,7 +2446,7 @@ input[type='radio'].themed:checked::after {
   padding: 0.8rem 0.9rem;
   background: var(--bg-elev);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   cursor: pointer;
   text-align: left;
   color: var(--text);

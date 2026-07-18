@@ -55,6 +55,16 @@ describe('flags.js', () => {
       expect(typeof flags.SYSTEM_RAM_GB).toBe('number');
       expect(flags.SYSTEM_RAM_GB).toBeGreaterThan(0);
     });
+
+    test('exports getAppliedSnapshot as function', () => {
+      const flags = require('../flags');
+      expect(typeof flags.getAppliedSnapshot).toBe('function');
+    });
+
+    test('exports IS_WAYLAND as boolean', () => {
+      const flags = require('../flags');
+      expect(typeof flags.IS_WAYLAND).toBe('boolean');
+    });
   });
 
   describe('applyAll', () => {
@@ -200,6 +210,45 @@ describe('flags.js', () => {
       if (flags.IS_RAMEN) {
         expect(flags.IS_LOW_SPEC).toBe(true);
       }
+    });
+  });
+
+  describe('getAppliedSnapshot', () => {
+    test('returns object with expected shape', () => {
+      const flags = require('../flags');
+      var snap = flags.getAppliedSnapshot();
+      expect(typeof snap.applied).toBe('boolean');
+      expect(typeof snap.heapMB).toBe('number');
+      expect(Array.isArray(snap.disabled)).toBe(true);
+      expect(Array.isArray(snap.enabled)).toBe(true);
+      expect(Array.isArray(snap.jsFlags)).toBe(true);
+    });
+
+    test('applied is true after applyAll()', () => {
+      const flags = require('../flags');
+      var snap = flags.getAppliedSnapshot();
+      expect(snap.applied).toBe(true);
+    });
+
+    test('contains expected disabled features', () => {
+      const flags = require('../flags');
+      var snap = flags.getAppliedSnapshot();
+      expect(snap.disabled).toContain('IsolateOrigins');
+      expect(snap.disabled).toContain('site-per-process');
+    });
+
+    test('contains expected enabled features', () => {
+      const flags = require('../flags');
+      var snap = flags.getAppliedSnapshot();
+      expect(snap.enabled).toContain('VizDisplayCompositor');
+    });
+
+    test('jsFlags contains --expose-gc and --max-old-space-size', () => {
+      const flags = require('../flags');
+      var snap = flags.getAppliedSnapshot();
+      var joined = snap.jsFlags.join(' ');
+      expect(joined).toContain('--expose-gc');
+      expect(joined).toContain('--max-old-space-size=');
     });
   });
 

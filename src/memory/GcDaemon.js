@@ -128,11 +128,11 @@ async function collect(opts) {
  */
 async function _clearIdleSessions() {
   // Default session (nenhum jogo roda aqui — seguro limpar)
-  await session.defaultSession.clearCache().catch(function () {
-    /* ignore */
+  await session.defaultSession.clearCache().catch(function (e) {
+    logger.debug('GcDaemon: clearCache default session error: ' + e.message);
   });
-  await session.defaultSession.clearStorageData({ storages: ['cachestorage'] }).catch(function () {
-    /* ignore */
+  await session.defaultSession.clearStorageData({ storages: ['cachestorage'] }).catch(function (e) {
+    logger.debug('GcDaemon: clearStorageData default session error: ' + e.message);
   });
 
   const store = require('../profiles/store');
@@ -150,11 +150,11 @@ async function _clearIdleSessions() {
     try {
       const partName = partition.getPartitionName(profiles[i]);
       const ps = session.fromPartition(partName);
-      await ps.clearCache().catch(function () {
-        /* ignore */
+      await ps.clearCache().catch(function (e) {
+        logger.debug('GcDaemon: clearCache partition error (' + pid + '): ' + e.message);
       });
-      await ps.clearStorageData({ storages: ['cachestorage'] }).catch(function () {
-        /* ignore */
+      await ps.clearStorageData({ storages: ['cachestorage'] }).catch(function (e) {
+        logger.debug('GcDaemon: clearStorageData partition error (' + pid + '): ' + e.message);
       });
     } catch (_) {
       /* partition não carregada — ok */

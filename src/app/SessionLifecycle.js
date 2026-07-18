@@ -529,6 +529,8 @@ function attach(win, ctx) {
   // ── Closed → cleanup final ──
   win.on('closed', function () {
     _clearEntryTimers(entry);
+    // Clean up reload race guard for this window
+    _reloadingWindows.delete(win.id);
     // gameWindows.delete é responsabilidade do Launcher (que possui o Map)
     _sendWindowStatus(profileId, false);
     logger.info('Perfil fechado: ' + profile.name);
@@ -644,9 +646,12 @@ var _reloadingWindows = new Set();
 
 function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
   if (!win || win.isDestroyed()) return Promise.resolve();
+  if (win.webContents.isDestroyed()) return Promise.resolve();
   if (!ses) {
     // Sem session: não há o que limpar, só recarrega.
-    win.webContents.reload();
+    if (!win.webContents.isDestroyed()) {
+      win.webContents.reload();
+    }
     return Promise.resolve();
   }
 

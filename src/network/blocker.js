@@ -136,8 +136,10 @@ function setupBlocker(session) {
     // Use boundary-aware match to avoid replacing logintype=30, logintype=301, etc.
     let url = details.url;
     if (url.includes('logintype=3')) {
-      url = url.replace(/logintype=3(?=&|$)/g, 'logintype=4');
-      return callback({ redirectURL: url });
+      const replaced = url.replace(/logintype=3(?=[&#]|$)/g, 'logintype=4');
+      if (replaced !== url) {
+        return callback({ redirectURL: replaced });
+      }
     }
 
     callback({ cancel: false });

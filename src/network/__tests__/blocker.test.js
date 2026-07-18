@@ -250,10 +250,24 @@ describe('blocker.js', () => {
 
       handler({ url: 'https://game.com/login?logintype=30' }, mockCallback);
       // includes('logintype=3') is true for logintype=30, so it enters the block,
-      // but regex logintype=3(?=&|$) doesn't match (3 is followed by 0).
-      // URL is unchanged but returned as redirectURL, not cancel:false.
+      // but regex logintype=3(?=[&#]|$) doesn't match (3 is followed by 0).
+      // replaced === url, so it falls through to cancel:false (no infinite redirect).
+      expect(mockCallback).toHaveBeenCalledWith({ cancel: false });
+    });
+
+    test('handles logintype=3#fragment without infinite redirect', () => {
+      var mockSession = {
+        webRequest: { onBeforeRequest: jest.fn() }
+      };
+      setupBlocker(mockSession);
+      var handler = mockSession.webRequest.onBeforeRequest.mock.calls[0][0];
+      var mockCallback = jest.fn();
+
+      // Old regex (?=&|$) missed # — caused infinite self-redirect loop.
+      // New regex (?=[&#]|$) correctly handles # as boundary.
+      handler({ url: 'https://game.com/login?logintype=3#section' }, mockCallback);
       expect(mockCallback).toHaveBeenCalledWith({
-        redirectURL: 'https://game.com/login?logintype=30'
+        redirectURL: 'https://game.com/login?logintype=4#section'
       });
     });
   });

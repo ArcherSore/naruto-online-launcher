@@ -70,6 +70,10 @@ function registerGameWebContents(profileId, webContents) {
   }
 }
 
+/**
+ * Remove um webContents de jogo do registry. Chamado quando o jogo fecha.
+ * @param {string} profileId
+ */
 function unregisterGameWebContents(profileId) {
   if (_webviewRegistry.has(profileId)) {
     _webviewRegistry.delete(profileId);
@@ -88,27 +92,40 @@ function getActiveProfileIds() {
 
 // ── Modo Batata / Ramen ──
 
+/** @returns {boolean} */
 function isBatata() {
   return _forceBatata || IS_LOW_SPEC;
 }
+/** @returns {boolean} */
 function isRamen() {
   return IS_RAMEN;
 }
+/** @returns {number} threshold in MB */
 function getThreshold() {
   return _thresholdMB;
 }
+/** @returns {number} interval in ms */
 function getIntervalMs() {
   return _intervalMs;
 }
+/** @returns {boolean} */
 function isPreventive() {
   return _preventive;
 }
 
+/**
+ * Define o threshold de memória (clamp 200–4096 MB).
+ * @param {number} mb
+ */
 function setThreshold(mb) {
   _thresholdMB = Math.max(200, Math.min(4096, Math.floor(mb)));
   logger.info('MemoryGuard: threshold = ' + _thresholdMB + 'MB');
 }
 
+/**
+ * Força ou desforça o modo Batata. Recalcula interval/threshold/preventive.
+ * @param {boolean} force
+ */
 function setForceBatata(force) {
   _forceBatata = !!force;
   const m = isBatata() ? CONFIG.batata : CONFIG.normal;
@@ -134,6 +151,10 @@ function setForceBatata(force) {
 
 // ── Stats ──
 
+/**
+ * Retorna snapshot do estado de memória do processo.
+ * @returns {Object} stats (totalMB, thresholdMB, isBatata, isRamen, systemRAM, etc.)
+ */
 function getStats() {
   let totalMB = 0;
   try {
@@ -162,6 +183,7 @@ function getStats() {
   };
 }
 
+/** Incrementa o contador de crashes registrados. */
 function reportCrash() {
   _crashCount++;
   logger.warn('MemoryGuard: crash registrado (total: ' + _crashCount + ')');
@@ -169,9 +191,17 @@ function reportCrash() {
 
 // ── Listeners (GcDaemon dispara onGC; este módulo dispara onMemoryUpdate) ──
 
+/**
+ * Registra listener para atualizações de memória.
+ * @param {Function} cb - chamada com stats object
+ */
 function onMemoryUpdate(cb) {
   if (typeof cb === 'function') _memListeners.push(cb);
 }
+/**
+ * Registra listener para eventos de GC.
+ * @param {Function} cb - chamada com GC result object
+ */
 function onGC(cb) {
   if (typeof cb === 'function') _gcListeners.push(cb);
 }
@@ -213,20 +243,30 @@ function _recordGC(isManual, result) {
 const WEBVIEW_GC_INTERVAL_NORMAL = 15 * 60 * 1000;
 const WEBVIEW_GC_INTERVAL_BATATA = 7 * 60 * 1000;
 
+/**
+ * NO-OP v4.9.1: window.gc() no renderer pausa o Flash PPAPI.
+ * @returns {Promise<{ok: boolean, savedMB: number, disabled: boolean}>}
+ */
 async function injectGC() {
   // NO-OP v4.9.1: window.gc() no renderer pausa o Flash PPAPI → tela preta.
   return { ok: true, savedMB: 0, disabled: true };
 }
 
+/** NO-OP: daemon desativado pra evitar tela preta no Flash. */
 function startWebviewGC() {
   // NO-OP v4.9.1: daemon desativado pra evitar tela preta no Flash.
   logger.info('MemoryGuard: daemon window.gc() DESATIVADO (v4.9.1 — causava tela preta no Flash)');
 }
 
+/** NO-OP: daemon nunca inicia. Mantido p/ compat de API. */
 function stopWebviewGC() {
   // NO-OP (daemon nunca inicia). Mantido p/ compat de API.
 }
 
+/**
+ * Retorna estatísticas das webviews ativas.
+ * @returns {{active: number, totalGCs: number, lastGCAt: number|null, intervalMin: number}}
+ */
 function getWebviewStats() {
   let totalGCs = 0;
   let lastGCAt = 0;

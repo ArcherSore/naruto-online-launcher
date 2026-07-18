@@ -1803,11 +1803,13 @@
           transform 0.15s ease;
         z-index: 1000;
       }
-      [data-tip]:hover::after {
+      [data-tip]:hover::after,
+      [data-tip]:focus-visible::after {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
       }
-      [data-tip]:hover::before {
+      [data-tip]:hover::before,
+      [data-tip]:focus-visible::before {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
       }
@@ -5478,7 +5480,7 @@
         </div>
 
         <div class="nav">
-          <div class="nav-item active" data-view="accounts">
+          <div class="nav-item active" data-view="accounts" tabindex="0" role="tab" aria-selected="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
@@ -5487,7 +5489,7 @@
             </svg>
             Contas
           </div>
-          <div class="nav-item" data-view="events">
+          <div class="nav-item" data-view="events" tabindex="0" role="tab" aria-selected="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
@@ -5495,7 +5497,7 @@
             Eventos
             <span class="nav-badge" id="eventBadge"></span>
           </div>
-          <div class="nav-item" data-view="settings">
+          <div class="nav-item" data-view="settings" tabindex="0" role="tab" aria-selected="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <circle cx="12" cy="12" r="3" />
               <path
@@ -6035,7 +6037,7 @@
                   <div class="label">Notificações</div>
                   <div class="desc">Alertas de eventos do jogo — mesmo toggle do sino no topo</div>
                 </div>
-                <div class="toggle on" id="setNotifications"></div>
+                <div class="toggle on" id="setNotifications" role="switch" aria-checked="true" tabindex="0"></div>
               </div>
             </div>
             <div class="settings-section">
@@ -6646,14 +6648,14 @@
 
     <!-- ═══ MODAL: Create/Edit Profile ═══ -->
     <div class="overlay" id="profileModal">
-      <div class="modal">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <h3 id="modalTitle">Nova conta</h3>
         <div class="field">
-          <label>Nome</label>
+          <label for="fName">Nome</label>
           <input id="fName" placeholder="Identificação da conta" maxlength="40" />
         </div>
         <div class="field">
-          <label>Região</label>
+          <label for="fRegion">Região</label>
           <select id="fRegion">
             <option value="br">Brasil (PT)</option>
             <option value="na">América do Norte (EN)</option>
@@ -6666,7 +6668,7 @@
           </select>
         </div>
         <div class="field">
-          <label>Servidor</label>
+          <label for="fServer">Servidor</label>
           <div style="display: flex; gap: 0.5rem; align-items: center">
             <input id="fServer" placeholder="S799" maxlength="20" style="flex: 1" />
             <button class="btn" id="btnPickServer" type="button" style="white-space: nowrap">
@@ -6725,21 +6727,20 @@
 
     <!-- ═══ MODAL: Vault Credentials ═══ -->
     <div class="overlay" id="vaultModal">
-      <div class="modal">
-        <h3>Credenciais — <span id="vaultProfileName"></span></h3>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="vaultTitle">
+        <h3 id="vaultTitle">Credenciais — <span id="vaultProfileName"></span></h3>
         <div class="field">
-          <label>Usuário</label>
+          <label for="fVaultUser">Usuário</label>
           <input id="fVaultUser" placeholder="Login da conta" autocomplete="off" />
         </div>
         <div class="field">
-          <label>Senha</label>
+          <label for="fVaultPass">Senha</label>
           <div class="field-with-toggle">
             <input id="fVaultPass" type="password" placeholder="Senha" autocomplete="off" />
             <button
               class="toggle-pass"
               id="togglePass"
               type="button"
-              tabindex="-1"
               title="Mostrar senha"
             >
               <svg
@@ -7105,13 +7106,23 @@
       // ── Navigation ──
       document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
-          document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+          document.querySelectorAll('.nav-item').forEach(n => {
+            n.classList.remove('active');
+            n.setAttribute('aria-selected', 'false');
+          });
           item.classList.add('active');
+          item.setAttribute('aria-selected', 'true');
           const view = item.dataset.view;
           document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
           document.getElementById('view-' + view).classList.add('active');
           document.getElementById('viewTitle').textContent = item.textContent.trim();
           if (view === 'settings') loadSettings();
+        });
+        item.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            item.click();
+          }
         });
       });
 

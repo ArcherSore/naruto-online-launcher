@@ -346,6 +346,9 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('tempmail:login', async function (_e, profileId, email, password) {
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return { ok: false, error: 'Invalid params' };
+    }
     try {
       const profile = store.get(profileId);
       if (!profile) return { ok: false, error: 'Perfil não encontrado' };
@@ -585,7 +588,10 @@ function registerIpcHandlers(handlers) {
       });
       if (result.canceled || result.filePaths.length === 0) return { ok: false, canceled: true };
 
-      const encrypted = fs.readFileSync(result.filePaths[0], 'utf8');
+      const filePath = result.filePaths[0];
+      const stat = fs.statSync(filePath);
+      if (stat.size > 10 * 1024 * 1024) return { ok: false, error: 'File too large (max 10MB)' };
+      const encrypted = fs.readFileSync(filePath, 'utf8');
       const payload = vault.importEncryptedBackup(encrypted, password);
 
       let imported = 0,
@@ -651,7 +657,10 @@ function registerIpcHandlers(handlers) {
     });
     if (result.canceled || result.filePaths.length === 0) return { ok: false, imported: 0 };
     try {
-      const raw = fs.readFileSync(result.filePaths[0], 'utf8');
+      const filePath = result.filePaths[0];
+      const stat = fs.statSync(filePath);
+      if (stat.size > 10 * 1024 * 1024) return { ok: false, error: 'File too large (max 10MB)', imported: 0 };
+      const raw = fs.readFileSync(filePath, 'utf8');
       const res = store.importJSON(raw);
       _pushProfiles();
       _pushEvents();

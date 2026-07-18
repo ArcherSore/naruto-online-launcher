@@ -614,7 +614,7 @@ async function refreshIfStale(platform) {
 module.exports = {
   ensureLatest: ensureLatest,
   refreshIfStale: refreshIfStale,
-  // cache queries (usadas por flash/plugin.js)
+  // cache queries (exposto p/ testes)
   getCacheDir: getCacheDir,
   getCachedPluginPath: getCachedPluginPath,
   hasCachedPlugin: hasCachedPlugin,

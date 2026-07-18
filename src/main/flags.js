@@ -118,9 +118,25 @@ function applyAll(opts) {
   app.name = 'Naruto Online';
 }
 
+/**
+ * Returns a snapshot of the applied flag state.
+ * @returns {{ applied: boolean, heapMB: number, disabled: string[], enabled: string[], jsFlags: string[] }}
+ */
+function getAppliedSnapshot() {
+  return {
+    applied: _applied,
+    heapMB: _computeHeapMB(false),
+    disabled: Array.from(_disabled),
+    enabled: Array.from(_enabled),
+    jsFlags: _jsFlags.slice()
+  };
+}
+
 module.exports = {
   applyAll,
+  getAppliedSnapshot,
   IS_LOW_SPEC: TOTAL_RAM_GB < 4,
   IS_RAMEN: TOTAL_RAM_GB < 2,
+  IS_WAYLAND: IS_WAYLAND,
   SYSTEM_RAM_GB: Math.round(TOTAL_RAM_GB * 10) / 10
 };

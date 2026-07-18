@@ -360,6 +360,12 @@ function renderProfiles() {
         </div>
       </div>`;
     card.addEventListener('click', () => launch(p.id));
+    card.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        launch(p.id);
+      }
+    });
     card.querySelectorAll('[data-act]').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
@@ -1001,10 +1007,17 @@ document.getElementById('advAboutRepo').onclick = function (e) {
 document.getElementById('setNotifications').onclick = function () {
   notificationsMuted = !notificationsMuted;
   this.classList.toggle('on', !notificationsMuted);
+  this.setAttribute('aria-checked', String(!notificationsMuted));
   ipcRenderer.send('events:set-muted', notificationsMuted);
   var mb = document.getElementById('muteBtn');
   if (mb) mb.classList.toggle('on', notificationsMuted);
 };
+document.getElementById('setNotifications').addEventListener('keydown', function (e) {
+  if (e.key === ' ' || e.key === 'Enter') {
+    e.preventDefault();
+    this.click();
+  }
+});
 
 document.getElementById('setMode').onchange = function () {
   const desc = document.getElementById('modeDesc');
@@ -1717,6 +1730,27 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
     document.getElementById('profileModal').classList.remove('show');
     document.getElementById('vaultModal').classList.remove('show');
+    document.getElementById('confirmOverlay').classList.remove('show');
+    var kbOvl = document.getElementById('kbOverlay');
+    if (kbOvl && kbOvl.classList.contains('show')) {
+      kbOvl.classList.remove('show');
+    }
+    var cmdkOvl = document.getElementById('cmdkOverlay');
+    if (cmdkOvl && !cmdkOvl.hidden) {
+      cmdkOvl.hidden = true;
+    }
+  }
+});
+
+// ── v5.9.21: Backdrop-click-to-close on modals ──
+['profileModal', 'vaultModal'].forEach(function (id) {
+  var overlay = document.getElementById(id);
+  if (overlay) {
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) {
+        overlay.classList.remove('show');
+      }
+    });
   }
 });
 

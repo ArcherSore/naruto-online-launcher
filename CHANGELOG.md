@@ -1,5 +1,52 @@
 # Changelog
 
+## [5.9.23] - 2026-07-18
+
+### Fixed — Critical: `flags.getAppliedSnapshot` not exported (runtime crash)
+- **flags.js**: `main.js` called `flags.getAppliedSnapshot()` in the
+  `optimization:get-status` IPC handler, but the function was never exported.
+  Also `flags.IS_WAYLAND` was referenced but not exported. Both now exported.
+  This caused a `TypeError` crash every time the UI requested optimization
+  status. Found via dead code cross-reference audit.
+
+### Fixed — Bug: `blocker.js` infinite redirect loop with URL fragments
+- **blocker.js**: The `logintype=3` → `logintype=4` replacement regex
+  `(?=&|$)` missed the `#` character as a boundary. URLs like
+  `?logintype=3#section` entered the block but the regex didn't match,
+  so the unchanged URL was redirected to itself — infinite loop until
+  Chromium's redirect limit killed the request. Fixed with `(?=[&#]|$)`
+  and a `replaced !== url` guard to prevent self-redirects entirely.
+  Added regression test for the `#fragment` case.
+
+### Fixed — Security: file import OOM risk (SEC-NEW-1)
+- **IpcRouter.js**: `profiles:import-file` and `profiles:import-encrypted`
+  read files with `fs.readFileSync` without checking size first. A user
+  selecting a multi-GB file could OOM the main process. Added 10MB
+  `fs.statSync` check before reading, consistent with the existing
+  `settings.js` and `store.js` patterns.
+
+### Fixed — Security: `tempmail:login` missing type validation (SEC-NEW-3)
+- **IpcRouter.js**: Added `typeof string` check for `email` and `password`
+  params, consistent with other credential-handling IPC handlers.
+
+### Improved — GcDaemon silent error swallowing
+- **GcDaemon.js**: 4 `.catch(() => {})` sites in `_clearIdleSessions()`
+  now log via `logger.debug()` instead of silently discarding errors,
+  consistent with the file's other error handling patterns.
+
+### Improved — JSDoc: MemoryGuard.js (16 functions documented)
+- Added JSDoc with `@param`/`@returns` to all 16 previously undocumented
+  exported functions in `MemoryGuard.js`.
+
+### Improved — Test coverage (+8 tests, 1157 → 1165)
+- **flags.test.js**: +7 tests for `getAppliedSnapshot` (shape, applied,
+  disabled/enabled features, jsFlags) and `IS_WAYLAND` export.
+- **blocker.test.js**: +1 test for `logintype=3#fragment` redirect.
+
+### Improved — Stale comment fix
+- **FlashUpdater.js**: Corrected misleading comment claiming cache query
+  functions are "usadas por flash/plugin.js" — they are test-only exports.
+
 ## [5.9.22] - 2026-07-18
 
 ### Fixed — Bug: `profile:update-notes` crash on null data
