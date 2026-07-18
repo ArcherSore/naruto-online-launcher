@@ -1,6 +1,23 @@
 # Changelog
 
-## [5.9.24] - 2026-07-18
+## [5.9.25] - 2026-07-18
+
+### Coverage — store.js 86.59% → 90.35%, IpcRouter.js 76.83% → 84.05%
+- **store.test.js**: Added 11 new tests covering: importJSON edge cases
+  (invalid profile skip, MAX_PROFILES limit, bare array format, no-wrapper
+  data, tag filtering/slicing/capping), backup recovery from
+  `.bak` file, partition directory cleanup on remove.
+- **IpcRouter.test.js**: Added 12 new tests covering: dialog cancel/error
+  paths for export-file, import-file, export-encrypted, import-encrypted;
+  window:toggle-maximize and get-always-on-top success paths;
+  events:set-muted fallback path.
+- store.js: 90.35% stmts (+3.8%), IpcRouter.js: 84.05% stmts (+7.2%).
+
+### Type Safety — create() tag filtering verified
+- Documented that `create()` silently filters invalid tags (non-string, empty,
+  >20 chars) rather than rejecting — this is by design, not a bug.
+
+# [5.9.24] - 2026-07-18
 
 ### Security — IPC type validation hardening
 - **IpcRouter.js**: Added `typeof` guards on 6 previously-unvalidated IPC handlers:

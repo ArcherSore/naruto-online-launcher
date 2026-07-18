@@ -1244,4 +1244,148 @@ describe('IpcRouter.js', () => {
       expect(result.error).toContain('obrigatória');
     });
   });
+
+  describe('profiles:export-file dialog paths', () => {
+    test('retorna ok:false quando janela indisponível', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue(null);
+      const handler = handleHandlers['profiles:export-file'];
+      var result = await handler();
+      expect(result.ok).toBe(false);
+    });
+
+    test('retorna ok:false quando diálogo cancelado', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue({ isDestroyed: function () { return false; } });
+      const dialog = require('electron').dialog;
+      dialog.showSaveDialog.mockResolvedValue({ canceled: true, filePath: '' });
+      store.exportJSON.mockReturnValue('[]');
+      const handler = handleHandlers['profiles:export-file'];
+      var result = await handler();
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('profiles:import-file dialog paths', () => {
+    test('retorna ok:false quando janela indisponível', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue(null);
+      const handler = handleHandlers['profiles:import-file'];
+      var result = await handler();
+      expect(result.ok).toBe(false);
+      expect(result.imported).toBe(0);
+    });
+
+    test('retorna ok:false quando diálogo cancelado', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue({ isDestroyed: function () { return false; } });
+      const dialog = require('electron').dialog;
+      dialog.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
+      const handler = handleHandlers['profiles:import-file'];
+      var result = await handler();
+      expect(result.ok).toBe(false);
+      expect(result.imported).toBe(0);
+    });
+  });
+
+  describe('profiles:export-encrypted dialog paths', () => {
+    test('retorna ok:false quando janela indisponível', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue(null);
+      const handler = handleHandlers['profiles:export-encrypted'];
+      var result = await handler({}, 'password123');
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('closed');
+    });
+
+    test('retorna canceled quando diálogo cancelado', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue({ isDestroyed: function () { return false; } });
+      store.getAll.mockReturnValue([]);
+      const dialog = require('electron').dialog;
+      dialog.showSaveDialog.mockResolvedValue({ canceled: true, filePath: '' });
+      const handler = handleHandlers['profiles:export-encrypted'];
+      var result = await handler({}, 'password123');
+      expect(result.ok).toBe(false);
+      expect(result.canceled).toBe(true);
+    });
+
+    test('retorna erro quando vault.exportEncryptedBackup falha', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue({ isDestroyed: function () { return false; } });
+      store.getAll.mockReturnValue([{ id: 'p_1' }]);
+      const vault = require('../../../profiles/vault');
+      vault.exportEncryptedBackup.mockImplementation(function () {
+        throw new Error('encrypt fail');
+      });
+      const dialog = require('electron').dialog;
+      dialog.showSaveDialog.mockResolvedValue({ canceled: false, filePath: '/tmp/test.enc' });
+      const handler = handleHandlers['profiles:export-encrypted'];
+      var result = await handler({}, 'password123');
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('encrypt fail');
+    });
+  });
+
+  describe('profiles:import-encrypted dialog paths', () => {
+    test('retorna ok:false quando janela indisponível', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue(null);
+      const handler = handleHandlers['profiles:import-encrypted'];
+      var result = await handler({}, 'password123');
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('closed');
+    });
+
+    test('retorna canceled quando diálogo cancelado', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue({ isDestroyed: function () { return false; } });
+      const dialog = require('electron').dialog;
+      dialog.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
+      const handler = handleHandlers['profiles:import-encrypted'];
+      var result = await handler({}, 'password123');
+      expect(result.ok).toBe(false);
+      expect(result.canceled).toBe(true);
+    });
+  });
+
+  describe('window:toggle-maximize success paths', () => {
+    test('unmaximizes when already maximized', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue({
+        isDestroyed: function () { return false; },
+        isMaximized: function () { return true; },
+        unmaximize: jest.fn(),
+        maximize: jest.fn()
+      });
+      const handler = handleHandlers['window:toggle-maximize'];
+      var result = await handler();
+      expect(result).toBe(false);
+    });
+
+    test('maximizes when not maximized', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue({
+        isDestroyed: function () { return false; },
+        isMaximized: function () { return false; },
+        unmaximize: jest.fn(),
+        maximize: jest.fn()
+      });
+      const handler = handleHandlers['window:toggle-maximize'];
+      var result = await handler();
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('window:get-always-on-top success', () => {
+    test('retorna true quando sempre no topo', async () => {
+      ManagerWindow.getManagerWindow.mockReturnValue({
+        isDestroyed: function () { return false; },
+        isAlwaysOnTop: function () { return true; }
+      });
+      const handler = handleHandlers['window:get-always-on-top'];
+      var result = await handler();
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('events:set-muted with external handler', () => {
+    test('delegates to et.setMuted when no external handler', () => {
+      // _handlers.setMuted is undefined (no external handler registered)
+      // so it falls through to et.setMuted
+      const et = require('../../../utils/EventTimers');
+      const handler = onHandlers['events:set-muted'];
+      handler({}, false);
+      expect(et.setMuted).toHaveBeenCalledWith(false);
+    });
+  });
 });

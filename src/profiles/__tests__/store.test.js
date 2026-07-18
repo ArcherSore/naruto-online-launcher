@@ -755,4 +755,118 @@ describe('store.js', () => {
       });
     });
   });
+
+  describe('importJSON edge cases', () => {
+    test('skips invalid profiles (missing required fields)', () => {
+      const json = JSON.stringify({
+        version: 2,
+        profiles: [
+          { id: 'p_aabbccdd', name: 'Valid', server: 's1', region: 'br', language: 'pt', notificationsEnabled: true, createdAt: 1, lastUsed: 0, notes: '', launchCount: 0, totalPlayMs: 0, favorite: false, tags: [] },
+          { id: 'p_ffffffff', name: 'NoServer' } // missing server, region, etc
+        ]
+      });
+      const result = store.importJSON(json);
+      expect(result.imported).toBe(1);
+      expect(result.skipped).toBe(1);
+    });
+
+    test('stops importing when MAX_PROFILES reached', () => {
+      // Clear any profiles from previous tests
+      var existing = store.getAll();
+      for (var k = existing.length - 1; k >= 0; k--) store.remove(existing[k].id);
+      // Fill store to MAX_PROFILES - 1
+      for (let k = 0; k < store.MAX_PROFILES - 1; k++) {
+        store.create({ name: 'Fill' + k });
+      }
+      // Try to import 3 more (with valid IDs that pass isValidProfile)
+      var profiles = [];
+      for (var j = 0; j < 3; j++) {
+        profiles.push({
+          id: 'p_feed00' + j.toString().padStart(6, '0'), name: 'Import' + j, server: 's' + j, region: 'br',
+          language: 'pt', notificationsEnabled: true, createdAt: 1, lastUsed: 0,
+          notes: '', launchCount: 0, totalPlayMs: 0, favorite: false, tags: []
+        });
+      }
+      const json = JSON.stringify({ version: 2, profiles: profiles });
+      const result = store.importJSON(json);
+      expect(result.imported).toBe(1); // only 1 slot left
+      expect(result.skipped).toBe(2);
+    });
+
+    test('handles data as bare array (no wrapper)', () => {
+      // Ensure we have room (previous tests may have filled the store)
+      const all = store.getAll();
+      if (all.length > 0) store.remove(all[all.length - 1].id);
+      const json = JSON.stringify([
+        { id: 'p_cafe1122', name: 'Bare', server: 's1', region: 'br', language: 'pt',
+          notificationsEnabled: true, createdAt: 1, lastUsed: 0,
+          notes: '', launchCount: 0, totalPlayMs: 0, favorite: false, tags: [] }
+      ]);
+      const result = store.importJSON(json);
+      expect(result.imported).toBe(1);
+    });
+
+    test('handles data with no profiles key and not an array', () => {
+      const json = JSON.stringify({ version: 2, other: 'data' });
+      const result = store.importJSON(json);
+      expect(result.imported).toBe(0);
+      expect(result.skipped).toBe(0);
+    });
+  });
+
+  describe('create with tags validation', () => {
+    test('filters out non-string entries silently', () => {
+      var p = store.create({ name: 'TagTest', tags: [123, 'ok'] });
+      expect(p).not.toBeNull();
+      expect(p.tags).toEqual(['ok']);
+    });
+
+    test('filters out too-long entries (>20 chars) silently', () => {
+      var p = store.create({ name: 'TagTest', tags: ['a'.repeat(21)] });
+      expect(p).not.toBeNull();
+      expect(p.tags).toEqual([]);
+    });
+
+    test('filters out empty strings silently', () => {
+      var p = store.create({ name: 'TagTest', tags: [''] });
+      expect(p).not.toBeNull();
+      expect(p.tags).toEqual([]);
+    });
+
+    test('caps at 5 tags (extra are dropped)', () => {
+      var p = store.create({ name: 'TagTest', tags: ['a', 'b', 'c', 'd', 'e', 'f'] });
+      expect(p).not.toBeNull();
+      expect(p.tags).toEqual(['a', 'b', 'c', 'd', 'e']);
+    });
+
+    test('accepts valid tags (5 or fewer)', () => {
+      var p = store.create({ name: 'TagTest', tags: ['pvp', 'farm'] });
+      expect(p).not.toBeNull();
+      expect(p.tags).toEqual(['pvp', 'farm']);
+    });
+  });
+
+  describe('load with corrupted file', () => {
+    test('falls back to empty when profiles.json is invalid JSON', () => {
+      const profilesDir = path.join(tmpDir, 'profiles');
+      fs.mkdirSync(profilesDir, { recursive: true });
+      fs.writeFileSync(path.join(profilesDir, 'profiles.json'), '{invalid json}', 'utf8');
+      store.load();
+      expect(store.getAll()).toEqual([]);
+    });
+
+    // NOTE: backup recovery tested in load() test above
+  });
+
+  describe('remove with partition cleanup', () => {
+    test('removes partition directory when it exists', () => {
+      var p = store.create({ name: 'PartTest' });
+      // Simulate a partition dir
+      var partDir = path.join(tmpDir, 'Partitions', 'profile-' + p.id);
+      fs.mkdirSync(partDir, { recursive: true });
+      fs.writeFileSync(path.join(partDir, 'test.txt'), 'data', 'utf8');
+      store.remove(p.id);
+      expect(fs.existsSync(partDir)).toBe(false);
+    });
+  });
 });
