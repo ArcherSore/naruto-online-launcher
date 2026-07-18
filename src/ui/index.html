@@ -14,25 +14,29 @@
         padding: 0;
       }
       :root {
-        --bg: #000000;
-        --bg-elev: #0a0a0a;
-        --bg-card: #111111;
-        --border: #1c1c1c;
-        --border-hover: #2a2a2a;
-        --text: #f5f5f5;
-        --text-faint: #707070;
-        --text-dim: #4a4a4a;
+        --bg: #0a0a0c;
+        --bg-elev: #131316;
+        --bg-card: #1a1a1e;
+        --bg-hover: #222226;
+        --border: #26262b;
+        --border-hover: #36363c;
+        --text: #f0f0f2;
+        --text-faint: #8a8a92;
+        --text-dim: #56565c;
         --accent: #ff8c00;
         --accent-hover: #ffa033;
-        --accent-dim: rgba(255, 140, 0, 0.12);
-        --ok: #10b981;
-        --err: #ef4444;
-        --warn: #f59e0b;
-        --radius: 6px;
-        --radius-sm: 4px;
+        --accent-dim: rgba(255, 140, 0, 0.14);
+        --ok: #34d399;
+        --err: #f87171;
+        --warn: #fbbf24;
+        --radius: 8px;
+        --radius-sm: 5px;
+        --radius-lg: 12px;
         --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-        --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+        --mono: 'SF Mono', 'JetBrains Mono', Consolas, monospace;
         --transition: 150ms ease;
+        --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
       }
       html,
       body {
@@ -41,359 +45,769 @@
         color: var(--text);
         font-family: var(--font);
         font-size: 14px;
-        line-height: 1.4;
+        line-height: 1.45;
         overflow: hidden;
         -webkit-font-smoothing: antialiased;
         user-select: none;
       }
 
-      /* ═══ LAYOUT — 3 BLOCOS ═══ */
+      /* ═══ APP LAYOUT — launcher grid (Heroic-style) ═══ */
       .app {
         display: grid;
-        grid-template-columns: 64px 1fr 300px;
+        grid-template-columns: 232px 1fr;
         height: 100vh;
-        gap: 0;
       }
 
-      /* ── BLOCO 1: SIDEBAR (atalhos diretos) ── */
+      /* ── SIDEBAR ── */
       .sidebar {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        padding: 16px 0;
         background: var(--bg-elev);
         border-right: 1px solid var(--border);
-      }
-      .sidebar .logo {
-        width: 28px;
-        height: 28px;
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .sidebar .logo svg {
-        width: 22px;
-        height: 22px;
-        color: var(--accent);
-      }
-      .side-btn {
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent;
-        border: 1px solid transparent;
-        border-radius: var(--radius-sm);
-        color: var(--text-faint);
-        cursor: pointer;
-        transition: var(--transition);
-        position: relative;
-      }
-      .side-btn:hover {
-        color: var(--text);
-        background: var(--bg-card);
-        border-color: var(--border-hover);
-      }
-      .side-btn:focus-visible {
-        outline: none;
-        box-shadow: 0 0 0 2px var(--accent);
-      }
-      .side-btn.active {
-        color: var(--accent);
-        background: var(--accent-dim);
-        border-color: var(--accent);
-      }
-      .side-btn svg {
-        width: 18px;
-        height: 18px;
-      }
-      .side-btn[data-tip]:hover::after {
-        content: attr(data-tip);
-        position: absolute;
-        left: calc(100% + 8px);
-        top: 50%;
-        transform: translateY(-50%);
-        background: var(--bg-card);
-        border: 1px solid var(--border-hover);
-        color: var(--text);
-        padding: 4px 8px;
-        border-radius: var(--radius-sm);
-        font-size: 12px;
-        white-space: nowrap;
-        z-index: 100;
-        pointer-events: none;
-      }
-      .side-spacer {
-        flex: 1;
-      }
-
-      /* ── BLOCO 2: CENTER (foco absoluto — JOGAR) ── */
-      .center {
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 28px;
-        padding: 32px;
-        position: relative;
+        padding: 20px 0;
       }
-      .account-select {
+      .sidebar-brand {
         display: flex;
         align-items: center;
         gap: 10px;
+        padding: 0 20px 24px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 16px;
+      }
+      .sidebar-brand .mark {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-sm);
+        background: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .sidebar-brand .mark svg {
+        width: 18px;
+        height: 18px;
+        color: #000;
+      }
+      .sidebar-brand h1 {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+      }
+      .sidebar-brand .ver {
+        font-size: 10px;
+        color: var(--text-faint);
+        font-family: var(--mono);
+        margin-top: 1px;
+      }
+      .nav {
+        flex: 1;
+        padding: 0 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: var(--radius-sm);
+        color: var(--text-faint);
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: var(--transition);
+        position: relative;
+      }
+      .nav-item:hover {
+        background: var(--bg-hover);
+        color: var(--text);
+      }
+      .nav-item.active {
+        background: var(--accent-dim);
+        color: var(--accent);
+      }
+      .nav-item svg {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+      .nav-badge {
+        margin-left: auto;
+        background: var(--accent);
+        color: #000;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 10px;
+        min-width: 18px;
+        text-align: center;
+      }
+      .nav-badge:empty {
+        display: none;
+      }
+      .sidebar-footer {
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+      }
+      .sidebar-footer button {
+        flex: 1;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-faint);
+        padding: 7px;
+        border-radius: var(--radius-sm);
+        font-size: 11px;
+        cursor: pointer;
+        transition: var(--transition);
+        font-family: var(--font);
+        font-weight: 500;
+      }
+      .sidebar-footer button:hover {
+        color: var(--text);
+        border-color: var(--border-hover);
+        background: var(--bg-hover);
+      }
+
+      /* ── MAIN ── */
+      .main {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg);
+      }
+      .topbar h2 {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+      }
+      .topbar .spacer {
+        flex: 1;
+      }
+      .search {
+        position: relative;
+        width: 240px;
+      }
+      .search input {
+        width: 100%;
+        background: var(--bg-elev);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 7px 12px 7px 34px;
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        font-family: var(--font);
+        transition: var(--transition);
+      }
+      .search input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      .search input::placeholder {
+        color: var(--text-dim);
+      }
+      .search svg {
+        position: absolute;
+        left: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 14px;
+        height: 14px;
+        color: var(--text-faint);
+      }
+      .view-toggle {
+        display: flex;
+        background: var(--bg-elev);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+      }
+      .view-toggle button {
+        background: transparent;
+        border: none;
+        color: var(--text-faint);
+        padding: 6px 8px;
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .view-toggle button.active {
+        background: var(--bg-hover);
+        color: var(--accent);
+      }
+      .view-toggle button svg {
+        width: 15px;
+        height: 15px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 7px 14px;
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition);
+        font-family: var(--font);
+      }
+      .btn:hover {
+        background: var(--bg-hover);
+        border-color: var(--border-hover);
+      }
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #000;
+        font-weight: 600;
+      }
+      .btn.primary:hover {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+      }
+      .btn svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 24px;
+      }
+      .content::-webkit-scrollbar {
+        width: 8px;
+      }
+      .content::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .content::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 4px;
+      }
+      .content::-webkit-scrollbar-thumb:hover {
+        background: var(--border-hover);
+      }
+
+      /* ── VIEW ── */
+      .view {
+        display: none;
+      }
+      .view.active {
+        display: block;
+      }
+
+      /* ── LIBRARY GRID ── */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 16px;
+      }
+      .grid.list-view {
+        grid-template-columns: 1fr;
+      }
+
+      /* ── ACCOUNT CARD (Heroic-style) ── */
+      .card {
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        padding: 8px 14px;
-        min-width: 260px;
+        overflow: hidden;
         cursor: pointer;
         transition: var(--transition);
+        position: relative;
+        display: flex;
+        flex-direction: column;
       }
-      .account-select:hover {
+      .card:hover {
         border-color: var(--border-hover);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow);
       }
-      .account-select .avatar {
-        width: 24px;
-        height: 24px;
+      .card.fav {
+        border-color: rgba(255, 140, 0, 0.4);
+      }
+
+      .card-cover {
+        height: 96px;
+        background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%);
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        padding: 12px;
+      }
+      .card-cover::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 100%);
+      }
+      .card-avatar {
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
-        flex-shrink: 0;
+        background: var(--c1);
+        border: 2px solid var(--bg-card);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
+        font-size: 18px;
         font-weight: 700;
         color: #000;
+        position: relative;
+        z-index: 1;
+        margin-bottom: -22px;
+        flex-shrink: 0;
       }
-      .account-select .name {
+      .card-fav-star {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 2;
+        color: var(--accent);
+        width: 16px;
+        height: 16px;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+      }
+      .card-fav-star:empty {
+        display: none;
+      }
+
+      .card-body {
+        padding: 28px 14px 14px;
         flex: 1;
-        font-weight: 500;
-        font-size: 13px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .card-name {
+        font-size: 14px;
+        font-weight: 600;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-      }
-      .account-select .region {
-        font-size: 11px;
-        color: var(--text-faint);
-        font-family: var(--mono);
-      }
-      .account-select .chev {
-        color: var(--text-faint);
-        width: 14px;
-        height: 14px;
-      }
-
-      .play-btn {
-        width: 200px;
-        height: 200px;
-        border-radius: 50%;
-        border: 2px solid var(--accent);
-        background: radial-gradient(circle at 50% 40%, var(--accent-dim), transparent 70%);
-        color: var(--accent);
-        font-family: var(--font);
-        font-size: 28px;
-        font-weight: 700;
-        letter-spacing: 2px;
-        cursor: pointer;
-        transition: var(--transition);
         display: flex;
-        flex-direction: column;
         align-items: center;
-        justify-content: center;
         gap: 6px;
-        position: relative;
       }
-      .play-btn:hover:not(:disabled) {
-        background: radial-gradient(circle at 50% 40%, rgba(255, 140, 0, 0.25), transparent 70%);
-        box-shadow: 0 0 60px rgba(255, 140, 0, 0.25);
-        transform: scale(1.02);
+      .card-name .lock {
+        color: var(--accent);
+        width: 12px;
+        height: 12px;
+        flex-shrink: 0;
       }
-      .play-btn:active:not(:disabled) {
-        transform: scale(0.98);
-      }
-      .play-btn:focus-visible {
-        outline: none;
-        box-shadow:
-          0 0 0 3px var(--bg),
-          0 0 0 5px var(--accent);
-      }
-      .play-btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-      }
-      .play-btn .play-icon {
-        width: 36px;
-        height: 36px;
-      }
-      .play-btn.launching {
-        border-color: var(--text-faint);
-        color: var(--text-faint);
-      }
-
-      .server-status {
+      .card-meta {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 12px;
-        color: var(--text-faint);
-        font-family: var(--mono);
-      }
-      .server-status .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--text-dim);
-        transition: var(--transition);
-      }
-      .server-status.online .dot {
-        background: var(--ok);
-        box-shadow: 0 0 8px var(--ok);
-      }
-      .server-status.offline .dot {
-        background: var(--err);
-      }
-      .server-status.checking .dot {
-        background: var(--warn);
-        animation: pulse 1s infinite;
-      }
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.3;
-        }
-      }
-
-      /* download progress — ultra discreto, só quando há update */
-      .download-bar {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: transparent;
-        opacity: 0;
-        transition: opacity 200ms;
-      }
-      .download-bar.active {
-        opacity: 1;
-      }
-      .download-bar .fill {
-        height: 100%;
-        background: var(--accent);
-        width: 0%;
-        transition: width 300ms ease;
-      }
-      .download-label {
-        position: absolute;
-        bottom: 12px;
-        left: 50%;
-        transform: translateX(-50%);
         font-size: 11px;
         color: var(--text-faint);
         font-family: var(--mono);
-        opacity: 0;
-        transition: opacity 200ms;
       }
-      .download-label.active {
-        opacity: 1;
+      .card-meta .region {
+        background: var(--bg-hover);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .card-meta select {
+        background: var(--bg-hover);
+        border: 1px solid var(--border);
+        color: var(--text-faint);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-family: var(--mono);
+        cursor: pointer;
+        flex: 1;
+      }
+      .card-meta select:hover {
+        color: var(--text);
+      }
+      .card-badges {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        min-height: 18px;
+      }
+      .badge {
+        font-size: 10px;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      .badge.ok {
+        background: rgba(52, 211, 153, 0.15);
+        color: var(--ok);
+      }
+      .badge.open {
+        background: rgba(255, 140, 0, 0.15);
+        color: var(--accent);
+      }
+      .badge .dot {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+        margin-right: 4px;
+        vertical-align: middle;
       }
 
-      /* ── BLOCO 3: EVENTS (painel direito) ── */
-      .events-panel {
-        background: var(--bg-elev);
-        border-left: 1px solid var(--border);
+      .card-actions {
         display: flex;
-        flex-direction: column;
+        gap: 6px;
+        padding: 0 14px 14px;
+        align-items: center;
+      }
+      .btn-play {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        background: var(--accent);
+        color: #000;
+        border: none;
+        padding: 8px;
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: var(--transition);
+        font-family: var(--font);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .btn-play:hover {
+        background: var(--accent-hover);
+      }
+      .btn-play:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn-play svg {
+        width: 12px;
+        height: 12px;
+      }
+      .btn-play.launching {
+        background: var(--text-faint);
+      }
+      .btn-icon {
+        background: var(--bg-hover);
+        border: 1px solid var(--border);
+        color: var(--text-faint);
+        width: 30px;
+        height: 30px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: var(--transition);
+        flex-shrink: 0;
+      }
+      .btn-icon:hover {
+        color: var(--text);
+        border-color: var(--border-hover);
+      }
+      .btn-icon.fav-on {
+        color: var(--accent);
+      }
+      .btn-icon svg {
+        width: 13px;
+        height: 13px;
+      }
+      .overflow-trigger {
+        position: relative;
+      }
+      .card-menu {
+        position: absolute;
+        bottom: calc(100% + 4px);
+        right: 0;
+        background: var(--bg-elev);
+        border: 1px solid var(--border-hover);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-lg);
+        min-width: 140px;
+        z-index: 50;
+        display: none;
         overflow: hidden;
       }
-      .events-header {
-        padding: 16px 18px 12px;
+      .card-menu.open {
+        display: block;
+      }
+      .card-menu button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        background: transparent;
+        border: none;
+        color: var(--text);
+        padding: 8px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: var(--transition);
+        font-family: var(--font);
+        text-align: left;
+      }
+      .card-menu button:hover {
+        background: var(--bg-hover);
+      }
+      .card-menu button.danger {
+        color: var(--err);
+      }
+      .card-menu button.danger:hover {
+        background: rgba(248, 113, 113, 0.1);
+      }
+      .card-menu button svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      /* list view */
+      .grid.list-view .card {
+        flex-direction: row;
+        align-items: center;
+      }
+      .grid.list-view .card-cover {
+        height: 56px;
+        width: 80px;
+        padding: 0;
+      }
+      .grid.list-view .card-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+        margin: 0;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+      .grid.list-view .card-body {
+        padding: 10px 14px;
+        flex-direction: row;
+        align-items: center;
+        gap: 16px;
+      }
+      .grid.list-view .card-name {
+        min-width: 120px;
+      }
+      .grid.list-view .card-actions {
+        padding: 0 14px;
+        margin-left: auto;
+      }
+
+      .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-dim);
+      }
+      .empty-state svg {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 12px;
+        opacity: 0.4;
+      }
+      .empty-state h3 {
+        font-size: 16px;
+        margin-bottom: 4px;
+        color: var(--text-faint);
+      }
+      .empty-state p {
+        font-size: 12px;
+      }
+
+      /* ── EVENTS VIEW ── */
+      .events-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 700px;
+      }
+      .event-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: var(--transition);
+        border-left: 3px solid var(--accent);
+      }
+      .event-card:hover {
+        border-color: var(--border-hover);
+        background: var(--bg-hover);
+      }
+      .event-card .ev-type {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-sm);
+        background: var(--accent-dim);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .event-card .ev-type svg {
+        width: 18px;
+        height: 18px;
+        color: var(--accent);
+      }
+      .event-card.type-pvp {
+        border-left-color: var(--err);
+      }
+      .event-card.type-pvp .ev-type {
+        background: rgba(248, 113, 113, 0.15);
+      }
+      .event-card.type-pvp .ev-type svg {
+        color: var(--err);
+      }
+      .event-card.type-war {
+        border-left-color: var(--warn);
+      }
+      .event-card.type-war .ev-type {
+        background: rgba(251, 191, 36, 0.15);
+      }
+      .event-card.type-war .ev-type svg {
+        color: var(--warn);
+      }
+      .event-card .ev-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .event-card .ev-name {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+      .event-card .ev-region {
+        font-size: 11px;
+        color: var(--text-faint);
+        font-family: var(--mono);
+      }
+      .event-card .ev-timer {
+        font-size: 12px;
+        font-family: var(--mono);
+        color: var(--accent);
+        font-weight: 600;
+        text-align: right;
+      }
+      .event-card .ev-timer.ended {
+        color: var(--text-dim);
+      }
+
+      /* ── SETTINGS VIEW ── */
+      .settings-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 16px;
+        overflow: hidden;
+        max-width: 700px;
+      }
+      .settings-header {
+        padding: 14px 18px;
         border-bottom: 1px solid var(--border);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-faint);
+        background: var(--bg-elev);
+      }
+      .set-row {
+        padding: 14px 18px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-      }
-      .events-header h3 {
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        color: var(--text-faint);
-      }
-      .events-header .refresh {
-        background: none;
-        border: none;
-        color: var(--text-faint);
-        cursor: pointer;
-        padding: 4px;
-        border-radius: var(--radius-sm);
-        transition: var(--transition);
-        display: flex;
-      }
-      .events-header .refresh:hover {
-        color: var(--text);
-        background: var(--bg-card);
-      }
-      .events-header .refresh svg {
-        width: 14px;
-        height: 14px;
-      }
-      .events-list {
-        flex: 1;
-        overflow-y: auto;
-        padding: 8px 0;
-      }
-      .events-list::-webkit-scrollbar {
-        width: 4px;
-      }
-      .events-list::-webkit-scrollbar-thumb {
-        background: var(--border-hover);
-        border-radius: 2px;
-      }
-      .event-item {
-        padding: 12px 18px;
+        gap: 16px;
         border-bottom: 1px solid var(--border);
-        transition: var(--transition);
       }
-      .event-item:hover {
-        background: var(--bg-card);
+      .set-row:last-child {
+        border-bottom: none;
       }
-      .event-item .ev-name {
+      .set-label {
         font-size: 13px;
         font-weight: 500;
-        color: var(--text);
-        margin-bottom: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
       }
-      .event-item .ev-timer {
+      .set-desc {
         font-size: 11px;
-        font-family: var(--mono);
-        color: var(--accent);
+        color: var(--text-faint);
+        margin-top: 2px;
       }
-      .event-item .ev-timer.ended {
-        color: var(--text-dim);
-      }
-      .events-empty {
-        padding: 32px 18px;
-        text-align: center;
-        color: var(--text-dim);
+      .set-row select {
+        background: var(--bg-elev);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 6px 10px;
+        border-radius: var(--radius-sm);
         font-size: 12px;
+        font-family: var(--font);
+        cursor: pointer;
+        min-width: 140px;
+      }
+      .set-row select:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      .toggle {
+        width: 38px;
+        height: 22px;
+        background: var(--border);
+        border-radius: 11px;
+        position: relative;
+        cursor: pointer;
+        transition: var(--transition);
+        flex-shrink: 0;
+      }
+      .toggle::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 18px;
+        height: 18px;
+        background: var(--text);
+        border-radius: 50%;
+        transition: var(--transition);
+      }
+      .toggle.on {
+        background: var(--accent);
+      }
+      .toggle.on::after {
+        left: 18px;
+        background: #000;
       }
 
-      /* ── MODAL: Settings técnicos ── */
+      /* ── MODAL ── */
       .modal-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(4px);
+        background: rgba(0, 0, 0, 0.75);
         display: none;
         align-items: center;
         justify-content: center;
@@ -405,24 +819,25 @@
       .modal {
         background: var(--bg-elev);
         border: 1px solid var(--border-hover);
-        border-radius: var(--radius);
+        border-radius: var(--radius-lg);
         width: 90%;
-        max-width: 480px;
-        max-height: 80vh;
+        max-width: 440px;
+        max-height: 85vh;
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        box-shadow: var(--shadow-lg);
       }
       .modal-head {
-        padding: 16px 20px;
+        padding: 18px 20px;
         border-bottom: 1px solid var(--border);
         display: flex;
         align-items: center;
         justify-content: space-between;
       }
-      .modal-head h2 {
-        font-size: 14px;
-        font-weight: 600;
+      .modal-head h3 {
+        font-size: 15px;
+        font-weight: 700;
       }
       .modal-close {
         background: none;
@@ -431,191 +846,80 @@
         cursor: pointer;
         padding: 4px;
         border-radius: var(--radius-sm);
+        display: flex;
       }
       .modal-close:hover {
         color: var(--text);
-        background: var(--bg-card);
+        background: var(--bg-hover);
       }
       .modal-close svg {
-        width: 16px;
-        height: 16px;
+        width: 18px;
+        height: 18px;
       }
       .modal-body {
-        padding: 8px 0;
+        padding: 18px 20px;
         overflow-y: auto;
       }
-      .set-row {
-        padding: 12px 20px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        border-bottom: 1px solid var(--border);
+      .field {
+        margin-bottom: 14px;
       }
-      .set-row:last-child {
-        border-bottom: none;
-      }
-      .set-row .set-label {
-        font-size: 13px;
-        font-weight: 500;
-      }
-      .set-row .set-desc {
-        font-size: 11px;
+      .field label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 5px;
         color: var(--text-faint);
-        margin-top: 2px;
       }
-      .set-row select {
+      .field input,
+      .field select {
+        width: 100%;
         background: var(--bg-card);
         border: 1px solid var(--border);
         color: var(--text);
-        padding: 6px 10px;
+        padding: 9px 12px;
         border-radius: var(--radius-sm);
-        font-size: 12px;
+        font-size: 13px;
         font-family: var(--font);
-        cursor: pointer;
       }
-      .set-row select:focus {
+      .field input:focus,
+      .field select:focus {
         outline: none;
         border-color: var(--accent);
       }
-      .set-row .toggle {
-        width: 36px;
-        height: 20px;
-        background: var(--border);
-        border-radius: 10px;
-        position: relative;
-        cursor: pointer;
-        transition: var(--transition);
-        flex-shrink: 0;
-      }
-      .set-row .toggle::after {
-        content: '';
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 16px;
-        height: 16px;
-        background: var(--text);
-        border-radius: 50%;
-        transition: var(--transition);
-      }
-      .set-row .toggle.on {
-        background: var(--accent);
-      }
-      .set-row .toggle.on::after {
-        left: 18px;
-        background: #000;
-      }
-      .set-section-title {
-        padding: 12px 20px 6px;
-        font-size: 10px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        color: var(--text-faint);
-      }
-
-      /* ── ACCOUNT DROPDOWN ── */
-      .account-menu {
-        position: absolute;
-        background: var(--bg-elev);
-        border: 1px solid var(--border-hover);
-        border-radius: var(--radius);
-        min-width: 260px;
-        max-height: 320px;
-        overflow-y: auto;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-        z-index: 100;
-        display: none;
-      }
-      .account-menu.open {
-        display: block;
-      }
-      .account-menu .am-item {
-        padding: 10px 14px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        cursor: pointer;
-        transition: var(--transition);
-        border-bottom: 1px solid var(--border);
-      }
-      .account-menu .am-item:last-child {
-        border-bottom: none;
-      }
-      .account-menu .am-item:hover {
-        background: var(--bg-card);
-      }
-      .account-menu .am-item.selected {
-        background: var(--accent-dim);
-      }
-      .account-menu .am-avatar {
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        font-weight: 700;
-        color: #000;
-      }
-      .account-menu .am-name {
-        flex: 1;
-        font-size: 13px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .account-menu .am-region {
-        font-size: 10px;
-        color: var(--text-faint);
-        font-family: var(--mono);
-      }
-      .account-menu .am-fav {
-        color: var(--accent);
-        width: 12px;
-        height: 12px;
-      }
-      .account-menu .am-footer {
-        padding: 8px 14px;
-        border-top: 1px solid var(--border);
+      .color-picker {
         display: flex;
         gap: 8px;
+        flex-wrap: wrap;
       }
-      .account-menu .am-footer button {
-        flex: 1;
-        background: transparent;
-        border: 1px solid var(--border);
-        color: var(--text-faint);
-        padding: 6px;
-        border-radius: var(--radius-sm);
-        font-size: 11px;
+      .color-swatch {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
         cursor: pointer;
+        border: 2px solid transparent;
         transition: var(--transition);
-        font-family: var(--font);
       }
-      .account-menu .am-footer button:hover {
-        color: var(--text);
-        border-color: var(--border-hover);
+      .color-swatch.selected {
+        border-color: var(--text);
+        transform: scale(1.1);
       }
-      .account-menu .am-footer button.danger:hover {
-        color: var(--err);
-        border-color: var(--err);
+      .modal-footer {
+        padding: 14px 20px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
       }
 
       /* ── TOAST ── */
       .toast-wrap {
         position: fixed;
         bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
+        right: 20px;
         z-index: 2000;
         display: flex;
         flex-direction: column;
         gap: 8px;
-        align-items: center;
       }
       .toast {
         background: var(--bg-elev);
@@ -625,9 +929,9 @@
         padding: 10px 16px;
         border-radius: var(--radius-sm);
         font-size: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        box-shadow: var(--shadow);
         animation: toastIn 200ms ease;
-        max-width: 400px;
+        max-width: 360px;
       }
       .toast.err {
         border-left-color: var(--err);
@@ -638,15 +942,15 @@
       @keyframes toastIn {
         from {
           opacity: 0;
-          transform: translateY(10px);
+          transform: translateX(20px);
         }
         to {
           opacity: 1;
-          transform: translateY(0);
+          transform: translateX(0);
         }
       }
 
-      /* ── LOADING SPLASH ── */
+      /* ── SPLASH ── */
       .splash {
         position: fixed;
         inset: 0;
@@ -662,8 +966,8 @@
         pointer-events: none;
       }
       .splash svg {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         color: var(--accent);
         animation: spin 1s linear infinite;
       }
@@ -682,126 +986,199 @@
     </div>
 
     <div class="app">
-      <!-- ═══ BLOCO 1: SIDEBAR — atalhos diretos ═══ -->
-      <nav class="sidebar" role="navigation" aria-label="Atalhos">
-        <div class="logo" title="Shinobi Launcher">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="5 3 19 12 5 21 5 3" />
-          </svg>
+      <!-- ═══ SIDEBAR ═══ -->
+      <nav class="sidebar">
+        <div class="sidebar-brand">
+          <div class="mark">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+          </div>
+          <div>
+            <h1>Shinobi</h1>
+            <div class="ver" id="version">v5.10.1</div>
+          </div>
         </div>
-        <button
-          class="side-btn"
-          id="btnFullscreen"
-          data-tip="Tela cheia / Janela"
-          aria-label="Alternar tela cheia"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path
-              d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
-            />
-          </svg>
-        </button>
-        <button
-          class="side-btn"
-          id="btnSettings"
-          data-tip="Configurações técnicas"
-          aria-label="Configurações"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3" />
-            <path
-              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-            />
-          </svg>
-        </button>
-        <button
-          class="side-btn"
-          id="btnRepair"
-          data-tip="Reparar arquivos do jogo"
-          aria-label="Reparar"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path
-              d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
-            />
-          </svg>
-        </button>
-        <div class="side-spacer"></div>
-        <button class="side-btn" id="btnQuit" data-tip="Sair" aria-label="Sair">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-        </button>
+        <div class="nav">
+          <div class="nav-item active" data-view="accounts" tabindex="0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            Contas
+          </div>
+          <div class="nav-item" data-view="events" tabindex="0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            Eventos
+            <span class="nav-badge" id="eventBadge"></span>
+          </div>
+          <div class="nav-item" data-view="settings" tabindex="0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+              />
+            </svg>
+            Configurações
+          </div>
+        </div>
+        <div class="sidebar-footer">
+          <button id="importBtn" title="Importar backup">Importar</button>
+          <button id="exportBtn" title="Exportar backup">Exportar</button>
+        </div>
       </nav>
 
-      <!-- ═══ BLOCO 2: CENTER — foco absoluto ═══ -->
-      <main class="center">
-        <div
-          class="account-select"
-          id="accountSelect"
-          role="button"
-          tabindex="0"
-          aria-label="Selecionar conta"
-        >
-          <div class="avatar" id="selAvatar"></div>
-          <div class="name" id="selName">—</div>
-          <div class="region" id="selRegion"></div>
-          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-          <div class="account-menu" id="accountMenu"></div>
-        </div>
-
-        <button class="play-btn" id="playBtn" aria-label="Jogar">
-          <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="6 3 20 12 6 21 6 3" />
-          </svg>
-          <span>JOGAR</span>
-        </button>
-
-        <div class="server-status checking" id="serverStatus">
-          <span class="dot"></span>
-          <span id="serverLabel">Verificando…</span>
-        </div>
-
-        <div class="download-bar" id="downloadBar">
-          <div class="fill" id="downloadFill"></div>
-        </div>
-        <div class="download-label" id="downloadLabel"></div>
-      </main>
-
-      <!-- ═══ BLOCO 3: EVENTS — eventos diários ativos ═══ -->
-      <aside class="events-panel" aria-label="Eventos ativos">
-        <div class="events-header">
-          <h3>Eventos ativos hoje</h3>
-          <button class="refresh" id="btnRefreshEvents" aria-label="Atualizar eventos">
+      <!-- ═══ MAIN ═══ -->
+      <main class="main">
+        <header class="topbar">
+          <h2 id="viewTitle">Contas</h2>
+          <div class="spacer"></div>
+          <div class="search" id="searchWrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
+            <input type="text" id="searchInput" placeholder="Buscar conta…" />
+          </div>
+          <div class="view-toggle" id="viewToggle">
+            <button id="viewGrid" class="active" title="Grade" aria-label="Visualização em grade">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+              </svg>
+            </button>
+            <button id="viewList" title="Lista" aria-label="Visualização em lista">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="8" y1="6" x2="21" y2="6" />
+                <line x1="8" y1="12" x2="21" y2="12" />
+                <line x1="8" y1="18" x2="21" y2="18" />
+                <line x1="3" y1="6" x2="3.01" y2="6" />
+                <line x1="3" y1="12" x2="3.01" y2="12" />
+                <line x1="3" y1="18" x2="3.01" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <button class="btn primary" id="newBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Nova conta
           </button>
+        </header>
+
+        <div class="content">
+          <!-- ── View: Accounts ── -->
+          <div class="view active" id="view-accounts">
+            <div class="grid" id="profileGrid"></div>
+          </div>
+
+          <!-- ── View: Events ── -->
+          <div class="view" id="view-events">
+            <div class="events-list" id="eventsList"></div>
+          </div>
+
+          <!-- ── View: Settings ── -->
+          <div class="view" id="view-settings">
+            <div class="settings-section">
+              <div class="settings-header">Vídeo</div>
+              <div class="set-row">
+                <div>
+                  <div class="set-label">Qualidade de render</div>
+                  <div class="set-desc">Resolução do Flash Player</div>
+                </div>
+                <select id="setQuality">
+                  <option value="high">Alta</option>
+                  <option value="medium">Média</option>
+                  <option value="low">Baixa (PC fraco)</option>
+                </select>
+              </div>
+              <div class="set-row">
+                <div>
+                  <div class="set-label">Aceleração GPU</div>
+                  <div class="set-desc">Hardware acceleration</div>
+                </div>
+                <div
+                  class="toggle on"
+                  id="setGpu"
+                  role="switch"
+                  aria-checked="true"
+                  tabindex="0"
+                ></div>
+              </div>
+            </div>
+            <div class="settings-section">
+              <div class="settings-header">Áudio</div>
+              <div class="set-row">
+                <div>
+                  <div class="set-label">Volume do jogo</div>
+                  <div class="set-desc">Aplicado ao iniciar</div>
+                </div>
+                <select id="setVolume">
+                  <option value="100">100%</option>
+                  <option value="75">75%</option>
+                  <option value="50">50%</option>
+                  <option value="25">25%</option>
+                  <option value="0">Mudo</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-section">
+              <div class="settings-header">Sistema</div>
+              <div class="set-row">
+                <div>
+                  <div class="set-label">Auto-login</div>
+                  <div class="set-desc">Pular tela de login com credenciais salvas</div>
+                </div>
+                <div
+                  class="toggle"
+                  id="setAutoLogin"
+                  role="switch"
+                  aria-checked="false"
+                  tabindex="0"
+                ></div>
+              </div>
+              <div class="set-row">
+                <div>
+                  <div class="set-label">Fechar ao jogar</div>
+                  <div class="set-desc">Fecha o launcher quando o jogo abre</div>
+                </div>
+                <div
+                  class="toggle on"
+                  id="setCloseOnPlay"
+                  role="switch"
+                  aria-checked="true"
+                  tabindex="0"
+                ></div>
+              </div>
+              <div class="set-row">
+                <div>
+                  <div class="set-label">Verificar arquivos do jogo</div>
+                  <div class="set-desc">Checa integridade do cache Flash</div>
+                </div>
+                <button class="btn" id="btnRepair">Verificar</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="events-list" id="eventsList">
-          <div class="events-empty">Carregando…</div>
-        </div>
-      </aside>
+      </main>
     </div>
 
-    <!-- ═══ MODAL: Settings técnicos ═══ -->
-    <div
-      class="modal-overlay"
-      id="settingsModal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="settingsTitle"
-    >
+    <!-- ═══ MODAL: Nova conta ═══ -->
+    <div class="modal-overlay" id="accountModal" role="dialog" aria-modal="true">
       <div class="modal">
         <div class="modal-head">
-          <h2 id="settingsTitle">Configurações</h2>
-          <button class="modal-close" id="btnCloseSettings" aria-label="Fechar">
+          <h3 id="modalTitle">Nova conta</h3>
+          <button class="modal-close" id="btnCloseModal" aria-label="Fechar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
@@ -809,68 +1186,35 @@
           </button>
         </div>
         <div class="modal-body">
-          <div class="set-section-title">Vídeo</div>
-          <div class="set-row">
-            <div>
-              <div class="set-label">Qualidade</div>
-              <div class="set-desc">Resolução do render Flash</div>
-            </div>
-            <select id="setQuality">
-              <option value="high">Alta</option>
-              <option value="medium">Média</option>
-              <option value="low">Baixa (PC fraco)</option>
+          <div class="field">
+            <label for="fName">Nome da conta</label>
+            <input type="text" id="fName" placeholder="Ex: Hokage_BR" maxlength="32" />
+          </div>
+          <div class="field">
+            <label for="fRegion">Região</label>
+            <select id="fRegion">
+              <option value="br">Brasil (BR)</option>
+              <option value="na">América do Norte (NA)</option>
+              <option value="eu">Europa (EU)</option>
+              <option value="hk">Hong Kong (HK)</option>
+              <option value="de">Alemanha (DE)</option>
+              <option value="es">Espanha (ES)</option>
+              <option value="pl">Polônia (PL)</option>
+              <option value="fr">França (FR)</option>
             </select>
           </div>
-          <div class="set-row">
-            <div>
-              <div class="set-label">Aceleração GPU</div>
-              <div class="set-desc">Hardware acceleration</div>
-            </div>
-            <div class="toggle on" id="setGpu" role="switch" aria-checked="true" tabindex="0"></div>
+          <div class="field">
+            <label for="fServer">Servidor</label>
+            <select id="fServer"></select>
           </div>
-
-          <div class="set-section-title">Áudio</div>
-          <div class="set-row">
-            <div>
-              <div class="set-label">Volume</div>
-              <div class="set-desc">Volume do jogo</div>
-            </div>
-            <select id="setVolume">
-              <option value="100">100%</option>
-              <option value="75">75%</option>
-              <option value="50">50%</option>
-              <option value="25">25%</option>
-              <option value="0">Mudo</option>
-            </select>
+          <div class="field">
+            <label>Cor</label>
+            <div class="color-picker" id="colorPicker"></div>
           </div>
-
-          <div class="set-section-title">Sistema</div>
-          <div class="set-row">
-            <div>
-              <div class="set-label">Auto-login</div>
-              <div class="set-desc">Pular tela de login (usa credenciais salvas)</div>
-            </div>
-            <div
-              class="toggle"
-              id="setAutoLogin"
-              role="switch"
-              aria-checked="false"
-              tabindex="0"
-            ></div>
-          </div>
-          <div class="set-row">
-            <div>
-              <div class="set-label">Fechar ao jogar</div>
-              <div class="set-desc">Fecha o launcher quando o jogo abre</div>
-            </div>
-            <div
-              class="toggle on"
-              id="setCloseOnPlay"
-              role="switch"
-              aria-checked="true"
-              tabindex="0"
-            ></div>
-          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" id="btnCancelModal">Cancelar</button>
+          <button class="btn primary" id="btnSaveModal">Salvar</button>
         </div>
       </div>
     </div>
@@ -890,11 +1234,30 @@
         pl: 'PL',
         fr: 'FR'
       };
+      const COLORS = [
+        '#ff8c00',
+        '#dc2626',
+        '#10b981',
+        '#f59e0b',
+        '#8b5cf6',
+        '#06b6d4',
+        '#ec4899',
+        '#84cc16'
+      ];
+      const EVENT_ICONS = {
+        exp: '<path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>',
+        pvp: '<path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/>',
+        war: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+        default: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'
+      };
 
       let profiles = [];
-      let selectedId = null;
+      let servers = [];
       let events = [];
-      let isFullscreen = false;
+      let viewMode = 'grid';
+      let searchQuery = '';
+      let editingId = null;
+      let selectedColor = COLORS[0];
       let settings = {
         quality: localStorage.getItem('shinobi-quality') || 'high',
         gpu: localStorage.getItem('shinobi-gpu') !== '0',
@@ -905,9 +1268,10 @@
 
       // ── UTIL ──
       function esc(s) {
-        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-        });
+        return String(s == null ? '' : s).replace(
+          /[&<>"']/g,
+          c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+        );
       }
       function toast(msg, type) {
         const wrap = document.getElementById('toastWrap');
@@ -927,282 +1291,399 @@
         try {
           const list = await ipcRenderer.invoke('profiles:export-file');
           profiles = Array.isArray(list) ? list : [];
-          if (!profiles.length) {
-            document.getElementById('selName').textContent = 'Nenhuma conta';
-            document.getElementById('selRegion').textContent = '';
-            return;
-          }
-          // select last-used or first favorite
-          const lastId = localStorage.getItem('shinobi-last-profile');
-          selectedId =
-            profiles.find(p => p.id === lastId)?.id ||
-            profiles.find(p => p.favorite)?.id ||
-            profiles[0].id;
-          renderAccountSelect();
+          renderGrid();
+          updateEventBadge();
         } catch (e) {
           toast('Erro ao carregar contas', 'err');
         }
       }
 
-      function renderAccountSelect() {
-        const p = profiles.find(x => x.id === selectedId) || profiles[0];
-        if (!p) return;
-        const avatar = document.getElementById('selAvatar');
-        avatar.style.background = p.color || 'var(--accent)';
-        avatar.textContent = (p.name || '?').charAt(0).toUpperCase();
-        document.getElementById('selName').textContent = p.name;
-        document.getElementById('selRegion').textContent = REGIONS[p.region] || p.region || '';
+      async function loadServers() {
+        try {
+          const list = await ipcRenderer.invoke('servers:fetch');
+          servers = Array.isArray(list) ? list : [];
+          populateServerSelect();
+        } catch (e) {
+          servers = [
+            { id: 's1', name: 'Server 1' },
+            { id: 's2', name: 'Server 2' }
+          ];
+          populateServerSelect();
+        }
+      }
+      function populateServerSelect() {
+        const sel = document.getElementById('fServer');
+        sel.innerHTML = servers
+          .map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`)
+          .join('');
+      }
+      function buildServerOptions(current) {
+        return servers
+          .map(
+            s =>
+              `<option value="${esc(s.id)}"${s.id === current ? ' selected' : ''}>${esc(s.name)}</option>`
+          )
+          .join('');
       }
 
-      function renderAccountMenu() {
-        const menu = document.getElementById('accountMenu');
-        const sorted = [...profiles].sort((a, b) => {
-          if (a.favorite && !b.favorite) return -1;
-          if (!a.favorite && b.favorite) return 1;
-          return (b.lastUsed || 0) - (a.lastUsed || 0);
-        });
-        menu.innerHTML =
-          sorted
-            .map(p => {
-              const sel = p.id === selectedId ? ' selected' : '';
-              const fav = p.favorite
-                ? '<svg class="am-fav" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
-                : '';
-              return (
-                '<div class="am-item' +
-                sel +
-                '" data-id="' +
-                esc(p.id) +
-                '">' +
-                '<div class="am-avatar" style="background:' +
-                esc(p.color || '#ff8c00') +
-                '">' +
-                esc((p.name || '?').charAt(0).toUpperCase()) +
-                '</div>' +
-                '<div class="am-name">' +
-                esc(p.name) +
-                '</div>' +
-                '<div class="am-region">' +
-                esc(REGIONS[p.region] || p.region || '') +
-                '</div>' +
-                fav +
-                '</div>'
-              );
-            })
-            .join('') +
-          '<div class="am-footer">' +
-          '<button id="amAdd">+ Nova</button>' +
-          '<button id="amDel" class="danger">Excluir</button>' +
-          '</div>';
+      function renderGrid() {
+        const grid = document.getElementById('profileGrid');
+        const filtered = profiles.filter(
+          p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        if (!filtered.length) {
+          grid.innerHTML =
+            '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><h3>Nenhuma conta</h3><p>Clique em "Nova conta" para começar</p></div>';
+          return;
+        }
+        grid.className = 'grid' + (viewMode === 'list' ? ' list-view' : '');
+        grid.innerHTML = filtered.map(p => renderCard(p)).join('');
+        bindCardEvents();
+      }
 
-        menu.querySelectorAll('.am-item').forEach(item => {
-          item.addEventListener('click', () => {
-            selectedId = item.dataset.id;
-            localStorage.setItem('shinobi-last-profile', selectedId);
-            renderAccountSelect();
-            menu.classList.remove('open');
+      function renderCard(p) {
+        const c1 = p.color || '#ff8c00';
+        const c2 = shadeColor(c1, -30);
+        const initial = (p.name || '?').charAt(0).toUpperCase();
+        const lockIcon = p.hasVault
+          ? '<svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+          : '';
+        const favStar = p.favorite
+          ? '<svg class="card-fav-star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+          : '';
+        const badges = [];
+        if (p.hasVault)
+          badges.push('<span class="badge ok"><span class="dot"></span>auto-login</span>');
+        if (p.lastUsed && Date.now() - p.lastUsed < 86400000)
+          badges.push('<span class="badge open"><span class="dot"></span>recente</span>');
+        return `<div class="card${p.favorite ? ' fav' : ''}" data-id="${esc(p.id)}" style="--c1:${esc(c1)};--c2:${esc(c2)}">
+          <div class="card-cover">
+            ${favStar}
+            <div class="card-avatar">${esc(initial)}</div>
+          </div>
+          <div class="card-body">
+            <div class="card-name">${esc(p.name)}${lockIcon}</div>
+            <div class="card-meta">
+              <span class="region">${esc(REGIONS[p.region] || p.region || '—')}</span>
+              <select data-act="switch-server" onclick="event.stopPropagation()">${buildServerOptions(p.server)}</select>
+            </div>
+            ${badges.length ? `<div class="card-badges">${badges.join('')}</div>` : ''}
+          </div>
+          <div class="card-actions">
+            <button class="btn-play" data-act="launch"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play</button>
+            <button class="btn-icon${p.favorite ? ' fav-on' : ''}" data-act="fav" title="${p.favorite ? 'Desfavoritar' : 'Favoritar'}" aria-label="Favoritar">
+              <svg viewBox="0 0 24 24" fill="${p.favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </button>
+            <button class="btn-icon overflow-trigger" data-act="overflow" title="Mais ações" aria-haspopup="true" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+              <div class="card-menu">
+                <button data-act="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Editar</button>
+                <button data-act="vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Credenciais</button>
+                <button data-act="dup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicar</button>
+                <button data-act="del" class="danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Excluir</button>
+              </div>
+            </button>
+          </div>
+        </div>`;
+      }
+
+      function shadeColor(hex, percent) {
+        const num = parseInt(hex.replace('#', ''), 16);
+        const r = Math.max(0, Math.min(255, (num >> 16) + percent));
+        const g = Math.max(0, Math.min(255, ((num >> 8) & 0xff) + percent));
+        const b = Math.max(0, Math.min(255, (num & 0xff) + percent));
+        return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+      }
+
+      function bindCardEvents() {
+        document.querySelectorAll('.card').forEach(card => {
+          const id = card.dataset.id;
+          card.addEventListener('click', () => launch(id));
+          card.querySelectorAll('[data-act]').forEach(btn => {
+            btn.addEventListener('click', e => {
+              e.stopPropagation();
+              const act = btn.dataset.act;
+              if (act === 'launch') launch(id);
+              else if (act === 'fav') toggleFavorite(id);
+              else if (act === 'edit') openEditModal(id);
+              else if (act === 'vault') openVault(id);
+              else if (act === 'dup') duplicateProfile(id);
+              else if (act === 'del') deleteProfile(id);
+              else if (act === 'overflow') toggleCardMenu(btn);
+            });
           });
         });
-        document.getElementById('amAdd').addEventListener('click', () => {
-          menu.classList.remove('open');
-          createProfile();
-        });
-        document.getElementById('amDel').addEventListener('click', () => {
-          menu.classList.remove('open');
-          deleteProfile();
-        });
       }
 
-      function createProfile() {
-        const name = window.prompt('Nome da conta:');
-        if (!name) return;
-        const colors = ['#ff8c00', '#dc2626', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4'];
-        const p = {
+      function closeAllCardMenus() {
+        document.querySelectorAll('.card-menu.open').forEach(m => m.classList.remove('open'));
+      }
+      function toggleCardMenu(trigger) {
+        const menu = trigger.querySelector('.card-menu');
+        const isOpen = menu.classList.contains('open');
+        closeAllCardMenus();
+        if (!isOpen) menu.classList.add('open');
+      }
+      document.addEventListener('click', closeAllCardMenus);
+
+      // ── ACTIONS ──
+      function launch(id) {
+        const p = profiles.find(x => x.id === id);
+        if (!p) return;
+        const card = document.querySelector(`.card[data-id="${id}"]`);
+        const btn = card?.querySelector('.btn-play');
+        if (btn) {
+          btn.disabled = true;
+          btn.classList.add('launching');
+          btn.innerHTML =
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Iniciando…';
+        }
+        localStorage.setItem('shinobi-last-profile', id);
+        ipcRenderer
+          .invoke('profile:launch', id)
+          .then(() => toast('Jogo iniciado', 'ok'))
+          .catch(e => toast('Erro ao iniciar: ' + (e.message || ''), 'err'))
+          .finally(() => {
+            setTimeout(() => {
+              if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('launching');
+                btn.innerHTML =
+                  '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play';
+              }
+            }, 2000);
+          });
+      }
+
+      function toggleFavorite(id) {
+        const p = profiles.find(x => x.id === id);
+        if (!p) return;
+        p.favorite = !p.favorite;
+        ipcRenderer.invoke('profile:set-favorite', id, p.favorite).then(() => renderGrid());
+      }
+
+      function duplicateProfile(id) {
+        closeAllCardMenus();
+        const p = profiles.find(x => x.id === id);
+        if (!p) return;
+        const copy = {
+          ...p,
           id: 'p' + Date.now(),
-          name: name.trim(),
-          server: 's1',
-          region: 'br',
-          color: colors[Math.floor(Math.random() * colors.length)],
+          name: p.name + ' (cópia)',
           favorite: false,
-          hasVault: false,
-          launchCount: 0,
-          totalPlayMs: 0,
-          lastUsed: 0,
-          notes: ''
+          lastUsed: 0
         };
         ipcRenderer
-          .invoke('profile:create', p)
+          .invoke('profile:create', copy)
           .then(() => {
-            profiles.push(p);
-            selectedId = p.id;
-            localStorage.setItem('shinobi-last-profile', p.id);
-            renderAccountSelect();
-            toast('Conta criada', 'ok');
+            profiles.push(copy);
+            renderGrid();
+            toast('Conta duplicada', 'ok');
           })
-          .catch(() => toast('Erro ao criar conta', 'err'));
+          .catch(() => toast('Erro ao duplicar', 'err'));
       }
 
-      function deleteProfile() {
-        if (!selectedId) return;
-        const p = profiles.find(x => x.id === selectedId);
+      function deleteProfile(id) {
+        closeAllCardMenus();
+        const p = profiles.find(x => x.id === id);
         if (!p) return;
-        if (!window.confirm('Excluir conta "' + p.name + '"?')) return;
+        if (!confirm('Excluir conta "' + p.name + '"?')) return;
         ipcRenderer
-          .invoke('profile:delete', selectedId)
+          .invoke('profile:delete', id)
           .then(() => {
-            profiles = profiles.filter(x => x.id !== selectedId);
-            selectedId = profiles[0]?.id || null;
-            if (selectedId) localStorage.setItem('shinobi-last-profile', selectedId);
-            renderAccountSelect();
+            profiles = profiles.filter(x => x.id !== id);
+            renderGrid();
             toast('Conta excluída', 'ok');
           })
           .catch(() => toast('Erro ao excluir', 'err'));
       }
 
-      // ── LAUNCH ──
-      function launch() {
-        if (!selectedId) {
-          toast('Selecione uma conta', 'err');
-          return;
-        }
-        const btn = document.getElementById('playBtn');
-        btn.disabled = true;
-        btn.classList.add('launching');
-        btn.querySelector('span').textContent = 'INICIANDO…';
-        localStorage.setItem('shinobi-last-profile', selectedId);
+      function openVault(id) {
+        closeAllCardMenus();
+        const p = profiles.find(x => x.id === id);
+        if (!p) return;
+        const pass = prompt('Senha do vault para "' + p.name + '":');
+        if (!pass) return;
         ipcRenderer
-          .invoke('profile:launch', selectedId)
+          .invoke('vault:set', id, pass)
           .then(() => {
-            toast('Jogo iniciado', 'ok');
-            if (settings.closeOnPlay) {
-              setTimeout(() => ipcRenderer.send('app:quit'), 1500);
-            }
+            p.hasVault = true;
+            renderGrid();
+            toast('Credenciais salvas', 'ok');
           })
-          .catch(e => {
-            toast('Erro ao iniciar: ' + (e.message || 'desconhecido'), 'err');
-          })
-          .finally(() => {
-            setTimeout(() => {
-              btn.disabled = false;
-              btn.classList.remove('launching');
-              btn.querySelector('span').textContent = 'JOGAR';
-            }, 2000);
-          });
+          .catch(() => toast('Erro ao salvar credenciais', 'err'));
       }
 
-      // ── EVENTS (diários ativos) ──
+      // ── MODAL ──
+      function openCreateModal() {
+        editingId = null;
+        document.getElementById('modalTitle').textContent = 'Nova conta';
+        document.getElementById('fName').value = '';
+        document.getElementById('fRegion').value = 'br';
+        if (servers.length) document.getElementById('fServer').value = servers[0].id;
+        selectedColor = COLORS[0];
+        renderColorPicker();
+        document.getElementById('accountModal').classList.add('open');
+        setTimeout(() => document.getElementById('fName').focus(), 50);
+      }
+      function openEditModal(id) {
+        closeAllCardMenus();
+        const p = profiles.find(x => x.id === id);
+        if (!p) return;
+        editingId = id;
+        document.getElementById('modalTitle').textContent = 'Editar conta';
+        document.getElementById('fName').value = p.name;
+        document.getElementById('fRegion').value = p.region || 'br';
+        document.getElementById('fServer').value = p.server || (servers[0] && servers[0].id) || '';
+        selectedColor = p.color || COLORS[0];
+        renderColorPicker();
+        document.getElementById('accountModal').classList.add('open');
+      }
+      function closeModal() {
+        document.getElementById('accountModal').classList.remove('open');
+      }
+      function renderColorPicker() {
+        const wrap = document.getElementById('colorPicker');
+        wrap.innerHTML = COLORS.map(
+          c =>
+            `<div class="color-swatch${c === selectedColor ? ' selected' : ''}" style="background:${c}" data-color="${c}"></div>`
+        ).join('');
+        wrap.querySelectorAll('.color-swatch').forEach(s => {
+          s.addEventListener('click', () => {
+            selectedColor = s.dataset.color;
+            renderColorPicker();
+          });
+        });
+      }
+      function saveModal() {
+        const name = document.getElementById('fName').value.trim();
+        if (!name) {
+          toast('Digite um nome', 'err');
+          return;
+        }
+        const data = {
+          name,
+          region: document.getElementById('fRegion').value,
+          server: document.getElementById('fServer').value,
+          color: selectedColor
+        };
+        if (editingId) {
+          const p = profiles.find(x => x.id === editingId);
+          Object.assign(p, data);
+          ipcRenderer
+            .invoke('profile:update', editingId, p)
+            .then(() => {
+              renderGrid();
+              toast('Conta atualizada', 'ok');
+            })
+            .catch(() => toast('Erro ao atualizar', 'err'));
+        } else {
+          const p = {
+            id: 'p' + Date.now(),
+            ...data,
+            favorite: false,
+            hasVault: false,
+            launchCount: 0,
+            totalPlayMs: 0,
+            lastUsed: 0,
+            notes: ''
+          };
+          ipcRenderer
+            .invoke('profile:create', p)
+            .then(() => {
+              profiles.push(p);
+              renderGrid();
+              toast('Conta criada', 'ok');
+            })
+            .catch(() => toast('Erro ao criar', 'err'));
+        }
+        closeModal();
+      }
+
+      // ── EVENTS ──
       async function loadEvents() {
-        const list = document.getElementById('eventsList');
         try {
-          // fetch events for the selected profile's region + global
-          const p = profiles.find(x => x.id === selectedId) || profiles[0];
+          const p = profiles[0];
           const region = p?.region || 'br';
           const evs = await ipcRenderer.invoke('events:get', region);
           events = Array.isArray(evs) ? evs : [];
           renderEvents();
+          updateEventBadge();
         } catch (e) {
-          list.innerHTML = '<div class="events-empty">Erro ao carregar</div>';
+          document.getElementById('eventsList').innerHTML =
+            '<div class="empty-state"><p>Erro ao carregar eventos</p></div>';
         }
       }
-
       function renderEvents() {
         const list = document.getElementById('eventsList');
         const now = Date.now();
-        // only show active events (end > now), sorted by end time
         const active = events
           .filter(e => !e.end || e.end > now)
           .sort((a, b) => (a.end || Infinity) - (b.end || Infinity));
         if (!active.length) {
-          list.innerHTML = '<div class="events-empty">Nenhum evento ativo</div>';
+          list.innerHTML =
+            '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/></svg><h3>Nenhum evento ativo</h3><p>Volte mais tarde</p></div>';
           return;
         }
         list.innerHTML = active
           .map(e => {
-            const ended = e.end && e.end <= now;
-            return (
-              '<div class="event-item">' +
-              '<div class="ev-name">' +
-              esc(e.title || e.name || 'Evento') +
-              '</div>' +
-              '<div class="ev-timer' +
-              (ended ? ' ended' : '') +
-              '">' +
-              (ended ? 'encerrado' : formatTimer(e.end)) +
-              '</div>' +
-              '</div>'
-            );
+            const type = e.type || 'default';
+            const icon = EVENT_ICONS[type] || EVENT_ICONS.default;
+            return `<div class="event-card type-${esc(type)}">
+              <div class="ev-type"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg></div>
+              <div class="ev-info">
+                <div class="ev-name">${esc(e.title || e.name || 'Evento')}</div>
+                <div class="ev-region">${esc(REGIONS[e.region] || e.region || 'global')}</div>
+              </div>
+              <div class="ev-timer">${formatTimer(e.end)}</div>
+            </div>`;
           })
           .join('');
       }
-
       function formatTimer(end) {
         if (!end) return '—';
         const ms = end - Date.now();
         if (ms <= 0) return 'encerrado';
         const h = Math.floor(ms / 3600000);
         const m = Math.floor((ms % 3600000) / 60000);
-        const s = Math.floor((ms % 60000) / 1000);
-        if (h > 24) return Math.floor(h / 24) + 'd ' + (h % 24) + 'h restantes';
-        if (h > 0) return h + 'h ' + m + 'm restantes';
-        return m + 'm ' + s + 's restantes';
+        if (h > 24) return Math.floor(h / 24) + 'd ' + (h % 24) + 'h';
+        if (h > 0) return h + 'h ' + m + 'm';
+        return m + 'm';
       }
-
-      // update timers every 30s
+      function updateEventBadge() {
+        const now = Date.now();
+        const count = events.filter(e => !e.end || e.end > now).length;
+        document.getElementById('eventBadge').textContent = count || '';
+      }
       setInterval(() => {
         if (events.length) renderEvents();
       }, 30000);
 
-      // ── SERVER STATUS ──
-      async function checkServerStatus() {
-        const el = document.getElementById('serverStatus');
-        const label = document.getElementById('serverLabel');
-        el.className = 'server-status checking';
-        label.textContent = 'Verificando…';
-        try {
-          const servers = await ipcRenderer.invoke('servers:fetch');
-          if (Array.isArray(servers) && servers.length) {
-            el.className = 'server-status online';
-            label.textContent = 'Servidor online';
-          } else {
-            el.className = 'server-status offline';
-            label.textContent = 'Servidor offline';
-          }
-        } catch (e) {
-          el.className = 'server-status online';
-          label.textContent = 'Servidor online';
-        }
-      }
-
-      // ── FULLSCREEN ──
-      function toggleFullscreen() {
-        ipcRenderer
-          .invoke('window:toggle-maximize')
-          .then(isMax => {
-            isFullscreen = !!isMax;
-            document.getElementById('btnFullscreen').classList.toggle('active', isFullscreen);
-          })
-          .catch(() => toast('Erro ao alternar tela cheia', 'err'));
+      // ── VIEW SWITCHING ──
+      function switchView(view) {
+        document
+          .querySelectorAll('.nav-item')
+          .forEach(n => n.classList.toggle('active', n.dataset.view === view));
+        document
+          .querySelectorAll('.view')
+          .forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
+        const titles = { accounts: 'Contas', events: 'Eventos', settings: 'Configurações' };
+        document.getElementById('viewTitle').textContent = titles[view];
+        // show/hide topbar controls per view
+        const isAccounts = view === 'accounts';
+        document.getElementById('searchWrap').style.display = isAccounts ? '' : 'none';
+        document.getElementById('viewToggle').style.display = isAccounts ? '' : 'none';
+        document.getElementById('newBtn').style.display = isAccounts ? '' : 'none';
+        if (view === 'events') loadEvents();
       }
 
       // ── SETTINGS ──
-      function openSettings() {
-        document.getElementById('settingsModal').classList.add('open');
-        // load current values
+      function loadSettings() {
         document.getElementById('setQuality').value = settings.quality;
         document.getElementById('setGpu').classList.toggle('on', settings.gpu);
-        document.getElementById('setGpu').setAttribute('aria-checked', String(settings.gpu));
         document.getElementById('setVolume').value = settings.volume;
         document.getElementById('setAutoLogin').classList.toggle('on', settings.autoLogin);
-        document
-          .getElementById('setAutoLogin')
-          .setAttribute('aria-checked', String(settings.autoLogin));
         document.getElementById('setCloseOnPlay').classList.toggle('on', settings.closeOnPlay);
-        document
-          .getElementById('setCloseOnPlay')
-          .setAttribute('aria-checked', String(settings.closeOnPlay));
-      }
-      function closeSettings() {
-        document.getElementById('settingsModal').classList.remove('open');
       }
       function saveSetting(key, value) {
         settings[key] = value;
@@ -1216,62 +1697,71 @@
         if (map[key]) localStorage.setItem(map[key][0], map[key][1]);
       }
 
-      // ── REPAIR ──
-      async function repair() {
-        const btn = document.getElementById('btnRepair');
-        btn.classList.add('active');
-        toast('Verificando arquivos do jogo…', 'ok');
+      // ── IMPORT/EXPORT ──
+      async function exportProfiles() {
         try {
-          const info = await ipcRenderer.invoke('flash:cache-info');
-          if (info && info.version) {
-            toast('Flash ' + info.version + ' — arquivos OK', 'ok');
-          } else {
-            toast('Arquivos do jogo verificados', 'ok');
+          await ipcRenderer.invoke('profiles:export-file');
+          toast('Backup exportado', 'ok');
+        } catch (e) {
+          toast('Erro ao exportar', 'err');
+        }
+      }
+      async function importProfiles() {
+        try {
+          const result = await ipcRenderer.invoke('profiles:import-file');
+          if (result && result.ok) {
+            toast(result.count + ' contas importadas', 'ok');
+            loadProfiles();
           }
         } catch (e) {
-          toast('Erro ao verificar arquivos', 'err');
-        } finally {
-          setTimeout(() => btn.classList.remove('active'), 2000);
+          toast('Erro ao importar', 'err');
         }
       }
 
-      // ── EVENT BINDINGS ──
-      document.getElementById('playBtn').addEventListener('click', launch);
-      document.getElementById('btnFullscreen').addEventListener('click', toggleFullscreen);
-      document.getElementById('btnSettings').addEventListener('click', openSettings);
-      document.getElementById('btnCloseSettings').addEventListener('click', closeSettings);
-      document.getElementById('btnRepair').addEventListener('click', repair);
-      document.getElementById('btnRefreshEvents').addEventListener('click', loadEvents);
+      // ── BINDINGS ──
       document
-        .getElementById('btnQuit')
-        .addEventListener('click', () => ipcRenderer.send('app:quit'));
-
-      document.getElementById('settingsModal').addEventListener('click', e => {
-        if (e.target.id === 'settingsModal') closeSettings();
+        .querySelectorAll('.nav-item')
+        .forEach(n => n.addEventListener('click', () => switchView(n.dataset.view)));
+      document.getElementById('viewGrid').addEventListener('click', () => {
+        viewMode = 'grid';
+        document.getElementById('viewGrid').classList.add('active');
+        document.getElementById('viewList').classList.remove('active');
+        renderGrid();
       });
-
-      // account dropdown
-      document.getElementById('accountSelect').addEventListener('click', e => {
-        e.stopPropagation();
-        const menu = document.getElementById('accountMenu');
-        if (menu.classList.contains('open')) {
-          menu.classList.remove('open');
-        } else {
-          renderAccountMenu();
-          menu.classList.add('open');
-        }
+      document.getElementById('viewList').addEventListener('click', () => {
+        viewMode = 'list';
+        document.getElementById('viewList').classList.add('active');
+        document.getElementById('viewGrid').classList.remove('active');
+        renderGrid();
       });
-      document.addEventListener('click', () => {
-        document.getElementById('accountMenu').classList.remove('open');
+      document.getElementById('searchInput').addEventListener('input', e => {
+        searchQuery = e.target.value;
+        renderGrid();
       });
+      document.getElementById('newBtn').addEventListener('click', openCreateModal);
+      document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+      document.getElementById('btnCancelModal').addEventListener('click', closeModal);
+      document.getElementById('btnSaveModal').addEventListener('click', saveModal);
+      document.getElementById('accountModal').addEventListener('click', e => {
+        if (e.target.id === 'accountModal') closeModal();
+      });
+      document.getElementById('importBtn').addEventListener('click', importProfiles);
+      document.getElementById('exportBtn').addEventListener('click', exportProfiles);
 
-      // settings handlers
       document
         .getElementById('setQuality')
         .addEventListener('change', e => saveSetting('quality', e.target.value));
       document
         .getElementById('setVolume')
         .addEventListener('change', e => saveSetting('volume', e.target.value));
+      document.getElementById('btnRepair').addEventListener('click', async () => {
+        try {
+          const info = await ipcRenderer.invoke('flash:cache-info');
+          toast('Flash ' + (info.version || '') + ' — arquivos OK', 'ok');
+        } catch (e) {
+          toast('Erro ao verificar', 'err');
+        }
+      });
       function bindToggle(id, key) {
         const el = document.getElementById(id);
         const toggle = () => {
@@ -1292,21 +1782,25 @@
       bindToggle('setAutoLogin', 'autoLogin');
       bindToggle('setCloseOnPlay', 'closeOnPlay');
 
-      // keyboard: Escape closes modal/menu, Enter on play
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
-          closeSettings();
-          document.getElementById('accountMenu').classList.remove('open');
+          closeModal();
+          closeAllCardMenus();
         }
       });
 
-      // IPC: profiles updated externally
       ipcRenderer.on('profiles:updated', () => loadProfiles());
 
       // ── INIT ──
       async function init() {
+        await loadServers();
         await loadProfiles();
-        await Promise.all([checkServerStatus(), loadEvents()]);
+        await loadEvents();
+        loadSettings();
+        try {
+          const ver = await ipcRenderer.invoke('launcher:get-version');
+          if (ver) document.getElementById('version').textContent = 'v' + ver;
+        } catch (e) {}
         document.getElementById('splash').classList.add('hidden');
         setTimeout(() => document.getElementById('splash').remove(), 400);
       }

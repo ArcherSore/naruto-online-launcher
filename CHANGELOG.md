@@ -1,5 +1,53 @@
 # Changelog
 
+## [5.10.1] - 2026-07-18
+
+### UI reformulada — inspirada no Heroic Games Launcher
+
+A v5.10.0 foi longe demais — virou uma "VPN", não um launcher. O user pediu
+para trazer de volta o que era importante (cards de conta, grid, multi-conta)
+e reformular mirando no Heroic Games Launcher. Esta versão entrega isso.
+
+#### O que voltou (essencial de v5.0–v5.2, antes do feature creep)
+
+- ✅ **Sidebar com nav** (240px) — logo Shinobi + Contas/Eventos/Configurações + footer Importar/Exportar
+- ✅ **Library grid** — cards de conta em grid responsivo (auto-fill 220px), com toggle grid/lista
+- ✅ **Cards de conta** — avatar, nome, região, server dropdown, status badges, botão Play
+- ✅ **Multi-conta** — 6 perfis no mock, dropdown de servidor em cada card
+- ✅ **Search** — busca por nome de conta
+- ✅ **Modal de criar/editar** — nome, região, servidor, color picker
+- ✅ **Overflow menu** — Editar/Credenciais/Duplicar/Excluir (não polui o card)
+- ✅ **Favoritos** — star no card, filtro visual
+- ✅ **Auto-login badge** — só aparece quando vault ativo
+- ✅ **Importar/Exportar backup** — footer da sidebar
+
+#### Estilo Heroic (visual de launcher, não VPN)
+
+- **Card com "cover art"** — banner gradiente da cor da conta (96px) + avatar circular overlay
+- **Play proeminente** — botão laranja full-width no rodapé do card
+- **Hover effect** — card levanta 2px + shadow sutil
+- **Dark theme com vida** — #0a0a0c (não AMOLED puro #000), elev #131316, card #1a1a1e
+- **Topbar contextual** — search + view toggle + Nova conta só em Contas; events/settings limpos
+- **Eventos como cards horizontais** — ícone por tipo (exp/pvp/war) + nome + região + timer
+
+#### O que NÃO voltou (feature creep permanece banido)
+
+- ❌ Statistics dashboard, activity heatmap, activity timeline
+- ❌ Accent picker, theme variants, compact mode
+- ❌ Quick launch panel, stats grid
+- ❌ Command palette, notifications center, glass morphism
+- ❌ Profile comparison, onboarding tour, parallax tilt
+- ❌ Loading skeletons, status bar
+- ❌ Alt+1..9 hotkeys, always-on-top complexo
+
+#### Validação
+
+- VLM: "Parece um launcher de jogos (estilo Heroic/Epic/GOG). Clutter score 2/10"
+- agent-browser: 6 cards renderizados, modal abre, overflow menu funciona, 2 eventos ativos, settings com 3 seções
+- 1234/1234 testes passando (backend intacto)
+- Lint 0 erros, prettier clean
+- 1,743 linhas (vs 1,259 da v5.10.0 "VPN", vs 9,711 da v5.9.43 "creep")
+
 ## [5.10.0] - 2026-07-18
 
 ### BREAKING — UI rewrite: minimalismo utilitário (3 blocos)
