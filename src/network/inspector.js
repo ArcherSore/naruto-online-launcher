@@ -91,6 +91,10 @@ function create(session, profileId) {
   var maxEntries = 500;
   var listeners = { onCapture: [] };
   var enabled = false;
+  // Filtro usado no enable() — necessário pra removable preciso no disable().
+  // Sem filtro, onBeforeRequest(null) remove TODOS os listeners da session
+  // (incluindo o ad blocker), não só os nossos. Mesmo padrão do StallDetector.
+  var _filter = { urls: ['<all_urls>'] };
 
   /**
    * Classifica uma URL nos tipos conhecidos.
@@ -196,13 +200,13 @@ function create(session, profileId) {
     if (enabled) return;
     enabled = true;
 
-    session.webRequest.onBeforeRequest(function (details) {
+    session.webRequest.onBeforeRequest(_filter, function (details) {
       record(details, 'request');
       // NUNCA bloqueia — só observa
       return { cancel: false };
     });
 
-    session.webRequest.onResponseStarted(function (details) {
+    session.webRequest.onResponseStarted(_filter, function (details) {
       record(details, 'response');
     });
 
@@ -212,12 +216,14 @@ function create(session, profileId) {
   function disable() {
     if (!enabled) return;
     enabled = false;
-    // Electron não tem off() pra webRequest — seta callback null
+    // Usa filtro específico pra remover APENAS nossos listeners —
+    // sem filtro, remove TODOS os onBeforeRequest da session (incluindo
+    // o ad blocker do blocker.js). Mesmo padrão do StallDetector.
     try {
-      session.webRequest.onBeforeRequest(null);
-      session.webRequest.onResponseStarted(null);
+      session.webRequest.onBeforeRequest(_filter, null);
+      session.webRequest.onResponseStarted(_filter, null);
     } catch (_) {
-      /* ignore */
+      /* session pode estar destruída */
     }
     logger.info('Inspector: captura desativada para ' + profileId);
   }

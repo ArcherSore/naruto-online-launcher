@@ -230,10 +230,10 @@ describe('SessionLifecycle.js', () => {
         const handler = wcHandlers['did-finish-load'];
         handler();
 
-        // insertCSS chamado (camada 1: ads/cookies)
-        expect(wc.insertCSS).toHaveBeenCalled();
-        // executeJavaScript chamado (camada 2: fullscreen + FB mock)
+        // executeJavaScript chamado (camada 1: adblock idempotente + camada 2: fullscreen + FB mock)
         expect(wc.executeJavaScript).toHaveBeenCalled();
+        // insertCSS NÃO é mais usado (substituído por executeJavaScript com idempotência)
+        expect(wc.insertCSS).not.toHaveBeenCalled();
       });
 
       test('reseta entry.failLoadRetry para false', () => {

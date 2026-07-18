@@ -1,5 +1,40 @@
 # Changelog
 
+## [5.9.34] - 2026-07-18
+
+### Correções — CRON-1: 3 bugs P2 + 3 bugs P3 (estabilidade)
+
+- **P2: profile:delete crashava jogo aberto** — `IpcRouter.profile:delete`
+  chamava `store.remove()` (que faz `rm -rf` na partition) enquanto o Flash
+  PPAPI ainda usava os cookies/cache daquela partition. Agora verifica
+  `gameLauncher.isProfileOpen(id)` e recusa com toast se o jogo está aberto.
+
+- **P2: inspector.disable() destruía o ad blocker** — `inspector.js` usava
+  `onBeforeRequest(null)` sem filtro, removendo TODOS os listeners da
+  session (incluindo o ad blocker do `blocker.js`). Fix: registra com
+  filtro `{ urls: ['<all_urls>'] }` e remove com filtro. Mesmo padrão
+  do StallDetector (v5.9.28).
+
+- **P2: reload loop do StallDetector em conexões lentas** —
+  `reloadWithPreAuth()` liberava o guard anti-race após 3s fixo, mas
+  `did-finish-load` pode demorar >3s. O StallDetector antigo detectava
+  "inatividade" durante o reload e disparava um segundo reload concorrente.
+  Fix: desanexa StallDetector ANTES do reload, guarda instância em
+  `_windowStallDetectors` WeakMap, libera guard em `did-finish-load`.
+
+- **P3: _inspectors Map crescia sem limite** — instâncias de inspector
+  (com entries[], JWTs, cookies) nunca eram removidas do Map. Agora
+  `_inspectors.delete()` é chamado em `inspector:disable` e `profile:delete`.
+
+- **P3: insertCSS duplicava stylesheet a cada navegação** — `insertCSS()`
+  do Electron adiciona um novo `<style>` a cada chamada (incluindo
+  sub-frame loads do Flash). Trocado por `executeJavaScript` com guard
+  de idempotência (`#__shinobi-adblock`), igual ao fullscreen CSS.
+
+- **P3: graceful close 500ms atrasava app quit** — com N janelas abertas,
+  o shutdown levava N×500ms. Agora pula o graceful cleanup quando
+  `isQuitting()` é true (Electron destrói as janelas sozinho).
+
 ## [5.9.33] - 2026-07-18
 
 ### Polimento — CRON-2: Retry em erro de timeline + indicador de conexão clicável

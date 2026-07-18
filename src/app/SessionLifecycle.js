@@ -295,13 +295,26 @@ function attach(win, ctx) {
     }
 
     // CAMADA 1: limpeza leve (ads, cookies, popups, poluição do site do jogo)
+    // Usa executeJavaScript com guard de idempotência — insertCSS() adiciona
+    // um novo <style> a CADA chamada (incluindo sub-frame loads do Flash),
+    // acumulando estilos duplicados. Com o guard, injeta exatamente uma vez.
     win.webContents
-      .insertCSS(
-        '.ad, .ads, .banner, .ad-banner, .ad-container, [class*="advertisement"], [id*="advertisement"] { display: none !important; }' +
-          '.cookie-notice, .cookie-banner, #cookieConsent, .gdpr-banner { display: none !important; }' +
-          '.support-link, .help-link, .external-link, .social-share, .share-buttons { display: none !important; }' +
-          '#flash_guide_main_panel, #fb_like_tag, #preload_element { display: none !important; }' +
-          'iframe[name="conversion_code"], iframe[name="adtrace"] { display: none !important; width:0 !important; height:0 !important; }'
+      .executeJavaScript(
+        '(function(){' +
+          'if(document.getElementById("__shinobi-adblock"))return "already";' +
+          'var s=document.createElement("style");' +
+          's.id="__shinobi-adblock";' +
+          's.textContent=' +
+          '"' +
+          '.ad,.ads,.banner,.ad-banner,.ad-container,[class*=advertisement],[id*=advertisement]{display:none!important}' +
+          '.cookie-notice,.cookie-banner,#cookieConsent,.gdpr-banner{display:none!important}' +
+          '.support-link,.help-link,.external-link,.social-share,.share-buttons{display:none!important}' +
+          '#flash_guide_main_panel,#fb_like_tag,#preload_element{display:none!important}' +
+          'iframe[name=conversion_code],iframe[name=adtrace]{display:none!important;width:0!important;height:0!important}' +
+          '";' +
+          '(document.head||document.documentElement).appendChild(s);' +
+          'return "injected";' +
+          '})()'
       )
       .catch(function () {});
 
@@ -397,6 +410,10 @@ function attach(win, ctx) {
         reloadWithPreAuth(profileId, profile, win, ses, getGameUrl);
       }
     });
+    _windowStallDetectors.set(win, _stallDetector);
+    // Libera o guard de reload agora que o novo StallDetector está ativo.
+    // (O guard foi adicionado em reloadWithPreAuth antes do loadURL.)
+    _reloadingWindows.delete(win.id);
   });
 
   // ── did-fail-load: retry 1x + tela de erro amigável ──
@@ -476,6 +493,14 @@ function attach(win, ctx) {
   let _isForceClosing = false;
   let _renewTimer = null;
   win.on('close', function (e) {
+    // Se o app está fechando (before-quit), pula graceful cleanup —
+    // Electron destrói as janelas sozinho. Com N janelas abertas,
+    // o delay de 500ms por janela atrasa o shutdown desnecessariamente.
+    try {
+      if (require('../main').isQuitting()) return;
+    } catch (_) {
+      // main não disponível (testes) — prossegue com graceful
+    }
     e.preventDefault();
     if (_isForceClosing) return;
     _isForceClosing = true;
@@ -531,6 +556,7 @@ function attach(win, ctx) {
     _clearEntryTimers(entry);
     // Clean up reload race guard for this window
     _reloadingWindows.delete(win.id);
+    _windowStallDetectors.delete(win);
     // gameWindows.delete é responsabilidade do Launcher (que possui o Map)
     _sendWindowStatus(profileId, false);
     logger.info('Perfil fechado: ' + profile.name);
@@ -656,6 +682,10 @@ function attach(win, ctx) {
  * @returns {Promise<void>}
  */
 var _reloadingWindows = new Set();
+// Module-level WeakMap: BrowserWindow -> StallDetector instance.
+// Permite reloadWithPreAuth (module-level) desanexar o detector antes do reload,
+// sem precisar que _stallDetector esteja no escopo (ele vive dentro attach()).
+var _windowStallDetectors = new WeakMap();
 
 function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
   if (!win || win.isDestroyed()) return Promise.resolve();
@@ -675,6 +705,21 @@ function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
     return Promise.resolve();
   }
   _reloadingWindows.add(winId);
+
+  // P2 FIX: desanexa StallDetector ANTES do reload. O antigo guard liberava
+  // após 3s fixo, mas did-finish-load (que cria um novo StallDetector) pode
+  // demorar mais que 3s em conexões lentas. Resultado: o StallDetector antigo
+  // detectava "inatividade" durante o reload e disparava um segundo reload
+  // concorrente → loop de reloads.
+  var sd = _windowStallDetectors.get(win);
+  if (sd) {
+    try {
+      sd.detach();
+    } catch (_) {
+      /* ignore */
+    }
+    _windowStallDetectors.delete(win);
+  }
 
   logger.info('F5 reloadWithPreAuth: limpando login + pré-autenticando "' + profile.name + '"');
 
@@ -697,11 +742,12 @@ function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
       logger.info('F5 reloadWithPreAuth: login limpo, pré-autenticando — ' + profile.name);
       // Reutiliza o MESMO fluxo do Play (apiLogin.loginAndInject antes de loadURL).
       _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl);
-      // did-finish-load vai disparar e o novo loadURL será assíncrono.
-      // Liberamos o guard após um delay suficiente pro loadURL iniciar.
+      // O guard _reloadingWindows é liberado em did-finish-load (após o novo
+      // StallDetector ser anexado). Timeout de segurança de 30s como fallback
+      // caso did-finish-load nunca dispare (janela destruída, etc).
       setTimeout(function () {
         _reloadingWindows.delete(winId);
-      }, 3000);
+      }, 30000);
     })
     .catch(function (e) {
       _reloadingWindows.delete(winId);

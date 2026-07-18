@@ -33,11 +33,15 @@ function mockSession() {
   const handlers = {};
   return {
     webRequest: {
-      onBeforeRequest: jest.fn((cb) => {
-        handlers.onBeforeRequest = cb;
+      // Electron 11: onBeforeRequest(filter, cb) ou onBeforeRequest(cb).
+      // O inspector agora usa filter-based registration.
+      onBeforeRequest: jest.fn((arg1, arg2) => {
+        const cb = typeof arg2 === 'function' ? arg2 : typeof arg1 === 'function' ? arg1 : null;
+        if (cb) handlers.onBeforeRequest = cb;
       }),
-      onResponseStarted: jest.fn((cb) => {
-        handlers.onResponseStarted = cb;
+      onResponseStarted: jest.fn((arg1, arg2) => {
+        const cb = typeof arg2 === 'function' ? arg2 : typeof arg1 === 'function' ? arg1 : null;
+        if (cb) handlers.onResponseStarted = cb;
       }),
       _handlers: handlers
     }

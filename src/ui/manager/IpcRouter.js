@@ -145,6 +145,26 @@ function registerIpcHandlers(handlers) {
       _send('profile:toast', { type: 'error', msg: 'Perfil não encontrado (id inválido)' });
       return;
     }
+    // P2 FIX: não permite deletar perfil com jogo aberto — store.remove()
+    // chama _rmrf na partition dir, o que crasharia o Flash PPAPI em uso.
+    try {
+      const gameLauncher = require('../../app/Launcher');
+      if (gameLauncher.isProfileOpen(id)) {
+        _send('profile:toast', {
+          type: 'error',
+          msg: 'Feche a janela do jogo antes de deletar esta conta'
+        });
+        return;
+      }
+    } catch (_) {
+      // gameLauncher não disponível (dev mode sem Electron) — prossegue
+    }
+    // Limpa inspector se existir (evita leak no Map _inspectors)
+    var insp = _inspectors.get(id);
+    if (insp) {
+      try { insp.disable(); } catch (_) { /* ignore */ }
+      _inspectors.delete(id);
+    }
     vault.removeCredentials(id);
     partition.removeSnapshot(id);
     store.remove(id);
@@ -423,7 +443,10 @@ function registerIpcHandlers(handlers) {
   ipcMain.handle('inspector:disable', function (_e, profileId) {
     if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     const insp = _inspectors.get(profileId);
-    if (insp) insp.disable();
+    if (insp) {
+      insp.disable();
+      _inspectors.delete(profileId); // libera memória (entries[], JWTs, cookies)
+    }
     return { ok: true };
   });
 
