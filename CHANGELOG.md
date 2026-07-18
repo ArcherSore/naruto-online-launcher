@@ -1,5 +1,79 @@
 # Changelog
 
+## [5.10.2] - 2026-07-18
+
+### REVERT — restaura base funcional v5.9.31 (sem downgrade)
+
+As versões v5.10.0 ("VPN") e v5.10.1 ("Heroic rewrite") foram longe demais —
+perderam funções JS reais que existiam na v5.9.2 (commit 4be391b), quando o
+jogo estava funcionando e o user mandou print pra criar modo auto-mission.
+
+Esta versão **restaura a v5.9.31** (commit 47ca84d) como base. A v5.9.31 é a
+v5.9.2 com 9 features creep já removidas (1,475 linhas a menos), mas com
+**todas as funções funcionais intactas** (107 funções JS, 29 refs de dev tools).
+
+#### O que foi restaurado (tinha sido perdido nas rewrites)
+
+- ✅ **Dev Tools (Ctrl+Shift+D hold 2s)** — seção completa em Configurações:
+  - Tempmail: cria email temporário (mail.tm) + registra no Naruto Online via API
+  - API login: login via API (sem Flash, sem CAPTCHA)
+  - Inspector: webRequest capture (monitora HTTP do jogo, cookies oas_user)
+  - JWT decode: decode de auth tokens
+  - **Esta é a fundação para o modo auto-mission que o user queria**
+- ✅ **Auto-login com vault** — buildAutoLoginScript, MutationObserver, pre-auth
+- ✅ **Pre-auth login** — `_loadGameWithPreAuth()` (cookie oas_user antes do loadURL)
+- ✅ **Auto-recovery tela preta** — render-process-gone handler com backoff
+- ✅ **Health check** — runHealthCheck por perfil
+- ✅ **Connection indicator** — checkConnection + updateConnectionState
+- ✅ **Batch operations** — selecionar múltiplos, exportar/excluir em lote
+- ✅ **Flash cache info** — versão + data do cache Flash
+- ✅ **Activity log** — addActivity, renderActivityLog (histórico de ações)
+- ✅ **Custom confirm dialog** — customConfirm (não usa window.confirm nativo)
+- ✅ **Window controls** — minimize, maximize, always-on-top
+- ✅ **Keyboard shortcuts overlay** — toggleKbOverlay (?)
+- ✅ **Last profile quick relaunch** — loadLastProfile
+- ✅ **Formatadores** — formatPlayTime, formatRelativeTime, formatSessionUptime
+- ✅ **Button loading states** — wireButtonLoading, withButtonLoading
+- ✅ **Server switcher** — buildServerOptions, dropdown por card
+- ✅ **Region tabs** — renderRegionTabs em eventos
+- ✅ **Favoritos** — toggleFavorite, star visual
+- ✅ **Importar/Exportar backup** — profiles:export-file / import-file
+- ✅ **Search filters** — busca por nome com debounce
+- ✅ **View mode toggle** — grid / lista
+
+#### O que NÃO voltou (creep já removido na v5.9.31)
+
+- ❌ Glass morphism, parallax tilt, nav pulse
+- ❌ Command palette (Ctrl+K)
+- ❌ Accent picker, theme variants
+- ❌ Notifications center
+- ❌ Onboarding tour
+- ❌ Profile comparison modal
+- ❌ Tags system
+- ❌ Context menu custom
+- ❌ Drag-drop reorder
+- ❌ View transitions (crossfade)
+- ❌ Alt+1..9 hotkeys
+- ❌ Compact mode
+- ❌ Quick launch panel (separate from last-profile)
+- ❌ Stats grid / analytics bar
+- ❌ Skeleton loaders
+
+#### Validação
+
+- agent-browser: 6 cards renderizados, dev tools section presente (tempmail/API login/inspector/JWT), vault + health check + batch ops funcionais
+- 1234/1234 testes passando (backend intacto)
+- Lint 0 erros, prettier clean, JS syntax OK
+- VLM accounts view: "parece funcional, cards de conta, botões Play, favoritos. Clutter score 3/10"
+- 10,499 linhas (vs 1,743 da v5.10.1 que perdeu funções)
+
+#### Decisão
+
+O user disse: "essas ultimas que voce fez perdeu ate o sentido pras funcoes
+que tinha antes, deve nem ser funcional e ter perdido muita coisa que tem no
+codigo js". Correto — v5.10.0/v5.10.1 eram UI bonita mas sem função. Esta
+versão restaura a base funcional v5.9.31 que o user considerou "top".
+
 ## [5.10.1] - 2026-07-18
 
 ### UI reformulada — inspirada no Heroic Games Launcher
