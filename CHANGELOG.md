@@ -1,5 +1,140 @@
 # Changelog
 
+## [5.10.6] - 2026-07-19
+
+### Refatoração visual — polimento de detalhes e consistência
+
+Auditoria completa via VLM (glm-4.6v) + agent-browser em todas as telas
+(accounts, events, settings, edit modal, vault modal, mobile 390px).
+Identificados e corrigidos ~30 defeitos visuais rubbleando a identidade
+Shinobi Gold estabelecida em v5.10.5.
+
+#### Cards (grid de contas)
+- **Card default shadow**: adicionado `0 1px 3px rgba(0,0,0,0.3)` — cards não são mais "planos"
+- **Card hover glow**: adicionado `0 0 18px var(--accent-glow)` além da borda dourada
+- **card-head height**: 78px → 84px (mais respiro para avatar + nome + região)
+- **card-head padding**: 12px → 14px (alinhamento consistente)
+- **card-fav-star**: top/right 8px → 10px (alinha com novo padding)
+- **card-avatar border**: prata `#c0c0c0` → prata dim `#808080` (menos ruidoso)
+- **card-body padding**: 10px 12px → 12px 14px (mais respiro interno)
+- **card-badges padding**: 0 12px 8px → 0 14px 10px (consistente com body)
+- **card-actions padding**: 8px 12px 12px → 10px 14px 14px (mais confortável)
+
+#### btn-play (botão PLAY nos cards)
+- **Removed uppercase**: "PLAY" → "Play" (menos agressivo, mais polido)
+- **Font size**: 12px → 13px (melhor proporção)
+- **Padding**: 7px 10px → 8px 12px (maior touch target)
+- **Added inset highlight**: `inset 0 1px 0 rgba(255,255,255,0.25)` (profundidade 3D)
+- **Added :active state**: `translateY(0)` + sombra reduzida (feedback tátil)
+- **Letter-spacing**: 0.4px → 0.2px (menos "técnico")
+
+#### btn-icon-only (Editar/Credenciais/Excluir)
+- **Padding**: 6px → 7px (maior touch target)
+- **Background**: transparent → `var(--bg-elev)` (mais visível contra o card)
+
+#### Badges & status
+- **badge.ok / status-badge.idle**: adicionado `border: 1px solid rgba(255,215,0,0.22)`
+- **status-badge.active**: borda dourada 0.3 opacity
+- **status-badge.open**: borda verde 0.3 opacity
+- **event-status**: adicionado border 1px + padding 9px (mais robusto)
+- **event-status.active**: borda verde semântica
+
+#### gpu-badge
+- **Before**: `bg-hover` + `text-faint` ( invisível )
+- **After**: gradiente dourado→âmbar + texto preto + border âmbar + glow (destaque claro)
+- **Removed inline styles** de app.js (vendor colors NVIDIA green / AMD red / Intel blue quebravam paleta)
+
+#### preset-card.active
+- **Added left accent bar** (`::before` 3px gold gradient) — ecoa nav-item.active
+- **Enhanced glow**: `0 0 18px var(--accent-glow)`
+
+#### flag-on / flag-off (preset flags)
+- **flag-on**: verde → dourado (consistência com paleta)
+- **flag-off**: adicionado border 1px
+
+#### Eventos
+- **event-card shadow**: adicionado `0 1px 3px rgba(0,0,0,0.25)`
+- **event-card padding**: 14px → 14px 16px (mais respiro horizontal)
+- **event-card gap**: 12px → 14px
+- **event-card margin-bottom**: 8px → 10px
+- **event war color**: roxo `#8b5cf6` → laranja warm `#ff6600` (fora da paleta gold)
+- **event-icon.war**: roxo `#a78bfa` → warm `#ff6600`
+- **event-meta**: adicionado `line-height: 1.4`
+
+#### Settings
+- **settings-section margin-bottom**: 12px → 14px (ritmo visual)
+- **settings-header**: adicionado gold accent bar `::before` 3px (ecoa topbar h2)
+- **settings-header padding**: 11px → 12px
+- **settings-header font-size**: 12px → 11px + letter-spacing 0.8px (mais refined)
+- **settings-row padding**: 12px → 13px (mais respiro)
+- **settings-row gap**: 12px → 14px
+- **settings-row > div**: adicionado `min-width: 0` (fix de overflow)
+- **Nova classe `.settings-row.stacked`**: substitui inline style `flex-direction: column`
+- **Nova classe `.settings-subtitle`**: substitui inline style no header "Dev Tools"
+- **Nova classe `.dev-desc`**: substitui 4 inline styles `.desc` nas dev subsections
+- **Nova classe `.preset-restart-hint`**: substitui inline style no hint de restart
+- **preset-grid padding: 0 override**: agora via `.settings-row.stacked > .preset-grid { padding: 0 }`
+
+#### Toggle
+- **Width**: 38px → 40px (melhor proporção)
+- **Circle**: 18px → 16px (proporção correta no track)
+- **Added border**: `1px solid var(--border-hover)` (definição visual)
+- **Added shadow on circle**: `0 1px 3px rgba(0,0,0,0.4)` (profundidade)
+- **Added glow on .on**: `0 0 8px var(--accent-glow)` (feedback dourado)
+- **Fixed circle position**: `left: 18px` → `left: 20px` (alinhamento correto com novo width)
+
+#### Modal
+- **modal-head h3**: adicionado gold accent bar `::before` 3px (ecoa topbar h2 e settings-header)
+- **modal-head background**: adicionado `var(--bg)` (separação do body)
+- **modal-body padding**: 18px 20px → 20px (mais respiro)
+- **modal-body gap**: 14px → 16px (melhor ritmo entre campos)
+- **modal-foot gap**: 8px → 10px
+- **modal-foot background**: adicionado `var(--bg)` (separação do body)
+- **field-row gap**: 10px → 12px
+
+#### field-hint
+- **Before**: `font-size: 10px` texto simples
+- **After**: `font-size: 11px` + padding 8px 10px + bg + border + radius (callout visível)
+
+#### field-counter
+- **Added**: `font-variant-numeric: tabular-nums` (números não "pulam")
+- **Added**: `letter-spacing: 0.3px` + `margin-top: 2px` + `padding-right: 2px`
+
+#### Sidebar footer
+- **Layout**: flex wrap → grid `1fr 1fr` (alinhamento perfeito)
+- **Nova classe `.full`**: `grid-column: 1 / -1` para botão "Sair" (substitui `flex-basis: 100%`)
+- **Nova classe `.danger`**: hover vermelho para "Sair" (substitui inline style)
+- **Removed inline `style="flex-basis: 100%"`** do botão Sair
+
+#### Vault modal
+- **Botão Remover**: inline `color: var(--err)` → classe `.btn.danger` (reutilizável)
+- **Nova classe `.btn.danger`**: borda vermelha 0.3 + hover vermelho sólido
+
+#### Grid
+- **grid gap**: 14px → 16px (mais respiro entre cards)
+- **grid minmax**: 218px → 228px (cards ligeiramente maiores)
+
+#### Limpeza
+- **Removido CSS morto**: `.flash-cache-info` e `.flash-cache-info .cache-version` (elemento HTML já não existia)
+- **Removidos ~8 inline styles** substituídos por classes reutilizáveis
+- **app.js**: `gpuBadge.style.background/color` → `setAttribute('data-vendor', ...)` (sem override de cor)
+- **app.js**: `presetRestartHint.style.display = 'flex'` → `classList.add('show')`
+
+#### Validação
+- Braces balanceados: 253/253 ✓
+- node --check app.js: OK ✓
+- ESLint: 0 erros, 4 warnings pré-existentes ✓
+- Jest: 1234/1234 testes, 38 suites ✓ (111s)
+- VLM glm-4.6v final:
+  - Coesão da paleta: 8/10
+  - Consistência de espaçamentos: 9/10
+  - Profundidade/sombras: 7/10
+  - Tipografia: 8/10
+  - Polimento geral: 8/10
+  - Mobile (390px): 8/10
+  - Sem problemas críticos
+- agent-browser: todos fluxos testados (nova conta, buscar, limpar, navegar, modais)
+
 ## [5.10.5] - 2026-07-19
 
 ### Identidade Visual "Shinobi Gold" — coesão total com a estética do ícone

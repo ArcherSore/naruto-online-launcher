@@ -763,8 +763,8 @@ async function loadOptimization() {
     };
     gpuDesc.textContent = g.description + (g.isPrime ? ' • PRIME (Optimus)' : '');
     gpuBadge.textContent = vendorLabels[g.vendor] || g.vendor;
-    gpuBadge.style.background = vendorColors[g.vendor] || '#8a8a96';
-    gpuBadge.style.color = '#fff';
+    gpuBadge.removeAttribute('data-vendor');
+    gpuBadge.setAttribute('data-vendor', g.vendor || 'unknown');
     if (gpuIconBox) {
       gpuIconBox.style.background = vendorColors[g.vendor] + '22';
       gpuIconBox.style.color = vendorColors[g.vendor];
@@ -887,7 +887,7 @@ document.querySelectorAll('.preset-card').forEach(function (card) {
           presetDesc.textContent = 'Alterado para: ' + code + ' — reinicie para aplicar';
         }
         const hint = document.getElementById('presetRestartHint');
-        if (hint) hint.style.display = 'flex';
+        if (hint) hint.classList.add('show');
         toast('Preset alterado para ' + code + ' — reinicie o launcher', 'ok');
       } else {
         toast('Erro: ' + (res && res.error ? res.error : 'falha'), 'err');

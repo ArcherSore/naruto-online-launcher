@@ -292,31 +292,14 @@
         background: var(--gold);
         box-shadow: 0 0 6px var(--accent-glow);
       }
-      .flash-cache-info {
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        padding: 7px 9px;
-        font-size: 10px;
-        color: var(--text-faint);
-        margin-top: 6px;
-      }
-      .flash-cache-info .cache-version {
-        font-family: var(--mono);
-        color: var(--gold);
-        font-weight: 600;
-      }
-
       .sidebar-footer {
         padding: 10px 12px;
         border-top: 1px solid var(--border);
-        display: flex;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 6px;
-        flex-wrap: wrap;
       }
       .sidebar-footer button {
-        flex: 1 1 calc(50% - 3px);
-        min-width: 0;
         background: transparent;
         border: 1px solid var(--border);
         color: var(--text-faint);
@@ -340,6 +323,14 @@
       .sidebar-footer button svg {
         width: 13px;
         height: 13px;
+      }
+      .sidebar-footer button.full {
+        grid-column: 1 / -1;
+      }
+      .sidebar-footer button.danger:hover {
+        color: var(--err);
+        border-color: var(--err);
+        background: rgba(248, 113, 113, 0.1);
       }
 
       /* ── MAIN ── */
@@ -641,8 +632,8 @@
       /* ── LIBRARY GRID ── */
       .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(218px, 1fr));
-        gap: 14px;
+        grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
+        gap: 16px;
       }
       .grid.list-view {
         grid-template-columns: 1fr;
@@ -669,6 +660,7 @@
         display: flex;
         flex-direction: column;
         animation: cardEnter 0.3s ease both;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
       @keyframes cardEnter {
         from {
@@ -683,7 +675,7 @@
       .card:hover {
         border-color: var(--accent);
         transform: translateY(-2px);
-        box-shadow: var(--shadow), 0 0 0 1px var(--accent-glow);
+        box-shadow: var(--shadow), 0 0 0 1px var(--accent-glow), 0 0 18px var(--accent-glow);
       }
       .card:focus-visible {
         outline: 2px solid var(--gold);
@@ -705,8 +697,8 @@
          Region differentiation now via text badge, not color noise.
          This creates visual identity consistency with the launcher icon. */
       .card-head {
-        height: 78px;
-        padding: 12px;
+        height: 84px;
+        padding: 14px;
         display: flex;
         align-items: flex-start;
         gap: 10px;
@@ -739,8 +731,8 @@
       /* Favorite star on cover (Heroic-style) */
       .card-fav-star {
         position: absolute;
-        top: 8px;
-        right: 8px;
+        top: 10px;
+        right: 10px;
         z-index: 2;
         width: 26px;
         height: 26px;
@@ -749,7 +741,7 @@
         justify-content: center;
         border-radius: 50%;
         border: none;
-        background: rgba(0, 0, 0, 0.35);
+        background: rgba(0, 0, 0, 0.4);
         backdrop-filter: blur(6px);
         color: rgba(255, 255, 255, 0.7);
         cursor: pointer;
@@ -774,7 +766,7 @@
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.15);
         backdrop-filter: blur(8px);
-        border: 2px solid var(--silver);
+        border: 1.5px solid var(--silver-dim);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -822,7 +814,7 @@
       }
 
       .card-body {
-        padding: 10px 12px;
+        padding: 12px 14px;
         flex: 1;
         display: flex;
         flex-direction: column;
@@ -865,7 +857,7 @@
         display: flex;
         gap: 5px;
         flex-wrap: wrap;
-        padding: 0 12px 8px;
+        padding: 0 14px 10px;
       }
       .badge,
       .status-badge {
@@ -881,8 +873,9 @@
       }
       .badge.ok,
       .status-badge.idle {
-        background: var(--accent-dim);
+        background: rgba(255, 215, 0, 0.12);
         color: var(--gold);
+        border: 1px solid rgba(255, 215, 0, 0.22);
       }
       .status-badge .dot {
         width: 5px;
@@ -891,39 +884,52 @@
         background: currentColor;
       }
       .status-badge.active {
-        background: rgba(255, 215, 0, 0.18);
+        background: rgba(255, 215, 0, 0.16);
         color: var(--gold);
+        border: 1px solid rgba(255, 215, 0, 0.3);
       }
       .status-badge.open {
-        background: rgba(52, 211, 153, 0.18);
+        background: rgba(52, 211, 153, 0.16);
         color: var(--ok);
+        border: 1px solid rgba(52, 211, 153, 0.3);
       }
 
       .card-actions {
         display: flex;
         align-items: center;
         gap: 6px;
-        padding: 8px 12px 12px;
+        padding: 10px 14px 14px;
         border-top: 1px solid var(--border);
         margin-top: auto;
       }
       .btn-play {
         flex: 1;
         background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
-        border-color: var(--amber);
+        border: 1px solid var(--amber);
         color: #000;
         font-weight: 700;
-        font-size: 12px;
-        padding: 7px 10px;
+        font-size: 13px;
+        padding: 8px 12px;
         justify-content: center;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-        box-shadow: 0 2px 8px var(--accent-glow);
+        letter-spacing: 0.2px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: var(--transition);
+        font-family: var(--font);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 2px 8px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
       }
       .btn-play:hover {
         background: linear-gradient(135deg, var(--gold-bright) 0%, var(--accent-hover) 100%);
         border-color: var(--accent-hover);
-        box-shadow: 0 4px 14px var(--accent-glow);
+        box-shadow: 0 4px 14px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        transform: translateY(-1px);
+      }
+      .btn-play:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 4px var(--accent-glow);
       }
       .btn-play svg {
         width: 12px;
@@ -938,12 +944,12 @@
       }
       .secondary-actions {
         display: flex;
-        gap: 3px;
+        gap: 5px;
       }
       .btn-icon-only {
-        padding: 6px;
+        padding: 7px;
         border: 1px solid var(--border);
-        background: transparent;
+        background: var(--bg-elev);
         color: var(--text-faint);
         border-radius: var(--radius-sm);
         cursor: pointer;
@@ -998,13 +1004,14 @@
       .event {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 14px;
+        gap: 14px;
+        padding: 14px 16px;
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        margin-bottom: 8px;
+        margin-bottom: 10px;
         transition: var(--transition);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
       }
       .event-card:hover,
       .event:hover {
@@ -1018,7 +1025,7 @@
         border-left: 3px solid var(--err);
       }
       .event[data-type='war'] {
-        border-left: 3px solid #8b5cf6;
+        border-left: 3px solid var(--accent-warm);
       }
       .event-icon {
         width: 40px;
@@ -1036,8 +1043,8 @@
         color: var(--err);
       }
       .event-icon.war {
-        background: rgba(139, 92, 246, 0.15);
-        color: #a78bfa;
+        background: rgba(255, 102, 0, 0.15);
+        color: var(--accent-warm);
       }
       .event-icon svg {
         width: 18px;
@@ -1065,15 +1072,17 @@
         display: flex;
         gap: 10px;
         align-items: center;
+        line-height: 1.4;
       }
       .event-status,
       .event .cd {
         font-size: 11px;
         font-weight: 600;
-        padding: 3px 8px;
+        padding: 3px 9px;
         border-radius: 10px;
         background: var(--bg-hover);
         color: var(--text-faint);
+        border: 1px solid var(--border);
         flex-shrink: 0;
       }
       .status-badge.error {
@@ -1082,8 +1091,9 @@
       }
       .event-status.active,
       .event .cd-active {
-        background: rgba(52, 211, 153, 0.18);
+        background: rgba(52, 211, 153, 0.16);
         color: var(--ok);
+        border-color: rgba(52, 211, 153, 0.3);
       }
 
       /* ── SETTINGS ── */
@@ -1091,31 +1101,52 @@
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        margin-bottom: 12px;
+        margin-bottom: 14px;
         overflow: hidden;
       }
       .settings-header {
-        padding: 11px 16px;
-        font-size: 12px;
+        padding: 12px 16px;
+        font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.6px;
+        letter-spacing: 0.8px;
         color: var(--text-faint);
         border-bottom: 1px solid var(--border);
         background: var(--bg-elev);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+      }
+      .settings-header::before {
+        content: '';
+        width: 3px;
+        height: 12px;
+        background: linear-gradient(180deg, var(--gold), var(--amber));
+        border-radius: 2px;
+        flex-shrink: 0;
       }
       .settings-row {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
+        gap: 14px;
+        padding: 13px 16px;
         border-bottom: 1px solid var(--border);
       }
       .settings-row:last-child {
         border-bottom: none;
       }
+      .settings-row.stacked {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .settings-row.stacked > .preset-grid {
+        padding: 0;
+      }
       .settings-row > div {
         flex: 1;
+        min-width: 0;
       }
       .settings-row .label {
         font-size: 13px;
@@ -1144,7 +1175,7 @@
         border-color: var(--gold);
       }
       .toggle {
-        width: 38px;
+        width: 40px;
         height: 22px;
         background: var(--border);
         border-radius: 11px;
@@ -1152,23 +1183,27 @@
         cursor: pointer;
         transition: var(--transition);
         flex-shrink: 0;
+        border: 1px solid var(--border-hover);
       }
       .toggle::after {
         content: '';
         position: absolute;
         top: 2px;
         left: 2px;
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
         background: #fff;
         border-radius: 50%;
         transition: var(--transition);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
       }
       .toggle.on {
         background: linear-gradient(135deg, var(--gold), var(--amber));
+        border-color: var(--amber);
+        box-shadow: 0 0 8px var(--accent-glow);
       }
       .toggle.on::after {
-        left: 18px;
+        left: 20px;
       }
       .toggle:focus-visible {
         outline: 2px solid var(--gold);
@@ -1197,7 +1232,18 @@
       .preset-card.active {
         border-color: var(--gold);
         background: var(--accent-dim);
-        box-shadow: 0 0 0 1px var(--accent-glow);
+        box-shadow: 0 0 0 1px var(--accent-glow), 0 0 18px var(--accent-glow);
+        position: relative;
+      }
+      .preset-card.active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(180deg, var(--gold), var(--amber));
+        border-radius: 3px 0 0 3px;
       }
       .preset-card .preset-name {
         font-size: 13px;
@@ -1223,21 +1269,28 @@
         font-family: var(--mono);
       }
       .flag-on {
-        background: rgba(52, 211, 153, 0.15);
-        color: var(--ok);
+        background: rgba(255, 215, 0, 0.12);
+        color: var(--gold);
+        border: 1px solid rgba(255, 215, 0, 0.22);
       }
       .flag-off {
         background: var(--bg-hover);
         color: var(--text-dim);
+        border: 1px solid var(--border);
       }
       .gpu-badge {
         display: inline-flex;
         align-items: center;
-        padding: 2px 8px;
-        border-radius: 4px;
+        padding: 3px 10px;
+        border-radius: 10px;
         font-size: 10px;
         font-weight: 700;
         font-family: var(--mono);
+        letter-spacing: 0.5px;
+        background: linear-gradient(135deg, var(--gold), var(--amber));
+        color: #000;
+        border: 1px solid var(--amber);
+        box-shadow: 0 1px 4px var(--accent-glow);
       }
 
       /* ── DEV TOOLS ── */
@@ -1423,23 +1476,38 @@
         justify-content: space-between;
         padding: 16px 20px;
         border-bottom: 1px solid var(--border);
+        background: var(--bg);
       }
       .modal-head h3 {
         font-size: 15px;
         font-weight: 700;
+        position: relative;
+        padding-left: 12px;
+      }
+      .modal-head h3::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 16px;
+        background: linear-gradient(180deg, var(--gold), var(--amber));
+        border-radius: 0 2px 2px 0;
       }
       .modal-body {
-        padding: 18px 20px;
+        padding: 20px;
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 16px;
       }
       .modal-foot {
         display: flex;
-        gap: 8px;
+        gap: 10px;
         justify-content: flex-end;
         padding: 14px 20px;
         border-top: 1px solid var(--border);
+        background: var(--bg);
       }
       .field {
         display: flex;
@@ -1478,7 +1546,7 @@
       }
       .field-row {
         display: flex;
-        gap: 10px;
+        gap: 12px;
       }
       .field-row .field {
         flex: 1;
@@ -1491,14 +1559,75 @@
         flex: 1;
       }
       .field-hint {
-        font-size: 10px;
+        font-size: 11px;
         color: var(--text-faint);
+        line-height: 1.45;
+        padding: 8px 10px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
       }
       .field-counter {
         font-size: 10px;
         color: var(--text-dim);
         text-align: right;
         font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.3px;
+        margin-top: 2px;
+        padding-right: 2px;
+      }
+
+      /* ── BTN DANGER (vault remove) ── */
+      .btn.danger {
+        color: var(--err);
+        border-color: rgba(248, 113, 113, 0.3);
+      }
+      .btn.danger:hover {
+        color: var(--err);
+        border-color: var(--err);
+        background: rgba(248, 113, 113, 0.1);
+      }
+
+      /* ── SETTINGS SUBTITLE (replaces inline) ── */
+      .settings-subtitle {
+        font-size: 10px;
+        color: var(--text-faint);
+        font-weight: 500;
+        text-transform: none;
+        letter-spacing: 0;
+        margin-left: 4px;
+        font-family: var(--mono);
+      }
+
+      /* ── PRESET RESTART HINT (replaces inline) ── */
+      .preset-restart-hint {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        background: rgba(251, 191, 36, 0.08);
+        border: 1px solid rgba(251, 191, 36, 0.25);
+        border-radius: var(--radius-sm);
+        font-size: 11px;
+        color: var(--warn);
+        margin: 8px 16px 14px;
+      }
+      .preset-restart-hint.show {
+        display: flex;
+      }
+      .preset-restart-hint svg {
+        width: 13px;
+        height: 13px;
+        flex-shrink: 0;
+      }
+
+      /* ── DEV DESC (replaces inline) ── */
+      .dev-desc {
+        font-size: 11px;
+        color: var(--text-faint);
+        margin-top: 8px;
+        line-height: 1.45;
       }
 
       /* ── TOAST ── */
@@ -1646,7 +1775,7 @@
           </div>
           <div>
             <h1>Shinobi</h1>
-            <div class="ver" id="version">v5.10.5</div>
+            <div class="ver" id="version">v5.10.6</div>
           </div>
         </div>
 
@@ -1715,7 +1844,7 @@
               <rect x="5" y="5" width="14" height="14" rx="1" />
             </svg>
           </button>
-          <button id="quitBtn" title="Fechar launcher" style="flex-basis: 100%">
+          <button id="quitBtn" class="danger full" title="Fechar launcher">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <polyline points="16 17 21 12 16 7" />
@@ -1850,17 +1979,7 @@
             <div class="settings-section" id="devToolsSection" style="display: none">
               <div class="settings-header">
                 Dev Tools
-                <span
-                  style="
-                    font-size: 10px;
-                    color: var(--text-faint);
-                    font-weight: 500;
-                    text-transform: none;
-                    letter-spacing: 0;
-                    margin-left: 8px;
-                  "
-                  >SHINOBI_DEBUG · tempmail + API + inspector + JWT</span
-                >
+                <span class="settings-subtitle">SHINOBI_DEBUG · tempmail + API + inspector + JWT</span>
               </div>
 
               <!-- Tempmail -->
@@ -1873,10 +1992,7 @@
                   <span class="dev-subsection-hint">mail.tm + Naruto API</span>
                 </div>
                 <div class="dev-subsection-body">
-                  <div
-                    class="desc"
-                    style="font-size: 11px; color: var(--text-faint); margin-top: 8px"
-                  >
+                  <div class="dev-desc">
                     Cria email temporário (mail.tm) + registra via API. Retorna JWT de 2h — sem
                     Flash, sem CAPTCHA.
                   </div>
@@ -1899,10 +2015,7 @@
                   <span class="dev-subsection-hint">passport.oasgames.com</span>
                 </div>
                 <div class="dev-subsection-body">
-                  <div
-                    class="desc"
-                    style="font-size: 11px; color: var(--text-faint); margin-top: 8px"
-                  >
+                  <div class="dev-desc">
                     Autentica via passport.oasgames.com e injeta cookie oas_user na sessão do
                     perfil.
                   </div>
@@ -1976,10 +2089,7 @@
                   <span class="dev-subsection-hint">webRequest capture</span>
                 </div>
                 <div class="dev-subsection-body">
-                  <div
-                    class="desc"
-                    style="font-size: 11px; color: var(--text-faint); margin-top: 8px"
-                  >
+                  <div class="dev-desc">
                     Captura requisições HTTP do jogo via webRequest. Mostra URLs, cookies oas_user
                     (JWT decodificado) e estatísticas.
                   </div>
@@ -2021,10 +2131,7 @@
                   <span class="dev-subsection-hint">HTML + cookies + F5 + F12</span>
                 </div>
                 <div class="dev-subsection-body">
-                  <div
-                    class="desc"
-                    style="font-size: 11px; color: var(--text-faint); margin-top: 8px"
-                  >
+                  <div class="dev-desc">
                     Extrai HTML da página Flash, lista cookies, recarrega (F5) e abre DevTools
                     (F12).
                   </div>
@@ -2060,7 +2167,6 @@
                 <span
                   class="gpu-badge"
                   id="gpuBadge"
-                  style="background: var(--bg-hover); color: var(--text-faint)"
                   >—</span
                 >
               </div>
@@ -2070,15 +2176,12 @@
                   <div class="desc" id="cpuDesc">Detectando…</div>
                 </div>
               </div>
-              <div
-                class="settings-row"
-                style="flex-direction: column; align-items: stretch; gap: 8px"
-              >
+              <div class="settings-row stacked">
                 <div>
                   <div class="label">Preset de otimização</div>
                   <div class="desc" id="presetDesc">Carregando presets…</div>
                 </div>
-                <div class="preset-grid" style="padding: 0">
+                <div class="preset-grid">
                   <div class="preset-card" data-preset="performance">
                     <div class="preset-name">Performance</div>
                     <div class="preset-desc">Máximo FPS — sem vsync, Vulkan, heap expandido</div>
@@ -2097,24 +2200,13 @@
                 </div>
                 <div
                   id="presetRestartHint"
-                  style="
-                    display: none;
-                    align-items: center;
-                    gap: 8px;
-                    padding: 8px 11px;
-                    background: rgba(251, 191, 36, 0.1);
-                    border: 1px solid rgba(251, 191, 36, 0.3);
-                    border-radius: var(--radius-sm);
-                    font-size: 11px;
-                    color: var(--warn);
-                  "
+                  class="preset-restart-hint"
                 >
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
                     stroke-width="2"
-                    style="width: 13px; height: 13px; flex-shrink: 0"
                   >
                     <path
                       d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
@@ -2157,7 +2249,7 @@
               <div class="settings-row">
                 <div>
                   <div class="label">Sobre</div>
-                  <div class="desc" id="advAboutVersion">Shinobi Launcher v5.10.5</div>
+                  <div class="desc" id="advAboutVersion">Shinobi Launcher v5.10.6</div>
                 </div>
                 <a class="btn sm" id="advAboutRepo" href="#" type="button" title="GitHub">GitHub</a>
               </div>
@@ -2281,10 +2373,10 @@
         </div>
         <div class="modal-foot">
           <button
-            class="btn"
+            class="btn danger"
             id="removeVault"
             type="button"
-            style="margin-right: auto; color: var(--err)"
+            style="margin-right: auto"
           >
             Remover
           </button>
