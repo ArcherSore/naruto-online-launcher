@@ -275,23 +275,21 @@ function renderProfiles() {
       windowBadgeHtml =
         '<span class="status-badge open window-badge" style="display:none"><span class="dot"></span> aberta</span>';
     }
-    // v4.6: Favorite button (star)
-    var favBtnHtml =
-      '<button class="btn sm btn-icon-only fav-action' +
-      (p.favorite ? ' fav' : '') +
+    // v5.10.4: Favorite star lives on the cover (Heroic-style), not in the button row.
+    // Button row keeps ONLY: Editar, Credenciais, Excluir (per user spec).
+    var favStarHtml =
+      '<button class="card-fav-star' +
+      (p.favorite ? ' active' : '') +
       '" data-act="fav" data-tip="' +
       (p.favorite ? 'Desfavoritar' : 'Favoritar') +
       '" title="' +
       (p.favorite ? 'Desfavoritar' : 'Favoritar') +
+      '" aria-label="' +
+      (p.favorite ? 'Desfavoritar' : 'Favoritar') +
       '">' +
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="' +
+      '<svg viewBox="0 0 24 24" fill="' +
       (p.favorite ? 'currentColor' : 'none') +
       '" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
-      '</button>';
-    // v4.6: Duplicate button
-    var dupBtnHtml =
-      '<button class="btn sm btn-icon-only dup-action" data-act="dup" data-tip="Duplicar" title="Duplicar">' +
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
       '</button>';
     card.innerHTML = `
       <div class="card-head">
@@ -300,6 +298,7 @@ function renderProfiles() {
           <div class="name">${esc(p.name)}${p.hasVault ? '<span class="lock" title="Auto-login ativo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>' : ''}</div>
           <div class="region" style="margin-top:.1rem">${REGIONS[p.region] || '—'}</div>
         </div>
+        ${favStarHtml}
       </div>
       <div class="card-body">
         ${serverHtml}
@@ -314,8 +313,6 @@ function renderProfiles() {
       <div class="card-actions">
         <button class="btn sm btn-play" data-act="launch"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play</button>
         <div class="secondary-actions">
-          ${favBtnHtml}
-          ${dupBtnHtml}
           <button class="btn sm btn-icon-only" data-act="edit" data-tip="Editar" title="Editar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
           <button class="btn sm btn-icon-only" data-act="vault" data-tip="Credenciais" title="Credenciais"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
           <button class="btn sm btn-icon-only" data-act="del" data-tip="Excluir" title="Excluir"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
@@ -590,8 +587,15 @@ async function openVault(id) {
   document.getElementById('fVaultPass').value = creds ? creds.pass : '';
   // Reset password visibility
   document.getElementById('fVaultPass').type = 'password';
-  document.getElementById('eyeIcon').innerHTML =
-    '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  var togglePass = document.getElementById('togglePass');
+  if (togglePass) {
+    var svg = togglePass.querySelector('svg');
+    if (svg) {
+      svg.innerHTML =
+        '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
+    togglePass.classList.remove('on');
+  }
   document.getElementById('vaultModal').classList.add('show');
 }
 
@@ -704,15 +708,21 @@ document.getElementById('removeVault').onclick = async () => {
 // ── Password visibility toggle ──
 document.getElementById('togglePass').onclick = function () {
   const inp = document.getElementById('fVaultPass');
-  const icon = document.getElementById('eyeIcon');
+  const svg = this.querySelector('svg');
   if (inp.type === 'password') {
     inp.type = 'text';
-    icon.innerHTML =
-      '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    this.classList.add('on');
+    if (svg) {
+      svg.innerHTML =
+        '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    }
   } else {
     inp.type = 'password';
-    icon.innerHTML =
-      '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    this.classList.remove('on');
+    if (svg) {
+      svg.innerHTML =
+        '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
   }
 };
 
@@ -981,16 +991,24 @@ document.getElementById('setNotifications').addEventListener('keydown', function
   }
 });
 
-document.getElementById('setMode').onchange = function () {
-  const desc = document.getElementById('modeDesc');
-  if (this.value === 'lowpc') {
-    desc.textContent = 'PC Fraco: reduz qualidade do Flash para ganhar FPS';
-    desc.style.color = 'var(--warn)';
-  } else {
-    desc.textContent = 'Padrão: máxima otimização segura';
-    desc.style.color = 'var(--text-faint)';
+// v5.10.4: "Modo de desempenho" removido (duplicava os presets de Otimização).
+// O controle granular vive na seção "Otimização (GPU + CPU)" via preset cards.
+(function () {
+  var setMode = document.getElementById('setMode');
+  if (setMode) {
+    setMode.onchange = function () {
+      var desc = document.getElementById('modeDesc');
+      if (!desc) return;
+      if (this.value === 'lowpc') {
+        desc.textContent = 'PC Fraco: reduz qualidade do Flash para ganhar FPS';
+        desc.style.color = 'var(--warn)';
+      } else {
+        desc.textContent = 'Padrão: máxima otimização segura';
+        desc.style.color = 'var(--text-faint)';
+      }
+    };
   }
-};
+})();
 
 // ── Server Selector ──
 document.getElementById('btnPickServer').onclick = async () => {

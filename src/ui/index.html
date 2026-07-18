@@ -599,7 +599,7 @@
         pointer-events: none;
       }
 
-      /* Cover banner — per-region gradient */
+      /* Cover banner — cohesive dark, subtle region accent line */
       .card-head {
         height: 78px;
         padding: 12px;
@@ -607,38 +607,82 @@
         align-items: flex-start;
         gap: 10px;
         position: relative;
-        background: linear-gradient(135deg, #2a2a2e 0%, #1a1a1e 100%);
+        background: linear-gradient(135deg, #1f1f24 0%, #131316 100%);
+        border-top: 2px solid var(--region-accent, var(--border));
       }
       .card-head::after {
         content: '';
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.55) 100%);
+        background: radial-gradient(
+          120% 90% at 100% 0%,
+          var(--region-glow, transparent) 0%,
+          transparent 60%
+        );
         pointer-events: none;
       }
-      .card.region-br .card-head {
-        background: linear-gradient(135deg, #b8460e 0%, #7a2d05 100%);
+      .card.region-br {
+        --region-accent: #d97706;
+        --region-glow: rgba(217, 119, 6, 0.16);
       }
-      .card.region-na .card-head {
-        background: linear-gradient(135deg, #1e4a6b 0%, #0f2940 100%);
+      .card.region-na {
+        --region-accent: #3b82f6;
+        --region-glow: rgba(59, 130, 246, 0.14);
       }
-      .card.region-eu .card-head {
-        background: linear-gradient(135deg, #0e5c3a 0%, #063d24 100%);
+      .card.region-eu {
+        --region-accent: #10b981;
+        --region-glow: rgba(16, 185, 129, 0.14);
       }
-      .card.region-hk .card-head {
-        background: linear-gradient(135deg, #5b1e7a 0%, #3a0f54 100%);
+      .card.region-hk {
+        --region-accent: #a855f7;
+        --region-glow: rgba(168, 85, 247, 0.14);
       }
-      .card.region-de .card-head {
-        background: linear-gradient(135deg, #7a5c0e 0%, #4d3a05 100%);
+      .card.region-de {
+        --region-accent: #eab308;
+        --region-glow: rgba(234, 179, 8, 0.14);
       }
-      .card.region-es .card-head {
-        background: linear-gradient(135deg, #7a1e1e 0%, #4d0f0f 100%);
+      .card.region-es {
+        --region-accent: #ef4444;
+        --region-glow: rgba(239, 68, 68, 0.14);
       }
-      .card.region-pl .card-head {
-        background: linear-gradient(135deg, #7a1e4f 0%, #4d0f32 100%);
+      .card.region-pl {
+        --region-accent: #ec4899;
+        --region-glow: rgba(236, 72, 153, 0.14);
       }
-      .card.region-fr .card-head {
-        background: linear-gradient(135deg, #0e5c5c 0%, #063d3d 100%);
+      .card.region-fr {
+        --region-accent: #14b8a6;
+        --region-glow: rgba(20, 184, 166, 0.14);
+      }
+      /* Favorite star on cover (Heroic-style) */
+      .card-fav-star {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 2;
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        border: none;
+        background: rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(6px);
+        color: rgba(255, 255, 255, 0.7);
+        cursor: pointer;
+        transition: var(--transition);
+      }
+      .card-fav-star:hover {
+        background: rgba(0, 0, 0, 0.55);
+        color: #fff;
+      }
+      .card-fav-star.active {
+        color: var(--accent);
+        background: rgba(255, 140, 0, 0.18);
+      }
+      .card-fav-star svg {
+        width: 13px;
+        height: 13px;
       }
 
       .card-avatar {
@@ -1635,16 +1679,6 @@
                   <option value="fr">Français</option>
                 </select>
               </div>
-              <div class="settings-row">
-                <div>
-                  <div class="label">Modo de desempenho</div>
-                  <div class="desc" id="modeDesc">Padrão: máxima otimização segura</div>
-                </div>
-                <select id="setMode" class="settings-select">
-                  <option value="default">Padrão Otimizado</option>
-                  <option value="lowpc">PC Fraco</option>
-                </select>
-              </div>
             </div>
 
             <div class="settings-section">
@@ -1975,7 +2009,7 @@
                 <div>
                   <div class="label">Sobre</div>
                   <div class="desc" id="advAboutVersion">
-                    Shinobi Launcher v5.10.3 • Electron 11 • Flash PPAPI 34
+                    Shinobi Launcher v5.10.4 • Electron 11 • Flash PPAPI 34
                   </div>
                 </div>
                 <a class="btn sm" id="advAboutRepo" href="#" type="button" title="GitHub">GitHub</a>
