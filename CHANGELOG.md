@@ -1,5 +1,68 @@
 # Changelog
 
+## [5.9.31] - 2026-07-18
+
+### Limpeza — CRON-2: Remoção de features proibidas + consistência de diálogos
+
+- **1.475 linhas removidas** do renderer (index.html): 9 features proibidas
+  que o user removeu anteriormente mas cujo código ainda executava em
+  runtime, consumindo GPU e memória sem utilidade.
+
+- **Glass morphism removido**: `backdrop-filter: blur(12px)` e
+  `will-change: transform` em cada card forçavam composição GPU
+  dedicada por card. Classe `glass-card shine` removida da injeção.
+
+- **3D Tilt/Parallax removido**: `initCardParallax()` adicionava
+  `mousemove` listener ao grid inteiro, calculando
+  `perspective() rotateX() rotateY()` a cada frame do mouse.
+
+- **Context menu removido**: CSS, HTML (`#ctxMenu`), JS
+  (`showContextMenu`, `initCardKeyboardMenu`) e listener `contextmenu`.
+
+- **Notifications bell removido**: CSS (`@keyframes bellSway`,
+  `.notif-bell`, `.notif-dropdown`), HTML (`#notifBell`),
+  `#notifBadge`, `#notifDropdown`), JS (`pushNotification`,
+  `updateNotifBadge`, `renderNotifications`,
+  `initNotificationCenter`), hook toast→notif e badge pop hook.
+
+- **Compare modal removido**: CSS, HTML (`#compareOverlay`),
+  JS (`openCompare`, `populateCompareSelects`,
+  `renderComparison`, `initCompare`) e injeção cmdk.
+
+- **Status bar removido**: CSS, HTML (`#statusBar`),
+  JS (`updateStatusBar`, `initStatusBar`, `setInterval 5s`).
+
+- **Compact mode removido**: CSS (`.grid.compact`), HTML
+  (`#compactToggle`), JS (`compactMode` var, toggle handler,
+  filtro cmdk, referência em `renderProfiles`).
+
+- **Tags removidas**: CSS (`.tag-filter-bar`, `.profile-tag`,
+  `@keyframes tagPop`), HTML (`#tagFilterBar`), JS
+  (`TAG_COLORS`, `getTagColor`, `getAllTags`,
+  `renderTagFilterBar`, `buildTagsHtml`, `initTagsInput`,
+  `activeTagFilter`).
+
+- **Drag-drop import removido**: CSS (`.drop-zone`), HTML
+  (`#dropZone`), JS (`initDragDropImport`).
+
+- **Dual view-transition corrigida**: Sistema v5.5
+  (`initViewTransitions`, `@keyframes viewEnter`) removido.
+  Apenas o sistema v5.8 permanece.
+
+- **Scrollbar morto removido**: Bloco CSS duplicado em
+  linhas ~618-629 (8px, sobrescrito pelo scrollbar temático
+  em ~3771).
+
+- **`variables.css` link removido**: O arquivo declarava tokens
+  de cor (`#c8a23d` dourado) completamente sobrescritos pelo
+  `:root` inline (`#ff8c00` laranja). Um request HTTP inútil
+  eliminado.
+
+- **3 chamadas `confirm()` nativas substituídas** por
+  `customConfirm()` com `type: 'danger'`: exclusão de
+  conta (single), exclusão em lote (batch), e limpar
+  histórico de timeline.
+
 ## [5.9.30] - 2026-07-18
 
 ### Estabilidade — CRON-3/CRON-1 Node 24 Compatibility Fix
