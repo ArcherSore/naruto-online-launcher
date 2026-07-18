@@ -1,5 +1,22 @@
 # Changelog
 
+## [5.9.36] - 2026-07-18
+
+### Acessibilidade — CRON-2: onboarding, heatmap, server empty state
+
+- **Onboarding overlay: dialog ARIA** — adicionados `role="dialog"`,
+  `aria-modal="true"`, `aria-labelledby`. Focus trap ao abrir, foco
+  retorna ao elemento origem ao fechar. Escape fecha o tour.
+- **Onboarding: closeOnboard()** — funcao unificada que limpa trap,
+  restaura foco e salva localStorage. Next/Skip usam esta funcao.
+- **Heatmap cells: keyboard access** — `role="gridcell"`, `tabindex`,
+  `aria-label` (ex: "3 lançamentos em 2025-01-15"), Enter/Space para
+  ativar tooltip toast. Grid container tem `role="grid"`.
+- **Heatmap legend: aria-hidden** — swatches decorativas agora tem
+  `aria-hidden="true"` para screen readers usarem "Menos/Mais".
+- **Server empty state: retry** — "Nenhum servidor encontrado" agora
+  tem botao "Tentar novamente" e sugestao para trocar regiao.
+
 ## [5.9.35] - 2026-07-18
 
 ### Acessibilidade — CRON-2: keyboard navigation + focus management

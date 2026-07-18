@@ -4914,16 +4914,16 @@
                 </h4>
                 <div class="heatmap-legend">
                   <span>Menos</span>
-                  <span class="hm-swatch" style="background: var(--bg-elev)"></span>
-                  <span class="hm-swatch" style="background: rgba(255, 140, 0, 0.25)"></span>
-                  <span class="hm-swatch" style="background: rgba(255, 140, 0, 0.45)"></span>
-                  <span class="hm-swatch" style="background: rgba(255, 140, 0, 0.7)"></span>
-                  <span class="hm-swatch" style="background: var(--accent)"></span>
+                  <span class="hm-swatch" aria-hidden="true" style="background: var(--bg-elev)"></span>
+                  <span class="hm-swatch" aria-hidden="true" style="background: rgba(255, 140, 0, 0.25)"></span>
+                  <span class="hm-swatch" aria-hidden="true" style="background: rgba(255, 140, 0, 0.45)"></span>
+                  <span class="hm-swatch" aria-hidden="true" style="background: rgba(255, 140, 0, 0.7)"></span>
+                  <span class="hm-swatch" aria-hidden="true" style="background: var(--accent)"></span>
                   <span>Mais</span>
                 </div>
               </div>
               <div class="heatmap-wrap">
-                <div class="heatmap-grid" id="heatmapGrid"></div>
+                <div class="heatmap-grid" id="heatmapGrid" role="grid" aria-label="Mapa de atividade — últimos 365 dias"></div>
                 <div class="heatmap-months" id="heatmapMonths"></div>
               </div>
             </div>
@@ -7028,7 +7028,9 @@
         try {
           const servers = await window.api.fetchServers(region);
           if (!servers || !servers.length) {
-            hint.textContent = 'Nenhum servidor encontrado.';
+            hint.innerHTML = 'Nenhum servidor encontrado. <button class="btn sm" id="serverRetryBtn" style="margin-top:0.3rem">Tentar novamente</button> — ou selecione outra região.';
+            var retryBtn = document.getElementById('serverRetryBtn');
+            if (retryBtn) retryBtn.onclick = function() { document.getElementById('btnPickServer').click(); };
           } else {
             const recent = servers
               .slice(0, 20)
@@ -9148,7 +9150,23 @@
         if (!overlay) return;
         onboardStep = 0;
         renderOnboardStep();
+        window._onboardFocusReturn = document.activeElement;
         overlay.hidden = false;
+        window._onboardTrapCleanup = trapFocus(document.querySelector('.onboard-card'));
+        setTimeout(function () {
+          var nextBtn = document.getElementById('onboardNext');
+          if (nextBtn) nextBtn.focus();
+        }, 50);
+      }
+      function closeOnboard() {
+        var overlay = document.getElementById('onboardOverlay');
+        if (!overlay) return;
+        overlay.hidden = true;
+        if (window._onboardTrapCleanup) { window._onboardTrapCleanup(); window._onboardTrapCleanup = null; }
+        if (window._onboardFocusReturn) { window._onboardFocusReturn.focus(); window._onboardFocusReturn = null; }
+        try {
+          localStorage.setItem(ONBOARD_KEY, '1');
+        } catch (_) {}
       }
       function renderOnboardStep() {
         var step = ONBOARD_STEPS[onboardStep];
@@ -9169,20 +9187,20 @@
         document.getElementById('onboardNext').onclick = function () {
           onboardStep++;
           if (onboardStep >= ONBOARD_STEPS.length) {
-            document.getElementById('onboardOverlay').hidden = true;
-            try {
-              localStorage.setItem(ONBOARD_KEY, '1');
-            } catch (_) {}
+            closeOnboard();
             return;
           }
           renderOnboardStep();
         };
         document.getElementById('onboardSkip').onclick = function () {
-          document.getElementById('onboardOverlay').hidden = true;
-          try {
-            localStorage.setItem(ONBOARD_KEY, '1');
-          } catch (_) {}
+          closeOnboard();
         };
+        // Escape key closes onboarding
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && !document.getElementById('onboardOverlay').hidden) {
+            closeOnboard();
+          }
+        });
       }
 
       // ── v5.6: Init sequence ──
@@ -9610,9 +9628,12 @@
           cells.forEach(function (c) {
             var cls =
               'heatmap-cell' + (c.level ? ' l' + c.level : '') + (c.isToday ? ' today' : '');
+            var cellLabel = c.count + ' lançamento' + (c.count !== 1 ? 's' : '') + ' em ' + c.date;
             html +=
               '<div class="' +
               cls +
+              '" role="gridcell" tabindex="0" aria-label="' +
+              esc(cellLabel) +
               '" data-date="' +
               c.date +
               '" data-count="' +
@@ -9690,6 +9711,12 @@
                   new Date(date + 'T00:00:00').toLocaleDateString('pt-BR'),
                 'info'
               );
+          });
+          cell.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              cell.click();
+            }
           });
         });
       }
@@ -9985,7 +10012,7 @@
     </div>
 
     <!-- v5.6: Onboarding Tooltip Tour -->
-    <div class="onboard-overlay" id="onboardOverlay" hidden>
+    <div class="onboard-overlay" id="onboardOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="onboardTitle">
       <div class="onboard-card">
         <div class="onboard-header">
           <div class="ob-icon" id="onboardIcon">
