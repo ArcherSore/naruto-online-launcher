@@ -1,5 +1,70 @@
 # Changelog
 
+## [5.9.33] - 2026-07-18
+
+### Polimento — CRON-2: Retry em erro de timeline + indicador de conexão clicável
+
+- **Timeline error retry**: Erro ao carregar atividade agora mostra botão
+  "Tentar novamente" que chama `loadTimeline()` sem precisar recarregar
+  a página inteira. Antes: mensagem estática sem ação possível.
+
+- **Connection indicator clicável**: Indicador "Online/Offline" agora é clicável
+  e acessível via teclado (Enter/Space). Permite verificar a conexão
+  imediatamente sem esperar os 60s do check automático. Hover visual
+  adicionado (`border-color: accent`).
+
+- **CSS**: `.timeline-empty-msg` ganhou `flex-direction: column` + `gap`
+  para acomodar o botão. `.conn-indicator` ganhou `cursor: pointer` +
+  transição de hover.
+
+- **Acessibilidade**: `role="button"`, `tabindex="0"`, `aria-label` no
+  indicador de conexão. Keydown handler para Enter/Space.
+
+## [5.9.32] - 2026-07-18
+
+### Correção — CRON-1: JWT renewal backoff agora é aplicado (não só logado)
+
+- **BUG**: `setInterval(30min)` para renovação JWT calculava `backoffMs` (dobro
+  a cada falha, max 2h) mas NUNCA aplicava — o intervalo mantinha 30min fixo.
+  Resultado: quando o servidor ficava fora do ar, o launcher fazia chamadas
+  inúteis a cada 30min em vez de backoff para 1h/2h.
+
+- **FIX**: Substituído `setInterval` por `setTimeout` recursivo. Agora o
+  backoff é REAL: 30min → 30min (1ª falha, sem mudança) → 60min (2ª) →
+  120min (3ª) → 2h cap. Sucesso reseta para 30min.
+
+- **Cleanup**: `clearInterval` → `clearTimeout` no close handler.
+  `try/finally` adicionado nos testes com `jest.useFakeTimers()` para
+  evitar vazamento de estado para testes subsequentes.
+
+- **+2 testes** novos: backoff real (2 falhas → 60min) e reset após
+  sucesso. Total: 1234 testes.
+
+### Re-auditoria de estabilidade (CRON-1):
+
+- **Placebo audit**: GpuDetector, CpuOptimizer, optimization.js, flags.js já
+  limpos do CRON-1 v5.9.28. Todos os placebos documentados com NOTE comments.
+  Nenhuma otimização placebo remanescente encontrada.
+
+- **Windows edge cases**: pwsh.exe fallback já adicionado (v5.9.28). DPI
+  awareness é responsabilidade do Electron/Chromium, não do app. Game Mode
+  é toggle do usuário, não pode ser ativado programaticamente.
+
+- **Linux distros**: NixOS core_type fallback (v5.9.28), Flatpak/Snap
+  detecção, Wayland detection (XDG_SESSION_TYPE + WAYLAND_DISPLAY) —
+  tudo já implementado. Nenhuma melhoria necessária.
+
+- **Race conditions / memory leaks**: StallDetector WeakMap fix (v5.9.28)
+  cobre o cenário comum. Cenário de múltiplas janelas na mesma session
+  (shadow mode) tem listeners órfãos inertes (stopped flag) — impacto
+  neglível, não justifica refactor arquitetural.
+
+- **Otimizações reais**: GPU env vars wired (v5.9.28), __GL_SYNC_TO_VBLANK=0
+  (NVIDIA), MALLOC_ARENA_MAX=2 (glibc), window.gc() periódico — tudo já
+  implementado. GPU process priority e Flash wmode não são viáveis
+  (Electron 11 não expõe PID do GPU process; wmode é controlado pelo
+  site, não pelo launcher).
+
 ## [5.9.31] - 2026-07-18
 
 ### Limpeza — CRON-2: Remoção de features proibidas + consistência de diálogos

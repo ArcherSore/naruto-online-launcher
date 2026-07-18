@@ -526,34 +526,37 @@ describe('SessionLifecycle.js', () => {
     });
 
     describe('JWT auto-renewal timer', () => {
-      test('setInterval é chamado com 30 minutos', () => {
+      test('setTimeout é chamado com 30 minutos (base)', () => {
         jest.useFakeTimers();
-        const { win } = makeMockWin();
-        const ctx = makeCtx();
-        const setIntervalSpy = jest.spyOn(global, 'setInterval');
+        try {
+          const { win } = makeMockWin();
+          const ctx = makeCtx();
+          const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
 
-        SessionLifecycle.attach(win, ctx);
+          SessionLifecycle.attach(win, ctx);
 
-        // Verifica que setInterval foi chamado com 30min = 30*60*1000
-        const calls = setIntervalSpy.mock.calls;
-        const thirtyMin = 30 * 60 * 1000;
-        const found = calls.some(function (call) {
-          return call[1] === thirtyMin;
-        });
-        expect(found).toBe(true);
+          // Verifica que setTimeout foi chamado com 30min = 30*60*1000
+          const calls = setTimeoutSpy.mock.calls;
+          const thirtyMin = 30 * 60 * 1000;
+          const found = calls.some(function (call) {
+            return call[1] === thirtyMin;
+          });
+          expect(found).toBe(true);
 
-        setIntervalSpy.mockRestore();
-        jest.useRealTimers();
+          setTimeoutSpy.mockRestore();
+        } finally {
+          jest.useRealTimers();
+        }
       });
 
       test('unref é chamado no timer', () => {
         const { win } = makeMockWin();
         const ctx = makeCtx();
-        const originalSetInterval = global.setInterval;
+        const originalSetTimeout = global.setTimeout;
         let capturedTimer = null;
 
-        global.setInterval = jest.fn(function (fn, ms) {
-          capturedTimer = originalSetInterval(fn, ms);
+        global.setTimeout = jest.fn(function (fn, ms) {
+          capturedTimer = originalSetTimeout(fn, ms);
           capturedTimer.unref = jest.fn();
           return capturedTimer;
         });
@@ -563,18 +566,18 @@ describe('SessionLifecycle.js', () => {
         expect(capturedTimer).not.toBeNull();
         expect(capturedTimer.unref).toHaveBeenCalled();
 
-        global.setInterval = originalSetInterval;
-        clearInterval(capturedTimer);
+        global.setTimeout = originalSetTimeout;
+        clearTimeout(capturedTimer);
       });
 
       test('timer é limpo no close', () => {
         const { win, handlers } = makeMockWin();
         const ctx = makeCtx();
-        const originalSetInterval = global.setInterval;
+        const originalSetTimeout = global.setTimeout;
         let capturedTimer = null;
 
-        global.setInterval = jest.fn(function (fn, ms) {
-          capturedTimer = originalSetInterval(fn, ms);
+        global.setTimeout = jest.fn(function (fn, ms) {
+          capturedTimer = originalSetTimeout(fn, ms);
           capturedTimer.unref = jest.fn();
           return capturedTimer;
         });
@@ -584,11 +587,103 @@ describe('SessionLifecycle.js', () => {
         const closeHandler = handlers['close'];
         closeHandler({ preventDefault: jest.fn() });
 
-        // After close, the timer should be cleared (clearInterval called)
-        // We can't directly verify clearInterval was called on the exact timer
-        // but the code sets _renewTimer = null after clearInterval
-        global.setInterval = originalSetInterval;
-        if (capturedTimer) clearInterval(capturedTimer);
+        // After close, the timer should be cleared (clearTimeout called)
+        // We can't directly verify clearTimeout was called on the exact timer
+        // but the code sets _renewTimer = null after clearTimeout
+        global.setTimeout = originalSetTimeout;
+        if (capturedTimer) clearTimeout(capturedTimer);
+      });
+
+      test('backoff real: falhas consecutivas aumentam o delay', async () => {
+        jest.useFakeTimers();
+        try {
+          const { win } = makeMockWin();
+          const ctx = makeCtx();
+          const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+
+          // Configura mock: vault tem creds, apiLogin.renewIfNeeded rejeita
+          vault.hasCredentials.mockImplementation(() => true);
+          vault.getCredentials.mockImplementation(() => ({
+            user: 'u',
+            pass: 'p'
+          }));
+          var apiLogin = require('../../network/api-login');
+          apiLogin.renewIfNeeded.mockImplementation(() =>
+            Promise.reject(new Error('server down'))
+          );
+
+          SessionLifecycle.attach(win, ctx);
+
+          // Primeiro agendamento: 30min (base)
+          expect(setTimeoutSpy.mock.calls[0][1]).toBe(30 * 60 * 1000);
+
+          // Avança 30min — primeira tentativa falha
+          await jest.advanceTimersByTimeAsync(30 * 60 * 1000);
+          // Após 1 falha: delay = 30min * 2^0 = 30min (sem mudança na primeira)
+          var calls30 = setTimeoutSpy.mock.calls.filter(function (c) {
+            return c[1] === 30 * 60 * 1000;
+          });
+          expect(calls30.length).toBeGreaterThanOrEqual(2); // inicial + pós-1falha
+
+          // Avança mais 30min — segunda tentativa falha
+          await jest.advanceTimersByTimeAsync(30 * 60 * 1000);
+          // Após 2 falhas: delay = 30min * 2^1 = 60min (backoff REAL)
+          var call60 = setTimeoutSpy.mock.calls.find(function (c) {
+            return c[1] === 60 * 60 * 1000;
+          });
+          expect(call60).toBeTruthy();
+
+          setTimeoutSpy.mockRestore();
+          vault.hasCredentials.mockRestore();
+          vault.getCredentials.mockRestore();
+          apiLogin.renewIfNeeded.mockRestore();
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      test('sucesso reseta backoff para 30min', async () => {
+        jest.useFakeTimers();
+        try {
+          const { win } = makeMockWin();
+          const ctx = makeCtx();
+          const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+
+          vault.hasCredentials.mockImplementation(() => true);
+          vault.getCredentials.mockImplementation(() => ({
+            user: 'u',
+            pass: 'p'
+          }));
+          var apiLogin = require('../../network/api-login');
+          // Primeira chamada falha, segunda succeeds
+          apiLogin.renewIfNeeded = jest
+            .fn()
+            .mockRejectedValueOnce(new Error('fail'))
+            .mockResolvedValueOnce({
+              renewed: true,
+              expiresAt: Date.now() + 7200000
+            });
+
+          SessionLifecycle.attach(win, ctx);
+
+          // Avança 30min — primeira tentativa falha → reagenda 30min
+          await jest.advanceTimersByTimeAsync(30 * 60 * 1000);
+          // Avança 30min — segunda tentativa sucesso → reseta para 30min
+          await jest.advanceTimersByTimeAsync(30 * 60 * 1000);
+
+          // Verifica que há um agendamento de 30min após o sucesso
+          var afterSuccess = setTimeoutSpy.mock.calls.filter(function (c) {
+            return c[1] === 30 * 60 * 1000;
+          });
+          // Deve ter pelo menos 3: o inicial + pós-1falha + pós-sucesso
+          expect(afterSuccess.length).toBeGreaterThanOrEqual(3);
+
+          setTimeoutSpy.mockRestore();
+          vault.hasCredentials.mockRestore();
+          vault.getCredentials.mockRestore();
+        } finally {
+          jest.useRealTimers();
+        }
       });
     });
 

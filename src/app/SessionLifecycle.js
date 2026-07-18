@@ -494,9 +494,9 @@ function attach(win, ctx) {
       }
       _stallDetector = null;
     }
-    // JWT auto-renewal interval cleanup
+    // JWT auto-renewal timer cleanup (setTimeout recursivo)
     if (_renewTimer) {
-      clearInterval(_renewTimer);
+      clearTimeout(_renewTimer);
       _renewTimer = null;
     }
 
@@ -553,70 +553,83 @@ function attach(win, ctx) {
   // Naruto Online expira em 2h; sem renovação, a sessão cai e o auto-login
   // via form injection reassume — mas renovar evita essa interrupção.
   //
-  // v5.9.15: Adicionado backoff exponencial. Se a renovação falha N vezes
-  // consecutivas, o intervalo dobra (max 2h). Reseta no próximo sucesso.
-  // Isso evita chamadas inúteis a cada 30min quando o servidor está fora do ar.
+  // Usa setTimeout recursivo (não setInterval) para aplicar backoff exponencial
+  // REAL: se a renovação falha N vezes consecutivas, o próximo delay dobra
+  // (30min → 1h → 2h → 2h cap). Reseta no próximo sucesso.
+  //
+  // v5.9.15: Adicionado backoff exponencial.
+  // v5.9.32: Fix — backoff agora é APLICADO no agendamento (antes era calculado
+  // apenas no log, setInterval mantinha 30min fixo).
   var _renewConsecutiveFailures = 0;
   var _renewBaseIntervalMs = 30 * 60 * 1000; // 30 min base
-  _renewTimer = setInterval(function () {
-    if (win.isDestroyed()) {
-      if (_renewTimer) {
-        clearInterval(_renewTimer);
-        _renewTimer = null;
+
+  function _scheduleJwtRenewal(delayMs) {
+    _renewTimer = setTimeout(function () {
+      _renewTimer = null;
+      if (win.isDestroyed()) return;
+      if (!vault.hasCredentials(profileId)) {
+        _scheduleJwtRenewal(_renewBaseIntervalMs);
+        return;
       }
-      return;
-    }
-    if (!vault.hasCredentials(profileId)) return; // sem creds → não pode renovar
-    const creds = vault.getCredentials(profileId);
-    if (!creds || !creds.user || !creds.pass) return;
-    try {
-      const apiLogin = require('../network/api-login');
-      apiLogin
-        .renewIfNeeded(ses, creds.user, creds.pass, 300)
-        .then(function (r) {
-          if (r.renewed) {
-            // Sucesso → reseta backoff
-            _renewConsecutiveFailures = 0;
-            logger.info(
-              'JWT auto-renovado para "' +
-                profile.name +
-                '" (novo expira em ' +
-                Math.round(r.expiresAt / 1000 - Date.now() / 1000) +
-                's)'
+      var creds = vault.getCredentials(profileId);
+      if (!creds || !creds.user || !creds.pass) {
+        _scheduleJwtRenewal(_renewBaseIntervalMs);
+        return;
+      }
+      try {
+        var apiLogin = require('../network/api-login');
+        apiLogin
+          .renewIfNeeded(ses, creds.user, creds.pass, 300)
+          .then(function (r) {
+            if (r.renewed) {
+              _renewConsecutiveFailures = 0;
+              logger.info(
+                'JWT auto-renovado para "' +
+                  profile.name +
+                  '" (novo expira em ' +
+                  Math.round(r.expiresAt / 1000 - Date.now() / 1000) +
+                  's)'
+              );
+            }
+            // Sucesso ou não-renovado (JWT ainda válido) → reseta delay
+            _scheduleJwtRenewal(_renewBaseIntervalMs);
+          })
+          .catch(function (e) {
+            _renewConsecutiveFailures++;
+            var backoffMs = Math.min(
+              _renewBaseIntervalMs *
+                Math.pow(2, Math.min(_renewConsecutiveFailures - 1, 3)),
+              2 * 60 * 60 * 1000 // max 2h
             );
-          }
-        })
-        .catch(function (e) {
-          _renewConsecutiveFailures++;
-          var backoffMs = Math.min(
-            _renewBaseIntervalMs * Math.pow(2, Math.min(_renewConsecutiveFailures - 1, 3)),
-            2 * 60 * 60 * 1000 // max 2h
-          );
-          if (_renewConsecutiveFailures <= 2) {
-            // Primeiras falhas: log debug (pode ser temporário)
-            logger.debug(
-              'JWT auto-renewal falhou (' +
-                _renewConsecutiveFailures +
-                'x, próximo em ' +
-                Math.round(backoffMs / 60000) +
-                'min): ' +
-                e.message
-            );
-          } else {
-            logger.warn(
-              'JWT auto-renewal falhou ' +
-                _renewConsecutiveFailures +
-                'x consecutivas — backoff ' +
-                Math.round(backoffMs / 60000) +
-                'min (servidor pode estar fora do ar)'
-            );
-          }
-        });
-    } catch (e) {
-      logger.debug('JWT auto-renewal skip: ' + e.message);
-    }
-  }, _renewBaseIntervalMs);
-  if (_renewTimer.unref) _renewTimer.unref();
+            if (_renewConsecutiveFailures <= 2) {
+              logger.debug(
+                'JWT auto-renewal falhou (' +
+                  _renewConsecutiveFailures +
+                  'x, próximo em ' +
+                  Math.round(backoffMs / 60000) +
+                  'min): ' +
+                  e.message
+              );
+            } else {
+              logger.warn(
+                'JWT auto-renewal falhou ' +
+                  _renewConsecutiveFailures +
+                  'x consecutivas — backoff ' +
+                  Math.round(backoffMs / 60000) +
+                  'min (servidor pode estar fora do ar)'
+              );
+            }
+            // Aplica backoff REAL no agendamento
+            _scheduleJwtRenewal(backoffMs);
+          });
+      } catch (e) {
+        logger.debug('JWT auto-renewal skip: ' + e.message);
+        _scheduleJwtRenewal(_renewBaseIntervalMs);
+      }
+    }, delayMs);
+    if (_renewTimer.unref) _renewTimer.unref();
+  }
+  _scheduleJwtRenewal(_renewBaseIntervalMs);
 }
 
 /**

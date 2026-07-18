@@ -42,6 +42,7 @@
         --space-5: 1.5rem;
         --space-6: 2rem;
         --font-xs: 0.6875rem;
+        --font-2xs: 0.625rem;
         --font-sm: 0.75rem;
         --font-base: 0.8125rem;
         --font-md: 0.875rem;
@@ -51,6 +52,7 @@
         --weight-regular: 400;
         --weight-medium: 500;
         --weight-semibold: 600;
+        --weight-normal: 400;
         --weight-bold: 700;
         --radius-sm: 0.25rem;
         --radius: 0.5rem;
@@ -163,25 +165,7 @@
           transform: rotate(360deg);
         }
       }
-      @keyframes particleDrift {
-        0%,
-        100% {
-          transform: translate(0, 0);
-          opacity: 0.12;
-        }
-        25% {
-          transform: translate(8px, -12px);
-          opacity: 0.28;
-        }
-        50% {
-          transform: translate(-4px, -6px);
-          opacity: 0.12;
-        }
-        75% {
-          transform: translate(12px, 8px);
-          opacity: 0.22;
-        }
-      }
+
       @keyframes flashPulse {
         0%,
         100% {
@@ -289,25 +273,6 @@
         height: 1px;
         background: linear-gradient(90deg, transparent, rgba(255, 140, 0, 0.35), transparent);
       }
-
-      /* Sidebar ambient particles */
-      .sidebar-particles {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        overflow: hidden;
-        z-index: 0;
-      }
-      .particle {
-        position: absolute;
-        width: 3px;
-        height: 3px;
-        border-radius: 50%;
-        background: rgba(255, 140, 0, 0.12);
-        box-shadow: 0 0 8px rgba(255, 140, 0, 0.08);
-        animation: particleDrift 10s ease-in-out infinite;
-      }
-
       .sidebar-logo {
         display: flex;
         align-items: center;
@@ -503,13 +468,6 @@
         gap: var(--space-2);
         align-items: center;
       }
-
-      /* Notification bell sway when active */
-      #muteBtn:not(.on) svg {
-        animation: bellSway 4s ease-in-out infinite;
-        transform-origin: 12px 2px;
-      }
-
       /* ── Buttons ── */
       .btn {
         display: inline-flex;
@@ -1273,6 +1231,10 @@
         border-radius: 0 0 var(--radius) var(--radius);
         animation: toastProgress 2800ms linear forwards;
       }
+      .toast.info {
+        background: var(--bg-elev-2);
+        border-color: var(--border);
+      }
       .toast.ok .toast-progress {
         background: var(--ok);
       }
@@ -1814,15 +1776,6 @@
         transform: translateY(-50%) translateX(0);
       }
 
-      /* ── v4.6: Loading Skeletons ── */
-      .skeleton-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: var(--space-4);
-        position: relative;
-        overflow: hidden;
-      }
       .skeleton-card::after {
         content: '';
         position: absolute;
@@ -1843,32 +1796,6 @@
           transform: translateX(100%);
         }
       }
-      .skel-line {
-        height: 0.7rem;
-        background: var(--bg-elev-2);
-        border-radius: var(--radius-sm);
-        margin-bottom: 0.5rem;
-      }
-      .skel-line.w-60 {
-        width: 60%;
-      }
-      .skel-line.w-40 {
-        width: 40%;
-      }
-      .skel-line.w-80 {
-        width: 80%;
-      }
-      .skel-line.w-30 {
-        width: 30%;
-      }
-      .skel-circle {
-        width: 2.25rem;
-        height: 2.25rem;
-        background: var(--bg-elev-2);
-        border-radius: var(--radius-sm);
-        margin-bottom: 0.6rem;
-      }
-
       /* ── v4.6: Connection Health Badge ── */
       .health-badge {
         display: inline-flex;
@@ -2309,44 +2236,8 @@
       .nav-item {
         position: relative;
       }
-
-      /* ── v5.0: Enhanced Dev Tools ── */
-      .dev-subsection {
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        margin-top: var(--space-3);
-        overflow: hidden;
-      }
-      .dev-subsection-header {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        background: var(--surface);
-        border-bottom: 1px solid var(--border);
-        font-size: var(--font-xs);
-        font-weight: var(--weight-semibold);
-        color: var(--text-dim);
-        cursor: pointer;
-        transition: background 150ms ease;
-        user-select: none;
-      }
-      .dev-subsection-header:hover {
-        background: var(--surface-hover);
-      }
-      .dev-subsection-header svg {
-        width: 0.8rem;
-        height: 0.8rem;
-        color: var(--accent);
-        transition: transform 200ms ease;
-      }
       .dev-subsection-header.collapsed svg {
         transform: rotate(-90deg);
-      }
-      .dev-subsection-body {
-        padding: var(--space-3);
-        transition: max-height 300ms ease;
       }
       .dev-subsection-body.collapsed {
         display: none;
@@ -2704,24 +2595,6 @@
       .settings-row.with-icon {
         gap: var(--space-3);
       }
-      .settings-row:hover {
-        background: rgba(255, 255, 255, 0.01);
-      }
-
-      /* ── v5.1: Profile Card Color Glow ── */
-      .card:hover {
-        box-shadow:
-          0 10px 28px rgba(0, 0, 0, 0.35),
-          0 0 0 1px rgba(255, 140, 0, 0.1),
-          0 0 20px color-mix(in srgb, var(--card-color, var(--accent)) 15%, transparent);
-      }
-      .card[data-card-color]:hover {
-        box-shadow:
-          0 10px 28px rgba(0, 0, 0, 0.35),
-          0 0 0 1px color-mix(in srgb, var(--card-color) 30%, transparent),
-          0 0 16px color-mix(in srgb, var(--card-color) 12%, transparent);
-      }
-
       /* ── v5.1: Batch Operations ── */
       .batch-bar {
         display: none;
@@ -2883,45 +2756,7 @@
         }
       }
 
-      /* ── v5.2: Drag-and-Drop ── */
-      .card[draggable='true'] {
-        cursor: grab;
-      }
-      .card[draggable='true']:active {
-        cursor: grabbing;
-      }
-      .card.dragging {
-        opacity: 0.4;
-        transform: scale(0.97);
-        box-shadow: none !important;
-      }
-      .card.drag-over {
-        border-color: var(--accent) !important;
-        border-style: dashed;
-        box-shadow: 0 0 12px rgba(255, 140, 0, 0.15) !important;
-      }
-      .drag-placeholder {
-        background: rgba(255, 140, 0, 0.04);
-        border: 2px dashed rgba(255, 140, 0, 0.2);
-        border-radius: var(--radius);
-        min-height: 80px;
-        animation: fadeIn 200ms ease;
-      }
 
-      /* ── v5.2: Micro-animation polish ── */
-      .btn {
-        transition: all var(--transition);
-      }
-      .btn:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-ring);
-      }
-      .toggle {
-        transition: background 250ms cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .nav-item {
-        transition: all 200ms ease;
-      }
       .card {
         transition:
           border-color 200ms ease,
@@ -2957,6 +2792,12 @@
         background: var(--surface);
         border: 1px solid var(--border);
         margin-right: var(--space-2);
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+      }
+      .conn-indicator:hover {
+        border-color: var(--accent);
+        color: var(--text-secondary);
       }
       .conn-dot {
         width: 0.35rem;
@@ -2974,107 +2815,6 @@
         animation: pulseRing 0.8s ease-in-out infinite;
       }
 
-
-      /* ── v5.3: Session Overview Panel ── */
-      .session-overview {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-        margin-bottom: var(--space-4);
-        animation: slideUp 300ms ease;
-      }
-      .session-overview-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-3) var(--space-4);
-        background: var(--bg-elev);
-        border-bottom: 1px solid var(--border);
-      }
-      .session-overview-header h4 {
-        font-size: var(--font-sm);
-        font-weight: var(--weight-semibold);
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-      }
-      .session-overview-header h4 svg {
-        width: 0.9rem;
-        height: 0.9rem;
-        color: var(--accent);
-      }
-      .session-overview-actions {
-        display: flex;
-        gap: var(--space-2);
-      }
-      .session-list {
-        max-height: 200px;
-        overflow-y: auto;
-      }
-      .session-item {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        padding: var(--space-2) var(--space-4);
-        border-bottom: 1px solid var(--border);
-        transition: background 100ms ease;
-      }
-      .session-item:last-child {
-        border-bottom: none;
-      }
-      .session-item:hover {
-        background: var(--surface-hover);
-      }
-      .session-dot {
-        width: 0.4rem;
-        height: 0.4rem;
-        border-radius: 50%;
-        background: var(--ok);
-        animation: pulseRing 2s ease-in-out infinite;
-        flex-shrink: 0;
-      }
-      .session-info {
-        flex: 1;
-        min-width: 0;
-      }
-      .session-name {
-        font-size: var(--font-sm);
-        font-weight: var(--weight-medium);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .session-uptime {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        font-variant-numeric: tabular-nums;
-      }
-      .session-close {
-        background: transparent;
-        border: none;
-        color: var(--text-faint);
-        cursor: pointer;
-        padding: 0.2rem;
-        border-radius: var(--radius-sm);
-        transition: var(--transition);
-        display: flex;
-        align-items: center;
-      }
-      .session-close:hover {
-        color: var(--danger);
-        background: rgba(220, 38, 38, 0.08);
-      }
-      .session-close svg {
-        width: 0.8rem;
-        height: 0.8rem;
-      }
-      .session-empty {
-        text-align: center;
-        padding: var(--space-4);
-        color: var(--text-faint);
-        font-size: var(--font-sm);
-      }
 
       /* ── v5.3: Sidebar Uptime Counter ── */
       .sidebar-uptime {
@@ -3552,8 +3292,6 @@
       }
 
 
-
-
       /* ── v5.5: Enhanced empty state ── */
       .empty {
         position: relative;
@@ -3798,13 +3536,29 @@
         position: absolute;
         inset: 0;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
         color: var(--text-faint);
         font-size: var(--font-sm);
         text-align: center;
         padding: var(--space-4);
-        pointer-events: none;
+        gap: var(--space-3);
+      }
+      .timeline-empty-msg button {
+        pointer-events: all;
+        padding: 0.35rem 0.8rem;
+        font-size: var(--font-xs);
+        border-radius: var(--radius);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .timeline-empty-msg button:hover {
+        border-color: var(--accent);
+        color: var(--accent);
       }
       .timeline-legend {
         display: flex;
@@ -4029,6 +3783,10 @@
       }
 
       /* ── v5.6: Toast progress color variants ── */
+      .toast.info {
+        background: var(--bg-elev-2);
+        border-color: var(--border);
+      }
       .toast.ok .toast-progress {
         background: var(--ok);
       }
@@ -4196,7 +3954,6 @@
       }
 
 
-
       /* ── v5.6: Badge pop animation ── */
       @keyframes badgePop {
         0% {
@@ -4215,25 +3972,6 @@
         border-color: var(--accent);
         color: var(--accent);
       }
-
-      /* ── v5.6: Event card enhanced ── */
-      .event {
-        position: relative;
-        overflow: hidden;
-      }
-      .event::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        background: var(--accent);
-        opacity: 0;
-        transition: opacity 150ms ease;
-      }
-
-
       /* ── v5.7: Sidebar logo animated hover ── */
       .sidebar-logo .mark {
         transition:
@@ -4684,27 +4422,6 @@
         animation: viewEnterV58 280ms cubic-bezier(0.2, 0.8, 0.3, 1);
       }
 
-      /* ── v5.8: Toast slide-in with subtle bounce ── */
-      @keyframes toastSlideV58 {
-        0% {
-          transform: translateX(120%);
-          opacity: 0;
-        }
-        60% {
-          transform: translateX(-8px);
-          opacity: 1;
-        }
-        80% {
-          transform: translateX(4px);
-        }
-        100% {
-          transform: translateX(0);
-        }
-      }
-      .toast.toast-enter-v58 {
-        animation: toastSlideV58 380ms cubic-bezier(0.2, 0.8, 0.3, 1);
-      }
-
       /* ── v5.8: Card entrance stagger refinement (slight scale) ── */
       @keyframes cardEnterV58 {
         from {
@@ -4811,14 +4528,6 @@
     <div class="app">
       <!-- ═══ SIDEBAR NAV ═══ -->
       <nav class="sidebar">
-        <!-- Ambient particles -->
-        <div class="sidebar-particles">
-          <span class="particle" style="top: 22%; left: 12%; animation-delay: 0s"></span>
-          <span class="particle" style="top: 50%; left: 72%; animation-delay: 2.5s"></span>
-          <span class="particle" style="top: 72%; left: 30%; animation-delay: 5s"></span>
-          <span class="particle" style="top: 38%; left: 82%; animation-delay: 7.5s"></span>
-        </div>
-
         <div class="sidebar-logo">
           <div class="mark"><img src="logo.png" alt="Shinobi Launcher" /></div>
           <div class="brand">
@@ -4927,7 +4636,7 @@
           </button>
           <div class="actions">
             <!-- v5.3: Connection Health Indicator -->
-            <div class="conn-indicator" id="connIndicator" title="Status de conexão">
+            <div class="conn-indicator" id="connIndicator" title="Status de conexão — clique para verificar" role="button" tabindex="0" aria-label="Verificar conexão">
               <span class="conn-dot" id="connDot"></span>
               <span id="connLabel">Online</span>
             </div>
@@ -5218,35 +4927,6 @@
                 <div class="heatmap-months" id="heatmapMonths"></div>
               </div>
             </div>
-            <!-- v5.3: Session Overview -->
-            <div class="session-overview" id="sessionOverview">
-              <div class="session-overview-header">
-                <h4>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="3" width="20" height="14" rx="2" />
-                    <line x1="8" y1="21" x2="16" y2="21" />
-                    <line x1="12" y1="17" x2="12" y2="21" />
-                  </svg>
-                  Sessões ativas
-                </h4>
-                <div class="session-overview-actions">
-                  <button
-                    class="relaunch-btn"
-                    id="relaunchAllBtn"
-                    title="Relançar todos os perfis da última sessão"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="1 4 1 10 7 10" />
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                    </svg>
-                    Relançar todos
-                  </button>
-                </div>
-              </div>
-              <div class="session-list" id="sessionList">
-                <div class="session-empty">Nenhuma sessão ativa.</div>
-              </div>
-            </div>
             <div class="tabs" id="regionTabs"></div>
             <div id="eventList"></div>
             <!-- v5.5: Activity Timeline (7-day launches bar chart) -->
@@ -5521,11 +5201,6 @@
                   <span class="stat-tile-label">Ativos 7d</span>
                   <span class="stat-tile-value" id="statActive7d">0</span>
                   <span class="stat-tile-sub">contas usadas</span>
-                </div>
-                <div class="stat-tile">
-                  <span class="stat-tile-label">Tags únicas</span>
-                  <span class="stat-tile-value" id="statUniqueTags">0</span>
-                  <span class="stat-tile-sub">criadas</span>
                 </div>
               </div>
             </div>
@@ -5972,23 +5647,6 @@
         </div>
         <div class="field">
           <label
-            >Tags
-            <span
-              style="
-                color: var(--text-faint);
-                font-weight: var(--weight-regular);
-                text-transform: none;
-              "
-              >(opcional — Enter para adicionar)</span
-            ></label
-          >
-          <div class="tags-input-wrap" id="tagsInputWrap">
-            <input id="fTags" placeholder="Adicionar tag..." maxlength="20" />
-          </div>
-          <div class="hint">Ex: main, alt, pvp, eventos, farm</div>
-        </div>
-        <div class="field">
-          <label
             >Notas
             <span
               style="
@@ -6061,7 +5719,7 @@
 
     <!-- ═══ Custom Confirm Dialog (v5.2) ═══ -->
     <div class="confirm-overlay" id="confirmOverlay">
-      <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
         <div class="confirm-icon danger" id="confirmIcon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path
@@ -6082,7 +5740,7 @@
 
 
     <!-- ═══ Keyboard Shortcuts Overlay (v5.1) ═══ -->
-    <div class="kb-overlay" id="kbOverlay">
+    <div class="kb-overlay" id="kbOverlay" tabindex="-1">
       <div class="kb-panel">
         <div class="kb-header">
           <h3>
@@ -6125,7 +5783,6 @@
             <div class="kb-row">
               <span class="kb-action">Buscar contas</span
               ><span class="kb-keys"
-                ><span class="kb-key accent">Ctrl</span><span class="kb-key">F</span
                 ><span class="kb-key accent">/</span></span
               >
             </div>
@@ -6694,17 +6351,6 @@
               }
             });
           });
-          // v5.3: Tag remove handler on profile cards
-          card.querySelectorAll('[data-remove-tag]').forEach(function (tagEl) {
-            tagEl.addEventListener('click', function (e) {
-              e.stopPropagation();
-              var tag = tagEl.getAttribute('data-remove-tag');
-              var currentTags = (p.tags || []).filter(function (t) {
-                return t !== tag;
-              });
-              ipcRenderer.send('profile:update', { id: p.id, tags: currentTags });
-            });
-          });
           // v5.1: Batch checkbox handler
           var batchCheck = card.querySelector('.card-batch-check');
           if (batchCheck) {
@@ -6959,12 +6605,24 @@
         regions.forEach(r => {
           const t = document.createElement('span');
           t.className = 'tab' + (r === selectedRegion ? ' active' : '');
+          t.setAttribute('role', 'tab');
+          t.setAttribute('aria-selected', r === selectedRegion ? 'true' : 'false');
+          t.setAttribute('tabindex', r === selectedRegion ? '0' : '-1');
           t.textContent = REGIONS[r] || r;
-          t.addEventListener('click', () => {
+          function activateTab() {
             selectedRegion = r;
             renderRegionTabs();
             ipcRenderer.invoke('events:get', selectedRegion).then(renderEventsSingle);
+          }
+          t.addEventListener('click', activateTab);
+          t.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activateTab(); }
+            var tabList = Array.from(tabs.children);
+            var idx = tabList.indexOf(t);
+            if (e.key === 'ArrowRight') { var next = tabList[(idx + 1) % tabList.length]; next.focus(); next.click(); }
+            if (e.key === 'ArrowLeft') { var prev = tabList[(idx - 1 + tabList.length) % tabList.length]; prev.focus(); prev.click(); }
           });
+          tabs.setAttribute('role', 'tablist');
           tabs.appendChild(t);
         });
       }
@@ -7016,7 +6674,6 @@
         const p = profiles.find(x => x.id === id);
         if (!p) return;
         editingId = id;
-        editingTags = (p.tags || []).slice(); // v5.3: Copy tags for editing
         document.getElementById('modalTitle').textContent = 'Editar conta';
         document.getElementById('fName').value = p.name;
         document.getElementById('fServer').value = p.server;
@@ -7028,8 +6685,6 @@
         selectedColor = p.color;
         renderColors();
         // v5.3: Load tags
-        if (window._renderTagsInput) window._renderTagsInput();
-        document.getElementById('fTags').value = '';
         document.getElementById('profileModal').classList.add('show');
         document.getElementById('fName').focus();
         window._profileTrapCleanup = trapFocus(document.querySelector('#profileModal .modal'));
@@ -7075,7 +6730,6 @@
       // ── Modal: Profile ──
       document.getElementById('newBtn').onclick = () => {
         editingId = null;
-        editingTags = [];
         document.getElementById('modalTitle').textContent = 'Nova conta';
         document.getElementById('fName').value = '';
         document.getElementById('fServer').value = '';
@@ -7086,8 +6740,6 @@
         selectedColor = PALETTE[profiles.length % PALETTE.length];
         renderColors();
         // v5.3: Clear tags input
-        if (window._renderTagsInput) window._renderTagsInput();
-        document.getElementById('fTags').value = '';
         document.getElementById('profileModal').classList.add('show');
         document.getElementById('fName').focus();
         window._profileTrapCleanup = trapFocus(document.querySelector('#profileModal .modal'));
@@ -7103,7 +6755,7 @@
           region: document.getElementById('fRegion').value,
           color: selectedColor,
           notes: document.getElementById('fNotes').value.trim(), // v4.5: save notes
-          tags: editingTags.slice() // v5.3: save tags
+          tags: editingId ? ((profiles.find(function(x){return x.id===editingId})||{}).tags||[]) : []
         };
         if (!opts.name) {
           toast('Informe um nome', 'err');
@@ -7607,7 +7259,7 @@
                   (e.statusCode
                     ? '<span style="color:var(--text-faint)">' + e.statusCode + '</span> '
                     : '') +
-                  '<div style="color:var(--text-muted);word-break:break-all">' +
+                  '<div style="color:var(--text-dim);word-break:break-all">' +
                   e.url +
                   '</div>' +
                   (e.jwt
@@ -8095,12 +7747,7 @@
           });
         }
         localStorage.setItem(LAST_SESSION_KEY, JSON.stringify(lastSession));
-        updateSessionOverview();
-      });
-
-      var origDel = del;
-      // del is redefined below in v5.2 with custom confirm dialog + activity logging
-
+        });
       // Track auto-login results as activities
       ipcRenderer.on('auto-login:result', function (_e, data) {
         var p = profiles.find(function (x) {
@@ -8492,91 +8139,6 @@
         toast('Credenciais removidas', 'ok');
         document.getElementById('vaultModal').classList.remove('show');
       };
-
-      // ── v5.2: Context Menu ──
-      var ctxMenu = document.getElementById('ctxMenu');
-      var ctxProfileId = null;
-
-
-
-      // ── v5.2: Drag-and-Drop Profile Reorder ──
-      var dragSrcId = null;
-
-      function initDragDrop() {
-        var grid = document.getElementById('profileGrid');
-        grid.addEventListener('dragstart', function (e) {
-          var card = e.target.closest('.card[data-card-id]');
-          if (!card || batchMode) {
-            e.preventDefault();
-            return;
-          }
-          dragSrcId = card.getAttribute('data-card-id');
-          card.classList.add('dragging');
-          e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData('text/plain', dragSrcId);
-        });
-        grid.addEventListener('dragend', function (e) {
-          var card = e.target.closest('.card[data-card-id]');
-          if (card) card.classList.remove('dragging');
-          dragSrcId = null;
-          // Remove all drag-over states
-          grid.querySelectorAll('.drag-over').forEach(function (c) {
-            c.classList.remove('drag-over');
-          });
-        });
-        grid.addEventListener('dragover', function (e) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-          var card = e.target.closest('.card[data-card-id]');
-          if (card && card.getAttribute('data-card-id') !== dragSrcId) {
-            // Clear other drag-overs
-            grid.querySelectorAll('.drag-over').forEach(function (c) {
-              c.classList.remove('drag-over');
-            });
-            card.classList.add('drag-over');
-          }
-        });
-        grid.addEventListener('dragleave', function (e) {
-          var card = e.target.closest('.card[data-card-id]');
-          if (card) card.classList.remove('drag-over');
-        });
-        grid.addEventListener('drop', function (e) {
-          e.preventDefault();
-          var targetCard = e.target.closest('.card[data-card-id]');
-          if (!targetCard || !dragSrcId) return;
-          var targetId = targetCard.getAttribute('data-card-id');
-          if (targetId === dragSrcId) return;
-          // Reorder profiles array
-          var srcIdx = profiles.findIndex(function (p) {
-            return p.id === dragSrcId;
-          });
-          var tgtIdx = profiles.findIndex(function (p) {
-            return p.id === targetId;
-          });
-          if (srcIdx === -1 || tgtIdx === -1) return;
-          var moved = profiles.splice(srcIdx, 1)[0];
-          profiles.splice(tgtIdx, 0, moved);
-          // Persist order via IPC
-          var order = profiles.map(function (p) {
-            return p.id;
-          });
-          ipcRenderer.send('profile:reorder', order);
-          renderProfiles();
-          toast('Perfil reposicionado', 'ok');
-        });
-      }
-
-      // Make cards draggable after render
-      var origRenderProfiles = renderProfiles;
-      renderProfiles = function () {
-        origRenderProfiles();
-        if (!batchMode) {
-          document.querySelectorAll('.card[data-card-id]').forEach(function (card) {
-            card.setAttribute('draggable', 'true');
-          });
-        }
-      };
-
       // ── v5.2: Batch delete uses custom confirm ──
       var origBatchDelete = document.getElementById('batchDeleteBtn').onclick;
       document.getElementById('batchDeleteBtn').onclick = async function () {
@@ -8695,113 +8257,16 @@
       }
       setInterval(checkConnection, 60000); // Check every 60s
       setTimeout(checkConnection, 3000); // First check after 3s
+      // Click/Enter to manually re-check connection
+      var connEl = document.getElementById('connIndicator');
+      if (connEl) {
+        connEl.addEventListener('click', checkConnection);
+        connEl.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); checkConnection(); }
+        });
+      }
 
       // ── v5.3: Profile Tags System ──
-
-
-
-
-
-
-      // ── v5.3: Session Overview Panel ──
-      var sessionOpenTimes = {}; // { profileId: openTimestamp }
-
-      function updateSessionOverview() {
-        var listEl = document.getElementById('sessionList');
-        if (!listEl) return;
-        var openIds = Object.keys(openWindows);
-        if (!openIds.length) {
-          listEl.innerHTML = '<div class="session-empty">Nenhuma sessão ativa.</div>';
-          return;
-        }
-        listEl.innerHTML = openIds
-          .map(function (id) {
-            var p = profiles.find(function (x) {
-              return x.id === id;
-            });
-            var name = p ? p.name : id;
-            var uptime = sessionOpenTimes[id]
-              ? formatSessionUptime(Date.now() - sessionOpenTimes[id])
-              : '—';
-            return (
-              '<div class="session-item">' +
-              '<span class="session-dot"></span>' +
-              '<div class="session-info">' +
-              '<div class="session-name">' +
-              esc(name) +
-              '</div>' +
-              '<div class="session-uptime">Aberta há ' +
-              uptime +
-              '</div>' +
-              '</div>' +
-              '<button class="session-close" data-close-session="' +
-              id +
-              '" title="Fechar sessão">' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-              '</button>' +
-              '</div>'
-            );
-          })
-          .join('');
-        // Close session handlers
-        listEl.querySelectorAll('.session-close').forEach(function (btn) {
-          btn.onclick = function (e) {
-            e.stopPropagation();
-            var id = btn.getAttribute('data-close-session');
-            ipcRenderer.send('profile:close', id);
-            addActivity('info', 'Sessão fechada: <strong>' + esc(id) + '</strong>');
-          };
-        });
-      }
-
-      function formatSessionUptime(ms) {
-        if (!ms || ms < 1000) return '0s';
-        var seconds = Math.floor(ms / 1000);
-        var hours = Math.floor(seconds / 3600);
-        var minutes = Math.floor((seconds % 3600) / 60);
-        var secs = seconds % 60;
-        if (hours > 0) return hours + 'h ' + minutes + 'm';
-        if (minutes > 0) return minutes + 'm ' + secs + 's';
-        return secs + 's';
-      }
-
-      // Track session open times
-      var origGameWindowStatus = null;
-      // We already have the game-window:status listener, let's add timing
-      ipcRenderer.on('game-window:status', function (_e, data) {
-        if (!data || !data.profileId) return;
-        if (data.open && !sessionOpenTimes[data.profileId]) {
-          sessionOpenTimes[data.profileId] = Date.now();
-        }
-        if (!data.open) {
-          delete sessionOpenTimes[data.profileId];
-        }
-      });
-
-      // ── v5.3: Quick Relaunch All ──
-      document.getElementById('relaunchAllBtn').onclick = function () {
-        var lastSession = JSON.parse(localStorage.getItem(LAST_SESSION_KEY) || '[]');
-        if (!lastSession.length) {
-          toast('Nenhuma sessão anterior encontrada', 'err');
-          return;
-        }
-        var launched = 0;
-        lastSession.forEach(function (id) {
-          // Only launch if not already open
-          if (!openWindows[id]) {
-            var p = profiles.find(function (x) {
-              return x.id === id;
-            });
-            if (p) {
-              origLaunch(id);
-              launched++;
-            }
-          }
-        });
-        if (launched > 0) toast('Relançando ' + launched + ' perfil(is)', 'ok');
-        else toast('Todos os perfis já estão abertos', 'ok');
-      };
-
       // ── v5.3: Sidebar Uptime Counter ──
       var appStartTime = Date.now();
       function updateUptime() {
@@ -8960,7 +8425,7 @@
             return (
               '<div class="quick-launch-item" data-ql-id="' +
               p.id +
-              '" title="' +
+              '" tabindex="0" title="' +
               esc(p.name) +
               ' — ' +
               (p.launchCount || 0) +
@@ -8996,7 +8461,6 @@
         var topNameEl = document.getElementById('statTopName');
         var topDetailEl = document.getElementById('statTopDetail');
         var active7dEl = document.getElementById('statActive7d');
-        var uniqueTagsEl = document.getElementById('statUniqueTags');
         if (!totalPlayEl) return;
         var totalPlayMs = profiles.reduce(function (s, p) {
           return s + (p.totalPlayMs || 0);
@@ -9027,14 +8491,7 @@
           return p.lastUsed && Date.now() - p.lastUsed < sevenDaysMs;
         }).length;
         active7dEl.textContent = active7d;
-        // Unique tags
-        var tagSet = {};
-        profiles.forEach(function (p) {
-          (p.tags || []).forEach(function (t) {
-            tagSet[t] = true;
-          });
-        });
-        uniqueTagsEl.textContent = Object.keys(tagSet).length;
+
       }
 
       // ── v5.4: Dev Tools Subsection Collapsible ──
@@ -9090,14 +8547,12 @@
       initPerfPanel();
       initDevTools();
       initDebugFlag();
-      initDragDrop();
       initAccentPicker();
       initDevSubsections();
       initKeyboardShortcutsV54();
       updateAnalytics();
       renderActivityLog();
       updateEventBadge();
-      updateSessionOverview();
       updateQuickLaunch();
       updateStatsGrid();
       loadFlashCacheInfo();
@@ -9105,8 +8560,6 @@
         initCopyButtons();
         cleanupShine();
       }, 1000);
-      // Session overview refresh timer
-      setInterval(updateSessionOverview, 10000);
       // v5.4: Refresh relative times + active-7d every minute
       setInterval(function () {
         if (profiles.length) {
@@ -9188,7 +8641,7 @@
         try {
           data = await ipcRenderer.invoke('profile:launch-timeline', 7);
         } catch (e) {
-          chart.innerHTML = '<div class="timeline-empty-msg">Erro ao carregar atividade.</div>';
+          chart.innerHTML = '<div class="timeline-empty-msg">Erro ao carregar atividade.<button onclick="loadTimeline()">Tentar novamente</button></div>';
           return;
         }
         if (!Array.isArray(data) || !data.length) {
@@ -9858,9 +9311,6 @@
       initQuickLaunchKeyboard();
       // Show skeleton briefly on first load
       showSkeletonLoader();
-      setTimeout(function () {
-        if (profiles.length > 0) renderProfiles();
-      }, 300);
 
       // ════════════════════════════════════════════════════════════════════
       // v5.8: Statistics Dashboard · Activity Heatmap · Alt+1..9 Hotkeys · Always-on-Top · Count-up · Polish
@@ -10271,30 +9721,6 @@
           });
         });
       })();
-
-      // ── v5.8: Toast slide-in with bounce (refined) ──
-      // NOTE: Use a unique var name (_origToastV58) — v5.5 already declared _origToast,
-      // and reusing the same name would cause infinite recursion (both wrappers would
-      // reference the same script-scope variable, with the later wrapper pointing back
-      // to itself via the earlier wrapper's closure).
-      (function wireToastEnterV58() {
-        if (typeof toast !== 'function') return;
-        var _origToastV58 = toast;
-        toast = function (msg, type) {
-          _origToastV58(msg, type);
-          // Find the most recent toast element and add the v58 enter class
-          var container =
-            document.getElementById('toastContainer') || document.querySelector('.toast-container');
-          if (!container) return;
-          var lastToast = container.lastElementChild;
-          if (lastToast) {
-            lastToast.classList.remove('toast-enter-v58');
-            void lastToast.offsetWidth;
-            lastToast.classList.add('toast-enter-v58');
-          }
-        };
-      })();
-
       // ── v5.8: Button loading state helper (for async actions) ──
       // Usage: withButtonLoading(btnEl, asyncFn) — disables btn, shows spinner, restores on settle
       function withButtonLoading(btn, asyncFn) {
@@ -10490,7 +9916,6 @@
         </div>
       </div>
     </div>
-
 
 
     <!-- v5.8: Heatmap tooltip -->
