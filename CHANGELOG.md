@@ -1,5 +1,37 @@
 # Changelog
 
+## [5.9.29] - 2026-07-18
+
+### Acessibilidade — CRON-2 Focus Trap + ARIA
+
+- **Focus trap em todos os modais e diálogo de confirmação**: Função
+  reutilizável `trapFocus(container)` cicla Tab/Shift+Tab entre elementos
+  focáveis dentro de `profileModal`, `vaultModal` e `confirmOverlay`.
+  Antes, Tab podia escapar para o conteúdo atrás do modal. Cleanup é
+  chamado em todos os pontos de fechamento (cancel, save, Esc, backdrop
+  click).
+
+- **Foco programático ao abrir modais**: `fName` recebe foco ao abrir
+  o modal de perfil (novo ou edição). `fVaultUser` recebe foco ao abrir
+  o modal de credenciais. `confirmCancel` recebe foco ao abrir o diálogo
+  de confirmação. Antes o foco permanecia no botão que abriu o modal.
+
+- **ARIA em diálogo de confirmação**: Adicionado `role="dialog"`,
+  `aria-modal="true"`, `aria-labelledby="confirmTitle"` ao `.confirm-dialog`.
+
+- **Cards com `role="article"` e `aria-label`**: Cada card de perfil agora
+  anuncia seu nome, servidor e região para leitores de tela via
+  `aria-label="Nome — Servidor — Região"`.
+
+- **Ações secundárias visíveis no foco por teclado**: CSS
+  `.card:focus-within .secondary-actions` e `.card:focus .secondary-actions`
+  agora revelam os botões de editar/vault/excluir/duplicar/favoritar quando
+  o card recebe foco via Tab (antes só apareciam em `:hover`).
+
+- **`aria-label` em botões e input**: `#newBtn`, `#searchInput`,
+  `#batchSelectAll`, `#batchExportBtn`, `#batchDeleteBtn`, `#batchCancelBtn`
+  agora possuem `aria-label` descritivos.
+
 ## [5.9.28] - 2026-07-18
 
 ### Estabilidade — CRON-1 Placebo Audit + Otimizações Reais

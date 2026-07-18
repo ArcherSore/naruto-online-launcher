@@ -823,7 +823,9 @@
         opacity: 0;
         transition: opacity 200ms ease;
       }
-      .card:hover .secondary-actions {
+      .card:hover .secondary-actions,
+      .card:focus-within .secondary-actions,
+      .card:focus .secondary-actions {
         opacity: 1;
       }
 
@@ -5720,7 +5722,7 @@
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
               </svg>
             </button>
-            <button class="btn primary" id="newBtn">
+            <button class="btn primary" id="newBtn" title="Criar nova conta" aria-label="Criar nova conta">
               <svg
                 width="14"
                 height="14"
@@ -5791,14 +5793,14 @@
               <div class="batch-bar" id="batchBar">
                 <span class="batch-count" id="batchCount">0 selecionados</span>
                 <div class="batch-actions">
-                  <button class="btn sm" id="batchSelectAll" type="button">Selecionar todos</button>
-                  <button class="btn sm" id="batchExportBtn" type="button">
+                  <button class="btn sm" id="batchSelectAll" type="button" aria-label="Selecionar todas as contas">Selecionar todos</button>
+                  <button class="btn sm" id="batchExportBtn" type="button" aria-label="Exportar contas selecionadas">
                     Exportar selecionados
                   </button>
-                  <button class="btn sm btn-danger" id="batchDeleteBtn" type="button">
+                  <button class="btn sm btn-danger" id="batchDeleteBtn" type="button" aria-label="Excluir contas selecionadas">
                     Excluir selecionados
                   </button>
-                  <button class="btn sm" id="batchCancelBtn" type="button">Cancelar</button>
+                  <button class="btn sm" id="batchCancelBtn" type="button" aria-label="Cancelar seleção">Cancelar</button>
                 </div>
               </div>
               <div class="search-wrap">
@@ -5816,6 +5818,7 @@
                   type="text"
                   id="searchInput"
                   placeholder="Buscar conta por nome, servidor ou região..."
+                  aria-label="Buscar contas"
                 />
                 <button class="search-clear" id="searchClear" type="button">&times;</button>
               </div>
@@ -6791,7 +6794,7 @@
 
     <!-- ═══ Custom Confirm Dialog (v5.2) ═══ -->
     <div class="confirm-overlay" id="confirmOverlay">
-      <div class="confirm-dialog">
+      <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
         <div class="confirm-icon danger" id="confirmIcon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path
@@ -7259,6 +7262,8 @@
         filtered.forEach(function (p, idx) {
           const card = document.createElement('div');
           card.tabIndex = 0;
+          card.setAttribute('role', 'article');
+          card.setAttribute('aria-label', p.name + ' \u2014 ' + (p.server || 'sem servidor') + ' \u2014 ' + (REGIONS[p.region] || p.region));
           card.style.setProperty('--accent', p.color);
           card.style.animationDelay = idx * 60 + 'ms';
           card.setAttribute('data-card-color', p.color);
@@ -7771,6 +7776,8 @@
         if (window._renderTagsInput) window._renderTagsInput();
         document.getElementById('fTags').value = '';
         document.getElementById('profileModal').classList.add('show');
+        document.getElementById('fName').focus();
+        window._profileTrapCleanup = trapFocus(document.querySelector('#profileModal .modal'));
       }
       async function del(id) {
         var p = profiles.find(function (x) {
@@ -7799,6 +7806,8 @@
         document.getElementById('eyeIcon').innerHTML =
           '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
         document.getElementById('vaultModal').classList.add('show');
+        document.getElementById('fVaultUser').focus();
+        window._vaultTrapCleanup = trapFocus(document.querySelector('#vaultModal .modal'));
       }
 
       // ── Modal: Profile ──
@@ -7818,9 +7827,13 @@
         if (window._renderTagsInput) window._renderTagsInput();
         document.getElementById('fTags').value = '';
         document.getElementById('profileModal').classList.add('show');
+        document.getElementById('fName').focus();
+        window._profileTrapCleanup = trapFocus(document.querySelector('#profileModal .modal'));
       };
-      document.getElementById('cancelProfile').onclick = () =>
+      document.getElementById('cancelProfile').onclick = () => {
+        if (window._profileTrapCleanup) { window._profileTrapCleanup(); window._profileTrapCleanup = null; }
         document.getElementById('profileModal').classList.remove('show');
+      }
       document.getElementById('saveProfile').onclick = () => {
         const opts = {
           name: document.getElementById('fName').value.trim(),
@@ -7839,6 +7852,7 @@
         } else {
           ipcRenderer.send('profile:create', opts);
         }
+        if (window._profileTrapCleanup) { window._profileTrapCleanup(); window._profileTrapCleanup = null; }
         document.getElementById('profileModal').classList.remove('show');
       };
 
@@ -7869,8 +7883,10 @@
       }
 
       // ── Modal: Vault ──
-      document.getElementById('cancelVault').onclick = () =>
+      document.getElementById('cancelVault').onclick = () => {
+        if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
         document.getElementById('vaultModal').classList.remove('show');
+      }
       document.getElementById('saveVault').onclick = async () => {
         const u = document.getElementById('fVaultUser').value;
         const p = document.getElementById('fVaultPass').value;
@@ -7878,6 +7894,7 @@
           toast('Usuário e senha obrigatórios', 'err');
           return;
         }
+        if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
         await ipcRenderer.invoke('vault:set', vaultId, u, p);
         toast('Credenciais salvas', 'ok');
         document.getElementById('vaultModal').classList.remove('show');
@@ -9094,7 +9111,9 @@
             return;
           }
           document.getElementById('profileModal').classList.remove('show');
+          if (window._profileTrapCleanup) { window._profileTrapCleanup(); window._profileTrapCleanup = null; }
           document.getElementById('vaultModal').classList.remove('show');
+          if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
         }
       });
 
@@ -9106,7 +9125,28 @@
       };
 
       // ── v5.2: Custom Confirm Dialog ──
+      // Reusable focus trap: returns a cleanup function
+      function trapFocus(container) {
+        var focusable = container.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable.length) return function () {};
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        function handler(e) {
+          if (e.key !== 'Tab') return;
+          if (e.shiftKey) {
+            if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+          } else {
+            if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+          }
+        }
+        container.addEventListener('keydown', handler);
+        return function () { container.removeEventListener('keydown', handler); };
+      }
+
       var _confirmResolve = null;
+      var _confirmTrapCleanup = null;
       function customConfirm(title, message, opts) {
         opts = opts || {};
         var overlay = document.getElementById('confirmOverlay');
@@ -9119,12 +9159,15 @@
         okBtn.className = 'btn ' + (opts.type === 'warn' ? 'primary' : 'btn-danger');
         okBtn.textContent = opts.okText || 'Confirmar';
         overlay.classList.add('show');
+        document.getElementById('confirmCancel').focus();
+        _confirmTrapCleanup = trapFocus(document.querySelector('.confirm-dialog'));
         return new Promise(function (resolve) {
           _confirmResolve = resolve;
         });
       }
       document.getElementById('confirmCancel').onclick = function () {
         document.getElementById('confirmOverlay').classList.remove('show');
+        if (_confirmTrapCleanup) { _confirmTrapCleanup(); _confirmTrapCleanup = null; }
         if (_confirmResolve) {
           _confirmResolve(false);
           _confirmResolve = null;
@@ -9132,6 +9175,7 @@
       };
       document.getElementById('confirmOk').onclick = function () {
         document.getElementById('confirmOverlay').classList.remove('show');
+        if (_confirmTrapCleanup) { _confirmTrapCleanup(); _confirmTrapCleanup = null; }
         if (_confirmResolve) {
           _confirmResolve(true);
           _confirmResolve = null;
@@ -9140,6 +9184,7 @@
       document.getElementById('confirmOverlay').addEventListener('click', function (e) {
         if (e.target === this) {
           this.classList.remove('show');
+          if (_confirmTrapCleanup) { _confirmTrapCleanup(); _confirmTrapCleanup = null; }
           if (_confirmResolve) {
             _confirmResolve(false);
             _confirmResolve = null;
@@ -9175,6 +9220,7 @@
           { type: 'warn', okText: 'Remover' }
         );
         if (!confirmed) return;
+        if (window._vaultTrapCleanup) { window._vaultTrapCleanup(); window._vaultTrapCleanup = null; }
         await ipcRenderer.invoke('vault:remove', vaultId);
         toast('Credenciais removidas', 'ok');
         document.getElementById('vaultModal').classList.remove('show');
