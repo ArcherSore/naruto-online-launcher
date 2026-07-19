@@ -55,7 +55,6 @@ let editingId = null;
 let vaultId = null;
 let notificationsMuted = false;
 let searchQuery = '';
-let viewMode = localStorage.getItem('shinobi-view-mode') || 'grid';
 // v4.5: Track open game windows and auto-login status per profile (real-time)
 let openWindows = {}; // { profileId: true }
 let autoLoginStatus = {}; // { profileId: 'idle'|'loading'|'success'|'error' }
@@ -169,7 +168,7 @@ document.getElementById('searchClear').onclick = function () {
 // ── Render: Profiles ──
 function renderProfiles() {
   const grid = document.getElementById('profileGrid');
-  grid.className = 'grid' + (viewMode === 'list' ? ' list-view' : '');
+  grid.className = 'grid';
   let filtered = profiles;
   if (searchQuery) {
     filtered = profiles.filter(function (p) {
@@ -229,11 +228,50 @@ function renderProfiles() {
     card.tabIndex = 0;
     card.style.animationDelay = idx * 60 + 'ms';
     var favClass = p.favorite ? ' fav-card' : '';
-    card.className =
-      'card region-' + (p.region || 'br') + (p.hasVault ? ' has-vault' : '') + favClass;
+    card.className = 'card' + (p.hasVault ? ' has-vault' : '') + favClass;
     card.setAttribute('data-card-id', p.id);
-    // v5.10.3: stats removidos (ban list) — card foca em identidade + ação
+    // v4.5: Build stats display (launch count, play time, last used)
+    var launchCount = p.launchCount || 0;
+    var playMs = p.totalPlayMs || 0;
+    var lastUsed = p.lastUsed || 0;
     var statsHtml = '';
+    if (launchCount > 0 || playMs > 0) {
+      statsHtml = '<div class="card-stats">';
+      if (launchCount > 0) {
+        statsHtml +=
+          '<div class="stat-item" title="Número de vezes que esta conta foi lançada">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>' +
+          '<span class="val">' +
+          launchCount +
+          'x</span>' +
+          '</div>';
+      }
+      if (playMs > 0) {
+        statsHtml +=
+          '<div class="stat-item" title="Tempo total de jogo">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+          '<span class="val">' +
+          formatPlayTime(playMs) +
+          '</span>' +
+          '</div>';
+      }
+      // v5.4: Last played relative time chip
+      if (lastUsed > 0) {
+        var rel = formatRelativeTime(lastUsed);
+        statsHtml +=
+          '<div class="stat-item last-played-chip ' +
+          (rel.recent ? 'recent' : 'stale') +
+          '" title="Última vez jogada: ' +
+          new Date(lastUsed).toLocaleString('pt-BR') +
+          '">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+          '<span class="val">' +
+          rel.label +
+          '</span>' +
+          '</div>';
+      }
+      statsHtml += '</div>';
+    }
     // v4.5: Build server dropdown (quick switcher)
     var serverOptionsHtml = buildServerOptions(p.server);
     var serverHtml =
@@ -275,21 +313,23 @@ function renderProfiles() {
       windowBadgeHtml =
         '<span class="status-badge open window-badge" style="display:none"><span class="dot"></span> aberta</span>';
     }
-    // v5.10.4: Favorite star lives on the cover (Heroic-style), not in the button row.
-    // Button row keeps ONLY: Editar, Credenciais, Excluir (per user spec).
-    var favStarHtml =
-      '<button class="card-fav-star' +
-      (p.favorite ? ' active' : '') +
+    // v4.6: Favorite button (star)
+    var favBtnHtml =
+      '<button class="btn sm btn-icon-only fav-action' +
+      (p.favorite ? ' fav' : '') +
       '" data-act="fav" data-tip="' +
       (p.favorite ? 'Desfavoritar' : 'Favoritar') +
       '" title="' +
       (p.favorite ? 'Desfavoritar' : 'Favoritar') +
-      '" aria-label="' +
-      (p.favorite ? 'Desfavoritar' : 'Favoritar') +
       '">' +
-      '<svg viewBox="0 0 24 24" fill="' +
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="' +
       (p.favorite ? 'currentColor' : 'none') +
       '" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
+      '</button>';
+    // v4.6: Duplicate button
+    var dupBtnHtml =
+      '<button class="btn sm btn-icon-only dup-action" data-act="dup" data-tip="Duplicar" title="Duplicar">' +
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
       '</button>';
     card.innerHTML = `
       <div class="card-head">
@@ -298,7 +338,6 @@ function renderProfiles() {
           <div class="name">${esc(p.name)}${p.hasVault ? '<span class="lock" title="Auto-login ativo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>' : ''}</div>
           <div class="region" style="margin-top:.1rem">${REGIONS[p.region] || '—'}</div>
         </div>
-        ${favStarHtml}
       </div>
       <div class="card-body">
         ${serverHtml}
@@ -313,18 +352,14 @@ function renderProfiles() {
       <div class="card-actions">
         <button class="btn sm btn-play" data-act="launch"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play</button>
         <div class="secondary-actions">
+          ${favBtnHtml}
+          ${dupBtnHtml}
           <button class="btn sm btn-icon-only" data-act="edit" data-tip="Editar" title="Editar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
           <button class="btn sm btn-icon-only" data-act="vault" data-tip="Credenciais" title="Credenciais"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
           <button class="btn sm btn-icon-only" data-act="del" data-tip="Excluir" title="Excluir"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
         </div>
       </div>`;
     card.addEventListener('click', () => launch(p.id));
-    card.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        launch(p.id);
-      }
-    });
     card.querySelectorAll('[data-act]').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
@@ -534,35 +569,10 @@ function renderEventsSingle(list) {
     return;
   }
   el.innerHTML = '';
-  // v5.11.0: per-type icon SVGs (gold/red/orange — Shinobi palette)
-  var EVENT_ICONS = {
-    exp: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
-    pvp:
-      '<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>',
-    war: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'
-  };
   list.slice(0, 10).forEach(ev => {
     const item = document.createElement('div');
-    var evType = ev.type || 'exp';
     item.className = 'event';
-    // v5.11.0: data-type drives the per-type ::before accent color (gold/red/orange)
-    item.setAttribute('data-type', evType);
-    var iconSvg =
-      EVENT_ICONS[evType] ||
-      '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
-    item.innerHTML =
-      '<div class="event-icon ' +
-      evType +
-      '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-      iconSvg +
-      '</svg></div>' +
-      '<div class="info"><div class="n">' +
-      esc(ev.name) +
-      '</div><div class="t">' +
-      (ev.userTimeLabel || '') +
-      '</div></div><div class="cd">' +
-      (ev.nextFireLabel || '') +
-      '</div>';
+    item.innerHTML = `<div class="info"><div class="n">${esc(ev.name)}</div><div class="t">${ev.userTimeLabel || ''}</div></div><div class="cd">${ev.nextFireLabel || ''}</div>`;
     el.appendChild(item);
   });
 }
@@ -612,15 +622,8 @@ async function openVault(id) {
   document.getElementById('fVaultPass').value = creds ? creds.pass : '';
   // Reset password visibility
   document.getElementById('fVaultPass').type = 'password';
-  var togglePass = document.getElementById('togglePass');
-  if (togglePass) {
-    var svg = togglePass.querySelector('svg');
-    if (svg) {
-      svg.innerHTML =
-        '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
-    }
-    togglePass.classList.remove('on');
-  }
+  document.getElementById('eyeIcon').innerHTML =
+    '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
   document.getElementById('vaultModal').classList.add('show');
 }
 
@@ -733,21 +736,15 @@ document.getElementById('removeVault').onclick = async () => {
 // ── Password visibility toggle ──
 document.getElementById('togglePass').onclick = function () {
   const inp = document.getElementById('fVaultPass');
-  const svg = this.querySelector('svg');
+  const icon = document.getElementById('eyeIcon');
   if (inp.type === 'password') {
     inp.type = 'text';
-    this.classList.add('on');
-    if (svg) {
-      svg.innerHTML =
-        '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
-    }
+    icon.innerHTML =
+      '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
   } else {
     inp.type = 'password';
-    this.classList.remove('on');
-    if (svg) {
-      svg.innerHTML =
-        '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
-    }
+    icon.innerHTML =
+      '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
   }
 };
 
@@ -773,27 +770,22 @@ async function loadOptimization() {
   const gpuBadge = document.getElementById('gpuBadge');
   if (gpuDesc && gpuBadge) {
     const g = status.gpu;
-    const vendorLabels = {
+    var vendorLabels = {
       nvidia: 'NVIDIA',
       amd: 'AMD',
       intel: 'Intel',
       unknown: 'Desconhecida'
     };
-    // v5.11.0: GPU badge is now STRICTLY Shinobi gold (CSS gradient) — no vendor
-    // colors (NVIDIA green / AMD red / Intel blue broke the gold palette).
-    // Vendor is exposed via data-vendor attribute for diagnostics only.
     gpuDesc.textContent = g.description + (g.isPrime ? ' • PRIME (Optimus)' : '');
     gpuBadge.textContent = vendorLabels[g.vendor] || g.vendor;
-    gpuBadge.removeAttribute('data-vendor');
+    // Palette cohesion: GPU badge uses gold accent (Shinobi identity),
+    // not vendor brand colors (NVIDIA green / AMD red / Intel blue break the palette).
+    // Vendor is still visible as text label inside the badge.
     gpuBadge.setAttribute('data-vendor', g.vendor || 'unknown');
     if (g.allGpus && g.allGpus.length > 1) {
       const others = g.allGpus
-        .filter(function (x) {
-          return x.vendor !== g.vendor;
-        })
-        .map(function (x) {
-          return vendorLabels[x.vendor] || x.vendor;
-        });
+        .filter(function (x) { return x.vendor !== g.vendor; })
+        .map(function (x) { return vendorLabels[x.vendor] || x.vendor; });
       if (others.length > 0) {
         gpuDesc.textContent += ' (outras: ' + others.join(', ') + ')';
       }
@@ -820,9 +812,7 @@ async function loadOptimization() {
   // Preset description + active card
   const presetDesc = document.getElementById('presetDesc');
   if (presetDesc) {
-    const activePreset = status.presets.find(function (p) {
-      return p.code === status.preset;
-    });
+    const activePreset = status.presets.find(function (p) { return p.code === status.preset; });
     if (activePreset) {
       presetDesc.textContent = 'Ativo: ' + activePreset.name + ' — ' + activePreset.description;
     }
@@ -837,9 +827,7 @@ async function loadOptimization() {
   ['performance', 'balanced', 'quality'].forEach(function (code) {
     const el = document.querySelector('[data-preset-flags="' + code + '"]');
     if (!el) return;
-    const preset = status.presets.find(function (p) {
-      return p.code === code;
-    });
+    const preset = status.presets.find(function (p) { return p.code === code; });
     if (!preset) return;
     const flags = _presetFlags(code, status);
     el.innerHTML = flags
@@ -904,7 +892,7 @@ document.querySelectorAll('.preset-card').forEach(function (card) {
           presetDesc.textContent = 'Alterado para: ' + code + ' — reinicie para aplicar';
         }
         const hint = document.getElementById('presetRestartHint');
-        if (hint) hint.classList.add('show');
+        if (hint) hint.style.display = 'flex';
         toast('Preset alterado para ' + code + ' — reinicie o launcher', 'ok');
       } else {
         toast('Erro: ' + (res && res.error ? res.error : 'falha'), 'err');
@@ -996,36 +984,21 @@ document.getElementById('advAboutRepo').onclick = function (e) {
 document.getElementById('setNotifications').onclick = function () {
   notificationsMuted = !notificationsMuted;
   this.classList.toggle('on', !notificationsMuted);
-  this.setAttribute('aria-checked', String(!notificationsMuted));
   ipcRenderer.send('events:set-muted', notificationsMuted);
   var mb = document.getElementById('muteBtn');
   if (mb) mb.classList.toggle('on', notificationsMuted);
 };
-document.getElementById('setNotifications').addEventListener('keydown', function (e) {
-  if (e.key === ' ' || e.key === 'Enter') {
-    e.preventDefault();
-    this.click();
-  }
-});
 
-// v5.10.4: "Modo de desempenho" removido (duplicava os presets de Otimização).
-// O controle granular vive na seção "Otimização (GPU + CPU)" via preset cards.
-(function () {
-  var setMode = document.getElementById('setMode');
-  if (setMode) {
-    setMode.onchange = function () {
-      var desc = document.getElementById('modeDesc');
-      if (!desc) return;
-      if (this.value === 'lowpc') {
-        desc.textContent = 'PC Fraco: reduz qualidade do Flash para ganhar FPS';
-        desc.style.color = 'var(--warn)';
-      } else {
-        desc.textContent = 'Padrão: máxima otimização segura';
-        desc.style.color = 'var(--text-faint)';
-      }
-    };
+document.getElementById('setMode').onchange = function () {
+  const desc = document.getElementById('modeDesc');
+  if (this.value === 'lowpc') {
+    desc.textContent = 'PC Fraco: reduz qualidade do Flash para ganhar FPS';
+    desc.style.color = 'var(--warn)';
+  } else {
+    desc.textContent = 'Padrão: máxima otimização segura';
+    desc.style.color = 'var(--text-faint)';
   }
-})();
+};
 
 // ── Server Selector ──
 document.getElementById('btnPickServer').onclick = async () => {
@@ -1727,27 +1700,6 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
     document.getElementById('profileModal').classList.remove('show');
     document.getElementById('vaultModal').classList.remove('show');
-    document.getElementById('confirmOverlay').classList.remove('show');
-    var kbOvl = document.getElementById('kbOverlay');
-    if (kbOvl && kbOvl.classList.contains('show')) {
-      kbOvl.classList.remove('show');
-    }
-    var cmdkOvl = document.getElementById('cmdkOverlay');
-    if (cmdkOvl && !cmdkOvl.hidden) {
-      cmdkOvl.hidden = true;
-    }
-  }
-});
-
-// ── v5.9.21: Backdrop-click-to-close on modals ──
-['profileModal', 'vaultModal'].forEach(function (id) {
-  var overlay = document.getElementById(id);
-  if (overlay) {
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) {
-        overlay.classList.remove('show');
-      }
-    });
   }
 });
 
@@ -1818,7 +1770,14 @@ function initDragDrop() {
   });
 }
 
-// v5.10.3: drag-drop reorder removido (ban list)
+// Make cards draggable after render
+var origRenderProfiles = renderProfiles;
+renderProfiles = function () {
+  origRenderProfiles();
+  document.querySelectorAll('.card[data-card-id]').forEach(function (card) {
+    card.setAttribute('draggable', 'true');
+  });
+};
 
 // ── v5.3: Enhanced Event Rendering ──
 // v5.9.12: agora mostra status ("inicia em" / "ativo" / "encerra em") em vez
@@ -2205,204 +2164,3 @@ async function initWindowControls() {
 
 // ── v5.8: Init sequence ──
 initWindowControls();
-
-// ═══════════════════════════════════════════════════════════════════════
-// v5.10.3: Supplementary init — handlers not in original app.js
-// (import/export, quit, view toggle, batch, flash, version, splash, conn)
-// Appended in same script scope so it can access `let` vars (profiles, viewMode, etc.)
-// ═══════════════════════════════════════════════════════════════════════
-(function initV5103() {
-  // Splash hide
-  var splash = document.getElementById('splash');
-  function hideSplash() {
-    if (splash) splash.classList.add('hidden');
-  }
-  setTimeout(hideSplash, 500);
-
-  // Trigger main to send profiles + events
-  // (app.js already calls ipcRenderer.send('manager:ready') at line ~1909)
-
-  // Version
-  try {
-    ipcRenderer
-      .invoke('launcher:get-version')
-      .then(function (v) {
-        var el = document.getElementById('version');
-        if (el && v && typeof v === 'string') el.textContent = v;
-      })
-      .catch(function () {});
-  } catch (_) {}
-
-  // Flash cache info
-  function loadFlashCacheInfo() {
-    try {
-      ipcRenderer
-        .invoke('flash:cache-info')
-        .then(function (info) {
-          var el = document.getElementById('flashCacheInfo');
-          if (!info || !info.version) {
-            if (el) el.style.display = 'none';
-            return;
-          }
-          if (el) el.style.display = 'block';
-          var v = document.getElementById('flashCacheVersion');
-          var d = document.getElementById('flashCacheDate');
-          if (v) v.textContent = 'Flash ' + info.version;
-          if (d) d.textContent = info.downloadDate || info.date || '';
-        })
-        .catch(function () {});
-    } catch (_) {}
-  }
-  loadFlashCacheInfo();
-
-  // Connection indicator
-  function updateConn() {
-    var ind = document.getElementById('connIndicator');
-    if (!ind) return;
-    var online = navigator.onLine;
-    ind.classList.toggle('off', !online);
-    var lbl = document.getElementById('connLabel');
-    if (lbl) lbl.textContent = online ? 'Online' : 'Offline';
-  }
-  updateConn();
-  window.addEventListener('online', updateConn);
-  window.addEventListener('offline', updateConn);
-
-  // View toggle (grid/list) — viewMode is the `let` from app.js scope
-  var viewGrid = document.getElementById('viewGrid');
-  var viewList = document.getElementById('viewList');
-  if (viewGrid)
-    viewGrid.onclick = function () {
-      if (viewMode === 'grid') return;
-      viewMode = 'grid';
-      localStorage.setItem('shinobi-view-mode', 'grid');
-      viewGrid.classList.add('active');
-      if (viewList) viewList.classList.remove('active');
-      renderProfiles();
-    };
-  if (viewList)
-    viewList.onclick = function () {
-      if (viewMode === 'list') return;
-      viewMode = 'list';
-      localStorage.setItem('shinobi-view-mode', 'list');
-      viewList.classList.add('active');
-      if (viewGrid) viewGrid.classList.remove('active');
-      renderProfiles();
-    };
-  // Apply initial view mode
-  if (viewMode === 'list' && viewList) {
-    viewList.classList.add('active');
-    if (viewGrid) viewGrid.classList.remove('active');
-  }
-
-  // Import / Export / Quit
-  var exportBtn = document.getElementById('exportBtn');
-  if (exportBtn)
-    exportBtn.onclick = async function () {
-      try {
-        var r = await ipcRenderer.invoke('profiles:export-file');
-        if (r && r.ok) toast('Backup exportado', 'ok');
-        else if (r && r.error) toast('Erro: ' + r.error, 'err');
-      } catch (e) {
-        toast('Erro: ' + e.message, 'err');
-      }
-    };
-  var importBtn = document.getElementById('importBtn');
-  if (importBtn)
-    importBtn.onclick = async function () {
-      try {
-        var r = await ipcRenderer.invoke('profiles:import-file');
-        if (r && r.ok) toast('Importados ' + (r.imported || r.count || 0) + ' perfis', 'ok');
-        else if (r && r.error) toast('Erro: ' + r.error, 'err');
-      } catch (e) {
-        toast('Erro: ' + e.message, 'err');
-      }
-    };
-  var quitBtn = document.getElementById('quitBtn');
-  if (quitBtn)
-    quitBtn.onclick = function () {
-      try {
-        ipcRenderer.send('app:quit');
-      } catch (_) {
-        window.close();
-      }
-    };
-
-  // Batch mode (simplified)
-  var batchModeBtn = document.getElementById('batchModeBtn');
-  var batchBar = document.getElementById('batchBar');
-  var batchMode = false;
-  var batchSelected = new Set();
-  function updateBatchBar() {
-    var c = document.getElementById('batchCount');
-    if (c) c.textContent = batchSelected.size + ' selecionados';
-  }
-  if (batchModeBtn)
-    batchModeBtn.onclick = function () {
-      batchMode = !batchMode;
-      batchModeBtn.classList.toggle('on', batchMode);
-      if (batchBar) batchBar.classList.toggle('show', batchMode);
-      if (!batchMode) {
-        batchSelected.clear();
-        updateBatchBar();
-      }
-      renderProfiles();
-    };
-  var batchCancel = document.getElementById('batchCancelBtn');
-  if (batchCancel)
-    batchCancel.onclick = function () {
-      batchMode = false;
-      batchSelected.clear();
-      if (batchModeBtn) batchModeBtn.classList.remove('on');
-      if (batchBar) batchBar.classList.remove('show');
-      renderProfiles();
-    };
-  var batchSelectAll = document.getElementById('batchSelectAll');
-  if (batchSelectAll)
-    batchSelectAll.onclick = function () {
-      profiles.forEach(function (p) {
-        batchSelected.add(p.id);
-      });
-      updateBatchBar();
-      renderProfiles();
-    };
-  var batchDeleteBtn = document.getElementById('batchDeleteBtn');
-  if (batchDeleteBtn)
-    batchDeleteBtn.onclick = function () {
-      if (!batchSelected.size) return;
-      if (!confirm('Excluir ' + batchSelected.size + ' perfis?')) return;
-      batchSelected.forEach(function (id) {
-        try {
-          ipcRenderer.send('profile:delete', id);
-        } catch (_) {}
-      });
-      batchMode = false;
-      batchSelected.clear();
-      if (batchModeBtn) batchModeBtn.classList.remove('on');
-      if (batchBar) batchBar.classList.remove('show');
-    };
-  var batchExportBtn = document.getElementById('batchExportBtn');
-  if (batchExportBtn)
-    batchExportBtn.onclick = function () {
-      ipcRenderer.invoke('profiles:export-file').then(function (r) {
-        if (r && r.ok) toast('Backup exportado', 'ok');
-      });
-    };
-
-  // Nav: load settings/optimization on settings view
-  document.querySelectorAll('.nav-item').forEach(function (item) {
-    item.addEventListener('click', function () {
-      var view = item.getAttribute('data-view');
-      if (view === 'settings') {
-        if (typeof loadSettings === 'function') loadSettings();
-        if (typeof loadOptimization === 'function') loadOptimization();
-      }
-    });
-  });
-
-  // Init dev tools + debug flag + copy buttons
-  // (app.js already calls initDevTools/initDebugFlag/initCopyButtons at line ~1911-1917)
-
-  // Fallback splash hide
-  setTimeout(hideSplash, 2500);
-})();

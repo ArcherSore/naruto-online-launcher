@@ -1,3 +1,40 @@
+# [5.12.0] - 2026-07-19
+
+## Restauração Golden + Unificação de Paleta
+
+### UI/UX — Restauração da golden v5.9.14
+- Restaurada estrutura HTML/CSS/JS da v5.9.14 (última versão ativa do usuário antes dos crons)
+- Sidebar limpa: logo + 3 nav + flash indicator (removidos Importar/Exportar/Min/Max/Sair do footer)
+- Topbar limpa: título + window controls + Nova conta (removidos online indicator, view-toggle, batch-mode)
+- Accounts: search + sort + grid (removidos tag-filter-bar, batch-bar)
+- Events: region tabs (circular pills) + event list (removido session-overview)
+- Settings: 4 seções com icon containers coloridos (Geral, Preferências, Otimização, Avançado)
+- Cards com gold left accent bar (::before 3px) — assinatura visual Shinobi restaurada
+- Removidas features re-adicionadas pelos crons (v5.10.x): view-toggle, batch-mode, session-overview, Heroic cover cards
+
+### Paleta — Unificação Gold
+- 43 ocorrências de rgba(255, 140, 0) → rgba(200, 162, 61) em styles.css (glows/shadows agora gold)
+- GPU badge: removidos inline styles com vendor colors (NVIDIA green, AMD red, Intel blue)
+- GPU badge agora usa gradiente gold via CSS (data-vendor attribute preserva info do vendor)
+- Adicionado --accent-glow: rgba(200, 162, 61, 0.15) ao variables.css
+
+### Código — Qualidade
+- ESLint: 0 erros, 0 warnings (v5.11.0 tinha 4 warnings)
+- Removido gpuIconBox dead code (variável nunca usada após remoção dos inline styles)
+- Separação de concerns restaurada: index.html + styles.css + variables.css + app.js (4 arquivos)
+
+### Validação
+- Jest: 1234/1234 testes, 38/38 suites (zero regressões de backend)
+- ESLint: 0 erros, 0 warnings
+- agent-browser: todos fluxos testados (search, sort, edit modal, credentials, optimization presets)
+- VLM: coesão visual 10/10, identidade gold 10/10, simplicidade 9/10, minimalismo 9/10, mobile 9/10
+- VLM compare vs golden v5.9.14: v5.12.0 supera em todas as 3 telas (Contas 9/10, Eventos 8/10, Configurações 9/10)
+
+### Alinhamento de Crons
+- Criado /home/z/my-project/CRON-GUIDELINES.md (bíblia dos crons)
+- Criado /home/z/my-project/PROPOSALS.md (sistema de propostas para novidades)
+- Crons agora têm regras claras: não adicionar features, não redesenhar UI, focar em código/bugs/deadcode
+
 # Changelog
 
 ## [5.11.0] - 2026-07-20

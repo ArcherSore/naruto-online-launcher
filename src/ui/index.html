@@ -7,1909 +7,24 @@
       content="default-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';"
     />
     <title>Shinobi Launcher</title>
-    <style>
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      :root {
-        /* ── Shinobi Gold identity (v5.11.0 — strict palette) ──
-           Inspired by the launcher icon: golden background, amber gradient,
-           orange detail lines, silver metallic tiara, deep black clothing.
-           Gold family unified to a single bronze-gold (#c8a23d) — more refined
-           than the previous #ffd700 (which read as cartoonish yellow). */
-        --bg: #08080a;
-        --bg-elev: #121214;
-        --bg-card: #18181b;
-        --bg-hover: #1f1f23;
-        --border: #2a2a2e;
-        --border-hover: #3a3a40;
-        --text: #f5f5f6;
-        --text-faint: #8c8c93;
-        --text-dim: #54545a;
-
-        /* Gold family — the Shinobi signature (strict v5.11.0 palette) */
-        --gold: #c8a23d;
-        --gold-bright: #e2c66d;
-        --gold-dim: #8b7230;
-        --amber: #f59e0b;
-        --accent: var(--gold);
-        --accent-hover: var(--gold-bright);
-        --accent-dim: rgba(200, 162, 61, 0.14);
-        --accent-warm: #ff6600;
-        --accent-glow: rgba(200, 162, 61, 0.15);
-
-        /* Silver metallic (tiara-inspired highlights) */
-        --silver: #c0c0c0;
-        --silver-dim: #808080;
-
-        /* Status — semantic ONLY, never for primary accents */
-        --ok: #10b981;
-        --err: #ef4444;
-        --warn: #f59e0b;
-        --danger: #dc2626;
-        --cyan: #06b6d4;
-
-        /* Typography scale (v5.9.4 — 13px base) */
-        --font-xs: 11px;
-        --font-sm: 12px;
-        --font-base: 13px;
-        --font-md: 14px;
-        --font-lg: 15px;
-        --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-        --mono: 'SF Mono', 'JetBrains Mono', Consolas, monospace;
-
-        /* Spacing scale (4px base, v5.9.4) */
-        --space-1: 0.25rem;
-        --space-2: 0.5rem;
-        --space-3: 0.75rem;
-        --space-4: 1rem;
-        --space-5: 1.5rem;
-        --space-6: 2rem;
-
-        /* Radius scale */
-        --radius-sm: 0.25rem;
-        --radius: 0.5rem;
-        --radius-lg: 0.625rem;
-        --radius-full: 9999px;
-
-        --transition: 150ms ease;
-        --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.7);
-        --shadow-gold: 0 4px 16px rgba(200, 162, 61, 0.22);
-      }
-      html,
-      body {
-        height: 100%;
-        background: var(--bg);
-        color: var(--text);
-        font-family: var(--font);
-        font-size: var(--font-base);
-        line-height: 1.45;
-        overflow: hidden;
-        -webkit-font-smoothing: antialiased;
-        user-select: none;
-      }
-
-      /* ═══ SPLASH ── shuriken mark, gold glow ═══ */
-      .splash {
-        position: fixed;
-        inset: 0;
-        background: radial-gradient(circle at center, #15120a 0%, var(--bg) 70%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        transition: opacity 250ms ease;
-      }
-      .splash::before {
-        content: '';
-        position: absolute;
-        width: 220px;
-        height: 220px;
-        border-radius: 50%;
-        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
-        filter: blur(8px);
-      }
-      .splash.hidden {
-        opacity: 0;
-        pointer-events: none;
-      }
-      .splash .shuriken {
-        width: 56px;
-        height: 56px;
-        color: var(--gold);
-        filter: drop-shadow(0 0 12px var(--accent-glow));
-        animation: spin 1.4s linear infinite;
-        position: relative;
-        z-index: 1;
-      }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      /* ── APP LAYOUT — Heroic grid ═══ */
-      .app {
-        display: grid;
-        grid-template-columns: 232px 1fr;
-        height: 100vh;
-        position: relative;
-      }
-      /* Shinobi headband — gold accent line across the very top */
-      .app::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, transparent 0%, var(--gold) 20%, var(--amber) 50%, var(--gold) 80%, transparent 100%);
-        z-index: 100;
-        pointer-events: none;
-      }
-
-      /* ── SIDEBAR ── */
-      .sidebar {
-        background: var(--bg-elev);
-        border-right: 1px solid var(--border);
-        display: flex;
-        flex-direction: column;
-        padding: 18px 0 0;
-        position: relative;
-      }
-      /* Subtle shuriken watermark in sidebar bottom */
-      .sidebar::after {
-        content: '';
-        position: absolute;
-        bottom: 80px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 120px;
-        height: 120px;
-        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffa500' opacity='0.08'><path d='M12 2 L14 9 L21 7 L16 12 L21 17 L14 15 L12 22 L10 15 L3 17 L8 12 L3 7 L10 9 Z'/></svg>");
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: contain;
-        pointer-events: none;
-        opacity: 0.5;
-      }
-      .sidebar-brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 0 18px 18px;
-        border-bottom: 1px solid var(--border);
-        margin-bottom: 14px;
-      }
-      .sidebar-brand .mark {
-        width: 34px;
-        height: 34px;
-        border-radius: var(--radius-sm);
-        background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        box-shadow: 0 2px 10px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-        position: relative;
-        overflow: hidden;
-      }
-      /* Diagonal accent stripe — echoes the icon's clothing detail lines */
-      .sidebar-brand .mark::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(
-          115deg,
-          transparent 38%,
-          rgba(255, 102, 0, 0.55) 42%,
-          rgba(255, 102, 0, 0.55) 48%,
-          transparent 52%
-        );
-        pointer-events: none;
-      }
-      .sidebar-brand .mark svg {
-        width: 18px;
-        height: 18px;
-        color: #000;
-        position: relative;
-        z-index: 1;
-      }
-      .sidebar-brand h1 {
-        font-size: 15px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-shadow: 0 0 12px var(--accent-glow);
-      }
-      .sidebar-brand .ver {
-        font-size: 10px;
-        color: var(--text-faint);
-        font-family: var(--mono);
-        margin-top: 1px;
-      }
-      .nav {
-        flex: 1;
-        padding: 0 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      .nav-item {
-        display: flex;
-        align-items: center;
-        gap: 11px;
-        padding: 9px 12px;
-        border-radius: var(--radius-sm);
-        color: var(--text-faint);
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: 500;
-        transition: var(--transition);
-        position: relative;
-      }
-      .nav-item:hover {
-        background: var(--accent-dim);
-        color: var(--gold);
-      }
-      .nav-item.active {
-        background: var(--accent-dim);
-        color: var(--gold);
-      }
-      .nav-item.active::before {
-        content: '';
-        position: absolute;
-        left: -10px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 18px;
-        background: linear-gradient(180deg, var(--gold), var(--amber));
-        border-radius: 0 2px 2px 0;
-        box-shadow: 0 0 8px var(--accent-glow);
-      }
-      .nav-item svg {
-        width: 17px;
-        height: 17px;
-        flex-shrink: 0;
-      }
-      .nav-badge {
-        margin-left: auto;
-        background: linear-gradient(135deg, var(--gold), var(--amber));
-        color: #000;
-        font-size: 10px;
-        font-weight: 700;
-        padding: 1px 6px;
-        border-radius: 10px;
-        min-width: 18px;
-        text-align: center;
-        box-shadow: 0 0 6px var(--accent-glow);
-      }
-      .nav-badge:not(.show) {
-        display: none;
-      }
-
-      .sidebar-status {
-        padding: 10px 18px;
-        border-top: 1px solid var(--border);
-        margin-top: 10px;
-      }
-      .flash-status {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        font-size: 11px;
-        color: var(--text-faint);
-        margin-bottom: 6px;
-      }
-      .flash-status .dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--gold);
-        box-shadow: 0 0 6px var(--accent-glow);
-      }
-      .sidebar-footer {
-        padding: 10px 12px;
-        border-top: 1px solid var(--border);
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-      }
-      .sidebar-footer button {
-        background: transparent;
-        border: 1px solid var(--border);
-        color: var(--text-faint);
-        padding: 7px 8px;
-        border-radius: var(--radius-sm);
-        font-size: 11px;
-        cursor: pointer;
-        transition: var(--transition);
-        font-family: var(--font);
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-      }
-      .sidebar-footer button:hover {
-        color: var(--gold);
-        border-color: var(--accent);
-        background: var(--accent-dim);
-      }
-      .sidebar-footer button svg {
-        width: 13px;
-        height: 13px;
-      }
-      .sidebar-footer button.full {
-        grid-column: 1 / -1;
-      }
-      .sidebar-footer button.danger:hover {
-        color: var(--err);
-        border-color: var(--err);
-        background: rgba(248, 113, 113, 0.1);
-      }
-
-      /* ── MAIN ── */
-      .main {
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      }
-      .topbar {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 22px;
-        border-bottom: 1px solid var(--border);
-        background: var(--bg);
-        min-height: 56px;
-      }
-      .topbar h2 {
-        font-size: 17px;
-        font-weight: 700;
-        letter-spacing: -0.2px;
-        position: relative;
-        padding-left: 12px;
-      }
-      .topbar h2::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 18px;
-        background: linear-gradient(180deg, var(--gold), var(--amber));
-        border-radius: 0 2px 2px 0;
-      }
-      .topbar .spacer {
-        flex: 1;
-      }
-      .conn-indicator {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 11px;
-        color: var(--text-faint);
-        padding: 5px 10px;
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-      }
-      .conn-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--gold);
-        box-shadow: 0 0 6px var(--accent-glow);
-      }
-      .conn-indicator.off .conn-dot {
-        background: var(--err);
-        box-shadow: 0 0 6px var(--err);
-      }
-      .search {
-        position: relative;
-        width: 220px;
-      }
-      .search input {
-        width: 100%;
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        color: var(--text);
-        padding: 7px 12px 7px 32px;
-        border-radius: var(--radius-sm);
-        font-size: 12px;
-        font-family: var(--font);
-        transition: var(--transition);
-      }
-      .search input:focus {
-        outline: none;
-        border-color: var(--gold);
-        box-shadow: 0 0 0 3px var(--accent-dim);
-      }
-      .search input::placeholder {
-        color: var(--text-dim);
-      }
-      .search > svg {
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 13px;
-        height: 13px;
-        color: var(--text-faint);
-      }
-      .search-clear {
-        position: absolute;
-        right: 8px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: transparent;
-        border: none;
-        color: var(--text-faint);
-        cursor: pointer;
-        font-size: 16px;
-        line-height: 1;
-        display: none;
-        padding: 2px 5px;
-        border-radius: 3px;
-      }
-      .search-clear:hover {
-        color: var(--text);
-        background: var(--bg-hover);
-      }
-      .account-count {
-        font-size: 11px;
-        color: var(--text-faint);
-        font-variant-numeric: tabular-nums;
-      }
-      .sort-select {
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        color: var(--text);
-        padding: 6px 10px;
-        border-radius: var(--radius-sm);
-        font-size: 12px;
-        font-family: var(--font);
-        cursor: pointer;
-      }
-      .sort-select:focus {
-        outline: none;
-        border-color: var(--gold);
-      }
-      .view-toggle {
-        display: flex;
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        overflow: hidden;
-      }
-      .view-toggle button {
-        background: transparent;
-        border: none;
-        color: var(--text-faint);
-        padding: 6px 8px;
-        cursor: pointer;
-        transition: var(--transition);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .view-toggle button.active {
-        background: var(--accent-dim);
-        color: var(--gold);
-      }
-      .view-toggle button svg {
-        width: 14px;
-        height: 14px;
-      }
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: transparent;
-        border: 1px solid var(--border);
-        color: var(--text);
-        padding: 7px 13px;
-        border-radius: var(--radius-sm);
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: var(--transition);
-        font-family: var(--font);
-        white-space: nowrap;
-      }
-      .btn:hover {
-        background: var(--accent-dim);
-        border-color: var(--accent);
-        color: var(--gold);
-      }
-      .btn.primary {
-        background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
-        border-color: var(--amber);
-        color: #000;
-        font-weight: 700;
-        box-shadow: 0 2px 8px var(--accent-glow);
-      }
-      .btn.primary:hover {
-        background: linear-gradient(135deg, var(--gold-bright) 0%, var(--accent-hover) 100%);
-        border-color: var(--accent-hover);
-        box-shadow: 0 4px 14px var(--accent-glow);
-      }
-      .btn.sm {
-        padding: 5px 10px;
-        font-size: 11px;
-      }
-      .btn.icon {
-        padding: 6px 8px;
-      }
-      .btn svg {
-        width: 13px;
-        height: 13px;
-      }
-
-      .content {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px 22px;
-      }
-      .content::-webkit-scrollbar {
-        width: 8px;
-      }
-      .content::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .content::-webkit-scrollbar-thumb {
-        background: var(--border);
-        border-radius: 4px;
-      }
-      .content::-webkit-scrollbar-thumb:hover {
-        background: var(--border-hover);
-      }
-
-      /* ── VIEW ── */
-      .view {
-        display: none;
-      }
-      .view.active {
-        display: block;
-      }
-
-      /* ── BATCH BAR ── */
-      .batch-bar {
-        display: none;
-        align-items: center;
-        gap: 10px;
-        background: var(--accent-dim);
-        border: 1px solid rgba(255, 165, 0, 0.3);
-        border-radius: var(--radius);
-        padding: 9px 13px;
-        margin-bottom: 14px;
-        font-size: 12px;
-      }
-      .batch-bar.show {
-        display: flex;
-      }
-      .batch-count {
-        font-weight: 700;
-        color: var(--gold);
-      }
-      .batch-bar .spacer {
-        flex: 1;
-      }
-
-      /* ── EMPTY STATE ── */
-      .empty-state,
-      .empty {
-        text-align: center;
-        padding: 4rem 2rem;
-        color: var(--text-faint);
-        grid-column: 1 / -1;
-      }
-      .empty-state svg,
-      .empty-shuriken svg {
-        width: 48px;
-        height: 48px;
-        color: var(--text-dim);
-        margin-bottom: 16px;
-      }
-      .empty-shuriken {
-        color: var(--gold);
-        opacity: 0.5;
-        margin-bottom: 16px;
-      }
-      .empty-state h3,
-      .empty h3 {
-        font-size: 16px;
-        color: var(--text);
-        margin-bottom: 6px;
-      }
-      .empty-state p,
-      .empty p {
-        font-size: 12px;
-        margin-bottom: 18px;
-      }
-      .no-results {
-        text-align: center;
-        padding: 3rem 2rem;
-        color: var(--text-faint);
-        grid-column: 1 / -1;
-      }
-      .no-results svg {
-        width: 36px;
-        height: 36px;
-        color: var(--text-dim);
-        margin-bottom: 12px;
-      }
-      .no-results p {
-        font-size: 12px;
-      }
-
-      /* ── LIBRARY GRID ── */
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
-        gap: 18px;
-      }
-      .grid.list-view {
-        grid-template-columns: 1fr;
-      }
-      .grid.list-view .card {
-        flex-direction: row;
-        align-items: center;
-      }
-      .grid.list-view .card-head {
-        width: 200px;
-        height: auto;
-        min-height: 84px;
-      }
-
-      /* ── ACCOUNT CARD (Heroic-style cover) ── */
-      .card {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-        cursor: pointer;
-        transition: var(--transition);
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        animation: cardEnter 0.3s ease both;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-      }
-      /* Shinobi gold left accent — the launcher's visual signature.
-         Dim by default (0.45), brightens to full opacity on hover.
-         Echoes the v5.9.4 pattern but applied to ALL cards (not just hover). */
-      .card::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        background: linear-gradient(180deg, var(--gold) 0%, var(--amber) 100%);
-        opacity: 0.45;
-        transition: opacity 200ms ease;
-        z-index: 5;
-        pointer-events: none;
-      }
-      @keyframes cardEnter {
-        from {
-          opacity: 0;
-          transform: translateY(8px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      .card:hover {
-        border-color: var(--gold);
-        transform: translateY(-2px);
-        box-shadow: var(--shadow), 0 0 0 1px var(--accent-glow), 0 0 18px var(--accent-glow);
-      }
-      .card:hover::before {
-        opacity: 1;
-      }
-      .card:focus-visible {
-        outline: 2px solid var(--gold);
-        outline-offset: 2px;
-      }
-      .card.fav-card {
-        border-color: rgba(200, 162, 61, 0.55);
-      }
-      .card.fav-card::before {
-        opacity: 1;
-      }
-      .card.fav-card::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: var(--radius);
-        box-shadow: inset 0 0 0 1px rgba(200, 162, 61, 0.22);
-        pointer-events: none;
-      }
-
-      /* Cover banner — cohesive dark with unified gold accent stripe.
-         Region differentiation now via text badge, not color noise.
-         This creates visual identity consistency with the launcher icon. */
-      .card-head {
-        height: 84px;
-        padding: var(--space-3) var(--space-4);
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        position: relative;
-        background: linear-gradient(135deg, #1f1f24 0%, #131316 100%);
-        border-top: 2px solid var(--gold);
-      }
-      /* Gold radial glow at top-right corner — reinforces Shinobi identity */
-      .card-head::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(
-          140% 100% at 100% 0%,
-          rgba(200, 162, 61, 0.18) 0%,
-          transparent 55%
-        );
-        pointer-events: none;
-      }
-      /* All regions share the Shinobi gold accent — single visual identity */
-      .card.region-br,
-      .card.region-na,
-      .card.region-eu,
-      .card.region-hk,
-      .card.region-de,
-      .card.region-es,
-      .card.region-pl,
-      .card.region-fr {
-        /* unified: gold stripe + warm glow, no per-region hue noise */
-      }
-      /* Favorite star on cover (Heroic-style) */
-      .card-fav-star {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 2;
-        width: 26px;
-        height: 26px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        border: none;
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(6px);
-        color: rgba(255, 255, 255, 0.7);
-        cursor: pointer;
-        transition: var(--transition);
-      }
-      .card-fav-star:hover {
-        background: rgba(0, 0, 0, 0.55);
-        color: #fff;
-      }
-      .card-fav-star.active {
-        color: var(--gold);
-        background: rgba(200, 162, 61, 0.22);
-        box-shadow: 0 0 8px rgba(200, 162, 61, 0.35);
-      }
-      .card-fav-star svg {
-        width: 13px;
-        height: 13px;
-      }
-
-      .card-avatar {
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(8px);
-        border: 1.5px solid var(--silver-dim);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        font-weight: 700;
-        color: #fff;
-        position: relative;
-        z-index: 1;
-        flex-shrink: 0;
-      }
-      .card-head > div {
-        flex: 1;
-        min-width: 0;
-        position: relative;
-        z-index: 1;
-      }
-      .card-head .name {
-        font-size: 14px;
-        font-weight: 600;
-        color: #fff;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-      }
-      .card-head .name .lock {
-        display: inline-flex;
-        color: var(--gold);
-      }
-      .card-head .name .lock svg {
-        width: 11px;
-        height: 11px;
-      }
-      .card-head .region {
-        font-size: var(--font-xs);
-        color: rgba(255, 255, 255, 0.78);
-        font-family: var(--mono);
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        margin-top: 2px;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-        font-variant-numeric: tabular-nums;
-      }
-
-      .card-body {
-        padding: var(--space-3) var(--space-5);
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-      }
-      .server-switch select {
-        width: 100%;
-        background: var(--bg);
-        border: 1px solid var(--border);
-        color: var(--text);
-        padding: 5px 8px;
-        border-radius: var(--radius-sm);
-        font-size: var(--font-sm);
-        font-family: var(--mono);
-        font-variant-numeric: tabular-nums;
-        cursor: pointer;
-      }
-      .server-switch select:focus {
-        outline: none;
-        border-color: var(--gold);
-      }
-      .card-notes {
-        padding: 6px 8px;
-        background: var(--bg);
-        border-radius: var(--radius-sm);
-        font-size: 11px;
-        color: var(--text-faint);
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .card-notes svg {
-        width: 11px;
-        height: 11px;
-        flex-shrink: 0;
-      }
-      .card-badges {
-        display: flex;
-        gap: 5px;
-        flex-wrap: wrap;
-        padding: 0 var(--space-5) var(--space-3);
-      }
-      .badge,
-      .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        font-size: var(--font-xs);
-        font-weight: 600;
-        padding: 2px 7px;
-        border-radius: 10px;
-        background: var(--bg-hover);
-        color: var(--text-faint);
-      }
-      .badge.ok,
-      .status-badge.idle {
-        background: rgba(200, 162, 61, 0.12);
-        color: var(--gold);
-        border: 1px solid rgba(200, 162, 61, 0.22);
-      }
-      .status-badge .dot {
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        background: currentColor;
-      }
-      .status-badge.active {
-        background: rgba(200, 162, 61, 0.16);
-        color: var(--gold);
-        border: 1px solid rgba(200, 162, 61, 0.3);
-      }
-      .status-badge.open {
-        background: rgba(52, 211, 153, 0.16);
-        color: var(--ok);
-        border: 1px solid rgba(52, 211, 153, 0.3);
-      }
-
-      .card-actions {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-3) var(--space-5) var(--space-4);
-        border-top: 1px solid var(--border);
-        margin-top: auto;
-      }
-      .btn-play {
-        flex: 1;
-        background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
-        border: 1px solid var(--amber);
-        color: #000;
-        font-weight: 700;
-        font-size: 13px;
-        padding: 8px 12px;
-        justify-content: center;
-        letter-spacing: 0.2px;
-        border-radius: var(--radius-sm);
-        cursor: pointer;
-        transition: var(--transition);
-        font-family: var(--font);
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        box-shadow: 0 2px 8px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-      }
-      .btn-play:hover {
-        background: linear-gradient(135deg, var(--gold-bright) 0%, var(--accent-hover) 100%);
-        border-color: var(--accent-hover);
-        box-shadow: 0 4px 14px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-        transform: translateY(-1px);
-      }
-      .btn-play:active {
-        transform: translateY(0);
-        box-shadow: 0 1px 4px var(--accent-glow);
-      }
-      .btn-play svg {
-        width: 12px;
-        height: 12px;
-      }
-      .btn-play.launching {
-        background: var(--bg-hover);
-        color: var(--gold);
-        border-color: var(--gold);
-        pointer-events: none;
-        box-shadow: none;
-      }
-      .secondary-actions {
-        display: flex;
-        gap: 5px;
-      }
-      .btn-icon-only {
-        padding: 7px;
-        border: 1px solid var(--border);
-        background: var(--bg-elev);
-        color: var(--text-faint);
-        border-radius: var(--radius-sm);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: var(--transition);
-      }
-      .btn-icon-only:hover {
-        color: var(--gold);
-        border-color: var(--gold);
-        background: var(--accent-dim);
-      }
-      /* Excluir (delete) button — neutral by default, red tint ONLY on hover */
-      .btn-icon-only[data-act='del']:hover {
-        color: var(--err);
-        border-color: var(--err);
-        background: rgba(239, 68, 68, 0.1);
-      }
-      .btn-icon-only.fav {
-        color: var(--gold);
-        border-color: rgba(200, 162, 61, 0.4);
-      }
-
-      /* ── EVENTS VIEW ── */
-      /* Region tabs — circular pills (v5.9.4 golden pattern, restored in v5.11.0).
-         Inactive: surface + border. Active: gold fill + dark text + glow. */
-      .tabs {
-        display: flex;
-        gap: var(--space-1);
-        margin-bottom: var(--space-4);
-        padding-bottom: 0;
-        overflow-x: auto;
-        flex-wrap: wrap;
-      }
-      .tabs::-webkit-scrollbar {
-        height: 0;
-      }
-      .tab {
-        padding: var(--space-1) var(--space-3);
-        font-size: var(--font-xs);
-        color: var(--text-dim);
-        cursor: pointer;
-        border: 1px solid var(--border);
-        background: var(--bg-elev);
-        border-radius: var(--radius-full);
-        transition: all 200ms ease;
-        font-family: var(--font);
-        font-weight: 500;
-        white-space: nowrap;
-      }
-      .tab:hover {
-        color: var(--text);
-        border-color: var(--border-hover);
-      }
-      .tab.active {
-        color: #0a0a0f;
-        background: var(--gold);
-        border-color: var(--gold);
-        box-shadow: 0 0 12px rgba(200, 162, 61, 0.25);
-        font-weight: 600;
-      }
-      .event-card,
-      .event {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        padding: var(--space-3) var(--space-4);
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        margin-bottom: var(--space-2);
-        transition: var(--transition);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-        position: relative;
-        overflow: hidden;
-      }
-      .event-card:hover,
-      .event:hover {
-        border-color: var(--border-hover);
-        background: var(--bg-hover);
-      }
-      /* Per-type colored left accent bar — appears on hover (v5.9.4 pattern).
-         Dim by default, full opacity on hover. Replaces the static border-left. */
-      .event::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        background: var(--gold);
-        opacity: 0;
-        transition: opacity 150ms ease;
-      }
-      .event:hover::before {
-        opacity: 1;
-      }
-      .event[data-type='exp']::before {
-        background: var(--gold);
-      }
-      .event[data-type='pvp']::before {
-        background: var(--err);
-      }
-      .event[data-type='war']::before {
-        background: var(--accent-warm);
-      }
-      /* Colored icon containers — per type (v5.9.4 pattern, restored in v5.11.0).
-         1.6rem square, rounded, with subtle tinted background + semantic color. */
-      .event-icon {
-        width: 1.6rem;
-        height: 1.6rem;
-        border-radius: var(--radius-sm);
-        background: rgba(200, 162, 61, 0.12);
-        color: var(--gold);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      }
-      .event-icon svg {
-        width: 0.9rem;
-        height: 0.9rem;
-      }
-      .event-icon.exp {
-        background: rgba(200, 162, 61, 0.12);
-        color: var(--gold);
-      }
-      .event-icon.pvp {
-        background: rgba(239, 68, 68, 0.12);
-        color: var(--err);
-      }
-      .event-icon.war {
-        background: rgba(255, 102, 0, 0.12);
-        color: var(--accent-warm);
-      }
-      .event-body,
-      .event .info {
-        flex: 1;
-        min-width: 0;
-      }
-      .event-name,
-      .event .n {
-        font-size: var(--font-md);
-        font-weight: 600;
-        color: var(--text);
-        margin-bottom: 2px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .event-meta,
-      .event .t {
-        font-size: var(--font-xs);
-        color: var(--text-dim);
-        display: flex;
-        gap: var(--space-3);
-        align-items: center;
-        line-height: 1.4;
-        font-variant-numeric: tabular-nums;
-      }
-      .event-status,
-      .event .cd {
-        font-size: var(--font-xs);
-        font-weight: 600;
-        padding: 3px 9px;
-        border-radius: 10px;
-        background: var(--bg-hover);
-        color: var(--text-faint);
-        border: 1px solid var(--border);
-        flex-shrink: 0;
-        font-variant-numeric: tabular-nums;
-      }
-      .status-badge.error {
-        background: rgba(239, 68, 68, 0.18);
-        color: var(--err);
-      }
-      .event-status.active,
-      .event .cd-active {
-        background: rgba(16, 185, 129, 0.16);
-        color: var(--ok);
-        border-color: rgba(16, 185, 129, 0.3);
-      }
-
-      /* ── SETTINGS ── */
-      .settings-section {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        margin-bottom: var(--space-5);
-        overflow: hidden;
-      }
-      .settings-header {
-        padding: var(--space-3) var(--space-4);
-        font-size: var(--font-xs);
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        color: var(--text-faint);
-        border-bottom: 1px solid var(--border);
-        background: var(--bg-elev);
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        position: relative;
-      }
-      .settings-header::before {
-        content: '';
-        width: 3px;
-        height: 12px;
-        background: linear-gradient(180deg, var(--gold), var(--amber));
-        border-radius: 2px;
-        flex-shrink: 0;
-      }
-      .settings-row {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        padding: 13px var(--space-4);
-        border-bottom: 1px solid var(--border);
-        transition: background 150ms ease;
-      }
-      .settings-row:hover {
-        background: rgba(255, 255, 255, 0.015);
-      }
-      .settings-row:last-child {
-        border-bottom: none;
-      }
-      .settings-row.stacked {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-      }
-      .settings-row.stacked > .preset-grid {
-        padding: 0;
-      }
-      .settings-row > div {
-        flex: 1;
-        min-width: 0;
-      }
-      /* Settings-row-icon containers — the KEY visual element (v5.9.4 pattern).
-         1.5rem square, rounded, with colored tinted background per row type.
-         Provides visual rhythm and aids scanning of settings sections. */
-      .settings-row-icon {
-        width: 1.5rem;
-        height: 1.5rem;
-        border-radius: var(--radius-sm);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        margin-right: var(--space-3);
-      }
-      .settings-row-icon svg {
-        width: 0.9rem;
-        height: 0.9rem;
-      }
-      .settings-row-icon.gold {
-        background: rgba(200, 162, 61, 0.12);
-        color: var(--gold);
-      }
-      .settings-row-icon.amber {
-        background: rgba(245, 158, 11, 0.12);
-        color: var(--warn);
-      }
-      .settings-row-icon.green {
-        background: rgba(16, 185, 129, 0.12);
-        color: var(--ok);
-      }
-      .settings-row-icon.red {
-        background: rgba(220, 38, 38, 0.12);
-        color: var(--danger);
-      }
-      .settings-row-icon.cyan {
-        background: rgba(6, 182, 212, 0.12);
-        color: var(--cyan);
-      }
-      .settings-row .label {
-        font-size: var(--font-base);
-        font-weight: 500;
-        color: var(--text);
-        margin-bottom: 2px;
-      }
-      .settings-row .desc {
-        font-size: var(--font-xs);
-        color: var(--text-faint);
-        line-height: 1.4;
-      }
-      .settings-select {
-        background: var(--bg);
-        border: 1px solid var(--border);
-        color: var(--text);
-        padding: 6px 10px;
-        border-radius: var(--radius-sm);
-        font-size: 12px;
-        font-family: var(--font);
-        cursor: pointer;
-        min-width: 140px;
-      }
-      .settings-select:focus {
-        outline: none;
-        border-color: var(--gold);
-      }
-      .toggle {
-        width: 40px;
-        height: 22px;
-        background: var(--border);
-        border-radius: 11px;
-        position: relative;
-        cursor: pointer;
-        transition: var(--transition);
-        flex-shrink: 0;
-        border: 1px solid var(--border-hover);
-      }
-      .toggle::after {
-        content: '';
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 16px;
-        height: 16px;
-        background: #fff;
-        border-radius: 50%;
-        transition: var(--transition);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-      }
-      .toggle.on {
-        background: linear-gradient(135deg, var(--gold), var(--amber));
-        border-color: var(--amber);
-        box-shadow: 0 0 8px var(--accent-glow);
-      }
-      .toggle.on::after {
-        left: 20px;
-      }
-      .toggle:focus-visible {
-        outline: 2px solid var(--gold);
-        outline-offset: 2px;
-      }
-
-      /* ── PRESET CARDS ── */
-      .preset-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 10px;
-        padding: 14px 16px;
-      }
-      .preset-card {
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        padding: 12px;
-        cursor: pointer;
-        transition: var(--transition);
-      }
-      .preset-card:hover {
-        border-color: var(--border-hover);
-        background: var(--bg-hover);
-      }
-      .preset-card.active {
-        border-color: var(--gold);
-        background: var(--accent-dim);
-        box-shadow: 0 0 0 1px var(--accent-glow), 0 0 18px var(--accent-glow);
-        position: relative;
-      }
-      .preset-card.active::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        background: linear-gradient(180deg, var(--gold), var(--amber));
-        border-radius: 3px 0 0 3px;
-      }
-      .preset-card .preset-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text);
-        margin-bottom: 3px;
-      }
-      .preset-card .preset-desc {
-        font-size: 10px;
-        color: var(--text-faint);
-        line-height: 1.4;
-        margin-bottom: 8px;
-      }
-      .preset-card .preset-flags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 3px;
-      }
-      .preset-card .preset-flags span {
-        font-size: 9px;
-        padding: 1px 5px;
-        border-radius: 3px;
-        font-family: var(--mono);
-      }
-      .flag-on {
-        background: rgba(200, 162, 61, 0.12);
-        color: var(--gold);
-        border: 1px solid rgba(200, 162, 61, 0.22);
-      }
-      .flag-off {
-        background: var(--bg-hover);
-        color: var(--text-dim);
-        border: 1px solid var(--border);
-      }
-      .gpu-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 3px 10px;
-        border-radius: var(--radius-full);
-        font-size: var(--font-xs);
-        font-weight: 700;
-        font-family: var(--mono);
-        letter-spacing: 0.5px;
-        background: linear-gradient(135deg, var(--gold), var(--amber));
-        color: #0a0a0f;
-        border: 1px solid var(--amber);
-        box-shadow: 0 1px 4px var(--accent-glow);
-      }
-
-      /* ── DEV TOOLS ── */
-      .dev-subsection {
-        border-bottom: 1px solid var(--border);
-      }
-      .dev-subsection:last-child {
-        border-bottom: none;
-      }
-      .dev-subsection-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 11px 16px;
-        cursor: pointer;
-        user-select: none;
-        transition: var(--transition);
-      }
-      .dev-subsection-header:hover {
-        background: var(--bg-hover);
-      }
-      .dev-subsection-header svg {
-        width: 13px;
-        height: 13px;
-        color: var(--text-faint);
-        transition: transform 0.2s ease;
-      }
-      .dev-subsection-header.collapsed svg {
-        transform: rotate(-90deg);
-      }
-      .dev-subsection-header span {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--text);
-        flex: 1;
-      }
-      .dev-subsection-hint {
-        font-size: 10px;
-        color: var(--text-dim);
-        font-family: var(--mono);
-        flex: 0 !important;
-      }
-      .dev-subsection-body {
-        padding: 0 16px 14px;
-      }
-      .dev-subsection-body.collapsed {
-        display: none;
-      }
-      .dev-btn-group {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-        align-items: center;
-        margin-top: 8px;
-      }
-      .dev-btn-group select,
-      .dev-btn-group input {
-        background: var(--bg);
-        border: 1px solid var(--border);
-        color: var(--text);
-        padding: 5px 8px;
-        border-radius: var(--radius-sm);
-        font-size: 11px;
-        font-family: var(--font);
-      }
-      .dev-btn-group input:focus,
-      .dev-btn-group select:focus {
-        outline: none;
-        border-color: var(--gold);
-      }
-      .dev-result-box {
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        padding: 9px 11px;
-        font-size: 11px;
-        font-family: var(--mono);
-        color: var(--text);
-        margin-top: 8px;
-        overflow-x: auto;
-        white-space: pre-wrap;
-        word-break: break-all;
-        max-height: 280px;
-        overflow-y: auto;
-        position: relative;
-      }
-      .dev-result-box pre {
-        margin: 0;
-        white-space: pre-wrap;
-        word-break: break-all;
-      }
-      .copy-float {
-        position: absolute;
-        top: 6px;
-        right: 6px;
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        color: var(--text-faint);
-        padding: 3px 7px;
-        border-radius: 4px;
-        font-size: 10px;
-        cursor: pointer;
-        font-family: var(--font);
-      }
-      .copy-float:hover {
-        color: var(--gold);
-        border-color: var(--gold);
-      }
-      .jwt-decoder {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-top: 8px;
-      }
-      .jwt-input-wrap {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      .jwt-input-wrap textarea {
-        background: var(--bg);
-        border: 1px solid var(--border);
-        color: var(--text);
-        padding: 7px 9px;
-        border-radius: var(--radius-sm);
-        font-size: 11px;
-        font-family: var(--mono);
-        resize: vertical;
-      }
-      .jwt-input-wrap textarea:focus {
-        outline: none;
-        border-color: var(--gold);
-      }
-      .jwt-output {
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        padding: 9px 11px;
-        font-size: 11px;
-        font-family: var(--mono);
-        overflow-x: auto;
-      }
-      .jwt-output:empty {
-        display: none;
-      }
-
-      /* ── MODALS ── */
-      .modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s ease;
-      }
-      .modal-overlay.show {
-        opacity: 1;
-        pointer-events: auto;
-      }
-      .modal {
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        width: 92%;
-        max-width: 460px;
-        max-height: 88vh;
-        overflow-y: auto;
-        box-shadow: var(--shadow-lg);
-        transform: scale(0.96);
-        transition: transform 0.2s ease;
-      }
-      .modal-overlay.show .modal {
-        transform: scale(1);
-      }
-      .modal-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px 20px;
-        border-bottom: 1px solid var(--border);
-        background: var(--bg);
-      }
-      .modal-head h3 {
-        font-size: 15px;
-        font-weight: 700;
-        position: relative;
-        padding-left: 12px;
-      }
-      .modal-head h3::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 16px;
-        background: linear-gradient(180deg, var(--gold), var(--amber));
-        border-radius: 0 2px 2px 0;
-      }
-      .modal-body {
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-      .modal-foot {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-        padding: 14px 20px;
-        border-top: 1px solid var(--border);
-        background: var(--bg);
-      }
-      .field {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-      }
-      .field label {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--text-faint);
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-      }
-      .field input,
-      .field select,
-      .field textarea {
-        background: var(--bg);
-        border: 1px solid var(--border);
-        color: var(--text);
-        padding: 8px 11px;
-        border-radius: var(--radius-sm);
-        font-size: 13px;
-        font-family: var(--font);
-        transition: var(--transition);
-      }
-      .field input:focus,
-      .field select:focus,
-      .field textarea:focus {
-        outline: none;
-        border-color: var(--gold);
-        box-shadow: 0 0 0 3px var(--accent-dim);
-      }
-      .field textarea {
-        resize: vertical;
-        min-height: 60px;
-      }
-      .field-row {
-        display: flex;
-        gap: 12px;
-      }
-      .field-row .field {
-        flex: 1;
-      }
-      .input-with-btn {
-        display: flex;
-        gap: 6px;
-      }
-      .input-with-btn input {
-        flex: 1;
-      }
-      .field-hint {
-        font-size: 11px;
-        color: var(--text-faint);
-        line-height: 1.45;
-        padding: 8px 10px;
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-      }
-      .field-counter {
-        font-size: 10px;
-        color: var(--text-dim);
-        text-align: right;
-        font-family: var(--mono);
-        font-variant-numeric: tabular-nums;
-        letter-spacing: 0.3px;
-        margin-top: 2px;
-        padding-right: 2px;
-      }
-
-      /* ── BTN DANGER (vault remove) ── */
-      .btn.danger {
-        color: var(--err);
-        border-color: rgba(248, 113, 113, 0.3);
-      }
-      .btn.danger:hover {
-        color: var(--err);
-        border-color: var(--err);
-        background: rgba(248, 113, 113, 0.1);
-      }
-
-      /* ── SETTINGS SUBTITLE (replaces inline) ── */
-      .settings-subtitle {
-        font-size: 10px;
-        color: var(--text-faint);
-        font-weight: 500;
-        text-transform: none;
-        letter-spacing: 0;
-        margin-left: 4px;
-        font-family: var(--mono);
-      }
-
-      /* ── PRESET RESTART HINT (replaces inline) ── */
-      .preset-restart-hint {
-        display: none;
-        align-items: center;
-        gap: 8px;
-        padding: 9px 12px;
-        background: rgba(251, 191, 36, 0.08);
-        border: 1px solid rgba(251, 191, 36, 0.25);
-        border-radius: var(--radius-sm);
-        font-size: 11px;
-        color: var(--warn);
-        margin: 8px 16px 14px;
-      }
-      .preset-restart-hint.show {
-        display: flex;
-      }
-      .preset-restart-hint svg {
-        width: 13px;
-        height: 13px;
-        flex-shrink: 0;
-      }
-
-      /* ── DEV DESC (replaces inline) ── */
-      .dev-desc {
-        font-size: 11px;
-        color: var(--text-faint);
-        margin-top: 8px;
-        line-height: 1.45;
-      }
-
-      /* ── TOAST ── */
-      .toast {
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%) translateY(20px);
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        color: var(--text);
-        padding: 10px 18px;
-        border-radius: var(--radius);
-        font-size: 12px;
-        font-weight: 500;
-        box-shadow: var(--shadow-lg);
-        z-index: 2000;
-        opacity: 0;
-        pointer-events: none;
-        transition: all 0.25s ease;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .toast.show {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-      }
-      .toast.ok {
-        border-color: var(--ok);
-      }
-      .toast.err {
-        border-color: var(--err);
-      }
-      .toast.info {
-        border-color: var(--gold);
-      }
-
-      /* ── VERSION PILL (Shinobi gold) ── */
-      .version-pill {
-        display: inline-block;
-        font-family: var(--mono);
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: 0.3px;
-        color: var(--gold);
-        background: var(--accent-dim);
-        border: 1px solid rgba(255, 165, 0, 0.25);
-        padding: 1px 6px;
-        border-radius: 8px;
-      }
-
-      /* ── CARD ENTRANCE (v58 stagger) ── */
-      @keyframes cardEnterV58 {
-        from {
-          opacity: 0;
-          transform: translateY(10px) scale(0.98);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-      .card-enter-v58 {
-        animation: cardEnterV58 0.35s cubic-bezier(0.2, 0.7, 0.3, 1) both;
-      }
-
-      /* ── VIEW ENTER (v58 fade) ── */
-      @keyframes viewEnterV58 {
-        from {
-          opacity: 0;
-          transform: translateY(6px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      .view-enter-v58 {
-        animation: viewEnterV58 0.25s ease both;
-      }
-
-      /* ── SHINOBI WATERMARK ── subtle spiral in main content bg */
-      .content {
-        position: relative;
-      }
-      .content::before {
-        content: '';
-        position: absolute;
-        top: 20px;
-        right: 30px;
-        width: 180px;
-        height: 180px;
-        background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
-        opacity: 0.4;
-        pointer-events: none;
-        z-index: 0;
-      }
-      .content > * {
-        position: relative;
-        z-index: 1;
-      }
-
-      /* ── RESPONSIVE ── */
-      @media (max-width: 768px) {
-        .app {
-          grid-template-columns: 1fr;
-        }
-        .sidebar {
-          display: none;
-        }
-        .topbar {
-          flex-wrap: wrap;
-          padding: 12px 14px;
-        }
-        .search {
-          width: 100%;
-          order: 10;
-        }
-        .content {
-          padding: 14px;
-        }
-        .grid {
-          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-          gap: 10px;
-        }
-      }
-    </style>
+    <link rel="stylesheet" href="variables.css" />
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="splash" id="splash">
-      <svg class="shuriken" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2 L14 9 L21 7 L16 12 L21 17 L14 15 L12 22 L10 15 L3 17 L8 12 L3 7 L10 9 Z" />
-      </svg>
-    </div>
-
     <div class="app">
-      <!-- ═══ SIDEBAR ═══ -->
+      <!-- ═══ SIDEBAR NAV ═══ -->
       <nav class="sidebar">
-        <div class="sidebar-brand">
-          <div class="mark">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2 L14 9 L21 7 L16 12 L21 17 L14 15 L12 22 L10 15 L3 17 L8 12 L3 7 L10 9 Z" />
-            </svg>
-          </div>
-          <div>
+        <div class="sidebar-logo">
+          <div class="mark"><img src="logo.png" alt="Shinobi Launcher" /></div>
+          <div class="brand">
             <h1>Shinobi</h1>
-            <div class="ver" id="version">v5.11.0</div>
+            <span id="version">v5.12.0</span>
           </div>
         </div>
 
         <div class="nav">
-          <div class="nav-item active" data-view="accounts" tabindex="0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="nav-item active" data-view="accounts">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -1917,18 +32,16 @@
             </svg>
             Contas
           </div>
-          <div class="nav-item" data-view="events" tabindex="0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
+          <div class="nav-item" data-view="events">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
             </svg>
             Eventos
             <span class="nav-badge" id="eventBadge"></span>
           </div>
-          <div class="nav-item" data-view="settings" tabindex="0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="nav-item" data-view="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <circle cx="12" cy="12" r="3" />
               <path
                 d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
@@ -1938,125 +51,111 @@
           </div>
         </div>
 
-        <div class="sidebar-status">
-          <div class="flash-status">
-            <span class="dot"></span>
-            <span id="flashStatus">Pronto</span>
-          </div>
-        </div>
-
-        <div class="sidebar-footer">
-          <button id="importBtn" title="Importar backup criptografado">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Importar
-          </button>
-          <button id="exportBtn" title="Exportar backup criptografado">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            Exportar
-          </button>
-          <button id="wcMinimize" title="Minimizar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-          <button id="wcMaximize" title="Maximizar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="5" y="5" width="14" height="14" rx="1" />
-            </svg>
-          </button>
-          <button id="quitBtn" class="danger full" title="Fechar launcher">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            Sair
-          </button>
+        <div class="flash-indicator">
+          <span class="flash-dot"></span>
+          <span>Flash PPAPI ✓</span>
         </div>
       </nav>
 
       <!-- ═══ MAIN ═══ -->
-      <main class="main">
-        <header class="topbar">
+      <div class="main">
+        <div class="topbar">
           <h2 id="viewTitle">Contas</h2>
-          <div class="spacer"></div>
-          <div class="conn-indicator" id="connIndicator" title="Status de conexão">
-            <span class="conn-dot" id="connDot"></span>
-            <span id="connLabel">Online</span>
-          </div>
-          <div class="search" id="searchWrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input type="text" id="searchInput" placeholder="Buscar conta…" />
-            <button class="search-clear" id="searchClear" type="button">&times;</button>
-          </div>
-          <span class="account-count" id="accountCount"></span>
-          <select id="sortSelect" class="sort-select" title="Ordenar">
-            <option value="favorite">★ Favoritos</option>
-            <option value="name">Nome A-Z</option>
-            <option value="region">Região</option>
-            <option value="recent">Recentes</option>
-          </select>
-          <div class="view-toggle" id="viewToggle" title="Alternar visualização">
-            <button id="viewGrid" class="active" title="Grade" aria-label="Visualização em grade">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="7" height="7" />
-                <rect x="14" y="3" width="7" height="7" />
-                <rect x="14" y="14" width="7" height="7" />
-                <rect x="3" y="14" width="7" height="7" />
+          <div class="actions">
+            <!-- v5.8: Window Controls (always-on-top + minimize + maximize) -->
+            <div class="window-controls">
+              <button
+                class="wc-btn"
+                id="wcAlwaysOnTop"
+                aria-label="Sempre visível"
+                data-tip="Sempre visível"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v20M2 12h20" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+              <button class="wc-btn" id="wcMinimize" aria-label="Minimizar" data-tip="Minimizar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+              <button
+                class="wc-btn"
+                id="wcMaximize"
+                aria-label="Maximizar / Restaurar"
+                data-tip="Maximizar"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="4" y="4" width="16" height="16" rx="1" />
+                </svg>
+              </button>
+            </div>
+            <button class="btn primary" id="newBtn">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-            </button>
-            <button id="viewList" title="Lista" aria-label="Visualização em lista">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="8" y1="6" x2="21" y2="6" />
-                <line x1="8" y1="12" x2="21" y2="12" />
-                <line x1="8" y1="18" x2="21" y2="18" />
-                <line x1="3" y1="6" x2="3.01" y2="6" />
-                <line x1="3" y1="12" x2="3.01" y2="12" />
-                <line x1="3" y1="18" x2="3.01" y2="18" />
-              </svg>
+              Nova conta
             </button>
           </div>
-          <button
-            class="btn icon"
-            id="batchModeBtn"
-            title="Seleção múltipla"
-            aria-label="Modo seleção"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="9 11 12 14 22 4" />
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-            </svg>
-          </button>
-          <button class="btn primary" id="newBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Nova conta
-          </button>
-        </header>
+        </div>
 
         <div class="content">
           <!-- ── View: Accounts ── -->
           <div class="view active" id="view-accounts">
-            <div class="batch-bar" id="batchBar">
-              <span class="batch-count" id="batchCount">0 selecionados</span>
-              <button class="btn sm" id="batchSelectAll">Todos</button>
-              <div class="spacer"></div>
-              <button class="btn sm" id="batchExportBtn">Exportar</button>
-              <button class="btn sm" id="batchDeleteBtn">Excluir</button>
-              <button class="btn sm" id="batchCancelBtn">Cancelar</button>
+            <div class="account-toolbar">
+              <div class="search-wrap">
+                <svg
+                  class="search-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  type="text"
+                  id="searchInput"
+                  placeholder="Buscar conta por nome, servidor ou região..."
+                />
+                <button class="search-clear" id="searchClear" aria-label="Limpar busca">
+                  &times;
+                </button>
+              </div>
+              <div class="toolbar-right">
+                <span class="account-count" id="accountCount"></span>
+                <!-- v4.6: Sort dropdown -->
+                <div class="sort-wrap" data-tip="Ordenar contas" data-tip-pos="right">
+                  <svg
+                    class="sort-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M3 6h18M6 12h12M10 18h4" />
+                  </svg>
+                  <select id="sortSelect">
+                    <option value="favorite">Favoritos primeiro</option>
+                    <option value="name">Nome (A-Z)</option>
+                    <option value="lastUsed">Último uso</option>
+                    <option value="launchCount">Mais usado</option>
+                    <option value="totalPlayMs">Tempo de jogo</option>
+                    <option value="region">Região</option>
+                    <option value="createdAt">Criação</option>
+                  </select>
+                </div>
+              </div>
             </div>
             <div class="grid" id="profileGrid"></div>
           </div>
@@ -2071,17 +170,19 @@
           <div class="view" id="view-settings">
             <div class="settings-section">
               <div class="settings-header">Geral</div>
-              <div class="settings-row">
-                <div class="settings-row-icon gold" aria-hidden="true">
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon orange">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10" />
                     <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    <path
+                      d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+                    />
                   </svg>
                 </div>
-                <div>
+                <div style="flex: 1">
                   <div class="label">Idioma</div>
-                  <div class="desc">Idioma da interface</div>
+                  <div class="desc">Idioma da interface do launcher</div>
                 </div>
                 <select id="setLang" class="settings-select">
                   <option value="pt">Português</option>
@@ -2092,216 +193,67 @@
                   <option value="fr">Français</option>
                 </select>
               </div>
-            </div>
-
-            <div class="settings-section">
-              <div class="settings-header">Preferências</div>
-              <div class="settings-row">
-                <div class="settings-row-icon amber" aria-hidden="true">
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon purple">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                   </svg>
                 </div>
-                <div>
-                  <div class="label">Notificações de eventos</div>
-                  <div class="desc">Alertas quando eventos do jogo estão ativos</div>
+                <div style="flex: 1">
+                  <div class="label">Modo de desempenho</div>
+                  <div class="desc" id="modeDesc">Padrão: máxima otimização segura</div>
                 </div>
-                <div
-                  class="toggle on"
-                  id="setNotifications"
-                  role="switch"
-                  aria-checked="true"
-                  tabindex="0"
-                ></div>
+                <select id="setMode" class="settings-select">
+                  <option value="default">Padrão Otimizado</option>
+                  <option value="lowpc">PC Fraco</option>
+                </select>
               </div>
             </div>
 
-            <div class="settings-section" id="devToolsSection" style="display: none">
+            <!-- ═══ v5.0.0: Optimization Section ═══ -->
+            <div class="settings-section" id="optimizationSection">
               <div class="settings-header">
-                Dev Tools
-                <span class="settings-subtitle">SHINOBI_DEBUG · tempmail + API + inspector + JWT</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px"
+                >
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+                Otimização
+                <span
+                  style="
+                    font-size: var(--font-xs);
+                    color: var(--text-faint);
+                    font-weight: var(--weight-regular);
+                    margin-left: 0.4rem;
+                  "
+                  >GPU + CPU + Vulkan • v5.0</span
+                >
               </div>
 
-              <!-- Tempmail -->
-              <div class="dev-subsection">
-                <div class="dev-subsection-header" data-dev-toggle>
+              <!-- GPU detectada -->
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon purple" id="gpuIconBox">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9" />
+                    <rect x="2" y="6" width="20" height="12" rx="2" />
+                    <circle cx="8" cy="12" r="2" />
+                    <circle cx="16" cy="12" r="2" />
+                    <path d="M2 20h20" />
                   </svg>
-                  <span>Criar conta tempmail</span>
-                  <span class="dev-subsection-hint">mail.tm + Naruto API</span>
                 </div>
-                <div class="dev-subsection-body">
-                  <div class="dev-desc">
-                    Cria email temporário (mail.tm) + registra via API. Retorna JWT de 2h — sem
-                    Flash, sem CAPTCHA.
-                  </div>
-                  <div class="dev-btn-group">
-                    <button class="btn sm primary" id="devTempmailCreate" type="button">
-                      Criar conta tempmail
-                    </button>
-                  </div>
-                  <div id="devTempmailResult" class="dev-result-box" style="display: none"></div>
+                <div style="flex: 1">
+                  <div class="label">GPU detectada</div>
+                  <div class="desc" id="gpuDesc">Detectando…</div>
                 </div>
+                <div class="gpu-badge" id="gpuBadge">—</div>
               </div>
 
-              <!-- API Login -->
-              <div class="dev-subsection">
-                <div class="dev-subsection-header" data-dev-toggle>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                  <span>Login via API</span>
-                  <span class="dev-subsection-hint">passport.oasgames.com</span>
-                </div>
-                <div class="dev-subsection-body">
-                  <div class="dev-desc">
-                    Autentica via passport.oasgames.com e injeta cookie oas_user na sessão do
-                    perfil.
-                  </div>
-                  <div class="dev-btn-group">
-                    <select
-                      id="devApiLoginProfile"
-                      class="settings-select"
-                      style="min-width: 150px"
-                    ></select>
-                    <input
-                      id="devApiLoginEmail"
-                      type="email"
-                      placeholder="email"
-                      style="flex: 1; min-width: 120px"
-                    />
-                    <input
-                      id="devApiLoginPass"
-                      type="password"
-                      placeholder="senha"
-                      style="flex: 1; min-width: 100px"
-                    />
-                    <button class="btn sm" id="devApiLoginBtn" type="button">Login API</button>
-                  </div>
-                  <div class="dev-btn-group">
-                    <button class="btn sm" id="devSessionCheck" type="button">
-                      Verificar sessão JWT
-                    </button>
-                  </div>
-                  <div id="devApiLoginResult" class="dev-result-box" style="display: none"></div>
-                </div>
-              </div>
-
-              <!-- JWT Decoder -->
-              <div class="dev-subsection">
-                <div class="dev-subsection-header" data-dev-toggle>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                  <span>Decodificador JWT</span>
-                  <span class="dev-subsection-hint">header + payload</span>
-                </div>
-                <div class="dev-subsection-body">
-                  <div class="jwt-decoder">
-                    <div class="jwt-input-wrap">
-                      <textarea
-                        id="jwtInput"
-                        placeholder="Cole o token JWT aqui (eyJhbGciOiJIUzI1NiIs...)"
-                        rows="2"
-                      ></textarea>
-                      <button
-                        class="btn sm primary"
-                        id="jwtDecodeBtn"
-                        type="button"
-                        style="align-self: flex-end"
-                      >
-                        Decodificar
-                      </button>
-                    </div>
-                    <div class="jwt-output" id="jwtOutput"></div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Inspector -->
-              <div class="dev-subsection">
-                <div class="dev-subsection-header" data-dev-toggle>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                  <span>Inspector de Rede</span>
-                  <span class="dev-subsection-hint">webRequest capture</span>
-                </div>
-                <div class="dev-subsection-body">
-                  <div class="dev-desc">
-                    Captura requisições HTTP do jogo via webRequest. Mostra URLs, cookies oas_user
-                    (JWT decodificado) e estatísticas.
-                  </div>
-                  <div class="dev-btn-group">
-                    <select
-                      id="devInspectorProfile"
-                      class="settings-select"
-                      style="min-width: 150px"
-                    ></select>
-                    <button class="btn sm" id="devInspectorEnable" type="button">
-                      Ativar captura
-                    </button>
-                    <button class="btn sm" id="devInspectorDisable" type="button" disabled>
-                      Desativar
-                    </button>
-                    <button class="btn sm" id="devInspectorRefresh" type="button">Atualizar</button>
-                    <button class="btn sm" id="devInspectorClear" type="button">Limpar</button>
-                  </div>
-                  <div
-                    id="devInspectorStats"
-                    class="dev-result-box"
-                    style="display: none; margin-top: 8px"
-                  ></div>
-                  <div
-                    id="devInspectorEntries"
-                    class="dev-result-box"
-                    style="display: none; max-height: 280px; margin-top: 8px"
-                  ></div>
-                </div>
-              </div>
-
-              <!-- Source Extractor -->
-              <div class="dev-subsection">
-                <div class="dev-subsection-header" data-dev-toggle>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                  <span>Source Extractor + DevTools</span>
-                  <span class="dev-subsection-hint">HTML + cookies + F5 + F12</span>
-                </div>
-                <div class="dev-subsection-body">
-                  <div class="dev-desc">
-                    Extrai HTML da página Flash, lista cookies, recarrega (F5) e abre DevTools
-                    (F12).
-                  </div>
-                  <div class="dev-btn-group">
-                    <select
-                      id="devSourceProfile"
-                      class="settings-select"
-                      style="min-width: 150px"
-                    ></select>
-                    <button class="btn sm" id="devExtractSource" type="button">
-                      Extrair fonte
-                    </button>
-                    <button class="btn sm" id="devListCookies" type="button">Listar cookies</button>
-                    <button class="btn sm" id="devReloadGame" type="button">Recarregar (F5)</button>
-                    <button class="btn sm" id="devToggleDt" type="button">DevTools (F12)</button>
-                  </div>
-                  <div
-                    id="devSourceResult"
-                    class="dev-result-box"
-                    style="display: none; max-height: 320px; margin-top: 8px"
-                  ></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="settings-section">
-              <div class="settings-header">Otimização (GPU + CPU)</div>
-              <div class="settings-row">
-                <div class="settings-row-icon gold" aria-hidden="true">
+              <!-- CPU topology -->
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon blue">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="4" y="4" width="16" height="16" rx="2" />
                     <rect x="9" y="9" width="6" height="6" />
@@ -2315,121 +267,110 @@
                     <line x1="1" y1="14" x2="4" y2="14" />
                   </svg>
                 </div>
-                <div>
-                  <div class="label">GPU detectada</div>
-                  <div class="desc" id="gpuDesc">Detectando…</div>
+                <div style="flex: 1">
+                  <div class="label">Topologia de CPU</div>
+                  <div class="desc" id="cpuDesc">Detectando núcleos…</div>
                 </div>
-                <span
-                  class="gpu-badge"
-                  id="gpuBadge"
-                  >—</span
-                >
               </div>
-              <div class="settings-row">
-                <div class="settings-row-icon gold" aria-hidden="true">
+
+              <!-- Preset selector -->
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon red">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="6" width="20" height="12" rx="2" />
-                    <line x1="6" y1="10" x2="6" y2="10" />
-                    <line x1="10" y1="10" x2="10" y2="10" />
-                    <line x1="14" y1="10" x2="14" y2="10" />
-                    <line x1="18" y1="10" x2="18" y2="10" />
-                    <line x1="6" y1="14" x2="6" y2="14" />
-                    <line x1="10" y1="14" x2="10" y2="14" />
-                    <line x1="14" y1="14" x2="14" y2="14" />
-                    <line x1="18" y1="14" x2="18" y2="14" />
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5" />
+                    <path d="M2 12l10 5 10-5" />
                   </svg>
                 </div>
-                <div>
-                  <div class="label">CPU</div>
-                  <div class="desc" id="cpuDesc">Detectando…</div>
+                <div style="flex: 1">
+                  <div class="label">Preset de Otimização</div>
+                  <div class="desc" id="presetDesc">Carregando presets…</div>
                 </div>
               </div>
-              <div class="settings-row stacked">
-                <div style="display:flex;align-items:center">
-                  <div class="settings-row-icon gold" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <line x1="4" y1="21" x2="4" y2="14" />
-                      <line x1="4" y1="10" x2="4" y2="3" />
-                      <line x1="12" y1="21" x2="12" y2="12" />
-                      <line x1="12" y1="8" x2="12" y2="3" />
-                      <line x1="20" y1="21" x2="20" y2="16" />
-                      <line x1="20" y1="12" x2="20" y2="3" />
-                      <line x1="1" y1="14" x2="7" y2="14" />
-                      <line x1="9" y1="8" x2="15" y2="8" />
-                      <line x1="17" y1="16" x2="23" y2="16" />
-                    </svg>
+
+              <!-- Preset cards -->
+              <div class="preset-cards" id="presetCards">
+                <button class="preset-card" data-preset="performance" type="button">
+                  <div class="preset-card-header">
+                    <span class="preset-icon">🚀</span>
+                    <span class="preset-name">Performance</span>
                   </div>
-                  <div>
-                    <div class="label">Preset de otimização</div>
-                    <div class="desc" id="presetDesc">Carregando presets…</div>
+                  <div class="preset-card-desc">Máximo FPS • Sem vsync • CPU em P-cores • Prioridade alta</div>
+                  <div class="preset-card-flags" data-preset-flags="performance"></div>
+                </button>
+                <button class="preset-card" data-preset="balanced" type="button">
+                  <div class="preset-card-header">
+                    <span class="preset-icon">⚖️</span>
+                    <span class="preset-name">Balanceado</span>
                   </div>
-                </div>
-                <div class="preset-grid">
-                  <div class="preset-card" data-preset="performance">
-                    <div class="preset-name">Performance</div>
-                    <div class="preset-desc">Máximo FPS — sem vsync, Vulkan, heap expandido</div>
-                    <div class="preset-flags" data-preset-flags="performance"></div>
+                  <div class="preset-card-desc">Padrão • Vsync 60fps • CPU em P-cores • Estável</div>
+                  <div class="preset-card-flags" data-preset-flags="balanced"></div>
+                </button>
+                <button class="preset-card" data-preset="quality" type="button">
+                  <div class="preset-card-header">
+                    <span class="preset-icon">🌿</span>
+                    <span class="preset-name">Qualidade</span>
                   </div>
-                  <div class="preset-card" data-preset="balanced">
-                    <div class="preset-name">Balanceado</div>
-                    <div class="preset-desc">Vsync 60fps — estável e fluido</div>
-                    <div class="preset-flags" data-preset-flags="balanced"></div>
-                  </div>
-                  <div class="preset-card" data-preset="quality">
-                    <div class="preset-name">Qualidade</div>
-                    <div class="preset-desc">PC fraco — cede CPU, sem GPU raster</div>
-                    <div class="preset-flags" data-preset-flags="quality"></div>
-                  </div>
-                </div>
-                <div
-                  id="presetRestartHint"
-                  class="preset-restart-hint"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-                    />
+                  <div class="preset-card-desc">Compatibilidade • Cede prioridade • Sem affinity • Multitarefa</div>
+                  <div class="preset-card-flags" data-preset-flags="quality"></div>
+                </button>
+              </div>
+
+              <!-- Restart hint -->
+              <div class="settings-row with-icon" id="presetRestartHint" style="display: none">
+                <div class="settings-row-icon amber">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                     <line x1="12" y1="9" x2="12" y2="13" />
                     <line x1="12" y1="17" x2="12.01" y2="17" />
                   </svg>
-                  Reinicie o launcher para aplicar o preset.
-                  <button
-                    class="btn sm"
-                    id="btnRestartForPreset"
-                    type="button"
-                    style="margin-left: auto"
-                  >
-                    Reiniciar agora
-                  </button>
                 </div>
+                <div style="flex: 1">
+                  <div class="label">Reinício necessário</div>
+                  <div class="desc">As flags Chromium só são aplicadas no boot. Reinicie o launcher para ativar o novo preset.</div>
+                </div>
+                <button class="btn sm" id="btnRestartForPreset">Reiniciar agora</button>
               </div>
             </div>
 
             <div class="settings-section">
+              <div class="settings-header">Preferências</div>
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon amber">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                </div>
+                <div style="flex: 1">
+                  <div class="label">Notificações</div>
+                  <div class="desc">Alertas de eventos do jogo — mesmo toggle do sino no topo</div>
+                </div>
+                <div class="toggle on" id="setNotifications"></div>
+              </div>
+            </div>
+            <div class="settings-section">
               <div class="settings-header">Avançado</div>
-              <div class="settings-row">
-                <div class="settings-row-icon green" aria-hidden="true">
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon green">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="11" width="18" height="11" rx="2" />
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
                 </div>
-                <div>
+                <div style="flex: 1">
                   <div class="label">Backup criptografado</div>
-                  <div class="desc">Exporta perfis + credenciais com AES-256-GCM</div>
+                  <div class="desc">
+                    Exporta perfis + credenciais com AES-256-GCM (senha mestra)
+                  </div>
                 </div>
-                <div style="display: flex; gap: 6px">
-                  <button class="btn sm" id="advBackupExport" type="button">Exportar</button>
-                  <button class="btn sm" id="advBackupImport" type="button">Importar</button>
+                <div style="display: flex; gap: 0.4rem">
+                  <button class="btn sm" id="advBackupExport">Exportar</button>
+                  <button class="btn sm" id="advBackupImport">Importar</button>
                 </div>
               </div>
-              <div class="settings-row">
-                <div class="settings-row-icon red" aria-hidden="true">
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon red">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
@@ -2437,169 +378,390 @@
                     <line x1="16" y1="17" x2="8" y2="17" />
                   </svg>
                 </div>
-                <div>
-                  <div class="label">Diagnóstico</div>
-                  <div class="desc">.zip com logs + config (sanitizado, sem senhas)</div>
+                <div style="flex: 1">
+                  <div class="label">Exportar diagnóstico</div>
+                  <div class="desc">
+                    Gera um .zip com logs, config e infos do sistema (sanitizado, sem senhas). Pra
+                    anexar em GitHub Issues.
+                  </div>
                 </div>
-                <button class="btn sm" id="advExportDiag" type="button">Exportar .zip</button>
+                <button class="btn sm" id="advExportDiag">Exportar .zip</button>
               </div>
-              <div class="settings-row">
-                <div class="settings-row-icon cyan" aria-hidden="true">
+              <div class="settings-row with-icon">
+                <div class="settings-row-icon blue">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="16" x2="12" y2="12" />
                     <line x1="12" y1="8" x2="12.01" y2="8" />
                   </svg>
                 </div>
-                <div>
-                  <div class="label">Sobre</div>
-                  <div class="desc" id="advAboutVersion">Shinobi Launcher v5.11.0</div>
+                <div style="flex: 1">
+                  <div class="label">Sobre o launcher</div>
+                  <div class="desc">Shinobi Launcher v5.12.0 • Electron 11 • Flash PPAPI 34</div>
                 </div>
-                <a class="btn sm" id="advAboutRepo" href="#" type="button" title="GitHub">GitHub</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-
-    <!-- ═══ MODAL: Nova/Editar conta ═══ -->
-    <div class="modal-overlay" id="profileModal" role="dialog" aria-modal="true">
-      <div class="modal">
-        <div class="modal-head">
-          <h3 id="modalTitle">Nova conta</h3>
-        </div>
-        <div class="modal-body">
-          <div class="field">
-            <label for="fName">Nome da conta</label>
-            <input type="text" id="fName" placeholder="Ex: Main BR" maxlength="32" />
-          </div>
-          <div class="field-row">
-            <div class="field">
-              <label for="fRegion">Região</label>
-              <select id="fRegion">
-                <option value="br">BR — Brasil</option>
-                <option value="na">NA — América do Norte</option>
-                <option value="eu">EU — Europa</option>
-                <option value="hk">HK — Hong Kong</option>
-                <option value="de">DE — Alemanha</option>
-                <option value="es">ES — Espanha</option>
-                <option value="pl">PL — Polônia</option>
-                <option value="fr">FR — França</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="fServer">Servidor</label>
-              <div class="input-with-btn">
-                <input type="text" id="fServer" placeholder="s1, s2, s3…" />
-                <button class="btn sm" id="btnPickServer" type="button" title="Buscar servidores">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    style="width: 13px; height: 13px"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="field-hint" id="serverHint" style="display: none"></div>
-          <div class="field">
-            <label for="fNotes">Notas (opcional)</label>
-            <textarea
-              id="fNotes"
-              placeholder="Ex: conta secundária, farm…"
-              maxlength="120"
-            ></textarea>
-            <div class="field-counter" id="notesCounter">0/120</div>
-          </div>
-          <button
-            class="btn sm"
-            id="autoCreateBtn"
-            type="button"
-            style="align-self: flex-start; display: none"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              style="width: 13px; height: 13px"
-            >
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
-            Criar via tempmail (auto)
-          </button>
-        </div>
-        <div class="modal-foot">
-          <button class="btn" id="cancelProfile" type="button">Cancelar</button>
-          <button class="btn primary" id="saveProfile" type="button">Salvar</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ═══ MODAL: Vault (credenciais) ═══ -->
-    <div class="modal-overlay" id="vaultModal" role="dialog" aria-modal="true">
-      <div class="modal">
-        <div class="modal-head">
-          <h3>Credenciais — <span id="vaultProfileName">—</span></h3>
-        </div>
-        <div class="modal-body">
-          <div class="field">
-            <label for="fVaultUser">Usuário / Email</label>
-            <input type="text" id="fVaultUser" placeholder="email@exemplo.com" />
-          </div>
-          <div class="field">
-            <label for="fVaultPass">Senha</label>
-            <div class="input-with-btn">
-              <input type="password" id="fVaultPass" placeholder="••••••••" />
-              <button class="btn sm" id="togglePass" type="button" title="Mostrar/ocultar">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  style="width: 13px; height: 13px"
+                <a class="btn sm" id="advAboutRepo" href="#" title="Abrir repositório no GitHub"
+                  >GitHub</a
                 >
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </button>
+              </div>
+            </div>
+
+            <div class="settings-section" id="devToolsSection" style="display: none">
+              <div class="settings-header">
+                Dev Tools (v5.0)
+                <span
+                  style="
+                    font-size: var(--font-xs);
+                    color: var(--text-faint);
+                    font-weight: var(--weight-regular);
+                    margin-left: 0.4rem;
+                  "
+                  >SHINOBI_DEBUG · tempmail + API login + inspector + JWT</span
+                >
+              </div>
+              <!-- Tempmail -->
+              <div class="dev-subsection">
+                <div class="dev-subsection-header" data-dev-toggle>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                  <span>Criar conta tempmail</span>
+                  <span class="dev-subsection-hint">mail.tm + Naruto API</span>
+                </div>
+                <div class="dev-subsection-body">
+                  <div
+                    class="settings-row"
+                    style="
+                      flex-direction: column;
+                      align-items: stretch;
+                      gap: 0.5rem;
+                      padding: 0;
+                      border: 0;
+                    "
+                  >
+                    <div class="desc">
+                      Cria email temporário (mail.tm) + registra no Naruto Online via API. Retorna
+                      JWT de 2h — sem Flash, sem CAPTCHA, sem verificação de email.
+                    </div>
+                    <button class="btn sm" id="devTempmailCreate" style="align-self: flex-start">
+                      Criar conta tempmail
+                    </button>
+                    <div id="devTempmailResult" class="dev-result-box" style="display: none"></div>
+                  </div>
+                </div>
+              </div>
+              <!-- API Login -->
+              <div class="dev-subsection">
+                <div class="dev-subsection-header" data-dev-toggle>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                  <span>Login via API</span>
+                  <span class="dev-subsection-hint">passport.oasgames.com</span>
+                </div>
+                <div class="dev-subsection-body">
+                  <div
+                    class="settings-row"
+                    style="
+                      flex-direction: column;
+                      align-items: stretch;
+                      gap: 0.5rem;
+                      padding: 0;
+                      border: 0;
+                    "
+                  >
+                    <div class="desc">
+                      Autentica via passport.oasgames.com e injeta cookie oas_user na session do
+                      perfil selecionado.
+                    </div>
+                    <div class="dev-btn-group">
+                      <select
+                        id="devApiLoginProfile"
+                        class="settings-select"
+                        style="min-width: 160px"
+                      ></select>
+                      <input
+                        id="devApiLoginEmail"
+                        type="email"
+                        placeholder="email"
+                        style="
+                          flex: 1;
+                          min-width: 140px;
+                          background: var(--bg);
+                          border: 1px solid var(--border);
+                          border-radius: var(--radius);
+                          padding: 0.4rem 0.6rem;
+                          color: var(--text);
+                          font-size: var(--font-sm);
+                        "
+                      />
+                      <input
+                        id="devApiLoginPass"
+                        type="password"
+                        placeholder="senha"
+                        style="
+                          flex: 1;
+                          min-width: 100px;
+                          background: var(--bg);
+                          border: 1px solid var(--border);
+                          border-radius: var(--radius);
+                          padding: 0.4rem 0.6rem;
+                          color: var(--text);
+                          font-size: var(--font-sm);
+                        "
+                      />
+                      <button class="btn sm" id="devApiLoginBtn">Login API</button>
+                    </div>
+                    <div class="dev-btn-group">
+                      <button class="btn sm" id="devSessionCheck">Verificar sessão JWT</button>
+                    </div>
+                    <div id="devApiLoginResult" class="dev-result-box" style="display: none"></div>
+                  </div>
+                </div>
+              </div>
+              <!-- JWT Decoder -->
+              <div class="dev-subsection">
+                <div class="dev-subsection-header" data-dev-toggle>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                  <span>Decodificador JWT</span>
+                  <span class="dev-subsection-hint">header + payload</span>
+                </div>
+                <div class="dev-subsection-body">
+                  <div
+                    class="settings-row"
+                    style="
+                      flex-direction: column;
+                      align-items: stretch;
+                      gap: 0.5rem;
+                      padding: 0;
+                      border: 0;
+                    "
+                  >
+                    <div class="desc">
+                      Cole um token JWT para visualizar o header e payload decodificados com syntax
+                      highlighting.
+                    </div>
+                    <div class="jwt-decoder">
+                      <div class="jwt-input-wrap">
+                        <textarea
+                          id="jwtInput"
+                          placeholder="Cole o token JWT aqui (eyJhbGciOiJIUzI1NiIs...)"
+                          rows="2"
+                        ></textarea>
+                        <button
+                          class="btn sm primary"
+                          id="jwtDecodeBtn"
+                          style="align-self: flex-end"
+                        >
+                          Decodificar
+                        </button>
+                      </div>
+                      <div class="jwt-output" id="jwtOutput"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- Inspector -->
+              <div class="dev-subsection">
+                <div class="dev-subsection-header" data-dev-toggle>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                  <span>Inspector de Rede</span>
+                  <span class="dev-subsection-hint">webRequest capture</span>
+                </div>
+                <div class="dev-subsection-body">
+                  <div
+                    class="settings-row"
+                    style="
+                      flex-direction: column;
+                      align-items: stretch;
+                      gap: 0.5rem;
+                      padding: 0;
+                      border: 0;
+                    "
+                  >
+                    <div class="desc">
+                      Captura requisições HTTP do jogo via webRequest. Mostra URLs, cookies oas_user
+                      capturados (JWT decodificado) e estatísticas.
+                    </div>
+                    <div class="dev-btn-group">
+                      <select
+                        id="devInspectorProfile"
+                        class="settings-select"
+                        style="min-width: 160px"
+                      ></select>
+                      <button class="btn sm" id="devInspectorEnable">Ativar captura</button>
+                      <button class="btn sm" id="devInspectorDisable" disabled>Desativar</button>
+                      <button class="btn sm" id="devInspectorRefresh">Atualizar</button>
+                      <button class="btn sm" id="devInspectorClear">Limpar</button>
+                    </div>
+                    <div
+                      id="devInspectorStats"
+                      class="dev-result-box"
+                      style="display: none; margin-bottom: 0.3rem"
+                    ></div>
+                    <div
+                      id="devInspectorEntries"
+                      class="dev-result-box"
+                      style="display: none; max-height: 280px"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+              <!-- Source Extractor -->
+              <div class="dev-subsection">
+                <div class="dev-subsection-header" data-dev-toggle>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                  <span>Source Extractor + DevTools</span>
+                  <span class="dev-subsection-hint">HTML + cookies + F5 + F12</span>
+                </div>
+                <div class="dev-subsection-body">
+                  <div
+                    class="settings-row"
+                    style="
+                      flex-direction: column;
+                      align-items: stretch;
+                      gap: 0.5rem;
+                      padding: 0;
+                      border: 0;
+                    "
+                  >
+                    <div class="desc">
+                      Extrai o HTML da página Flash, lista cookies, recarrega a sessão (F5) e abre
+                      DevTools (F12).
+                    </div>
+                    <div class="dev-btn-group">
+                      <select
+                        id="devSourceProfile"
+                        class="settings-select"
+                        style="min-width: 160px"
+                      ></select>
+                      <button class="btn sm" id="devExtractSource">Extrair fonte</button>
+                      <button class="btn sm" id="devListCookies">Listar cookies</button>
+                      <button class="btn sm" id="devReloadGame">Limpar login (F5)</button>
+                      <button class="btn sm" id="devToggleDt">DevTools (F12)</button>
+                    </div>
+                    <div
+                      id="devSourceResult"
+                      class="dev-result-box"
+                      style="display: none; max-height: 320px"
+                    ></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="field-hint">
-            Salvo criptografado (AES-256-GCM). Usado para auto-login ao iniciar o jogo.
-          </div>
-        </div>
-        <div class="modal-foot">
-          <button
-            class="btn danger"
-            id="removeVault"
-            type="button"
-            style="margin-right: auto"
-          >
-            Remover
-          </button>
-          <button class="btn" id="cancelVault" type="button">Cancelar</button>
-          <button class="btn primary" id="saveVault" type="button">Salvar</button>
         </div>
       </div>
     </div>
 
-    <!-- ═══ TOAST ═══ -->
-    <div class="toast" id="toast"></div>
+    <!-- ═══ MODAL: Create/Edit Profile ═══ -->
+    <div class="overlay" id="profileModal">
+      <div class="modal">
+        <h3 id="modalTitle">Nova conta</h3>
+        <div class="field">
+          <label>Nome</label>
+          <input id="fName" placeholder="Identificação da conta" maxlength="40" />
+        </div>
+        <div class="field">
+          <label>Região</label>
+          <select id="fRegion">
+            <option value="br">Brasil (PT)</option>
+            <option value="na">América do Norte (EN)</option>
+            <option value="eu">Europa (EN)</option>
+            <option value="de">Deutschland (DE)</option>
+            <option value="es">España (ES)</option>
+            <option value="pl">Polska (PL)</option>
+            <option value="fr">France (FR)</option>
+            <option value="hk">Hong Kong (ZH)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Servidor</label>
+          <div style="display: flex; gap: 0.5rem; align-items: center">
+            <input id="fServer" placeholder="S799" maxlength="20" style="flex: 1" />
+            <button class="btn" id="btnPickServer" style="white-space: nowrap">Buscar</button>
+          </div>
+          <div class="hint" id="serverHint">Digite o número do servidor ou clique em Buscar.</div>
+        </div>
+        <div class="field">
+          <label
+            >Notas
+            <span
+              style="
+                color: var(--text-faint);
+                font-weight: var(--weight-regular);
+                text-transform: none;
+              "
+              >(opcional)</span
+            ></label
+          >
+          <textarea
+            id="fNotes"
+            placeholder="Ex: conta principal, alt para eventos, build, etc."
+            maxlength="200"
+            rows="2"
+          ></textarea>
+          <div class="char-counter" id="notesCounter">0 / 200</div>
+        </div>
+        <div class="modal-actions">
+          <button
+            class="btn"
+            id="autoCreateBtn"
+            title="Cria conta com email temporário e auto-login"
+          >
+            Criar automaticamente
+          </button>
+          <div style="flex: 1"></div>
+          <button class="btn" id="cancelProfile">Cancelar</button>
+          <button class="btn primary" id="saveProfile">Salvar</button>
+        </div>
+      </div>
+    </div>
 
-    <!-- ═══ HIDDEN STUBS (banned features app.js still references) ═══ -->
-    <div id="confirmOverlay" style="display: none"></div>
-    <div id="kbOverlay" style="display: none"></div>
-    <div id="cmdkOverlay" style="display: none" hidden></div>
-    <button id="muteBtn" style="display: none"></button>
-    <button id="wcAlwaysOnTop" style="display: none"></button>
-    <button id="lastProfileBtn" style="display: none"></button>
+    <!-- ═══ MODAL: Vault Credentials ═══ -->
+    <div class="overlay" id="vaultModal">
+      <div class="modal">
+        <h3>Credenciais — <span id="vaultProfileName"></span></h3>
+        <div class="field">
+          <label>Usuário</label>
+          <input id="fVaultUser" placeholder="Login da conta" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label>Senha</label>
+          <div class="field-with-toggle">
+            <input id="fVaultPass" type="password" placeholder="Senha" autocomplete="off" />
+            <button class="toggle-pass" id="togglePass" tabindex="-1" title="Mostrar senha">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                id="eyeIcon"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="hint">
+          Criptografado com AES-256-GCM. Auto-login injeta no formulário quando os cookies expiram.
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-danger" id="removeVault">Remover</button>
+          <div style="flex: 1"></div>
+          <button class="btn" id="cancelVault">Cancelar</button>
+          <button class="btn primary" id="saveVault">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
 
     <script src="app.js"></script>
   </body>
