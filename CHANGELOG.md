@@ -1,5 +1,91 @@
 # Changelog
 
+## [5.11.0] - 2026-07-20
+
+### Refatoração 10/10 — contas, eventos e configurações
+
+Merge do melhor de v5.9.4 (identidade dourada coesa, contêineres coloridos
+por tipo, abas de região circulares, mais respiro) com o melhor de v5.10.6
+(cards estilo Heroic com cover, botão play na capa, modais limpos, painel
+de otimização GPU/CPU).
+
+#### Paleta Gold estrita (unificação completa)
+- **`--gold: #c8a23d`** (primária — substitui `#ffd700` que lia como amarelo cartoon)
+- **`--gold-bright: #e2c66d`** (hover, mais refinado que `#ffe54a`)
+- **`--gold-dim: #8b7230`** (acento secundário)
+- **`--amber: #f59e0b`** (acento warn, substitui `#ffa500`)
+- **`--accent-glow: rgba(200, 162, 61, 0.15)`** (glow dourado tingido)
+- `--accent` agora é alias de `--gold` (acabou o "laranja" como cor primária)
+- Adicionadas vars semânticas: `--danger: #dc2626`, `--cyan: #06b6d4`
+- Atualizadas `--ok: #10b981`, `--err: #ef4444`, `--warn: #f59e0b` (alinhadas à paleta spec)
+- Removidos inline vendor colors NVIDIA green / AMD red / Intel blue de app.js (gpuIconBox morto)
+
+#### Escalas tipográfica e de espaçamento (v5.9.4)
+- Typography scale: `--font-xs` 11px, `--font-sm` 12px, `--font-base` 13px, `--font-md` 14px, `--font-lg` 15px
+- Body font-size: 14px → 13px (`var(--font-base)`) — leitura mais refinada
+- Spacing scale: `--space-1..6` (4px / 8px / 12px / 16px / 24px / 32px)
+- Radius scale: `--radius-sm` 4px (era 5px), `--radius` 8px, `--radius-lg` 10px (era 12px), `--radius-full` 9999px (novo)
+
+#### Tela 1 — Contas
+- **Barra de acento dourada à esquerda dos cards** (3px) — assinatura visual Shinobi restaurada do v5.9.4
+  - Aplicada a TODOS os cards (não apenas hover) — dim (opacity 0.45) por padrão, full opacity no hover
+  - `.card.fav-card::before` sempre full opacity (favoritos se destacam)
+- **Card-body / badges / actions padding**: bumped para `var(--space-5)` (24px) horizontal — mais respiro
+- **Grid gap**: 16px → 18px (mais respiro entre cards)
+- **Card name**: font-weight 600 (semibold, mantido)
+- **Card region**: `font-variant-numeric: tabular-nums` adicionado (alinhamento numérico)
+- **Server select**: tabular-nums + `--font-sm` 12px (era 11px)
+- **Card-head glow**: radial-gradient aprimorado (140% 100% at 100% 0%, gold-tinted rgba 0.18)
+- **Fav star active**: rgba gold atualizado (200, 162, 61) + `box-shadow` glow adicional
+- **Excluir button**: vermelho APENAS no hover (data-act="del" selector) — neutro por padrão
+- **Fav card border**: rgba 200,162,61,0.55 (mais saturado que antes 0.45)
+- Todos `rgba(255, 215, 0, ...)` migrados para `rgba(200, 162, 61, ...)` (novo gold rgb)
+
+#### Tela 2 — Eventos
+- **Region tabs → circular pills** (v5.9.4 pattern restaurado):
+  - `border-radius: var(--radius-full)` (9999px)
+  - padding `var(--space-1) var(--space-3)`, font `var(--font-xs)`
+  - Inactive: `var(--bg-elev)` + 1px border
+  - Active: gold fill + texto `#0a0a0f` + `box-shadow: 0 0 12px rgba(200, 162, 61, 0.25)`
+  - Removido `border-bottom: 1px solid var(--border)` (não é mais underline style)
+- **Event card left accent bar** (per-type, hover-only — v5.9.4 pattern):
+  - `::before` 3px, opacity 0 → 1 no hover
+  - `exp` → gold, `pvp` → err red, `war` → accent-warm #ff6600
+  - Removidos os antigos `border-left: 3px solid` estáticos (eram no-ops porque data-type nunca era setado)
+- **Event-icon containers** (colored, v5.9.4 pattern):
+  - 1.6rem square, `var(--radius-sm)` rounded
+  - `.exp` → gold tint, `.pvp` → red tint, `.war` → orange tint
+  - app.js agora seta `data-type` + renderiza o container com SVG apropriado (bolt/award/flame)
+- **Event title**: `var(--font-md)` 14px, font-weight 600, color `var(--text)`
+- **Event meta/time**: `var(--font-xs)` 11px, `var(--text-dim)`, `tabular-nums`
+- **Event status**: tabular-nums adicionado
+
+#### Tela 3 — Configurações
+- **Settings-row-icon containers restaurados** (o elemento-chave visual do v5.9.4):
+  - 1.5rem square, `var(--radius-sm)` rounded, `margin-right: var(--space-3)`
+  - 5 variantes: `.gold`, `.amber`, `.green`, `.red`, `.cyan` (todas com rgba 0.12 tinted bg)
+  - Adicionados ícones SVG a TODAS as 7 rows (Geral/Idioma, Preferências/Notif, Otimização/GPU, Otimização/CPU, Otimização/Preset, Avançado/Backup, Avançado/Diagnóstico, Avançado/Sobre)
+- **Settings section spacing**: `margin-bottom: 14px` → `var(--space-5)` 20px (separação visual mais clara)
+- **Settings row hover**: adicionado `background: rgba(255, 255, 255, 0.015)` (sutil interatividade)
+- **Settings header**: gold `::before` 3px accent bar mantido
+- **Preset cards**: `.preset-card.active::before` gold left bar mantido, `flag-on` rgba atualizado para gold rgb novo
+- **GPU badge**: gold gradient + pill shape (`border-radius: var(--radius-full)`) — SEM cores de vendor
+
+#### Outros ajustes
+- `--shadow-gold` atualizado para `rgba(200, 162, 61, 0.22)` (gold-tinted)
+- Toast info border usa `var(--gold)` (novo rgb)
+- `view-toggle button.active`, `tab.active`, `nav-badge`, `version-pill` todos migram para o gold rgb novo via `var(--gold)`
+- `splash`, `conn-indicator`, `flash-status .dot` mantêm-se gold via `var(--gold)` (automaticamente atualizados)
+- Code cleanup: morto `gpuIconBox` block removido de app.js (vendor colors dead code)
+
+#### Validação
+- Braces balanceados: ✓ (verificado)
+- ESLint: 0 erros ✓
+- Jest: 1234/1234 testes preservados ✓
+- Versão bumped: package.json + index.html + preview-mock
+
+---
+
 ## [5.10.6] - 2026-07-19
 
 ### Refatoração visual — polimento de detalhes e consistência

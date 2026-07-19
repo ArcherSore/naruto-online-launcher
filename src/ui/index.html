@@ -14,9 +14,11 @@
         padding: 0;
       }
       :root {
-        /* ── Shinobi Gold identity ──
+        /* ── Shinobi Gold identity (v5.11.0 — strict palette) ──
            Inspired by the launcher icon: golden background, amber gradient,
-           orange detail lines, silver metallic tiara, deep black clothing. */
+           orange detail lines, silver metallic tiara, deep black clothing.
+           Gold family unified to a single bronze-gold (#c8a23d) — more refined
+           than the previous #ffd700 (which read as cartoonish yellow). */
         --bg: #08080a;
         --bg-elev: #121214;
         --bg-card: #18181b;
@@ -27,34 +29,55 @@
         --text-faint: #8c8c93;
         --text-dim: #54545a;
 
-        /* Gold family — the Shinobi signature */
-        --gold: #ffd700;
-        --gold-bright: #ffe54a;
-        --amber: #ffa500;
-        --accent: #ffa500;
-        --accent-hover: #ffbd33;
-        --accent-dim: rgba(255, 165, 0, 0.14);
+        /* Gold family — the Shinobi signature (strict v5.11.0 palette) */
+        --gold: #c8a23d;
+        --gold-bright: #e2c66d;
+        --gold-dim: #8b7230;
+        --amber: #f59e0b;
+        --accent: var(--gold);
+        --accent-hover: var(--gold-bright);
+        --accent-dim: rgba(200, 162, 61, 0.14);
         --accent-warm: #ff6600;
-        --accent-glow: rgba(255, 165, 0, 0.28);
+        --accent-glow: rgba(200, 162, 61, 0.15);
 
         /* Silver metallic (tiara-inspired highlights) */
         --silver: #c0c0c0;
         --silver-dim: #808080;
 
-        /* Status — kept subtle, only for semantic meaning */
-        --ok: #34d399;
-        --err: #f87171;
-        --warn: #fbbf24;
+        /* Status — semantic ONLY, never for primary accents */
+        --ok: #10b981;
+        --err: #ef4444;
+        --warn: #f59e0b;
+        --danger: #dc2626;
+        --cyan: #06b6d4;
 
-        --radius: 8px;
-        --radius-sm: 5px;
-        --radius-lg: 12px;
+        /* Typography scale (v5.9.4 — 13px base) */
+        --font-xs: 11px;
+        --font-sm: 12px;
+        --font-base: 13px;
+        --font-md: 14px;
+        --font-lg: 15px;
         --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
         --mono: 'SF Mono', 'JetBrains Mono', Consolas, monospace;
+
+        /* Spacing scale (4px base, v5.9.4) */
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-5: 1.5rem;
+        --space-6: 2rem;
+
+        /* Radius scale */
+        --radius-sm: 0.25rem;
+        --radius: 0.5rem;
+        --radius-lg: 0.625rem;
+        --radius-full: 9999px;
+
         --transition: 150ms ease;
         --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.7);
-        --shadow-gold: 0 4px 16px rgba(255, 165, 0, 0.22);
+        --shadow-gold: 0 4px 16px rgba(200, 162, 61, 0.22);
       }
       html,
       body {
@@ -62,7 +85,7 @@
         background: var(--bg);
         color: var(--text);
         font-family: var(--font);
-        font-size: 14px;
+        font-size: var(--font-base);
         line-height: 1.45;
         overflow: hidden;
         -webkit-font-smoothing: antialiased;
@@ -633,7 +656,7 @@
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
-        gap: 16px;
+        gap: 18px;
       }
       .grid.list-view {
         grid-template-columns: 1fr;
@@ -662,6 +685,22 @@
         animation: cardEnter 0.3s ease both;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
+      /* Shinobi gold left accent — the launcher's visual signature.
+         Dim by default (0.45), brightens to full opacity on hover.
+         Echoes the v5.9.4 pattern but applied to ALL cards (not just hover). */
+      .card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(180deg, var(--gold) 0%, var(--amber) 100%);
+        opacity: 0.45;
+        transition: opacity 200ms ease;
+        z-index: 5;
+        pointer-events: none;
+      }
       @keyframes cardEnter {
         from {
           opacity: 0;
@@ -673,23 +712,29 @@
         }
       }
       .card:hover {
-        border-color: var(--accent);
+        border-color: var(--gold);
         transform: translateY(-2px);
         box-shadow: var(--shadow), 0 0 0 1px var(--accent-glow), 0 0 18px var(--accent-glow);
+      }
+      .card:hover::before {
+        opacity: 1;
       }
       .card:focus-visible {
         outline: 2px solid var(--gold);
         outline-offset: 2px;
       }
       .card.fav-card {
-        border-color: rgba(255, 215, 0, 0.45);
+        border-color: rgba(200, 162, 61, 0.55);
+      }
+      .card.fav-card::before {
+        opacity: 1;
       }
       .card.fav-card::after {
         content: '';
         position: absolute;
         inset: 0;
         border-radius: var(--radius);
-        box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.18);
+        box-shadow: inset 0 0 0 1px rgba(200, 162, 61, 0.22);
         pointer-events: none;
       }
 
@@ -698,22 +743,23 @@
          This creates visual identity consistency with the launcher icon. */
       .card-head {
         height: 84px;
-        padding: 14px;
+        padding: var(--space-3) var(--space-4);
         display: flex;
         align-items: flex-start;
-        gap: 10px;
+        gap: var(--space-2);
         position: relative;
         background: linear-gradient(135deg, #1f1f24 0%, #131316 100%);
         border-top: 2px solid var(--gold);
       }
+      /* Gold radial glow at top-right corner — reinforces Shinobi identity */
       .card-head::after {
         content: '';
         position: absolute;
         inset: 0;
         background: radial-gradient(
-          120% 90% at 100% 0%,
-          var(--accent-glow) 0%,
-          transparent 60%
+          140% 100% at 100% 0%,
+          rgba(200, 162, 61, 0.18) 0%,
+          transparent 55%
         );
         pointer-events: none;
       }
@@ -753,7 +799,8 @@
       }
       .card-fav-star.active {
         color: var(--gold);
-        background: rgba(255, 215, 0, 0.18);
+        background: rgba(200, 162, 61, 0.22);
+        box-shadow: 0 0 8px rgba(200, 162, 61, 0.35);
       }
       .card-fav-star svg {
         width: 13px;
@@ -804,21 +851,22 @@
         height: 11px;
       }
       .card-head .region {
-        font-size: 10px;
-        color: rgba(255, 255, 255, 0.75);
+        font-size: var(--font-xs);
+        color: rgba(255, 255, 255, 0.78);
         font-family: var(--mono);
         font-weight: 600;
         letter-spacing: 0.5px;
         margin-top: 2px;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        font-variant-numeric: tabular-nums;
       }
 
       .card-body {
-        padding: 12px 14px;
+        padding: var(--space-3) var(--space-5);
         flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--space-2);
       }
       .server-switch select {
         width: 100%;
@@ -827,8 +875,9 @@
         color: var(--text);
         padding: 5px 8px;
         border-radius: var(--radius-sm);
-        font-size: 11px;
+        font-size: var(--font-sm);
         font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
         cursor: pointer;
       }
       .server-switch select:focus {
@@ -857,14 +906,14 @@
         display: flex;
         gap: 5px;
         flex-wrap: wrap;
-        padding: 0 14px 10px;
+        padding: 0 var(--space-5) var(--space-3);
       }
       .badge,
       .status-badge {
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        font-size: 10px;
+        font-size: var(--font-xs);
         font-weight: 600;
         padding: 2px 7px;
         border-radius: 10px;
@@ -873,9 +922,9 @@
       }
       .badge.ok,
       .status-badge.idle {
-        background: rgba(255, 215, 0, 0.12);
+        background: rgba(200, 162, 61, 0.12);
         color: var(--gold);
-        border: 1px solid rgba(255, 215, 0, 0.22);
+        border: 1px solid rgba(200, 162, 61, 0.22);
       }
       .status-badge .dot {
         width: 5px;
@@ -884,9 +933,9 @@
         background: currentColor;
       }
       .status-badge.active {
-        background: rgba(255, 215, 0, 0.16);
+        background: rgba(200, 162, 61, 0.16);
         color: var(--gold);
-        border: 1px solid rgba(255, 215, 0, 0.3);
+        border: 1px solid rgba(200, 162, 61, 0.3);
       }
       .status-badge.open {
         background: rgba(52, 211, 153, 0.16);
@@ -897,8 +946,8 @@
       .card-actions {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 10px 14px 14px;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-5) var(--space-4);
         border-top: 1px solid var(--border);
         margin-top: auto;
       }
@@ -960,95 +1009,131 @@
       }
       .btn-icon-only:hover {
         color: var(--gold);
-        border-color: var(--accent);
+        border-color: var(--gold);
         background: var(--accent-dim);
+      }
+      /* Excluir (delete) button — neutral by default, red tint ONLY on hover */
+      .btn-icon-only[data-act='del']:hover {
+        color: var(--err);
+        border-color: var(--err);
+        background: rgba(239, 68, 68, 0.1);
       }
       .btn-icon-only.fav {
         color: var(--gold);
-        border-color: rgba(255, 215, 0, 0.4);
+        border-color: rgba(200, 162, 61, 0.4);
       }
 
       /* ── EVENTS VIEW ── */
+      /* Region tabs — circular pills (v5.9.4 golden pattern, restored in v5.11.0).
+         Inactive: surface + border. Active: gold fill + dark text + glow. */
       .tabs {
         display: flex;
-        gap: 4px;
-        margin-bottom: 14px;
-        border-bottom: 1px solid var(--border);
+        gap: var(--space-1);
+        margin-bottom: var(--space-4);
         padding-bottom: 0;
         overflow-x: auto;
+        flex-wrap: wrap;
       }
       .tabs::-webkit-scrollbar {
         height: 0;
       }
       .tab {
-        padding: 8px 14px;
-        font-size: 12px;
-        color: var(--text-faint);
+        padding: var(--space-1) var(--space-3);
+        font-size: var(--font-xs);
+        color: var(--text-dim);
         cursor: pointer;
-        border: none;
-        background: transparent;
-        border-bottom: 2px solid transparent;
-        transition: var(--transition);
+        border: 1px solid var(--border);
+        background: var(--bg-elev);
+        border-radius: var(--radius-full);
+        transition: all 200ms ease;
         font-family: var(--font);
         font-weight: 500;
         white-space: nowrap;
       }
       .tab:hover {
         color: var(--text);
+        border-color: var(--border-hover);
       }
       .tab.active {
-        color: var(--gold);
-        border-bottom-color: var(--gold);
+        color: #0a0a0f;
+        background: var(--gold);
+        border-color: var(--gold);
+        box-shadow: 0 0 12px rgba(200, 162, 61, 0.25);
+        font-weight: 600;
       }
       .event-card,
       .event {
         display: flex;
         align-items: center;
-        gap: 14px;
-        padding: 14px 16px;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        margin-bottom: 10px;
+        margin-bottom: var(--space-2);
         transition: var(--transition);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+        position: relative;
+        overflow: hidden;
       }
       .event-card:hover,
       .event:hover {
         border-color: var(--border-hover);
         background: var(--bg-hover);
       }
-      .event[data-type='exp'] {
-        border-left: 3px solid var(--gold);
+      /* Per-type colored left accent bar — appears on hover (v5.9.4 pattern).
+         Dim by default, full opacity on hover. Replaces the static border-left. */
+      .event::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--gold);
+        opacity: 0;
+        transition: opacity 150ms ease;
       }
-      .event[data-type='pvp'] {
-        border-left: 3px solid var(--err);
+      .event:hover::before {
+        opacity: 1;
       }
-      .event[data-type='war'] {
-        border-left: 3px solid var(--accent-warm);
+      .event[data-type='exp']::before {
+        background: var(--gold);
       }
+      .event[data-type='pvp']::before {
+        background: var(--err);
+      }
+      .event[data-type='war']::before {
+        background: var(--accent-warm);
+      }
+      /* Colored icon containers — per type (v5.9.4 pattern, restored in v5.11.0).
+         1.6rem square, rounded, with subtle tinted background + semantic color. */
       .event-icon {
-        width: 40px;
-        height: 40px;
+        width: 1.6rem;
+        height: 1.6rem;
         border-radius: var(--radius-sm);
-        background: var(--accent-dim);
+        background: rgba(200, 162, 61, 0.12);
         color: var(--gold);
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
       }
+      .event-icon svg {
+        width: 0.9rem;
+        height: 0.9rem;
+      }
+      .event-icon.exp {
+        background: rgba(200, 162, 61, 0.12);
+        color: var(--gold);
+      }
       .event-icon.pvp {
-        background: rgba(248, 113, 113, 0.15);
+        background: rgba(239, 68, 68, 0.12);
         color: var(--err);
       }
       .event-icon.war {
-        background: rgba(255, 102, 0, 0.15);
+        background: rgba(255, 102, 0, 0.12);
         color: var(--accent-warm);
-      }
-      .event-icon svg {
-        width: 18px;
-        height: 18px;
       }
       .event-body,
       .event .info {
@@ -1057,7 +1142,7 @@
       }
       .event-name,
       .event .n {
-        font-size: 13px;
+        font-size: var(--font-md);
         font-weight: 600;
         color: var(--text);
         margin-bottom: 2px;
@@ -1067,16 +1152,17 @@
       }
       .event-meta,
       .event .t {
-        font-size: 11px;
-        color: var(--text-faint);
+        font-size: var(--font-xs);
+        color: var(--text-dim);
         display: flex;
-        gap: 10px;
+        gap: var(--space-3);
         align-items: center;
         line-height: 1.4;
+        font-variant-numeric: tabular-nums;
       }
       .event-status,
       .event .cd {
-        font-size: 11px;
+        font-size: var(--font-xs);
         font-weight: 600;
         padding: 3px 9px;
         border-radius: 10px;
@@ -1084,16 +1170,17 @@
         color: var(--text-faint);
         border: 1px solid var(--border);
         flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
       }
       .status-badge.error {
-        background: rgba(248, 113, 113, 0.18);
+        background: rgba(239, 68, 68, 0.18);
         color: var(--err);
       }
       .event-status.active,
       .event .cd-active {
-        background: rgba(52, 211, 153, 0.16);
+        background: rgba(16, 185, 129, 0.16);
         color: var(--ok);
-        border-color: rgba(52, 211, 153, 0.3);
+        border-color: rgba(16, 185, 129, 0.3);
       }
 
       /* ── SETTINGS ── */
@@ -1101,12 +1188,12 @@
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        margin-bottom: 14px;
+        margin-bottom: var(--space-5);
         overflow: hidden;
       }
       .settings-header {
-        padding: 12px 16px;
-        font-size: 11px;
+        padding: var(--space-3) var(--space-4);
+        font-size: var(--font-xs);
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.8px;
@@ -1115,7 +1202,7 @@
         background: var(--bg-elev);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--space-2);
         position: relative;
       }
       .settings-header::before {
@@ -1129,9 +1216,13 @@
       .settings-row {
         display: flex;
         align-items: center;
-        gap: 14px;
-        padding: 13px 16px;
+        gap: var(--space-3);
+        padding: 13px var(--space-4);
         border-bottom: 1px solid var(--border);
+        transition: background 150ms ease;
+      }
+      .settings-row:hover {
+        background: rgba(255, 255, 255, 0.015);
       }
       .settings-row:last-child {
         border-bottom: none;
@@ -1148,14 +1239,51 @@
         flex: 1;
         min-width: 0;
       }
+      /* Settings-row-icon containers — the KEY visual element (v5.9.4 pattern).
+         1.5rem square, rounded, with colored tinted background per row type.
+         Provides visual rhythm and aids scanning of settings sections. */
+      .settings-row-icon {
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-right: var(--space-3);
+      }
+      .settings-row-icon svg {
+        width: 0.9rem;
+        height: 0.9rem;
+      }
+      .settings-row-icon.gold {
+        background: rgba(200, 162, 61, 0.12);
+        color: var(--gold);
+      }
+      .settings-row-icon.amber {
+        background: rgba(245, 158, 11, 0.12);
+        color: var(--warn);
+      }
+      .settings-row-icon.green {
+        background: rgba(16, 185, 129, 0.12);
+        color: var(--ok);
+      }
+      .settings-row-icon.red {
+        background: rgba(220, 38, 38, 0.12);
+        color: var(--danger);
+      }
+      .settings-row-icon.cyan {
+        background: rgba(6, 182, 212, 0.12);
+        color: var(--cyan);
+      }
       .settings-row .label {
-        font-size: 13px;
+        font-size: var(--font-base);
         font-weight: 500;
         color: var(--text);
         margin-bottom: 2px;
       }
       .settings-row .desc {
-        font-size: 11px;
+        font-size: var(--font-xs);
         color: var(--text-faint);
         line-height: 1.4;
       }
@@ -1269,9 +1397,9 @@
         font-family: var(--mono);
       }
       .flag-on {
-        background: rgba(255, 215, 0, 0.12);
+        background: rgba(200, 162, 61, 0.12);
         color: var(--gold);
-        border: 1px solid rgba(255, 215, 0, 0.22);
+        border: 1px solid rgba(200, 162, 61, 0.22);
       }
       .flag-off {
         background: var(--bg-hover);
@@ -1282,13 +1410,13 @@
         display: inline-flex;
         align-items: center;
         padding: 3px 10px;
-        border-radius: 10px;
-        font-size: 10px;
+        border-radius: var(--radius-full);
+        font-size: var(--font-xs);
         font-weight: 700;
         font-family: var(--mono);
         letter-spacing: 0.5px;
         background: linear-gradient(135deg, var(--gold), var(--amber));
-        color: #000;
+        color: #0a0a0f;
         border: 1px solid var(--amber);
         box-shadow: 0 1px 4px var(--accent-glow);
       }
@@ -1775,7 +1903,7 @@
           </div>
           <div>
             <h1>Shinobi</h1>
-            <div class="ver" id="version">v5.10.6</div>
+            <div class="ver" id="version">v5.11.0</div>
           </div>
         </div>
 
@@ -1944,6 +2072,13 @@
             <div class="settings-section">
               <div class="settings-header">Geral</div>
               <div class="settings-row">
+                <div class="settings-row-icon gold" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                </div>
                 <div>
                   <div class="label">Idioma</div>
                   <div class="desc">Idioma da interface</div>
@@ -1962,6 +2097,12 @@
             <div class="settings-section">
               <div class="settings-header">Preferências</div>
               <div class="settings-row">
+                <div class="settings-row-icon amber" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                </div>
                 <div>
                   <div class="label">Notificações de eventos</div>
                   <div class="desc">Alertas quando eventos do jogo estão ativos</div>
@@ -2160,6 +2301,20 @@
             <div class="settings-section">
               <div class="settings-header">Otimização (GPU + CPU)</div>
               <div class="settings-row">
+                <div class="settings-row-icon gold" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="4" y="4" width="16" height="16" rx="2" />
+                    <rect x="9" y="9" width="6" height="6" />
+                    <line x1="9" y1="1" x2="9" y2="4" />
+                    <line x1="15" y1="1" x2="15" y2="4" />
+                    <line x1="9" y1="20" x2="9" y2="23" />
+                    <line x1="15" y1="20" x2="15" y2="23" />
+                    <line x1="20" y1="9" x2="23" y2="9" />
+                    <line x1="20" y1="14" x2="23" y2="14" />
+                    <line x1="1" y1="9" x2="4" y2="9" />
+                    <line x1="1" y1="14" x2="4" y2="14" />
+                  </svg>
+                </div>
                 <div>
                   <div class="label">GPU detectada</div>
                   <div class="desc" id="gpuDesc">Detectando…</div>
@@ -2171,15 +2326,43 @@
                 >
               </div>
               <div class="settings-row">
+                <div class="settings-row-icon gold" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="6" width="20" height="12" rx="2" />
+                    <line x1="6" y1="10" x2="6" y2="10" />
+                    <line x1="10" y1="10" x2="10" y2="10" />
+                    <line x1="14" y1="10" x2="14" y2="10" />
+                    <line x1="18" y1="10" x2="18" y2="10" />
+                    <line x1="6" y1="14" x2="6" y2="14" />
+                    <line x1="10" y1="14" x2="10" y2="14" />
+                    <line x1="14" y1="14" x2="14" y2="14" />
+                    <line x1="18" y1="14" x2="18" y2="14" />
+                  </svg>
+                </div>
                 <div>
                   <div class="label">CPU</div>
                   <div class="desc" id="cpuDesc">Detectando…</div>
                 </div>
               </div>
               <div class="settings-row stacked">
-                <div>
-                  <div class="label">Preset de otimização</div>
-                  <div class="desc" id="presetDesc">Carregando presets…</div>
+                <div style="display:flex;align-items:center">
+                  <div class="settings-row-icon gold" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="4" y1="21" x2="4" y2="14" />
+                      <line x1="4" y1="10" x2="4" y2="3" />
+                      <line x1="12" y1="21" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12" y2="3" />
+                      <line x1="20" y1="21" x2="20" y2="16" />
+                      <line x1="20" y1="12" x2="20" y2="3" />
+                      <line x1="1" y1="14" x2="7" y2="14" />
+                      <line x1="9" y1="8" x2="15" y2="8" />
+                      <line x1="17" y1="16" x2="23" y2="16" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="label">Preset de otimização</div>
+                    <div class="desc" id="presetDesc">Carregando presets…</div>
+                  </div>
                 </div>
                 <div class="preset-grid">
                   <div class="preset-card" data-preset="performance">
@@ -2230,6 +2413,12 @@
             <div class="settings-section">
               <div class="settings-header">Avançado</div>
               <div class="settings-row">
+                <div class="settings-row-icon green" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </div>
                 <div>
                   <div class="label">Backup criptografado</div>
                   <div class="desc">Exporta perfis + credenciais com AES-256-GCM</div>
@@ -2240,6 +2429,14 @@
                 </div>
               </div>
               <div class="settings-row">
+                <div class="settings-row-icon red" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                </div>
                 <div>
                   <div class="label">Diagnóstico</div>
                   <div class="desc">.zip com logs + config (sanitizado, sem senhas)</div>
@@ -2247,9 +2444,16 @@
                 <button class="btn sm" id="advExportDiag" type="button">Exportar .zip</button>
               </div>
               <div class="settings-row">
+                <div class="settings-row-icon cyan" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                </div>
                 <div>
                   <div class="label">Sobre</div>
-                  <div class="desc" id="advAboutVersion">Shinobi Launcher v5.10.6</div>
+                  <div class="desc" id="advAboutVersion">Shinobi Launcher v5.11.0</div>
                 </div>
                 <a class="btn sm" id="advAboutRepo" href="#" type="button" title="GitHub">GitHub</a>
               </div>

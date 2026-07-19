@@ -534,10 +534,35 @@ function renderEventsSingle(list) {
     return;
   }
   el.innerHTML = '';
+  // v5.11.0: per-type icon SVGs (gold/red/orange — Shinobi palette)
+  var EVENT_ICONS = {
+    exp: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+    pvp:
+      '<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>',
+    war: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'
+  };
   list.slice(0, 10).forEach(ev => {
     const item = document.createElement('div');
+    var evType = ev.type || 'exp';
     item.className = 'event';
-    item.innerHTML = `<div class="info"><div class="n">${esc(ev.name)}</div><div class="t">${ev.userTimeLabel || ''}</div></div><div class="cd">${ev.nextFireLabel || ''}</div>`;
+    // v5.11.0: data-type drives the per-type ::before accent color (gold/red/orange)
+    item.setAttribute('data-type', evType);
+    var iconSvg =
+      EVENT_ICONS[evType] ||
+      '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+    item.innerHTML =
+      '<div class="event-icon ' +
+      evType +
+      '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+      iconSvg +
+      '</svg></div>' +
+      '<div class="info"><div class="n">' +
+      esc(ev.name) +
+      '</div><div class="t">' +
+      (ev.userTimeLabel || '') +
+      '</div></div><div class="cd">' +
+      (ev.nextFireLabel || '') +
+      '</div>';
     el.appendChild(item);
   });
 }
@@ -746,7 +771,6 @@ async function loadOptimization() {
   // GPU badge + description
   const gpuDesc = document.getElementById('gpuDesc');
   const gpuBadge = document.getElementById('gpuBadge');
-  const gpuIconBox = document.getElementById('gpuIconBox');
   if (gpuDesc && gpuBadge) {
     const g = status.gpu;
     const vendorLabels = {
@@ -755,20 +779,13 @@ async function loadOptimization() {
       intel: 'Intel',
       unknown: 'Desconhecida'
     };
-    const vendorColors = {
-      nvidia: '#76B900',
-      amd: '#ED1C24',
-      intel: '#0071C5',
-      unknown: '#8a8a96'
-    };
+    // v5.11.0: GPU badge is now STRICTLY Shinobi gold (CSS gradient) — no vendor
+    // colors (NVIDIA green / AMD red / Intel blue broke the gold palette).
+    // Vendor is exposed via data-vendor attribute for diagnostics only.
     gpuDesc.textContent = g.description + (g.isPrime ? ' • PRIME (Optimus)' : '');
     gpuBadge.textContent = vendorLabels[g.vendor] || g.vendor;
     gpuBadge.removeAttribute('data-vendor');
     gpuBadge.setAttribute('data-vendor', g.vendor || 'unknown');
-    if (gpuIconBox) {
-      gpuIconBox.style.background = vendorColors[g.vendor] + '22';
-      gpuIconBox.style.color = vendorColors[g.vendor];
-    }
     if (g.allGpus && g.allGpus.length > 1) {
       const others = g.allGpus
         .filter(function (x) {
