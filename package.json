@@ -110,5 +110,9 @@
       "icon": "assets/icon.ico"
     },
     "electronVersion": "11.5.0"
+  },
+  "volta": {
+    "node": "16.20.2",
+    "npm": "8.19.4"
   }
 }
