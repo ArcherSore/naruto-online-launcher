@@ -1,17 +1,17 @@
 {
   "name": "naruto-online-launcher",
-  "version": "1.4.0",
-  "description": "Tencent Naruto Online launcher with isolated multi-profile sessions, Flash PPAPI, GPU/CPU optimization, and bounded recovery.",
+  "version": "1.0.0",
+  "description": "火影忍者 OL 启动器",
   "main": "src/main.js",
-  "author": "Chrispsz",
+  "author": "ArcherSore",
   "license": "MIT",
-  "homepage": "https://github.com/Chrispsz/naruto-online-launcher#readme",
+  "homepage": "https://github.com/ArcherSore/naruto-online-launcher#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Chrispsz/naruto-online-launcher.git"
+    "url": "git+https://github.com/ArcherSore/naruto-online-launcher.git"
   },
   "bugs": {
-    "url": "https://github.com/Chrispsz/naruto-online-launcher/issues"
+    "url": "https://github.com/ArcherSore/naruto-online-launcher/issues"
   },
   "keywords": [
     "naruto",
@@ -51,7 +51,7 @@
     "electron-log": "^4.4.8"
   },
   "build": {
-    "appId": "com.naruto.launcher",
+    "appId": "io.github.archersore.narutoonline.launcher",
     "productName": "Naruto Online",
     "npmRebuild": false,
     "directories": {
@@ -84,6 +84,7 @@
       "target": [
         "AppImage"
       ],
+      "artifactName": "naruto-online-${version}.${ext}",
       "category": "Game",
       "executableName": "naruto-online",
       "icon": "assets/icon.png",
@@ -106,6 +107,7 @@
           ]
         }
       ],
+      "artifactName": "NarutoOnline ${version}.${ext}",
       "executableName": "NarutoOnline",
       "icon": "assets/icon.ico"
     },

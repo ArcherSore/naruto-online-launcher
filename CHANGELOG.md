@@ -18,6 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-07-26
+
+### Summary — v1.0.0 — 火影忍者 OL 启动器
+正式将仓库重构并立项为由 ArcherSore 独立维护的腾讯《火影忍者 OL》国服桌面启动器项目。
+
+### Added
+- 新增 `NOTICE` 许可声明文件，明确项目衍生关系、ArcherSore 国服适配与原创代码著作权及第三方商标免责声明。
+- 新增 `docs/RELEASING.md` 手动发版与离线构建流程文档。
+
+### Changed
+- 将版本号重置为 `1.0.0`，包名为 `naruto-online-launcher`。
+- 保留 `productName` 为 `Naruto Online`，生成 Windows 安装包文件名为 `NarutoOnline 1.0.0.exe`。
+- 更新版权信息：保留 Chrispsz 原始 MIT 协议，明确 ArcherSore 国服适配与新增代码著作权。
+- 更新 Issue 反馈与项目主页地址指向 `ArcherSore/naruto-online-launcher` 仓库。
+
 ### Removed
 - **Clean (Caretaker cycle 33)**: removed dead `tryExtractJwt()` function + unused `jwt` require from `inspector.js` — the function read `details.requestHeaders.Cookie` but Electron 11's `onBeforeRequest` / `onResponseStarted` callbacks don't expose `requestHeaders` (only `onBeforeSendHeaders` does). As a result the condition was always falsy and the JWT capture code path was effectively dead (capturedJwts/capturedCookies arrays always stayed empty). The arrays are intentionally KEPT in the public `getStats()` output to avoid breaking UI consumers — they will simply remain empty until a future behavior cycle wires up `onBeforeSendHeaders`. Net −23 lines.
 - **GitHub cleanup (maintainer)**: removed `.github/dependabot.yml` — was generating 7+ stale PRs per week for packages no longer in package.json (jest/playwright removed in v1.4.0). Closed all 7 open dependabot PRs (#13-#19). Removed `.github/workflows/codeql.yml` — CodeQL scanning added CI noise on every push/PR for a small Electron app; security is covered by CSP, PBKDF2, contextBridge isolation, and `webSecurity:true`. Disabled GitHub Discussions (empty, unused). Remaining workflows: `ci.yml` (lint), `build-release.yml` (build + release).

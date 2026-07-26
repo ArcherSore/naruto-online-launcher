@@ -1,0 +1,20 @@
+# NOTICE
+
+## 项目来源与著作权声明
+
+本项目衍生自 `Chrispsz/naruto-online-launcher`，遵循 MIT License。
+
+- **上游代码著作权**：
+  Original work Copyright (c) 2025 Chrispsz
+- **国服适配与后续维护著作权**：
+  Modifications and Chinese-server adaptation Copyright (c) 2026 ArcherSore
+
+国服适配代码、腾讯官方网页扫码登录集成、多账号 Session 隔离增强、自动化与后台运行逻辑，以及 ArcherSore 创作的原创资源与文档，其相应著作权归 ArcherSore 所有。
+
+## 第三方商标与软硬件免责声明
+
+1. **游戏 IP 与商标**：
+   “火影忍者”、“Naruto Online” 及相关视觉元素、商标归属于 Bandai Namco Entertainment、Studio Pierrot、岸本齐史及腾讯游戏等相关权利方所有。本项目为第三方开源启动工具，与上述权利方无隶属关系。
+
+2. **Adobe Flash PPAPI 二进制文件**：
+   项目中包含的 Flash PPAPI 插件 (`flash/pepflashplayer.dll`, `flash/libpepflashplayer.so`) 属于 Adobe Inc. / Harman International 专有软件，随仓库提供仅用于离线脱机构建。ArcherSore 不对其主张任何著作权。

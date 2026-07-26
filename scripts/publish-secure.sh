@@ -27,7 +27,7 @@
 set -euo pipefail
 
 # ── CONFIGURE THESE 3 VARIABLES ──────────────────────────────────────────
-GITHUB_USER="Chrispsz"                                    # your GitHub username
+GITHUB_USER="ArcherSore"                                   # your GitHub username
 REPO_NAME="naruto-online-launcher"                        # repo name
 # Token: NEVER commit this. Read from env var or paste here.
 GH_TOKEN="${SHINOBI_GH_TOKEN:-ghp_YOUR_TOKEN_HERE}"        # replace, or: export SHINOBI_GH_TOKEN=...

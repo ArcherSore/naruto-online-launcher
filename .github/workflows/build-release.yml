@@ -107,7 +107,7 @@ jobs:
           generate_release_notes: true
           files: artifacts/**/*
           body: |
-            ## Naruto Online Launcher
+            ## 火影忍者 OL 启动器
 
             Tencent Naruto Online launcher — official QR login, isolated profile sessions, Flash PPAPI, and zero credential collection.
 
@@ -139,4 +139,4 @@ jobs:
             | Alt+F4         | Close game window                |
 
             ### Flash PPAPI
-            Clean Flash PPAPI binaries (Linux `.so` + Windows `.dll`) are committed to the repo for fully reproducible offline builds. See [FLASH_SETUP.md](https://github.com/Chrispsz/naruto-online-launcher/blob/main/FLASH_SETUP.md) for details.
+            Clean Flash PPAPI binaries (Linux `.so` + Windows `.dll`) are committed to the repo for fully reproducible offline builds. See [FLASH_SETUP.md](https://github.com/ArcherSore/naruto-online-launcher/blob/main/FLASH_SETUP.md) for details.

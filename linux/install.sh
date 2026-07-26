@@ -72,7 +72,7 @@ if [ -z "$APPIMAGE" ]; then
   log_error "  $SCRIPT_DIR/"
   echo ""
   log_error "请从以下地址下载 AppImage："
-  echo -e "  ${CYAN}https://github.com/Chrispsz/naruto-online-launcher/releases${NC}"
+  echo -e "  ${CYAN}https://github.com/ArcherSore/naruto-online-launcher/releases${NC}"
   echo ""
   log_error "下载后请将其放到本脚本所在目录。"
   exit 1
@@ -320,7 +320,7 @@ fi
 # Final fallback: download icon from GitHub
 if [ -z "$ICON_SRC" ]; then
   log_info "正在从 GitHub 下载图标…"
-  curl -sL "https://raw.githubusercontent.com/Chrispsz/naruto-online-launcher/main/assets/icon.png" \
+  curl -sL "https://raw.githubusercontent.com/ArcherSore/naruto-online-launcher/main/assets/icon.png" \
     -o /tmp/naruto-icon.png 2>/dev/null
   if [ -f /tmp/naruto-icon.png ] && [ "$(wc -c < /tmp/naruto-icon.png 2>/dev/null || echo 0)" -gt 1000 ]; then
     ICON_SRC="/tmp/naruto-icon.png"

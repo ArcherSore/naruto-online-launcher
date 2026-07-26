@@ -359,7 +359,7 @@ async function exportZip(parentWindow) {
       '',
       '## 使用方法',
       '可将此 ZIP 附加到 GitHub Issue：',
-      'https://github.com/Chrispsz/naruto-online-launcher/issues'
+      'https://github.com/ArcherSore/naruto-online-launcher/issues'
     ].join('\n');
     entries.push({ name: 'README.md', data: Buffer.from(readme, 'utf8') });
 

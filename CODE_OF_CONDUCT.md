@@ -59,8 +59,8 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-**security@chrispsz.dev**.
+reported to the community leaders responsible for enforcement via GitHub Issues at
+**https://github.com/ArcherSore/naruto-online-launcher/issues**.
 
 All complaints will be reviewed and investigated promptly and fairly.
 
