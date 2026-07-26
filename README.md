@@ -58,6 +58,19 @@ npm run build:win
 - [Flash 配置](FLASH_SETUP.md)
 - [腾讯启动流程规范](specs/001-tencent-game-launch/spec.md)
 
+## Bug 反馈与问题排查
+
+如果在使用过程中遇到问题或发现 Bug，欢迎通过 GitHub Issues 提交反馈：
+
+1. 提交地址：[GitHub Issues](https://github.com/ArcherSore/naruto-online-launcher/issues)
+2. **建议附带的信息**：
+   - 问题的具体描述与复现步骤；
+   - 操作系统版本及启动器版本；
+   - **诊断 ZIP 包**（强力推荐）：
+     - 在启动器管理界面点击 **“设置 → 高级 → 导出诊断包”**；
+     - 保存生成的 `naruto-online-diag-*.zip` 文件并上传至 Issue 附件中。
+     - *（诊断包已包含自动脱敏的系统环境、配置和日志，绝对不含账号密码、Token 或 Session 隐私）*
+
 ## 平台
 
 - Windows x64 portable
