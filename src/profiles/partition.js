@@ -26,6 +26,12 @@ function setBatataMode(batata) {
   );
 }
 
+// Compatibility with the upstream MemoryGuard terminology. Tencent profiles
+// remain persistent regardless of the low-spec flag.
+function setLowSpecMode(enabled) {
+  setBatataMode(enabled);
+}
+
 /**
  * Decide se um perfil deve usar shadow (ephemeral) partition.
  * @param {Object|null} profile - profile object (may have .shadow override)
@@ -92,6 +98,7 @@ function ensurePartitionDir(profile) {
 
 module.exports = {
   setBatataMode: setBatataMode,
+  setLowSpecMode: setLowSpecMode,
   shouldUseShadow: shouldUseShadow,
   getPartitionName: getPartitionName,
   getProfileSession: getProfileSession,

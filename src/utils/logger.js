@@ -62,7 +62,10 @@ function sanitizeMessage(value) {
     /\b(set-cookie|cookie)\s*:\s*.*?(?=\s+(?:authorization|set-cookie|cookie)\s*:|$)/gi,
     '$1: [redacted]'
   );
-  message = message.replace(/\bauthorization\s*:\s*(?:bearer\s+)?[^\s,;]+/gi, 'Authorization: [redacted]');
+  message = message.replace(
+    /\bauthorization\s*:\s*(?:bearer\s+)?[^\s,;]+/gi,
+    'Authorization: [redacted]'
+  );
   message = message.replace(
     /\b(openid|access_token|ticket|skey|p_skey|uin|qqidentity|jwt)\s*=\s*[^\s&#,;]+/gi,
     '$1=[redacted]'

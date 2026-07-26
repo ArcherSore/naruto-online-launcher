@@ -49,10 +49,7 @@ function _sanitize(str) {
   // Emails
   str = str.replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[email-redacted]');
   // 诊断文本中的禁止内容标签；值在进入压缩包前被丢弃。
-  str = str.replace(
-    /\b(requestBody|responseBody|pageSource)\s*=\s*[^\s,;]+/gi,
-    '$1=[redacted]'
-  );
+  str = str.replace(/\b(requestBody|responseBody|pageSource)\s*=\s*[^\s,;]+/gi, '$1=[redacted]');
   return str;
 }
 

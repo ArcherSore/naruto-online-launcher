@@ -20,16 +20,11 @@ describe('腾讯 Profile 管理界面边界', () => {
   const styles = readUiFile('styles.css');
 
   test('HTML 不再呈现国际服 region/server 本地选择控件', () => {
-    [
-      'regionTabs',
-      'fRegion',
-      'fServer',
-      'btnPickServer',
-      'serverHint',
-      'filterRegion'
-    ].forEach(function (id) {
-      expect(html).not.toMatch(new RegExp('id=["\\\']' + id + '["\\\']'));
-    });
+    ['regionTabs', 'fRegion', 'fServer', 'btnPickServer', 'serverHint', 'filterRegion'].forEach(
+      function (id) {
+        expect(html).not.toMatch(new RegExp('id=["\\\']' + id + '["\\\']'));
+      }
+    );
     expect(html).not.toMatch(/Buscar conta por nome, servidor ou região/i);
     expect(setupHtml).not.toMatch(/class=["']region-(?:grid|btn)["']|data-region=/i);
     expect(setupHtml).not.toMatch(/setup\.region\.|selectedRegion|region:\s*selectedRegion/i);

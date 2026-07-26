@@ -530,11 +530,13 @@ function importJSON(jsonStr) {
       return;
     }
     // Novo ID (evita colisão com existentes)
-    const fresh = _migrateProfile(Object.assign({}, p, {
-      id: 'p_' + crypto.randomBytes(6).toString('hex'),
-      createdAt: Date.now(),
-      lastUsed: 0
-    }));
+    const fresh = _migrateProfile(
+      Object.assign({}, p, {
+        id: 'p_' + crypto.randomBytes(6).toString('hex'),
+        createdAt: Date.now(),
+        lastUsed: 0
+      })
+    );
     _profiles.push(fresh);
     imported++;
   });

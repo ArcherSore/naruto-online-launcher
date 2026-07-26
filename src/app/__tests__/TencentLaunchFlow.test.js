@@ -124,7 +124,7 @@ describe('LaunchFlowState', () => {
       STAGES.GAME_LOADING,
       STAGES.GAME_READY,
       STAGES.CLOSED
-    ].forEach((nextStage) => flow.transitionTo(nextStage));
+    ].forEach(nextStage => flow.transitionTo(nextStage));
 
     expect(flow.stage).toBe(STAGES.CLOSED);
     expect(flow.status).toBe(STATUSES.IDLE);
@@ -142,9 +142,7 @@ describe('LaunchFlowState', () => {
     const flow = createFlow();
     flow.transitionTo(STAGES.CLOSED);
 
-    expect(() => flow.transitionTo(STAGES.SELECTOR_LOADING)).toThrow(
-      /invalid transition/i
-    );
+    expect(() => flow.transitionTo(STAGES.SELECTOR_LOADING)).toThrow(/invalid transition/i);
   });
 
   test('阶段恢复计数受上限约束且不会无限增长', () => {
@@ -194,9 +192,7 @@ describe('LaunchFlowState', () => {
       pathname: '/blocked'
     });
     expect(JSON.stringify(flow.getSnapshot())).not.toContain('ticket');
-    expect(flow.getAllowedRecoveryActions()).toEqual([
-      RECOVERY_ACTIONS.RETURN_TO_SELECTOR
-    ]);
+    expect(flow.getAllowedRecoveryActions()).toEqual([RECOVERY_ACTIONS.RETURN_TO_SELECTOR]);
   });
 
   test.each([
@@ -384,9 +380,7 @@ describe('TencentLaunchFlow Electron 11 路由', () => {
     const event = context.parent.webContents[helper](GAME_URL + '?ticket=ephemeral#game');
 
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(context.parent.loadURL).toHaveBeenLastCalledWith(
-      GAME_URL + '?ticket=ephemeral#game'
-    );
+    expect(context.parent.loadURL).toHaveBeenLastCalledWith(GAME_URL + '?ticket=ephemeral#game');
     expect(context.controller.getSnapshot().stage).toBe(STAGES.GAME_NAVIGATING);
   });
 
@@ -460,26 +454,38 @@ describe('TencentLaunchFlow Electron 11 路由', () => {
   });
 
   test.each([
-    ['parent navigate', function (context) {
-      return context.parent.webContents._emitWillNavigate(
-        'https://huoying.qq.com.evil.test/server/website/'
-      );
-    }],
-    ['parent redirect', function (context) {
-      return context.parent.webContents._emitRedirect('custom://auth/login');
-    }],
-    ['auth navigate', function (context) {
-      context.parent.webContents._emitNewWindow(AUTH_URL);
-      return electron.__mock.createdWindows[1].webContents._emitWillNavigate(
-        'https://auth.fixture.test.evil.test/login'
-      );
-    }],
-    ['auth popup', function (context) {
-      context.parent.webContents._emitNewWindow(AUTH_URL);
-      return electron.__mock.createdWindows[1].webContents._emitNewWindow(
-        'https://unknown.fixture.test/help'
-      );
-    }]
+    [
+      'parent navigate',
+      function (context) {
+        return context.parent.webContents._emitWillNavigate(
+          'https://huoying.qq.com.evil.test/server/website/'
+        );
+      }
+    ],
+    [
+      'parent redirect',
+      function (context) {
+        return context.parent.webContents._emitRedirect('custom://auth/login');
+      }
+    ],
+    [
+      'auth navigate',
+      function (context) {
+        context.parent.webContents._emitNewWindow(AUTH_URL);
+        return electron.__mock.createdWindows[1].webContents._emitWillNavigate(
+          'https://auth.fixture.test.evil.test/login'
+        );
+      }
+    ],
+    [
+      'auth popup',
+      function (context) {
+        context.parent.webContents._emitNewWindow(AUTH_URL);
+        return electron.__mock.createdWindows[1].webContents._emitNewWindow(
+          'https://unknown.fixture.test/help'
+        );
+      }
+    ]
   ])('%s 的 UNKNOWN 被阻止且保持可恢复状态', (_label, emitUnknown) => {
     const context = createController();
     context.controller.start();
@@ -557,10 +563,7 @@ describe('T046 四阶段失败与恢复契约（Red）', () => {
       prepare: prepareNavigationFailure,
       loadingStage: STAGES.GAME_NAVIGATING,
       failedStage: STAGES.NAVIGATION_FAILED,
-      actions: [
-        RECOVERY_ACTIONS.RETRY_GAME_NAVIGATION,
-        RECOVERY_ACTIONS.RETURN_TO_SELECTOR
-      ],
+      actions: [RECOVERY_ACTIONS.RETRY_GAME_NAVIGATION, RECOVERY_ACTIONS.RETURN_TO_SELECTOR],
       assertAutomatic: function (context) {
         expect(context.parent.loadURL).toHaveBeenLastCalledWith(GAME_URL);
       }
@@ -638,11 +641,7 @@ describe('T046 四阶段失败与恢复契约（Red）', () => {
   test.each([
     ['RELOAD_SELECTOR', prepareSelectorFailure, RECOVERY_ACTIONS.RELOAD_SELECTOR],
     ['REOPEN_AUTH', prepareAuthFailure, RECOVERY_ACTIONS.REOPEN_AUTH],
-    [
-      'RETRY_GAME_NAVIGATION',
-      prepareNavigationFailure,
-      RECOVERY_ACTIONS.RETRY_GAME_NAVIGATION
-    ],
+    ['RETRY_GAME_NAVIGATION', prepareNavigationFailure, RECOVERY_ACTIONS.RETRY_GAME_NAVIGATION],
     ['RELOAD_GAME', prepareGameFailure, RECOVERY_ACTIONS.RELOAD_GAME],
     [
       'RETURN_TO_SELECTOR',
@@ -883,9 +882,7 @@ describe('页面探针安全接口与有界预算', () => {
     });
     expect(parent.webContents.executeJavaScript).toHaveBeenCalledTimes(1);
     const scripts = parent.webContents.executeJavaScript.mock.calls.map(call => call[0]);
-    expect(scripts[0]).toContain(
-      'document.querySelector(".qConnectLogin iframe.loginframe")'
-    );
+    expect(scripts[0]).toContain('document.querySelector(".qConnectLogin iframe.loginframe")');
     expect(scripts[0]).not.toContain('#ptlogin_iframe');
     expect(scripts[0]).toContain('getClientRects().length > 0');
     expect(scripts[0]).toContain("style.display !== 'none'");

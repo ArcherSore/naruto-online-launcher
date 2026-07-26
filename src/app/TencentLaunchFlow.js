@@ -9,6 +9,7 @@
 
 const { BrowserWindow } = require('electron');
 const urlConfig = require('../config/urls');
+const logger = require('../utils/logger');
 const StallDetector = require('./StallDetector');
 
 const STAGES = Object.freeze({
@@ -293,10 +294,7 @@ class LaunchFlowState {
     this.status = STATUSES.WAITING_USER;
     this.error = {
       stage: nextStage,
-      code:
-        typeof errorCode === 'number' || typeof errorCode === 'string'
-          ? errorCode
-          : null,
+      code: typeof errorCode === 'number' || typeof errorCode === 'string' ? errorCode : null,
       safeMessage: typeof safeMessage === 'string' ? safeMessage : '加载失败'
     };
     return this.getSnapshot();
@@ -419,8 +417,7 @@ class ProbeBudget {
   constructor(options) {
     const opts = options || {};
     this.timeoutMs = typeof opts.timeoutMs === 'number' ? opts.timeoutMs : 3000;
-    this.perStageLimit =
-      typeof opts.perStageLimit === 'number' ? opts.perStageLimit : 3;
+    this.perStageLimit = typeof opts.perStageLimit === 'number' ? opts.perStageLimit : 3;
     this.totalLimit = typeof opts.totalLimit === 'number' ? opts.totalLimit : 12;
     this.total = 0;
     this.byStage = Object.create(null);
@@ -498,8 +495,7 @@ class TencentLaunchFlowController {
     this.classifyUrl = opts.classifyUrl || urlConfig.classifyUrl;
     this.toSafeLocation = opts.toSafeLocation || urlConfig.toSafeLocation;
     this.state = new LaunchFlowState({ profileId: opts.profileId, session: this.session });
-    this.probe =
-      opts.probe || createPageProbe({ webContents: this.webContents }).run;
+    this.probe = opts.probe || createPageProbe({ webContents: this.webContents }).run;
     this.probeBudget = new ProbeBudget({
       timeoutMs: 3000,
       perStageLimit: 3,
@@ -507,6 +503,7 @@ class TencentLaunchFlowController {
     });
     this.onStateChange =
       typeof opts.onStateChange === 'function' ? opts.onStateChange : function () {};
+    this.auditor = opts.auditor || null;
     this.stallDetectorFactory =
       typeof opts.stallDetectorFactory === 'function'
         ? opts.stallDetectorFactory
@@ -557,7 +554,21 @@ class TencentLaunchFlowController {
     this.stallDetector = this.stallDetectorFactory(this.window, this.session, {
       profileName: this.state.profileId,
       stage: this.state.stage,
-      onStall: details => this.handleStall(details),
+      onStall: details => {
+        if (this.auditor) {
+          try {
+            this.auditor.recordStall(
+              details && (details.reason || details.resourceType)
+                ? details.reason || details.resourceType
+                : 'swf-stall'
+            );
+            this.auditor.recordReload();
+          } catch (error) {
+            logger.debug('Auditor: recordStall failed — ' + error.message);
+          }
+        }
+        return this.handleStall(details);
+      },
       onExhausted: details => this.handleStallExhausted(details)
     });
   }
@@ -813,8 +824,7 @@ class TencentLaunchFlowController {
     const config = FAILURE_BY_STAGE[this.state.stage];
     if (!config) return false;
     const errorCode =
-      details &&
-      (typeof details.errorCode === 'number' || typeof details.errorCode === 'string')
+      details && (typeof details.errorCode === 'number' || typeof details.errorCode === 'string')
         ? details.errorCode
         : null;
 
@@ -918,8 +928,7 @@ class TencentLaunchFlowController {
       return this._markFailure(config, event.errorCode);
     }
 
-    const source =
-      config.action === RECOVERY_ACTIONS.RELOAD_GAME ? 'crash' : 'automatic';
+    const source = config.action === RECOVERY_ACTIONS.RELOAD_GAME ? 'crash' : 'automatic';
     const recovered = this.requestRecovery(config.action, {
       profileId: this.state.profileId,
       source: source

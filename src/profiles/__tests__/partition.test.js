@@ -156,9 +156,7 @@ describe('partition.js', function () {
       var result = partition.getProfileSession({ id: 'profile-a', shadow: true });
 
       expect(result).toBe(isolatedSession);
-      expect(electron.session.fromPartition).toHaveBeenCalledWith(
-        'persist:profile-profile-a'
-      );
+      expect(electron.session.fromPartition).toHaveBeenCalledWith('persist:profile-profile-a');
       expect(result).not.toBe(electron.session.defaultSession);
     });
 

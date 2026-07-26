@@ -1,149 +1,65 @@
-<div align="center">
+# 腾讯《火影忍者 OL》启动器
 
-# 🍥 Shinobi Launcher — Naruto Online
+基于 Electron 11.5.0 与 PPAPI Flash 的腾讯国服专用桌面启动器。
 
-**O launcher multi-conta mais leve e inovador para Naruto Online.**
-Multi-conta isolada • GC de memória inteligente • Linux + Windows nativos • Zero tracking
+## 核心能力
 
-<!--VERSION:v4.7.0-->
+- 通过腾讯官方页面完成扫码登录、选服与进入游戏。
+- 每个 Profile 固定使用独立的 `persist:profile-<id>` Session。
+- 登录态只由 Chromium Session 保存；启动器不采集 QQ 密码，不持久化或复制登录票据。
+- 支持多 Profile 游戏窗口、后台运行、安全刷新与有界故障恢复。
+- 内置 Windows/Linux PPAPI Flash，固定 Electron 11.5.0。
+- 提供脱敏网络元数据 Inspector 与用户主动导出的诊断信息。
 
-[![Build](https://img.shields.io/github/actions/workflow/status/Chrispsz/naruto-online-launcher/build-release.yml?style=flat-square&logo=github)](https://github.com/Chrispsz/naruto-online-launcher/actions)
-[![Version](https://img.shields.io/badge/version-4.7.0-FF8C00?style=flat-square)](https://github.com/Chrispsz/naruto-online-launcher/releases/latest)
-[![License](https://img.shields.io/github/license/Chrispsz/naruto-online-launcher?style=flat-square)](LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/Chrispsz/naruto-online-launcher/total?style=flat-square&color=DC2626)](https://github.com/Chrispsz/naruto-online-launcher/releases/latest)
+## 开发环境
 
-</div>
+项目通过 Volta 固定：
 
----
+- Node.js 16.20.2
+- npm 8.19.4
+- Electron 11.5.0
 
-## ⚡ Download Grátis
-
-<!--LINUX_URL:https://github.com/Chrispsz/naruto-online-launcher/releases/latest-->
-<!--WIN_URL:https://github.com/Chrispsz/naruto-online-launcher/releases/latest-->
-
-<table align="center">
-  <tr>
-    <td align="center" width="50%">
-      <a href="<!--LINUX_URL-->">
-        <img src="https://img.shields.io/badge/🐧%20LINUX-Download%20(.zip)-000000?style=for-the-badge&logo=linux&logoColor=white&labelColor=0B1220&color=FF8C00" alt="Download Linux" />
-      </a>
-      <br><sub>AppImage + installer</sub>
-    </td>
-    <td align="center" width="50%">
-      <a href="<!--WIN_URL-->">
-        <img src="https://img.shields.io/badge/🪟%20WINDOWS-Download%20(.zip)-0078D4?style=for-the-badge&logo=windows&logoColor=white&labelColor=0B1220&color=DC2626" alt="Download Windows" />
-      </a>
-      <br><sub>Portable EXE — sem instalação</sub>
-    </td>
-  </tr>
-</table>
-
-> 🔄 Os links acima são **atualizados automaticamente** a cada nova release pelo GitHub Actions. Sempre apontam para a versão estável mais recente — sem precisar procurar na aba Releases.
-
----
-
-## 🆕 O que há de novo na v4.7 (Cleanup Edition)
-
-| Recurso | v4.6 | **v4.7** |
-|---|:---:|:---:|
-| 🧹 **Configuração unificada** | ❌ toggle de telemetria duplicado | **✅ só em Configurações** |
-| 📋 **Relatórios de crash no UI** | ❌ só no sidebar | **✅ Configurações → Avançado** |
-| 🔐 **Backup criptografado exposto** | ❌ IPC sem UI | **✅ botões Exportar/Importar** |
-| 🗑️ **Código morto removido** | — | **✅ Vercel no-op + AI cron scripts** |
-| 📏 **Sidebar mais enxuto** | 415 linhas | **✅ 331 linhas** |
-| 🎯 **Crash reporter honesto** | no-op silencioso | **✅ local-only explícito** |
-
----
-
-## 🆕 O que havia de novo na v2.0 (Shinobi Edition)
-
-| Recurso | v1.4 | **v2.0** |
-|---|:---:|:---:|
-| 🥷 **Multi-conta isolada** | ❌ | **✅ até 8 simultâneas** |
-| 🧹 **GC de memória inteligente** | ❌ | **✅ automático + manual (F8)** |
-| ⏱️ **Lembretes de eventos** | ❌ | **✅ notificações nativas** |
-| 📊 **Dashboard de contas** | ❌ | **✅ UI rica** |
-| 🎨 **Identificação por cor** | ❌ | **✅ por perfil** |
-| 🔒 Flash PPAPI + Privacy | ✅ | ✅ (mantido) |
-
----
-
-## 🥷 Multi-conta isolada — como funciona
-
-Cada conta que você cria ganha:
-- Uma **session partition única** do Chromium (`persist:profile-<id>`)
-- Cookies, localStorage, cache e service workers **100% isolados** das outras contas
-- Uma janela de jogo independente, com a cor e o apelido que você escolheu
-
-**Resultado:** jogue com 8 contas simultaneamente, sem uma sobrescrever a sessão da outra. Não há gerenciamento manual de cookies — o Chromium faz o isolamento nativamente.
-
----
-
-## 🧹 Garbage Collector de memória inteligente
-
-O Flash PPAPI + Chromium 87 (Electron 11) tem vazamento de memória crônico — após 1-2h o processo ultrapassa 1GB e trava. O **MemoryGuard** resolve:
-
-1. **Daemon em background** monitora a RAM a cada 60s
-2. Quando passa de **700MB** (configurável), dispara coleta em **3 camadas**:
-   - JS `gc()` + limpeza de service worker caches
-   - `session.clearCache()` + `clearStorageData(cachestorage)` por perfil
-   - OS-level working set trim (Windows: `EmptyWorkingSet`)
-3. Botão manual **F8** para limpeza sob demanda
-4. **Gauge de RAM em tempo real** na dashboard
-
----
-
-## 📦 Instalação
-
-### Linux
-```bash
-# Baixe pelo botão acima, depois:
-unzip naruto-online-linux.zip
-chmod +x install.sh
-./install.sh
-```
-O installer detecta sua distro (Arch, Ubuntu, Fedora, etc.) e instala dependências se faltar.
-
-### Windows
-Extraia o `.zip` e rode `NarutoOnline.exe` — sem instalação.
-
----
-
-## ⌨️ Atalhos
-
-| Tecla | Ação |
-|-------|------|
-| `Ctrl+N` | **Nova conta** (v2.0) |
-| `F8` | **Forçar limpeza de memória** (v2.0) |
-| `F5` | Limpar login da conta atual |
-| `F11` | Tela cheia |
-| `Ctrl+Shift+S` | Screenshot |
-| `Ctrl+Shift+T` | Sempre no topo |
-| `Ctrl++/-/0` | Zoom |
-
----
-
-## 🛠️ Stack técnica
-
-```
-Shell:        Electron 11.5.0 (última com PPAPI Flash)
-Flash:        Clean Flash PPAPI 34.0 (darktohka build)
-Backend:      Node.js (main process) + Electron APIs
-Multi-conta:  Session partitions isoladas
-GC:           3-camadas (JS + session + OS working set)
-UI Manager:   HTML/CSS/JS puro (zero framework)
-Build:        electron-builder → AppImage + Portable EXE
-CI/CD:        GitHub Actions (auto-update README links)
+```powershell
+npm ci --no-audit --no-fund
+npm test -- --runInBand
+npm run lint
+npx prettier --check "src/**/*.{js,html,css,json}" "tests/**/*.js"
 ```
 
-> **Por que Electron 11 e não Tauri?** Tauri 2.0 usa WebView2/WebKitGTK modernos que **removeram suporte a PPAPI** (Chrome 88+, 2021). Para Flash legado, Electron 11 é a única opção viável sem rebuild C++ massivo em CEF. O overhead do Electron é compensado pelo isolamento de partitions + MemoryGuard.
+源码启动：
 
----
+```powershell
+npm start
+```
 
-## 📜 Licença
+Windows portable 构建：
 
-MIT — livre para usar, modificar e distribuir. ⭐ Deixe uma star se ajudar!
+```powershell
+npm run build:win
+```
 
-<div align="center">
-<sub>Feito com 🍥 pela comunidade Naruto Online BR • Sem afiliação com Oasis Games</sub>
-</div>
+## 登录流程
+
+1. 在管理窗口创建 Profile。
+2. 点击“打开”，启动器创建该 Profile 的隔离游戏窗口。
+3. 游戏窗口打开腾讯官方选服页。
+4. 用户在官方页面扫码登录并手动选服。
+5. 腾讯页面导航到游戏主页面，Flash 在同一 Session 中加载。
+
+启动器不会自动选择服务器，也不会回退到 Oasis 登录流程。
+
+## 文档
+
+- [仓库导航](docs/REPO_MAP.md)
+- [架构说明](ARCHITECTURE.md)
+- [安全边界](SECURITY.md)
+- [Flash 配置](FLASH_SETUP.md)
+- [腾讯启动流程规范](specs/001-tencent-game-launch/spec.md)
+
+## 平台
+
+- Windows x64 portable
+- Linux x86_64 AppImage（X11/XWayland）
+- macOS 不支持 PPAPI Flash
+
+本项目与腾讯、万代南梦宫及相关权利方无隶属关系。

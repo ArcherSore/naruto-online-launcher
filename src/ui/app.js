@@ -1,6 +1,7 @@
 'use strict';
 
 const { ipcRenderer } = require('electron');
+const { debounce } = require('../utils/throttle');
 
 let profiles = [];
 let editingProfileId = null;
@@ -42,7 +43,12 @@ function showToast(message, type) {
 function renderProfiles() {
   const query = elements.search.value.trim().toLowerCase();
   const visible = profiles.filter(function (profile) {
-    return !query || String(profile.name || '').toLowerCase().indexOf(query) !== -1;
+    return (
+      !query ||
+      String(profile.name || '')
+        .toLowerCase()
+        .indexOf(query) !== -1
+    );
   });
 
   elements.count.textContent = profiles.length + ' 个 Profile';
@@ -147,7 +153,7 @@ document.getElementById('createProfileBtn').addEventListener('click', function (
 });
 document.getElementById('closeProfileModalBtn').addEventListener('click', closeProfileModal);
 document.getElementById('cancelProfileBtn').addEventListener('click', closeProfileModal);
-elements.search.addEventListener('input', renderProfiles);
+elements.search.addEventListener('input', debounce(renderProfiles, 120));
 
 document.getElementById('refreshBtn').addEventListener('click', function () {
   ipcRenderer.send('manager:ready');

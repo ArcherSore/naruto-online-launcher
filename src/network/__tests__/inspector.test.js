@@ -180,7 +180,9 @@ describe('inspector.js - G0 安全网络观察边界', () => {
   });
 
   test('listener 异常只记录安全错误类型，不回显网络详情', () => {
-    insp.on('capture', () => { throw new TypeError('callback failed'); });
+    insp.on('capture', () => {
+      throw new TypeError('callback failed');
+    });
     insp.enable();
     session.webRequest._handlers.onBeforeRequest({
       url: 'https://cdn.example/game.swf?ticket=ticket-secret',

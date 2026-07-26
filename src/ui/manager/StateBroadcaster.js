@@ -104,13 +104,7 @@ function pushFlowState(snapshot) {
     safe.userMessage = FIXED_FLOW_MESSAGES[safe.stage];
   }
   if (safe.attempts) {
-    safe.attempts = pickFields(safe.attempts, [
-      'selector',
-      'auth',
-      'navigation',
-      'game',
-      'crash'
-    ]);
+    safe.attempts = pickFields(safe.attempts, ['selector', 'auth', 'navigation', 'game', 'crash']);
   }
   if (safe.lastSafeLocation) {
     safe.lastSafeLocation = pickFields(safe.lastSafeLocation, ['role', 'origin', 'pathname']);

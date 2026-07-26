@@ -48,7 +48,7 @@ describe('classifyUrl', () => {
     'https://game.huoying.qq.com:8443/main.html',
     'https://game.huoying.qq.com/main.htm',
     'https://game.huoying.qq.com/main.html/extra'
-  ])('scheme/port/path 任一不精确时归类 UNKNOWN：%s', (value) => {
+  ])('scheme/port/path 任一不精确时归类 UNKNOWN：%s', value => {
     expect(urls.classifyUrl(value)).toBe('UNKNOWN');
   });
 
@@ -58,7 +58,7 @@ describe('classifyUrl', () => {
     'https://qq.com/server/website/',
     'https://game.huoying.qq.com.evil.example/main.html',
     'https://game-huoying.qq.com/main.html'
-  ])('拒绝仿冒或仅包含可信字符串的 hostname：%s', (value) => {
+  ])('拒绝仿冒或仅包含可信字符串的 hostname：%s', value => {
     expect(urls.classifyUrl(value)).toBe('UNKNOWN');
   });
 
@@ -71,7 +71,7 @@ describe('classifyUrl', () => {
     '',
     null,
     undefined
-  ])('未知协议或无效输入默认拒绝：%p', (value) => {
+  ])('未知协议或无效输入默认拒绝：%p', value => {
     expect(urls.classifyUrl(value)).toBe('UNKNOWN');
   });
 });

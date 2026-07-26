@@ -19,7 +19,7 @@
 'use strict';
 
 const { contextBridge, ipcRenderer } = require('electron');
-const { DEBUG } = require('./main/debug');
+const DEBUG = process.env.SHINOBI_DEBUG === '1';
 const RECOVERY_ACTIONS = Object.freeze([
   'RELOAD_SELECTOR',
   'REOPEN_AUTH',
@@ -37,17 +37,13 @@ function sanitizeFlowSnapshot(value) {
     error: error
       ? {
           code:
-            typeof error.code === 'string' || typeof error.code === 'number'
-              ? error.code
-              : null,
+            typeof error.code === 'string' || typeof error.code === 'number' ? error.code : null,
           safeMessage: typeof error.safeMessage === 'string' ? error.safeMessage : ''
         }
       : null,
     availableActions: Array.isArray(source.availableActions)
       ? source.availableActions.filter(function (action, index, actions) {
-          return (
-            RECOVERY_ACTIONS.indexOf(action) !== -1 && actions.indexOf(action) === index
-          );
+          return RECOVERY_ACTIONS.indexOf(action) !== -1 && actions.indexOf(action) === index;
         })
       : []
   };
@@ -99,5 +95,21 @@ contextBridge.exposeInMainWorld('narutoLauncher', {
    */
   isDebug: function () {
     return DEBUG;
+  },
+  requestRecovery: function (action) {
+    if (typeof action !== 'string' || RECOVERY_ACTIONS.indexOf(action) === -1) {
+      return Promise.resolve({ ok: false, error: 'invalid-action' });
+    }
+    return ipcRenderer.invoke('launch-flow:recover', action);
+  },
+  onLaunchFlowState: function (callback) {
+    if (typeof callback !== 'function') return function () {};
+    const listener = function (_event, snapshot) {
+      callback(sanitizeFlowSnapshot(snapshot));
+    };
+    ipcRenderer.on('launch-flow:status', listener);
+    return function () {
+      ipcRenderer.removeListener('launch-flow:status', listener);
+    };
   }
 });

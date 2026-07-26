@@ -1,231 +1,103 @@
 # Repository Map
 
-> 本文以当前工作树中的 `package.json`、构建配置和源码为事实来源。`MIGRATION_PROMPT.md` 仅按历史交接资料处理；其中的状态对照见文末。
+本文以当前源码与配置为准，用于快速定位腾讯国服启动器模块。
 
-## 1. 项目定位与顶层目录
+## 顶层目录
 
-这是一个 Electron 11 桌面启动器：管理多个 Naruto Online 账号/Profile，为每个 Profile 创建隔离的 Chromium Session 和独立游戏窗口，并通过 PPAPI 运行 Flash。管理界面与游戏页均为原生 HTML/CSS/JavaScript，没有前端框架。
+| 路径 | 职责 |
+| --- | --- |
+| `src/` | Electron 主进程、管理 UI、Profile、腾讯流程、Flash 与诊断 |
+| `flash/` | Windows/Linux PPAPI 二进制与版本清单 |
+| `assets/` | 应用图标 |
+| `linux/` | AppImage 安装、运行与卸载脚本 |
+| `.github/workflows/` | Node 16.20.2 下的 CI 与双平台构建 |
+| `specs/001-tencent-game-launch/` | 腾讯启动流程需求、设计、任务和历史验证记录 |
+| `tests/`、`src/**/__tests__/` | Jest 基础设施与保留的腾讯相关回归测试 |
 
-| 路径 | 职责 | 后续开发关注点 |
-| --- | --- | --- |
-| `src/` | 应用主进程、管理界面、Profile/Session、网络、Flash、性能与工具代码 | 业务开发主目录 |
-| `src/main.js` | Electron 主入口与启动编排 | 启动顺序、全局生命周期、首次启动、Flash 兜底 |
-| `assets/` | 应用 PNG/ICO 图标 | 打包资源 |
-| `flash/` | 已纳入版本控制的 Windows/Linux PPAPI 二进制和版本清单 | 不应随意替换；与 Electron 11 强耦合 |
-| `linux/` | AppImage 安装、运行、卸载及 desktop entry | Linux/X11/XWayland 与系统依赖 |
-| `.github/workflows/` | CI 质量门禁、Linux/Windows 构建、Release | Node 版本和官方构建命令的权威来源之一 |
-| `scripts/` | Linux 源码调试和已打包 AppImage 调试脚本 | 非正常启动入口 |
-| `tools/` | 可手动粘贴到 DevTools 的网络监视脚本 | 运行时诊断，不参与应用启动 |
-| `tests/`、`__mocks__/` | Jest 全局设置和 Electron/electron-log mock | 单元测试基础设施 |
-| `docs/` | 面向维护者的仓库导航 | 当前文档所在目录 |
+## 启动与 Flash
 
-`README.md` 主要面向发行版用户，`CONTRIBUTING.md` 提供基本开发命令，但其目录示例已经落后于当前源码；导航应以本文和实际文件为准。
+- `src/main.js`：启动编排；ready 前读取配置、探测 Flash、应用 GPU 环境变量与 Chromium flags。
+- `src/main/flags.js`：`app.commandLine.appendSwitch` 的唯一入口。
+- `src/flash/plugin.js`：从发行资源、开发目录或手动 cache 中寻找 PPAPI。
+- `src/flash/mms.js`：运行期管理 Flash `mms.cfg`。
+- `src/config/settings.js`：`userData/config.json`。
 
-## 2. 核心模块与关键文件
+Flash 二进制随仓库和发行包提供。`src/app/FlashUpdater.js` 已按上游 v1.4 架构删除；缺少插件时 `main.js` 显示安装损坏错误并退出。
 
-### 启动与配置
+## 腾讯登录与窗口
 
-- `package.json`：`main` 指向 `src/main.js`；定义 npm scripts、Electron/electron-builder 版本和打包资源。
-- `src/main.js`：必须在 `app.ready` 前完成配置、Flash 探测、GPU 环境变量与 Chromium flags；ready 后启动 Store、MemoryGuard 和管理窗口。
-- `src/main/flags.js`：唯一的 `app.commandLine.appendSwitch` 权威入口，设置 Flash、sandbox、GPU、缓存和 V8 heap flags。
-- `src/main/debug.js`、`src/preload.js`：读取 `SHINOBI_DEBUG` 并向隔离的游戏 renderer 暴露最小 bridge。
-- `src/config/settings.js`：在 Electron `userData/config.json` 读写全局设置。
-- `src/config/urls.js`：腾讯官方选服页、认证页和游戏主页面的精确 URL 角色定义。
-- `src/config/regions.js`、`hardware.js`、`optimization.js`、`i18n.js`：地区、硬件、性能预设和管理 UI 文案配置。
+- `src/app/Launcher.js`：创建游戏 `BrowserWindow`、绑定 Profile Partition、装配流程与窗口 registry。
+- `src/app/TencentLaunchFlow.js`：腾讯官方选服、扫码认证子窗、游戏导航、页面探针与有界恢复状态机。
+- `src/app/SessionLifecycle.js`：通用 load/crash/responsive/close 生命周期。
+- `src/app/StallDetector.js`：关键 SWF stall 检测。
+- `src/ui/manager/KeyboardShortcuts.js`：游戏窗口 F5、F11、F12、Alt+F4。
+- `src/config/urls.js`：腾讯官方 URL 与精确 URL 角色。
 
-### Profile 与 Session
-
-- `src/profiles/store.js`：Profile 元数据、排序、统计和启动日志的持久化 Store；上限由 `MAX_PROFILES` 定义。
-- `src/profiles/manager.js`：Profile 领域 facade；串联 Store、固定持久 Partition、Launcher 和 MemoryGuard。
-- `src/profiles/partition.js`：把每个 Profile 固定映射到唯一的
-  `persist:profile-<id>`；不读取、复制或恢复 Cookie。
-
-### 游戏窗口、登录与页面生命周期
-
-- `src/app/Launcher.js`：按 Profile 创建带独立持久 partition 的 `BrowserWindow`，启用插件，维护窗口 registry，并挂接腾讯流程、生命周期与快捷键。
-- `src/ui/game-launcher.js`：兼容 facade，直接 re-export `app/Launcher.js`。
-- `src/app/TencentLaunchFlow.js`：腾讯官方扫码、认证子窗、选服、游戏导航、精确 URL 分类、有界恢复和 StallDetector 的状态机。
-- `src/app/SessionLifecycle.js`：只处理通用窗口 load/ready/crash/unresponsive/close 事件，并把角色相关处理委托给 `TencentLaunchFlow`。
-- `src/ui/manager/KeyboardShortcuts.js`：游戏窗口 F5、F12、Alt+F4 等快捷键；F5 只重载当前安全角色，不清 Session。
-- `src/app/StallDetector.js`：识别关键资源停滞并触发受控恢复。
-
-### 网络
-
-- `src/network/inspector.js`：可选的安全 `webRequest` 元数据观察器，只保留
-  resource type、origin、pathname、status code 和 error code，由管理 IPC 显式控制。
-
-### 管理窗口与 IPC
-
-- `src/ui/controller.js`：管理 UI 的薄 facade。
-- `src/ui/manager/ManagerWindow.js`：本地 dashboard `BrowserWindow` 的创建、显示、隐藏与关闭策略。
-- `src/ui/manager/IpcRouter.js`：通用 Profile、窗口、安全 Inspector、Flash 和诊断 IPC 的集中路由。
-- `src/ui/manager/StateBroadcaster.js`：把安全 Profile、流程和内存状态推送给管理 renderer。
-- `src/ui/index.html`、`src/ui/app.js`、`styles.css`：管理 dashboard；该窗口加载本地文件并直接启用 Node integration。
-
-### Flash、性能和诊断
-
-- `src/flash/plugin.js`：从打包资源、开发目录或 `userData/flash-cache` 同步寻找当前平台的 PPAPI 文件并读取版本。
-- `src/app/FlashUpdater.js`：仅在内置文件缺失/损坏时兜底；使用固定 release 下载、缓存、解压并触发二次启动。
-- `src/flash/mms.js`：运行期间写入 Flash `mms.cfg`，退出时恢复备份。
-- `src/memory/MemoryGuard.js`、`GcDaemon.js`、`guard.js`：内存监测、分层 GC 与兼容 facade。
-- `src/app/GpuDetector.js`、`CpuOptimizer.js`：启动前 GPU 环境变量和游戏 renderer 的 CPU 优化。
-- `src/utils/diagnostics.js`、`logger.js`：本地日志与用户主动导出的脱敏诊断包。
-
-## 3. 应用启动流程
-
-1. npm 执行 `electron .`；Electron 根据 `package.json.main` 加载 `src/main.js`。
-2. `src/main.js` 在 top-level 同步读取 `userData/config.json`，探测当前平台 Flash 路径和版本，探测 GPU，并调用 `flags.applyAll()`。PPAPI 路径/版本必须在 Electron ready 前设置。
-3. 获取 single-instance lock；第二实例只聚焦/恢复管理窗口。
-4. `app.ready` 时：
-   - 若找不到有效 Flash，打开本地 loading window，调用 `FlashUpdater.ensureLatest()`，成功后 `app.relaunch()`；
-   - 否则加载 Profile Store，启动 MemoryGuard/Webview GC；
-   - 首次运行先显示 `src/ui/setup/setup.html`，持久化语言和轻量模式设置；
-   - 随后注册 IPC，创建管理窗口并加载 `src/ui/index.html`。
-5. 管理 renderer 的 `src/ui/app.js` 通过 IPC 请求 Profile 操作；点击 Play 后 `IpcRouter/main.js -> ProfileManager.launch()`。
-6. ProfileManager 委托 Launcher；Partition 固定返回 `persist:profile-<id>`。
-7. Launcher 创建游戏 `BrowserWindow`、绑定独立 Session、挂接
-   `TencentLaunchFlow`、通用 `SessionLifecycle` 和快捷键，先显示本地 loading data URL。
-8. `ready-to-show` 后启动 `TencentLaunchFlow`，加载腾讯官方选服页；扫码认证、手动选服和
-   游戏主页面跳转全部由精确 URL 角色和父 Profile 的同一 Session 驱动。
-9. load/crash/stall/unresponsive 只委托当前角色做有界处理；不会读取 Cookie、注入密码、
-   回退 Oasis 或自动选服。
-10. 游戏窗口关闭时 flush 当前 Session 存储、清理流程和计时器、从 registry 移除窗口并
-    注销 MemoryGuard；不会 snapshot/restore Cookie。
-
-## 4. Profile、Session、Flash、登录、网络与窗口生命周期关系
+流程：
 
 ```text
-管理 UI
-  -> IPC Router
-    -> Profile Store
-    -> ProfileManager.launch(profileId)
-       -> Partition: persist:profile-<id>
-       -> Launcher.create BrowserWindow(partition, plugins=true)
-          -> SessionLifecycle
-          -> TencentLaunchFlow
-             -> 官方选服页 -> 官方扫码认证 -> 手动选服 -> 游戏主页面
-             -> 精确导航/弹窗分类 + 有界失败恢复
-          -> KeyboardShortcuts
-       -> MemoryGuard 注册/注销游戏 webContents
-
-进程启动前：Flash Plugin 探测 -> flags.js 注入 ppapi-flash-path/version
-缺失时：FlashUpdater -> userData/flash-cache -> relaunch -> 再次探测
+ProfileManager.launch(profileId)
+  -> persist:profile-<id>
+  -> Launcher
+    -> Tencent official selector
+    -> Tencent QR authentication
+    -> manual server selection
+    -> Tencent game main page
 ```
 
-Flash 是进程级 PPAPI 能力，Session 是 Profile 级隔离边界，BrowserWindow 是可见生命周期
-边界。登录态只由各 Profile 的 Chromium Session cookie/storage 保存；启动器不持久化凭据或
-复制认证票据。生产流程不安装 Cookie/CSP/`crossdomain.xml` 改写。
+启动器不采集 QQ 密码，不读取/复制 Cookie，不自动选服，不回退 Oasis。
 
-## 5. 常见改动的文件导航
+## Profile 与 Session
 
-| 改动目标 | 首要文件 | 通常还要检查 |
-| --- | --- | --- |
-| 腾讯官方入口与 URL 角色 | `src/config/urls.js` | `src/app/TencentLaunchFlow.js`、`Launcher.js`、`urls.test.js` |
-| 扫码认证、弹窗与导航 | `src/app/TencentLaunchFlow.js` | `navigation-contract.md`、`TencentLaunchFlow.test.js` |
-| 安全网络元数据观察 | `src/network/inspector.js` | `src/ui/manager/IpcRouter.js`、`inspector.test.js`、`diagnostics.test.js` |
-| Profile 字段或持久化 | `src/profiles/store.js` | `src/profiles/manager.js`、`partition.js`、`IpcRouter.js`、`src/ui/app.js` |
-| Session 隔离与持久映射 | `src/profiles/partition.js` | `src/profiles/manager.js`、`src/app/Launcher.js`、MemoryGuard |
-| Flash 路径、版本或兜底下载 | `src/flash/plugin.js`、`src/app/FlashUpdater.js` | `src/main/flags.js`、`src/main.js`、`flash/manifest.json`、`package.json.build.extraResources`、CI |
-| 管理窗口关闭/隐藏策略 | `src/ui/manager/ManagerWindow.js` | `src/main.js` 的全局 app lifecycle；Launcher 的 window registry |
-| 游戏窗口关闭、失败或 crash 恢复 | `src/app/SessionLifecycle.js` | `src/app/Launcher.js`、`src/profiles/manager.js`、`src/app/StallDetector.js` |
+- `src/profiles/store.js`：Profile 通用元数据、统计与 launch log。
+- `src/profiles/manager.js`：Store、Partition、Launcher 与 MemoryGuard facade。
+- `src/profiles/partition.js`：固定 `persist:profile-<id>` 映射和 Session 获取。
 
-不要为腾讯流程新增 Cookie/CSP/响应头改写；需要诊断时只使用已收敛到五字段白名单的
-`network/inspector.js`。
+旧 `CryptoService`、`PasswordManager`、`ProfileVault` 与 `vault.js` 已删除。
 
-## 6. 安装、开发、检查与构建命令
+## 管理窗口与 IPC
 
-以下命令来自当前 `package.json`、CI workflow、README/CONTRIBUTING 和构建配置。仓库没有单独的 hot-reload `dev` script；“开发模式”就是从源码运行 Electron。
+- `src/ui/controller.js`：管理 UI facade。
+- `src/ui/manager/ManagerWindow.js`：管理窗口生命周期。
+- `src/ui/manager/IpcRouter.js`：Profile、窗口恢复、Inspector、内存与诊断 IPC。
+- `src/ui/manager/StateBroadcaster.js`：安全 Profile、流程与内存状态推送。
+- `src/ui/index.html`、`src/ui/app.js`、`src/ui/styles.css`：腾讯 Profile 管理界面。
+- `src/preload.js`：游戏 renderer 的最小版本、debug 与恢复 bridge。
 
-| 目的 | 准确命令 | 说明 |
-| --- | --- | --- |
-| 安装依赖（推荐） | `npm ci --no-audit --no-fund` | 使用现有完整 lockfile 做确定性安装；已在 Node 16.20.2/npm 8.19.4 下验证通过且锁文件哈希不变 |
-| 安装依赖（CI 当前写法） | `npm install --no-audit --no-fund` | workflow 当前使用此命令；仅在 `npm ci` 因历史锁文件不兼容时才应作为本地 fallback |
-| 开发模式启动 | `npm start` | 等价于 `electron .`，无 hot reload |
-| 测试 | `npm test` | Jest；可选 `npm run test:watch`、`npm run test:coverage` |
-| lint | `npm run lint` | ESLint 检查 `src/` |
-| 自动修复 lint | `npm run lint:fix` | 会修改文件 |
-| 格式化 | `npm run format` | Prettier 写入 `src/`，会修改文件 |
-| CI 格式检查（只读） | `npx prettier --check "src/**/*.{js,html,css,json}" "tests/**/*.js"` | workflow 中的实际质量门禁 |
-| Windows portable EXE | `npm run build:win` | `electron-builder --win portable --publish never`，目标仅 x64，输出到 `dist/` |
-| Linux AppImage | `npm run build:linux` | 输出到 `dist/` |
-| 同时请求两平台构建 | `npm run build` | 从单一宿主跨平台构建可能还受 electron-builder 工具链限制；CI 使用 OS matrix 分开构建 |
+## 网络、安全与诊断
 
-CI 的直接打包命令分别是 `npx electron-builder --linux AppImage --publish never` 和 `npx electron-builder --win portable --publish never`。Windows 发布物名称由 `productName`/`executableName` 和 electron-builder 决定，发行包预期为 portable `NarutoOnline.exe`。
+- `src/network/inspector.js`：只保留 resource type、origin、pathname、status code、error code。
+- `src/utils/diagnostics.js`：用户主动导出的脱敏诊断。
+- `src/utils/logger.js`：本地结构化日志。
+- `src/app/Auditor.js`：Profile 级游玩时长、stall、crash、reload 汇总。
 
-## 7. 环境要求与运行前检查
+旧 `api-login`、`blocker`、`cookies`、`tempmail`、`jwt` 与 `server-selector` 已删除。
 
-### Node、npm 与 Electron
+## 性能
 
-- `package.json.engines.node`：Node.js `>=16.0.0`。
-- 项目级 Volta 基线：Node.js `16.20.2`、npm `8.19.4`；CI 明确使用 Node `16.20.2`，该 Node 发行版配套 npm `8.19.4`。
-- `package-lock.json` 是完整的 lockfile v3。已使用 `npm ci --no-audit --no-fund` 成功安装 550 个包，安装前后 SHA-256 均为 `216ABA49685A226E07553B67C114CCDD2F2954FA70D84440C92A5981658F1DBB`。不要改用 yarn/pnpm/bun，仓库明确以 npm 为准。
-- Electron 与 build 配置都固定为 `11.5.0`，electron-builder 固定为 `22.14.13`。不要升级 Electron：当前 Flash/Chromium 87/PPAPI 依赖这条旧运行时链。
-- Node 16 已经 EOL，仅用于兼容当前旧版 Electron 11/PPAPI 项目，不应作为新项目的通用运行时。系统现有 Node 24 不需要降级或卸载。
+- `src/app/GpuDetector.js`：启动前 GPU 环境变量。
+- `src/app/CpuOptimizer.js`：游戏 renderer CPU 优化。
+- `src/memory/MemoryGuard.js`：低内存模式与轻量状态；强制 renderer GC 已移除，保留兼容 IPC 返回。
+- `src/utils/throttle.js`：renderer debounce/throttle。
 
-### Volta 使用方式
+## 常用命令
 
-- 仓库根目录的 `package.json` 包含 `"volta": { "node": "16.20.2", "npm": "8.19.4" }`。安装 Volta 的开发者进入本目录后，`node`、`npm` 和 npm scripts 会自动解析到固定版本；离开项目目录后仍使用其系统/默认工具链。
-- 首次配置命令：`volta pin node@16.20.2 npm@8.19.4`。该命令已经执行，无需每次启动重复运行。
-- 验证命令：`node -v`、`npm -v`、`volta which node`、`volta which npm`；预期分别为 `v16.20.2`、`8.19.4` 和对应的 Volta 工具缓存路径。
-- 新 clone 的标准流程：进入仓库目录，确认上述版本，执行 `npm ci --no-audit --no-fund`，然后用 `npm start` 启动。
+| 目的 | 命令 |
+| --- | --- |
+| 安装 | `npm ci --no-audit --no-fund` |
+| 启动 | `npm start` |
+| Jest | `npm test -- --runInBand` |
+| lint | `npm run lint` |
+| Prettier 检查 | `npx prettier --check "src/**/*.{js,html,css,json}" "tests/**/*.js"` |
+| Windows portable | `npm run build:win` |
+| Linux AppImage | `npm run build:linux` |
 
-### Flash
+项目固定 Node.js 16.20.2、npm 8.19.4、Electron 11.5.0。
 
-- Windows：`flash/pepflashplayer.dll`，清单版本 `34.0.0.376`，x64。
-- Linux：`flash/libpepflashplayer.so`，清单版本 `34.0.0.137`，x64。
-- 两个二进制都已被 Git 跟踪，当前文件尺寸均大于代码要求的 1 MiB；正常源码启动无需另行下载 Flash，也无需设置 Flash 路径环境变量。
-- 如果文件缺失/损坏，首次运行兜底会访问 GitHub 固定 release；Windows 解压兜底需要系统可执行的 `7z`，Linux 使用 `tar`。成功后写入 Electron `userData/flash-cache` 并重启。
-- 当前 Linux 兜底存在静态不一致：release matcher 选择 `.tar.gz`，但 `extractAsset()` 只为 `.tar.xz`、`.7z`、`.exe`、`.zip` 分派解压。因此内置 `.so` 缺失时不能假定自动下载可用，需先修复或实测；正常内置路径不受影响。
+## 运行时仍需人工验证
 
-### 操作系统
-
-- Windows 构建目标仅 `x64` portable；仓库未声明精确最低 Windows 版本。当前仓库内置的是 x64 DLL。
-- Linux 构建目标为 x86_64 AppImage。CI 在 Ubuntu 22.04 安装 `libgtk-3-0`、`libnotify4`、`libnss3`、`libxss1`、`libxtst6`、`xdg-utils`、`libatspi2.0-0`、`libuuid1`、`libappindicator3-1`。
-- Linux 运行要求 X11；Wayland 下 `linux/run.sh` 会强制经 XWayland。安装脚本还检查 GTK 3、通知工具和 `xdg-open`。FUSE 不是硬要求，因为脚本使用解包运行模式。
-- macOS 没有 Flash 插件名、打包 target 或受支持启动路径，视为不支持。
-- 应用强制关闭 Chromium/GPU/setuid sandbox 以运行 PPAPI；这是安全边界上的已知折衷。游戏窗口还设置 `webSecurity: false` 和 `allowRunningInsecureContent: true`，不要把不可信本地内容或任意 URL 接入该窗口。
-
-### 环境变量
-
-正常运行没有必需的业务环境变量。可选调试变量为 `SHINOBI_DEBUG=1` 和 `LOG_LEVEL=debug`；Linux 的 `scripts/debug.sh` 会同时设置 Electron logging 变量。Linux Wayland 相关变量由运行脚本自动调整。
-
-## 8. `MIGRATION_PROMPT.md` 历史结论核验
-
-状态含义：`CONFIRMED_BY_SOURCE` 表示当前静态源码/配置可直接确认；`STALE` 表示曾经合理但已被后续实现取代；`CONFLICTS_WITH_SOURCE` 表示与当前配置或实现方向直接相反；`NEEDS_RUNTIME_VERIFICATION` 表示源码存在，但“实际可用/性能/外部服务行为”不能靠静态阅读证明。
-
-### CONFIRMED_BY_SOURCE
-
-- Electron `11.5.0`、vanilla UI、Electron main/renderer 架构、Linux AppImage + Windows portable x64 均由 `package.json` 和 workflow 确认。
-- Flash PPAPI 版本仍为 Linux `34.0.0.137`、Windows `34.0.0.376`，且 flags 在 ready 前应用。
-- Multi-Profile、固定 persist Partition、MemoryGuard、安全 Network Inspector 和脱敏诊断导出均存在并已接入当前腾讯流程。
-- CI 仍使用 Ubuntu 22.04、Windows 2022 和 Node `16.20.2`，并执行 lint、Prettier check、Jest 和双平台构建。
-- `src/main/flags.js` 仍是 command-line flags 的单一入口；`--expose-gc`、`no-sandbox` 和 PPAPI flags 都在这里设置。
-- 调试环境变量 `SHINOBI_DEBUG` 仍存在，并通过 `main/debug.js`、preload 和 UI 使用。
-
-### STALE
-
-- “当前版本 4.9.2”：当前 `package.json` 为 `5.12.0`；README 顶部仍显示 4.7.0，本身也有文档漂移。
-- 旧目录/行数和 God Object 描述：controller、game launcher、memory guard 已拆为当前的 facade + 模块结构；Vault/Tempmail/API login 已删除，历史绝对路径 `/home/z/naruto-repo` 也不适用于当前工作区。
-- “F5、DevTools、JWT 自动续期、Tempmail 自动创建 Profile 尚未实现”：F5/DevTools 仍有安全入口；JWT 续期与 Tempmail 已按腾讯官方扫码架构删除。
-- “6 种管理 UI 语言”：游戏入口仍覆盖多地区/语言，但 `settings.js` 当前只接受 `pt`/`en` 作为管理 UI 语言。
-- “必须创建 debug 分支/隐藏 Ctrl+Shift+D”：当前工作树位于 `main`，环境变量调试仍保留；源码调试脚本明确说明 UI 秘密快捷键已移除。
-- “只有 6 个测试文件”：当前 `src/**/__tests__` 数量远多于历史清单。
-
-### CONFLICTS_WITH_SOURCE
-
-- “Flash 始终下载 latest、删除仓库二进制”：当前源码和 CI 明确要求 Flash 二进制提交到仓库，正常启动优先使用内置文件，下载仅为损坏/缺失兜底。
-- “Flash fallback 使用 latest 的 `.tar.xz`/`.exe`”：当前 `FlashUpdater` 固定 Linux `v1.7` 的 `.tar.gz` 和 Windows `v1.54` 的 `.7z`。
-- “缓存 manifest 不在仓库”：当前 `flash/manifest.json` 和平台清单都在仓库中；运行时另有 `cache-manifest.json`。
-- 历史文档中的自动删文件、改分支、提交并 push 指令不是当前仓库事实，也与本阶段只读分析/非破坏性要求冲突，不应执行。
-
-### NEEDS_RUNTIME_VERIFICATION
-
-- 腾讯官方页面 URL、扫码 iframe selector、导航链和 Flash 资源加载是否仍有效，依赖当前线上页面与服务。
-- GC 是否仍导致黑屏、自动恢复是否稳定、45 MB idle/多账号内存收益等性能结论需要真实 Electron + Flash 会话测量。
-- Flash 缺失时的 fallback 下载/解压需要分平台实测；尤其 Linux 当前 `.tar.gz` asset 与解压分支不匹配。
-- Windows/Linux 可执行文件是否可完整打包和启动，需要在对应 OS、Node 16.20.2 环境跑 CI 等价流程；静态配置只能确认命令和目标。
-- “zero tracking”可确认项目未配置自有遥测；第三方官方页面实际发出哪些请求只能通过安全 Inspector/DevTools 运行时观察。
-
-## 9. 当前建议
-
-当前项目级 Volta 环境和依赖已经准备完成，可以继续执行 `npm start`。实际项目工具链为 Node `v16.20.2`、npm `8.19.4`，系统 Node 24 未被降级。后续新 clone 推荐先运行 `npm ci --no-audit --no-fund`。仓库内已经有 Windows/Linux Flash 文件，正常情况下无需额外准备 Flash，也没有必需环境变量；只有启用调试时才设置 `SHINOBI_DEBUG=1`。
+- 腾讯选服页、二维码与认证弹窗的当前线上结构。
+- 扫码后跳转、Session 过期和重新扫码。
+- Flash 游戏主页面与关键 SWF 加载。
+- 两个 Profile 的真实登录态隔离。
+- Windows portable 与 Linux AppImage 的真实启动。

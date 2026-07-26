@@ -80,6 +80,7 @@ function attach(win, ctx) {
   const profile = options.profile || {};
   const entry = options.entry || null;
   const session = options.ses || win.webContents.session;
+  const auditor = options.auditor || null;
   const label = profileLabel(profile, profileId);
   const crashTimestamps = [];
   const listeners = [];
@@ -111,6 +112,13 @@ function attach(win, ctx) {
     } catch (error) {
       logger.debug('render-process-gone: reportCrash(memory) falhou: ' + error.message);
     }
+    if (auditor) {
+      try {
+        auditor.recordCrash(reason || 'unknown');
+      } catch (error) {
+        logger.debug('Auditor: recordCrash failed — ' + error.message);
+      }
+    }
 
     const isTerminalExit =
       reason === 'clean-exit' ||
@@ -128,6 +136,13 @@ function attach(win, ctx) {
       exhausted = crashTimestamps.length >= CRASH_RELOAD_LIMIT;
       if (!exhausted) crashTimestamps.push(now);
       retryCount = Math.min(crashTimestamps.length, CRASH_RELOAD_LIMIT);
+      if (!exhausted && auditor) {
+        try {
+          auditor.recordReload();
+        } catch (error) {
+          logger.debug('Auditor: recordReload failed — ' + error.message);
+        }
+      }
     }
 
     if (typeof options.onRendererGone === 'function') {
@@ -184,6 +199,13 @@ function attach(win, ctx) {
     readyHandled = true;
     win.show();
     sendWindowStatus(profileId, true);
+    if (auditor) {
+      try {
+        auditor.sessionStart();
+      } catch (error) {
+        logger.debug('Auditor: sessionStart failed — ' + error.message);
+      }
+    }
     if (typeof options.onOpened === 'function') options.onOpened();
     if (typeof options.onReady === 'function') options.onReady();
   });
@@ -215,6 +237,13 @@ function attach(win, ctx) {
   on(win, 'closed', function () {
     clearEntryTimers(entry);
     sendWindowStatus(profileId, false);
+    if (auditor) {
+      try {
+        auditor.sessionEnd();
+      } catch (error) {
+        logger.debug('Auditor: sessionEnd failed — ' + error.message);
+      }
+    }
     if (typeof options.onClosed === 'function') options.onClosed();
   });
 

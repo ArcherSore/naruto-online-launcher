@@ -50,7 +50,12 @@ function makeWindow() {
     show: jest.fn(),
     destroy: jest.fn()
   });
-  return { win: win, windowHandlers: windowTarget.handlers, wcHandlers: contentsTarget.handlers, session };
+  return {
+    win: win,
+    windowHandlers: windowTarget.handlers,
+    wcHandlers: contentsTarget.handlers,
+    session
+  };
 }
 
 function makeContext(overrides) {

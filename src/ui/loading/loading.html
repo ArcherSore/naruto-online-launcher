@@ -736,10 +736,7 @@
         renderRecoveryActions(snapshot.availableActions);
       };
 
-      if (
-        window.narutoLauncher &&
-        typeof window.narutoLauncher.onLaunchFlowState === 'function'
-      ) {
+      if (window.narutoLauncher && typeof window.narutoLauncher.onLaunchFlowState === 'function') {
         window.narutoLauncher.onLaunchFlowState(window.setLaunchFlowState);
       }
 

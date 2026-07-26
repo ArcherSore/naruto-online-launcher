@@ -11,6 +11,7 @@ const store = require('../profiles/store');
 const partition = require('../profiles/partition');
 const SessionLifecycle = require('./SessionLifecycle');
 const TencentLaunchFlow = require('./TencentLaunchFlow');
+const Auditor = require('./Auditor');
 const KeyboardShortcuts = require('../ui/manager/KeyboardShortcuts');
 const StateBroadcaster = require('../ui/manager/StateBroadcaster');
 const urlConfig = require('../config/urls');
@@ -117,18 +118,21 @@ function launchProfile(profileId, onOpened, onClosed) {
     win.setTitle(WINDOW_TITLE + ' — ' + profile.name);
   });
 
+  const auditor = Auditor.create(profileId);
   const launchFlow = TencentLaunchFlow.createTencentLaunchFlow({
     profileId: profileId,
     window: win,
     session: session,
     partitionName: partitionName,
     selectorUrl: urlConfig.getSelectorUrl(),
-    onStateChange: StateBroadcaster.pushFlowState
+    onStateChange: StateBroadcaster.pushFlowState,
+    auditor: auditor
   });
   const entry = {
     window: win,
     partitionName: partitionName,
     launchFlow: launchFlow,
+    auditor: auditor,
     lifecycle: null,
     failLoadTimer: null,
     closeTimer: null
@@ -140,6 +144,7 @@ function launchProfile(profileId, onOpened, onClosed) {
     profile: profile,
     entry: entry,
     ses: session,
+    auditor: auditor,
     onOpened: onOpened,
     onReady: function () {
       launchFlow.start();
@@ -158,6 +163,11 @@ function launchProfile(profileId, onOpened, onClosed) {
     },
     onClosed: function () {
       launchFlow.close();
+      try {
+        auditor.destroy();
+      } catch (error) {
+        logger.debug('Auditor: destroy failed — ' + error.message);
+      }
       gameWindows.delete(profileId);
       if (activeRecoveryProfileId === profileId) activeRecoveryProfileId = null;
       if (onClosed) onClosed();

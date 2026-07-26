@@ -259,7 +259,6 @@ describe('manager.js', function () {
       expect(store.remove).toHaveBeenCalledWith('p_001');
       expect(result).toBe(true);
     });
-
   });
 
   // ── launch ──

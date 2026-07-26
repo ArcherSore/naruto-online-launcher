@@ -16,6 +16,7 @@ const SAFE_NETWORK_FIELDS = Object.freeze([
   'statusCode',
   'errorCode'
 ]);
+const MAX_INSPECTOR_ENTRIES = 500;
 
 function safeLocation(value) {
   if (typeof value !== 'string') return { origin: null, pathname: null };
@@ -55,14 +56,13 @@ function create(electronSession, profileId) {
 
   let entries = [];
   const listeners = [];
-  const maxEntries = 500;
   let enabled = false;
   const filter = { urls: ['<all_urls>'] };
 
   function record(details) {
     const entry = sanitizeNetworkDetails(details);
     entries.push(entry);
-    if (entries.length > maxEntries) entries.shift();
+    if (entries.length > MAX_INSPECTOR_ENTRIES) entries.shift();
     listeners.slice().forEach(function (callback) {
       try {
         callback(Object.assign({}, entry));
@@ -104,17 +104,28 @@ function create(electronSession, profileId) {
 
   function getEntries(requestedFilter) {
     if (requestedFilter === null || requestedFilter === undefined) {
-      return entries.map(function (entry) { return Object.assign({}, entry); });
+      return entries.map(function (entry) {
+        return Object.assign({}, entry);
+      });
     }
     if (typeof requestedFilter !== 'object' || Array.isArray(requestedFilter)) return [];
 
     const keys = Object.keys(requestedFilter);
-    if (keys.some(function (key) { return SAFE_NETWORK_FIELDS.indexOf(key) === -1; })) return [];
+    if (
+      keys.some(function (key) {
+        return SAFE_NETWORK_FIELDS.indexOf(key) === -1;
+      })
+    )
+      return [];
     return entries
       .filter(function (entry) {
-        return keys.every(function (key) { return entry[key] === requestedFilter[key]; });
+        return keys.every(function (key) {
+          return entry[key] === requestedFilter[key];
+        });
       })
-      .map(function (entry) { return Object.assign({}, entry); });
+      .map(function (entry) {
+        return Object.assign({}, entry);
+      });
   }
 
   function on(event, callback) {
@@ -128,9 +139,13 @@ function create(electronSession, profileId) {
   return {
     enable: enable,
     disable: disable,
-    isEnabled: function () { return enabled; },
+    isEnabled: function () {
+      return enabled;
+    },
     getEntries: getEntries,
-    getStats: function () { return null; },
+    getStats: function () {
+      return null;
+    },
     on: on,
     clear: clear,
     profileId: profileId

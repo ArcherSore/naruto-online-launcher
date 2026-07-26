@@ -266,15 +266,9 @@ describe('store.js', () => {
           lastUsed: 200
         })
       );
-      [
-        'region',
-        'server',
-        'language',
-        'hasVault',
-        'username',
-        'password',
-        'credentials'
-      ].forEach(field => expect(loaded[0]).not.toHaveProperty(field));
+      ['region', 'server', 'language', 'hasVault', 'username', 'password', 'credentials'].forEach(
+        field => expect(loaded[0]).not.toHaveProperty(field)
+      );
     });
 
     test('update 不接受旧入口字段，导出内容也不含这些字段', () => {

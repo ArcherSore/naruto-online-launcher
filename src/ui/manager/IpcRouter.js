@@ -308,11 +308,7 @@ function registerIpcHandlers(handlers) {
     if (typeof action !== 'string' || RECOVERY_ACTIONS.indexOf(action) === -1) {
       return { ok: false, error: 'invalid-action' };
     }
-    if (
-      !event ||
-      !event.sender ||
-      typeof _handlers.requestRecoveryForSender !== 'function'
-    ) {
+    if (!event || !event.sender || typeof _handlers.requestRecoveryForSender !== 'function') {
       return { ok: false, error: 'recovery-unavailable' };
     }
     try {
@@ -364,17 +360,6 @@ function registerIpcHandlers(handlers) {
     } catch (e) {
       _send('profile:toast', { type: 'error', msg: 'Diagnóstico falhou: ' + e.message });
       return { ok: false, error: e.message };
-    }
-  });
-
-  // ── Flash Cache Info (v5.0) ──
-  const flashUpdater = require('../../app/FlashUpdater');
-  ipcMain.handle('flash:cache-info', function () {
-    try {
-      const info = flashUpdater.getCacheInfo();
-      return info || { version: null, downloadDate: null };
-    } catch (e) {
-      return { version: null, downloadDate: null };
     }
   });
 

@@ -1,6 +1,5 @@
 /**
- * Gerenciamento do mms.cfg (Flash Config)
- * v1.2.0
+ * mms.cfg Management (Flash Config)
  */
 
 'use strict';
@@ -26,12 +25,30 @@ function getMmsCfgPath() {
 
 /**
  * Generate mms.cfg content
- * Only includes settings verified to work with PPAPI Flash Player 34.
- * Many "mms.cfg settings" found online are actually HTML embed params
- * or NPAPI-only settings that PPAPI silently ignores.
+ *
+ * HONEST AUDIT — only Adobe-documented mms.cfg keys for PPAPI
+ * Flash Player 34 are emitted. Previously this file contained placebo keys
+ * (StageQuality, OverrideFPS, EnableSockets, FontSmoothingType, plus a
+ * duplicate DisableHardwareAcceleration) that PPAPI silently ignores —
+ * they are HTML embed params or AS3 properties, NOT mms.cfg keys.
+ *
+ * Real, verified mms.cfg keys for PPAPI Flash Player 34:
+ *   - OverrideGPUValidation   (forces GPU driver validation bypass)
+ *   - EnableHardwareAcceleration (0/1 — controls Flash HW accel)
+ *   - AssetCacheSize          (Flash asset cache in MB, 0 disables)
+ *   - AutoUpdateDisable       (disables Flash auto-updater)
+ *
+ * What lowpc mode CAN actually do (real effects):
+ *   - Drop the asset cache to 0 MB → less RAM, forces re-download of assets
+ *   - Force software rendering (EnableHardwareAcceleration=0) → unloads GPU
+ *
+ * What lowpc mode CANNOT do (controlled by the game's AS3 code, not mms.cfg):
+ *   - Lower the StageQuality (that's an AS3 property / HTML embed param)
+ *   - Cap the FPS (that's stage.frameRate in AS3)
+ *   - Toggle sockets (that's crossdomain.xml policy)
  *
  * @param {string} hardwareProfile - 'modern', 'legacy', or 'cpu'
- * @param {Object} [opts] - v3.5: { advancedMode: boolean }
+ * @param {Object} [opts] - { advancedMode: boolean }
  * @returns {string} mms.cfg file content
  */
 function generateMmsContent(hardwareProfile, opts) {
@@ -39,32 +56,19 @@ function generateMmsContent(hardwareProfile, opts) {
   const advancedMode = !!(opts && opts.advancedMode);
 
   const config = [
-    // === GPU ===
+    // Force GPU driver validation bypass — works around buggy GPU drivers.
     'OverrideGPUValidation=1',
-    isCpuMode ? 'EnableHardwareAcceleration=0' : 'EnableHardwareAcceleration=1'
+    // Toggle Flash hardware acceleration. cpu profile + lowpc both force
+    // software rendering to unload a weak/broken GPU.
+    isCpuMode || advancedMode ? 'EnableHardwareAcceleration=0' : 'EnableHardwareAcceleration=1'
   ];
 
-  // ── v3.5: MODO LEVE AVANÇADO (Flash low quality para ganhar FPS) ──
-  // Tricks que jogadores veteranos usam há anos e NÃO são possíveis no
-  // launcher novo da Oasis. Reduz qualidade visual do Flash para ganhar FPS
-  // em PCs fracos. Documentado em fóruns da comunidade Naruto Online.
+  // ── Low-end PC mode: only REAL mms.cfg effects ──
+  // Drops the Flash asset cache to 0 MB (less RAM, re-downloads assets)
+  // and disables the Flash auto-updater (cosmetic — PPAPI standalone doesn't
+  // auto-update anyway, but the key is harmless and documented).
   if (advancedMode) {
-    config.push(
-      // Zera o cache de assets do Flash → menos RAM, re-download mas +FPS
-      'AssetCacheSize=0',
-      // Desativa aceleração de vídeo (decode por software, mais leve em GPU fraca)
-      'DisableHardwareAcceleration=1',
-      // Força qualidade baixa de renderização (StageQuality.LOW equivalente)
-      'StageQuality=LOW',
-      // Reduz o limite de FPS do Flash de 60 para 30 (metade do trabalho)
-      'OverrideFPS=30',
-      // Desativa auto-update do Flash (não interfere com PPAPI standalone)
-      'AutoUpdateDisable=1',
-      // Desativa silenciamento de áudio em background (evita cut em combates)
-      'EnableSockets=1',
-      // Reduz qualidade de suavização de fontes
-      'FontSmoothingType=0'
-    );
+    config.push('AssetCacheSize=0', 'AutoUpdateDisable=1');
   }
 
   return config.join('\n');
@@ -73,7 +77,7 @@ function generateMmsContent(hardwareProfile, opts) {
 /**
  * Create mms.cfg with backup of existing file
  * @param {string} hardwareProfile - Hardware profile name
- * @param {Object} [opts] - v3.5: { advancedMode: boolean }
+ * @param {Object} [opts] - { advancedMode: boolean }
  * @returns {boolean} True if successful
  */
 function createMmsCfg(hardwareProfile, opts) {
@@ -85,26 +89,23 @@ function createMmsCfg(hardwareProfile, opts) {
 
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
-      logger.debug('Diretório criado: ' + dir);
+      logger.debug('Directory created: ' + dir);
     }
 
     if (fs.existsSync(cfgPath)) {
       const backupPath = cfgPath + '.bak';
       fs.copyFileSync(cfgPath, backupPath);
-      logger.info('mms.cfg backup atualizado: ' + backupPath);
+      logger.info('mms.cfg backup updated: ' + backupPath);
     }
 
     const content = generateMmsContent(hardwareProfile, opts);
     fs.writeFileSync(cfgPath, content, 'utf8');
     logger.info(
-      'mms.cfg atualizado (' +
-        hardwareProfile +
-        (opts && opts.advancedMode ? ' + Advanced' : '') +
-        ')'
+      'mms.cfg updated (' + hardwareProfile + (opts && opts.advancedMode ? ' + Advanced' : '') + ')'
     );
     return true;
   } catch (e) {
-    logger.error('Falha ao criar mms.cfg: ' + e.message);
+    logger.error('Failed to create mms.cfg: ' + e.message);
     return false;
   }
 }
@@ -121,11 +122,11 @@ function restoreMmsCfg() {
     if (fs.existsSync(backupPath)) {
       fs.copyFileSync(backupPath, cfgPath);
       fs.unlinkSync(backupPath);
-      logger.info('mms.cfg restaurado do backup');
+      logger.info('mms.cfg restored from backup');
       return true;
     }
   } catch (e) {
-    logger.warn('Falha ao restaurar mms.cfg: ' + e.message);
+    logger.warn('Failed to restore mms.cfg: ' + e.message);
   }
   return false;
 }

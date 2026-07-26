@@ -66,10 +66,6 @@ jest.mock('../../../network/inspector', () => ({
   create: jest.fn(() => mockInspectorInstance)
 }));
 
-jest.mock('../../../app/FlashUpdater', () => ({
-  getCacheInfo: jest.fn(() => ({ version: '34.0.0.376', downloadDate: null }))
-}));
-
 jest.mock('../../../app/Launcher', () => ({
   isProfileOpen: jest.fn(() => false)
 }));
@@ -146,23 +142,26 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
   test('profile:create 只把通用字段传给 store，未知和旧登录字段默认拒绝', () => {
     store.create.mockReturnValue({ id: 'p_new', name: 'Safe' });
 
-    onHandlers['profile:create']({}, {
-      name: 'Safe',
-      color: '#ff8c00',
-      notes: 'note',
-      tags: ['daily'],
-      favorite: true,
-      notificationsEnabled: false,
-      hardwareProfile: 'balanced',
-      region: 'br',
-      server: 's799',
-      language: 'pt',
-      credentials: { token: 'fixture-token' },
-      jwt: 'fixture-jwt',
-      cookieValue: 'fixture-cookie',
-      pageSource: '<html>fixture</html>',
-      unknownIdentity: 'fixture-id'
-    });
+    onHandlers['profile:create'](
+      {},
+      {
+        name: 'Safe',
+        color: '#ff8c00',
+        notes: 'note',
+        tags: ['daily'],
+        favorite: true,
+        notificationsEnabled: false,
+        hardwareProfile: 'balanced',
+        region: 'br',
+        server: 's799',
+        language: 'pt',
+        credentials: { token: 'fixture-token' },
+        jwt: 'fixture-jwt',
+        cookieValue: 'fixture-cookie',
+        pageSource: '<html>fixture</html>',
+        unknownIdentity: 'fixture-id'
+      }
+    );
 
     expect(store.create).toHaveBeenCalledWith({
       name: 'Safe',
@@ -177,16 +176,19 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
   });
 
   test('profile:update 只接受通用字段', () => {
-    onHandlers['profile:update']({}, {
-      id: 'p_001',
-      name: 'Safe',
-      notes: 'note',
-      region: 'eu',
-      server: 's123',
-      language: 'de',
-      password: 'fixture-secret',
-      jwt: 'fixture-jwt'
-    });
+    onHandlers['profile:update'](
+      {},
+      {
+        id: 'p_001',
+        name: 'Safe',
+        notes: 'note',
+        region: 'eu',
+        server: 's123',
+        language: 'de',
+        password: 'fixture-secret',
+        jwt: 'fixture-jwt'
+      }
+    );
 
     expect(store.update).toHaveBeenCalledWith('p_001', {
       id: 'p_001',
@@ -211,12 +213,15 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
   });
 
   test('game-window:status 广播只保留 profileId/open', () => {
-    onHandlers['game-window:status']({}, {
-      profileId: 'p_001',
-      open: true,
-      server: 's799',
-      jwt: 'fixture-jwt'
-    });
+    onHandlers['game-window:status'](
+      {},
+      {
+        profileId: 'p_001',
+        open: true,
+        server: 's799',
+        jwt: 'fixture-jwt'
+      }
+    );
 
     expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
       profileId: 'p_001',

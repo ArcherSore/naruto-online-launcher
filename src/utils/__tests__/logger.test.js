@@ -111,23 +111,20 @@ describe('logger.js', () => {
     );
 
     test('Cookie 与 Authorization 内容在进入 electron-log 前被脱敏', () => {
-      logger.info(
-        'request Cookie: skey=cookie-secret Authorization: Bearer authorization-secret'
-      );
+      logger.info('request Cookie: skey=cookie-secret Authorization: Bearer authorization-secret');
 
       const output = serializedLastCall('info');
       expect(output).not.toContain('cookie-secret');
       expect(output).not.toContain('authorization-secret');
     });
 
-    test.each([
-      'openid=identity-secret',
-      'access_token=access-secret',
-      'ticket=ticket-secret'
-    ])('已知身份/票据参数默认脱敏：%s', fragment => {
-      logger.warn('unsafe parameter ' + fragment);
-      expect(serializedLastCall('warn')).not.toContain(fragment.split('=')[1]);
-    });
+    test.each(['openid=identity-secret', 'access_token=access-secret', 'ticket=ticket-secret'])(
+      '已知身份/票据参数默认脱敏：%s',
+      fragment => {
+        logger.warn('unsafe parameter ' + fragment);
+        expect(serializedLastCall('warn')).not.toContain(fragment.split('=')[1]);
+      }
+    );
 
     test('疑似 QQ 号不进入普通日志', () => {
       logger.error('official account identity 1234567890');
