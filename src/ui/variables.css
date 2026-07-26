@@ -1,95 +1,76 @@
 /* ═══════════════════════════════════════════════════════════════════════════
- * variables.css — Shinobi Launcher Design Tokens
- * Rebrand shinobi: gold + AMOLED black
- *
- * Philosophy: pure AMOLED black (#000) with golden shinobi accent. Hierarchy
- * by typography and spacing. All decorative icons use the same golden tone —
- * absolute visual consistency. Semantic colors (ok/warn/danger) reserved for
- * status indicators only, not for decorative icons.
+ * variables.css — Naruto Online Launcher Design Tokens (Usability Iteration 1)
+ * Higher Contrast, Scalable Rem Scale & Dark Theme Design System
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Colors: Base (pure AMOLED black) ── */
-  --bg: #000000;
-  --bg-elev: #0a0a0a;
-  --bg-elev-2: #121212;
-  --surface: #070707;
-  --surface-hover: #161616;
+  /* ── Base Font Size (Standard Rem Baseline) ── */
+  font-size: 16px;
 
-  /* ── Colors: Border (visible on pure black) ── */
-  --border: #1c1c1c;
-  --border-hover: #383838;
-  --border-focus: #d4a543;
+  /* ── Color Palette: Surface & Backgrounds ── */
+  --bg-base: #0b0d12;
+  --bg-surface: #13161f;
+  --bg-surface-hover: #1b1e2a;
+  --bg-elevated: #1e2230;
+  --bg-elevated-hover: #262c3d;
 
-  /* ── Colors: Text (scale on AMOLED black) ── */
-  --text: #f2f2f2;
-  --text-dim: #a8a8a8;
-  --text-faint: #5e5e5e;
+  /* ── Color Palette: Borders (WCAG AA Compliant Contrast) ── */
+  --border-subtle: #2a3142;
+  --border-hover: #475569;
+  --border-focus: #d97706;
 
-  /* ── Colors: Accent (shinobi gold — golden palette) ── */
-  --accent: #d4a543;
-  --accent-hover: #e6b85a;
-  --accent-2: #8a6d28;
-  --accent-2-hover: #b8902f;
-  --accent-glow: rgba(212, 165, 67, 0.12);
-  --accent-soft: rgba(212, 165, 67, 0.08);
-  --accent-contrast: #000000;
+  /* ── Color Palette: Text Scale (High Readability Scale) ── */
+  --text-main: #f8fafc; /* High-contrast primary text */
+  --text-secondary: #cbd5e1; /* High-contrast secondary text */
+  --text-muted: #94a3b8; /* Readable muted labels */
 
-  /* ── Colors: Semantic (use sparingly — status, not decoration) ── */
-  --ok: #5cb85c;
-  --warn: #d4a543;
-  --danger: #d4574a;
+  /* ── Color Palette: Theme Accent (Warm Amber / Orange) ── */
+  --accent-primary: #d97706;
+  --accent-hover: #b45309;
+  --accent-soft: rgba(217, 119, 6, 0.14);
+  --accent-border: rgba(217, 119, 6, 0.4);
+  --accent-contrast: #ffffff;
 
-  /* ── Shadows (soft on AMOLED) ── */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.6);
-  --shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
-  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.8);
+  /* ── Color Palette: Semantic Status Indicators ── */
+  --status-ok: #10b981;
+  --status-ok-bg: rgba(16, 185, 129, 0.12);
+  --status-ok-border: rgba(16, 185, 129, 0.35);
+  --status-danger: #ef4444;
+  --status-danger-bg: rgba(239, 68, 68, 0.12);
+  --status-danger-border: rgba(239, 68, 68, 0.35);
 
-  /* ── Spacing (4px base scale — kept) ── */
-  --space-1: 0.25rem; /* 4px */
-  --space-2: 0.5rem; /* 8px */
-  --space-3: 0.75rem; /* 12px */
-  --space-4: 1rem; /* 16px */
-  --space-5: 1.5rem; /* 24px */
-  --space-6: 2rem; /* 32px */
+  /* ── Typography Scale (rem-based) ── */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Code', 'Consolas', monospace;
 
-  /* ── Typography (refined system with Inter fallback) ── */
-  --font-family: -apple-system, 'Inter', 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', monospace;
-  --font-xs: 0.6875rem; /* 11px */
-  --font-sm: 0.75rem; /* 12px */
-  --font-base: 0.8125rem; /* 13px */
-  --font-md: 0.875rem; /* 14px */
-  --font-lg: 1rem; /* 16px */
-  --font-xl: 1.25rem; /* 20px */
-  --font-2xl: 1.5rem; /* 24px */
+  --font-xs: 0.8125rem; /* 13px */
+  --font-sm: 0.875rem; /* 14px */
+  --font-base: 1rem; /* 16px */
+  --font-md: 1.125rem; /* 18px */
+  --font-lg: 1.25rem; /* 20px */
+  --font-xl: 1.5rem; /* 24px */
 
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
-  --weight-bold: 700;
 
-  --line-height-base: 1.5;
   --line-height-tight: 1.25;
+  --line-height-base: 1.5;
 
-  /* ── Border Radius (contained corners) ── */
-  --radius-sm: 0.25rem; /* 4px */
-  --radius: 0.375rem; /* 6px */
-  --radius-md: 0.5rem; /* 8px */
-  --radius-lg: 0.5rem; /* 8px */
-  --radius-full: 9999px;
+  /* ── Border Radius ── */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
 
-  /* ── Transitions (fast, precise) ── */
-  --transition: 120ms ease;
-  --transition-fast: 80ms ease;
-  --transition-slow: 220ms ease;
+  /* ── Transitions ── */
+  --transition-fast: 120ms ease;
 
-  /* ── Focus Ring (gold) ── */
-  --focus-ring: 0 0 0 2px var(--accent);
+  /* ── Focus Ring ── */
+  --focus-ring: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent-primary);
 
-  /* ── Z-index scale ── */
+  /* ── Layer Z-index ── */
   --z-base: 1;
-  --z-overlay: 100;
+  --z-dropdown: 150;
   --z-toast: 200;
   --z-modal: 300;
 }
