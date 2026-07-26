@@ -27,9 +27,11 @@
 | 所属 Profile | Partition 一对一映射 | 不能跨 Profile 读取、复制或清理。 |
 | Cookie/Storage | Chromium `persist:` Partition | 应用不序列化 Cookie 值或票据。 |
 | 有效性 | `unknown` / `accepted` / `rejected` | 只能从官方页面/服务端当前行为推断；应用不延长或伪造。 |
+| 窗口生命周期 | 同一 Electron 主进程内复用 | 关闭游戏窗口只销毁该窗口和 `LaunchFlowState`；重开同一 Profile 时继续使用相同 Partition/Session。 |
+| 进程生命周期 | 完整退出后不保证免扫码 | Electron 11 不恢复官方 session Cookie；再次启动后是否登录只由官方仍保留的原生持久数据决定，本 Feature 不复制、延长或重放。 |
 | QQ 密码/票据 | 不建模 | 不采集、不存储、不输出。 |
 
-关系：一个 Profile 恰好对应一个隔离 Partition；一个 Partition 在任一时刻承载至多一个官方会话状态。
+关系：一个 Profile 恰好对应一个隔离 Partition；一个 Partition 在任一时刻承载至多一个官方会话状态。同一 Electron 主进程内，游戏窗口关闭不会授权应用清理该 Session；完整进程退出结束 Chromium session Cookie 生命周期。
 
 ## ServerSelection
 
@@ -54,7 +56,7 @@
 | `lastSafeLocation` | `{role, origin, pathname}` | 无 query、fragment 和身份值。 |
 | `error` | `{stage, code, safeMessage}` 或 null | 不含完整 URL/响应体/票据。 |
 | `availableActions` | action[] | 只包含当前阶段允许的恢复动作。 |
-| `probeResult` | boolean/enum | 初始实现只定义类型和失败语义；生产 selector registry 初始为空，Windows 验证前不得猜测 selector。 |
+| `probeResult` | boolean/enum | 授权 CDP 诊断确认生产 registry 只含真实顶层 `.qConnectLogin iframe.loginframe`；`#ptlogin_iframe` 位于跨域子 frame 并已撤销。仅根据顶层节点存在性与可见性返回 `loginUiVisible`。单次 probe 可用最多 2500ms、必定断开的 MutationObserver 作时序容错；常驻探针不进入子 frame。 |
 
 ### Stage 枚举
 
@@ -78,7 +80,8 @@
 | 起点 | 事件 | 终点 |
 | --- | --- | --- |
 | `BOOTSTRAPPING` | loading 页显示并开始官方入口 | `SELECTOR_LOADING` |
-| `SELECTOR_LOADING` | 选服入口加载完成 | `SELECTOR_READY` |
+| `SELECTOR_LOADING` | 选服入口加载完成且登录 UI selector 不存在 | `SELECTOR_READY` |
+| `SELECTOR_LOADING` | 选服入口加载完成且登录 UI selector 存在 | `AUTHENTICATING` |
 | `SELECTOR_READY` | 官方登录顶层/子窗开始 | `AUTHENTICATING` |
 | `AUTHENTICATING` | 官方回到已可选服页面 | `SELECTOR_READY` |
 | `SELECTOR_READY` | 官方产生受信任游戏导航 | `GAME_NAVIGATING` |
@@ -142,7 +145,26 @@
 
 ## SafeNetworkObservation
 
-该实体必须在 G1/G2 及任何真实扫码、认证跳转、Flash/CDN 观察前通过 G0 建立，只允许 `resourceType`、`origin`、`pathname`、`statusCode`、`errorCode` 及所属 Profile/stage；未知字段默认拒绝。完整 URL、query/fragment、Cookie、Set-Cookie、Authorization、JWT、ticket、QQ 身份字段、headers、requestBody、responseBody 和页面源码不采集、不保存、不广播、不写日志，也不进入本模型。Phase 6 只根据本 Feature 的实际用途决定保留该安全实体或在确认无当前用途后删除，不以未来自动化为保留理由。
+该生产实体必须在 G1/G2 及任何真实扫码、认证跳转、Flash/CDN 观察前通过 G0 建立，只允许
+`resourceType`、`origin`、`pathname`、`statusCode`、`errorCode` 及所属 Profile/stage；
+未知字段默认拒绝。完整 URL、query/fragment、Cookie、Set-Cookie、Authorization、JWT、
+ticket、QQ 身份字段、headers、requestBody、responseBody 和页面源码不进入该生产模型，
+不保存、不广播、不写日志。Phase 6 只根据本 Feature 的实际用途决定保留该安全实体或删除。
+
+## AuthorizedDiagnosticSession
+
+该实体只存在于用户明确授权的当前本地开发诊断会话，不属于生产数据模型，也不持久化。
+
+| 字段 | 规则 |
+| --- | --- |
+| `authorization` | 当前会话中的用户明确指令 |
+| `purpose` | 一个具体、可复现的故障，例如 T056 状态误判 |
+| `profileBoundary` | 一个指定测试 Profile；禁止跨 Profile |
+| `readScope` | 解决故障所需的最小 DOM/HTML/frame/form/URL/Cookie/Storage/identity/Session 数据 |
+| `mode` | 只读；不得修改认证状态 |
+| `expires` | 定位完成或当前诊断会话结束，以先发生者为准 |
+| `retention` | 原始值不写文件、日志、截图、IPC、诊断包或长期存储；结束后立即丢弃 |
+| `prohibited` | QQ 密码读取、票据解密/复制/延长/重放、登录恢复、跨 Profile 访问 |
 
 ## RecoveryAction
 
@@ -155,3 +177,10 @@
 | `RETURN_TO_SELECTOR` | `AUTH_FAILED`、`NAVIGATION_FAILED`、`GAME_FAILED`、`SESSION_REJECTED`、`BLOCKED_NAVIGATION` | 用户点击或官方拒绝会话后的确定性回退 | 不自动循环；每次用户动作只执行 1 次 | 立即销毁内存游戏 URL并加载固定 `SELECTOR` | 不清 Cookie/Storage |
 
 所有动作只能由所属 Profile 的流程状态机发起，renderer 不能提交任意 URL、Profile 或清 Session 请求；动作不得影响另一 Profile，也不得自动选择区服或进入游戏。登录态重置不属于本 Feature。
+
+### 管理卡片刷新
+
+管理卡片不渲染 `LaunchFlowState` 的阶段说明或 `availableActions`。窗口运行时固定显示
+“刷新”，renderer 只发送卡片自身的 `profileId`；主进程使用窗口 registry 找到对应
+`LaunchFlow` 并调用 `reloadCurrentRole()`。不存在、未运行或无法分类当前顶层角色时返回
+失败，不回退到任意 `webContents.reload()`，也不清 Cookie/Storage。

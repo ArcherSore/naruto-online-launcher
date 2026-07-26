@@ -98,6 +98,20 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
+### Authorized Diagnostic Access *(include when sensitive local diagnosis may be required)*
+
+<!--
+  Distinguish production collection/logging from an explicitly user-authorized, temporary,
+  read-only local diagnostic session. Define the authorization source, purpose, exact data
+  scope, Profile boundary, duration, prohibited uses, persistence/logging restrictions,
+  redaction requirements, cleanup, and fallback when authorization is absent.
+-->
+
+- **Authorization**: [who explicitly authorizes access and where that authorization is recorded]
+- **Scope and duration**: [minimum page/session data, Profile boundary, and time limit]
+- **Prohibited uses**: [credential capture, authentication bypass, replay, cross-profile access]
+- **Retention and cleanup**: [what must never be persisted and when temporary data is discarded]
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]

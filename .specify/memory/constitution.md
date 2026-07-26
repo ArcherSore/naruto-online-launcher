@@ -1,20 +1,29 @@
 <!--
 Sync Impact Report
-- Version change: 未初始化模板 → 1.0.0
-- Modified principles: 初始化 I. 规格驱动；II. 腾讯国服唯一产品方向；III. 官方认证与安全边界；
-  IV. 模块化而非过度抽象；V. 旧版运行时兼容；VI. Session 隔离；
-  VII. 测试与验收先行；VIII. 简单性与必要性；IX. 可诊断性；X. 治理与语言规范
-- Added sections: 工程约束；规格驱动交付与质量门
-- Removed sections: 无
-- Templates reviewed without modification:
-  - ✅ `.specify/templates/plan-template.md`（后续 Plan 通过动态 Constitution Check 补充）
+- Version change: 1.0.0 → 2.0.0
+- Modified principles:
+  - III. 官方认证与安全边界 → III. 官方认证与受控诊断边界
+  - IX. 可诊断性（增加用户明确授权的临时本地诊断通道）
+- Added sections: 无
+- Removed sections: “页面源码、Cookie/Storage、表单及身份参数即使经用户授权也绝对不可读取”
+  的隐含约束
+- Templates updated:
+  - ✅ `.specify/templates/plan-template.md`
   - ✅ `.specify/templates/spec-template.md`
   - ✅ `.specify/templates/tasks-template.md`
-- Spec Kit commands reviewed: `.agents/skills/speckit-*/SKILL.md`，无需代理名称修正；
-  `speckit-plan` 已规定 Phase 0 前检查并在 Phase 1 后复查 Constitution
-- Runtime guidance reviewed: `AGENTS.md`、`docs/REPO_MAP.md` 与本宪章一致；
-  `README.md` 仍描述上游巴西服发行版，属于后续文档迁移工作，本次未改
-- Follow-up TODOs: 无 Constitution 占位符；README 产品说明需由独立文档任务处理
+- Current feature artifacts requiring synchronized updates:
+  - ✅ `specs/001-tencent-game-launch/spec.md`
+  - ✅ `specs/001-tencent-game-launch/plan.md`
+  - ✅ `specs/001-tencent-game-launch/research.md`
+  - ✅ `specs/001-tencent-game-launch/data-model.md`
+  - ✅ `specs/001-tencent-game-launch/contracts/navigation-contract.md`
+  - ✅ `specs/001-tencent-game-launch/quickstart.md`
+  - ✅ `specs/001-tencent-game-launch/tasks.md`
+  - ✅ `specs/001-tencent-game-launch/validation/README.md`
+  - ✅ `specs/001-tencent-game-launch/validation/windows-failure-recovery.md`
+- Spec Kit commands reviewed: `.agents/skills/speckit-*/SKILL.md`，无需修改
+- Runtime guidance reviewed: `AGENTS.md`、`README.md`、`docs/REPO_MAP.md`；无新增冲突
+- Follow-up TODOs: README 产品说明仍需由独立文档任务迁移
 -->
 
 # 腾讯国服《火影忍者 OL》启动器 Constitution
@@ -40,15 +49,25 @@ Tasks 和代码变更必须能够追溯到明确的用户故事、功能需求�
 
 理由：明确单一产品边界可减少迁移期间的双重语义，同时保护已经验证的通用工程资产。
 
-### III. 官方认证与安全边界
+### III. 官方认证与受控诊断边界
 
 登录必须通过腾讯官方网页扫码流程完成。项目不得采集或存储 QQ 密码，不得伪造、解密、
 重放或绕过登录票据、验证码、设备验证及风控，不得以自动化替代用户必须完成的官方确认。
-敏感 Cookie、票据、身份参数和可用于恢复登录态的材料不得写入普通日志、错误消息、截图
-文件名或未脱敏诊断包。涉及认证的规格和设计必须明确受信任页面、数据流、日志脱敏和失败
-恢复边界。
+
+当用户针对一个具体故障作出明确授权时，开发诊断会话可以只读、临时、最小化地检查解决该
+故障所必需的官方页面 DOM/HTML、frame 层级、表单结构及值、完整 URL、Cookie/Storage
+名称和值、身份或 Session 参数。该授权仅限当前本地诊断会话和指定 Profile；必须优先使用
+测试账号，不得读取 QQ 密码字段，不得修改、复制、延长、伪造、解密、重放或利用认证材料
+恢复登录，不得跨 Profile 访问。原始诊断数据不得写入仓库文件、普通日志、错误消息、截图、
+文件名、IPC 广播、用户可导出的诊断包或长期存储；完成定位后必须立即停止读取并丢弃临时
+数据。没有用户明确授权时，认证诊断仍按最小化、脱敏和未知字段默认拒绝处理。
+
+涉及认证的规格和设计必须分别明确生产数据流、常规诊断边界，以及授权诊断的目的、范围、
+时限、Profile、禁止用途、脱敏与清理方式。
 
 理由：认证流程受第三方安全控制约束，任何绕过或泄露都会形成不可接受的账号与合规风险。
+在不改变认证状态且不持久化原始数据的前提下，受控读取是定位第三方页面兼容故障所必需的
+维护能力。
 
 ### IV. 模块化而非过度抽象
 
@@ -101,7 +120,9 @@ Partition 命名、Session 获取、持久化、恢复、清理或窗口复用�
 关键状态和失败路径必须可观察，至少覆盖与当前 Feature 相关的页面加载、认证状态、导航、
 Flash 加载、Session 获取或失效。错误必须提供有限、明确且可执行的恢复方式；不得使用无限刷新、
 无限重试、无上限递归导航或静默失败掩盖问题。日志和诊断事件必须有足够上下文区分 Profile
-和阶段，同时遵守敏感信息脱敏要求。
+和阶段，同时遵守敏感信息脱敏要求。常规生产观察必须保持安全字段 allowlist；当该信号不足
+以定位问题时，可以依照 Principle III 启动用户明确授权的临时本地诊断，并记录授权范围与
+最终脱敏结论，不得把临时原始数据升级为常驻采集能力。
 
 理由：第三方页面与 Flash 故障无法完全消除，受控恢复和安全诊断是可维护性的必要条件。
 
@@ -122,7 +143,9 @@ Constitution 约束后续所有 Feature Spec、Implementation Plan、Tasks 和�
 - 涉及认证、Session、窗口、网络或 Flash 的设计必须同时检查模块边界、安全边界和旧运行时 API
   可用性。Electron 新版本 API 不得在未验证 Electron 11 支持的情况下写入 Plan。
 - 依赖或锁文件变更必须能追溯到明确需求，并记录兼容性、安装验证和回退影响。
-- 诊断数据必须遵循最小化和脱敏原则；不能证明安全的字段默认按敏感数据处理。
+- 常规诊断数据必须遵循最小化和脱敏原则；不能证明安全的字段默认按敏感数据处理。只有符合
+  Principle III 的用户明确授权诊断可以临时读取原始页面或认证状态，且不得持久化或转为
+  生产采集。
 
 ## 规格驱动交付与质量门
 
@@ -135,6 +158,7 @@ Constitution 约束后续所有 Feature Spec、Implementation Plan、Tasks 和�
    Complexity Tracking 将安全、认证、Session 隔离、运行时基线或产品方向违规合理化。
 4. Tasks 必须按用户故事组织，并在描述中引用所实现的 FR、SC 或验收场景。自动化测试、人工
    验收、Session 隔离验证、诊断与错误恢复必须作为适用的显式任务，且验证设计先于对应实现。
+   若需要授权诊断，任务还必须写明授权来源、只读范围、Profile、时限、禁止持久化和清理步骤。
 5. 实现与审查必须核对 Spec、Plan、Tasks 和 Constitution。若代码暴露新的需求缺口，先回写
    Spec 并重新执行受影响的 Constitution Check，再继续实现。
 
@@ -151,4 +175,4 @@ MUST 规则视为阻塞问题。复杂性必须回溯到当前需求并记录更
 `AGENTS.md` 和 `docs/REPO_MAP.md` 为入口，但它们不得覆盖本 Constitution；发现冲突时必须提出
 显式宪章修订或修正文档，禁止静默选择。
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-20 | **Last Amended**: 2026-07-20
+**Version**: 2.0.0 | **Ratified**: 2026-07-20 | **Last Amended**: 2026-07-26

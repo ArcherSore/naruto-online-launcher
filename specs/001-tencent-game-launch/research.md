@@ -32,7 +32,7 @@
 
 ## Decision 3: 每个 Profile 固定使用持久 Partition
 
-**Decision**: 腾讯流程只使用 `persist:profile-<id>`。登录 Cookie/Storage 由 Chromium 原生持久化；G3 只证明腾讯路径不调用 shadow snapshot/restore，并保持旧 API 不可达。在 Phase 6 完成全量调用者审计前，不删除旧 API 或实现；只有审计证明零调用者后才随清理任务删除 shadow Cookie JSON 能力。
+**Decision**: 腾讯流程只使用 `persist:profile-<id>`。登录 Cookie/Storage 由 Chromium 原生 Session/Partition 管理；G3 只证明同一 Electron 主进程内关闭并重开同一 Profile 游戏窗口时复用该隔离 Session、腾讯路径不调用 shadow snapshot/restore，并保持旧 API 不可达。在 Phase 6 完成全量调用者审计前，不删除旧 API 或实现；只有审计证明零调用者后才随清理任务删除 shadow Cookie JSON 能力。
 
 **Rationale**: 满足 FR-008 至 FR-011、FR-020；避免 shadow restore 未 await 的竞态、Oasis 域过滤错误和认证 Cookie 明文复制。
 
@@ -95,7 +95,7 @@ G2 不接受通配网络规则、宽泛 allowlist 或静默关闭/削弱安全�
 
 ## Decision 8: 诊断默认最小化并在源头脱敏
 
-**Decision**: 日志只接受 Profile 非敏感标识、stage、event、origin/pathname、错误码和次数。在任何真实扫码、认证跳转或 Flash/CDN 观察前，先以失败测试证明 `network/inspector.js`、诊断、IPC 广播和普通日志不得采集、保存、广播或记录完整 URL、query/fragment、Cookie、Set-Cookie、Authorization、JWT、ticket、QQ 身份字段、请求体、响应体或页面源码，再将观察字段收敛到 resource type、origin、pathname、status code、error code 的 allowlist，未知字段默认拒绝。该安全处置是 G1/G2 的硬前置；Phase 6 只按本 Feature 的当前用途决定保留这套安全元数据观察能力，或在确认无当前用途后删除，不得到 Phase 6 才首次处理敏感捕获，也不得以未来自动化作为保留理由。诊断导出使用字段 allowlist，不依赖事后 token regex。
+**Decision**: 生产日志只接受 Profile 非敏感标识、stage、event、origin/pathname、错误码和次数。在任何真实扫码、认证跳转或 Flash/CDN 观察前，先以失败测试证明 `network/inspector.js`、诊断、IPC 广播和普通日志不得持久采集、保存、广播或记录完整 URL、query/fragment、Cookie、Set-Cookie、Authorization、JWT、ticket、QQ 身份字段、请求体、响应体或页面源码，再将常规观察字段收敛到 resource type、origin、pathname、status code、error code 的 allowlist，未知字段默认拒绝。该安全处置是 G1/G2 的硬前置；Phase 6 只按本 Feature 的当前用途决定保留这套安全元数据观察能力，或在确认无当前用途后删除。诊断导出使用字段 allowlist，不依赖事后 token regex。若这些信号不足，用户可以针对具体故障明确授权当前本地会话内的临时只读诊断；它与生产 inspector 分离，限定指定 Profile、最短时限和必要页面/Session 数据，原始值不进入文件、日志、IPC、截图或诊断包，定位后立即丢弃。
 
 **Rationale**: 当前 inspector 保存完整 URL/JWT，cookie debug IPC返回值，logger 无集中脱敏，而诊断 regex 不能覆盖 JWT/base64url 或腾讯票据。
 
@@ -106,7 +106,7 @@ G2 不接受通配网络规则、宽泛 allowlist 或静默关闭/削弱安全�
 
 ## Decision 9: 测试分层
 
-**Decision**: URL/状态机/路由/Session/脱敏用 Jest；真实二维码、重定向、Cookie 持久化、双 Profile、Windows portable 和 PPAPI 鼠标交互用可重复人工 E2E。官方流程未自然出现的 popup、二次 popup 或 redirect 事件使用自动化测试或本地受控 fixture 验证通用 handler，人工腾讯流程记录有理由的 `N/A`，不得为了触发事件修改腾讯页面。初始页面探针只定义接口、boolean/enum 返回类型、数据禁区和明确预算：只在受信任页面 `did-finish-load` 后调用，每次受信任顶层加载最多 1 次；计数以单次窗口 `LaunchFlow` 生命周期为作用域，每个 stage 最多 3 次、整个窗口流程最多 12 次，用户重新启动窗口后重置；单次超时 3 秒，不使用定时无限轮询，失败不清 Session并保持当前安全状态。生产 selector 集合初始为空，不根据静态页面或经验猜测腾讯 selector。Windows 发现阶段由人工 DevTools 检查，只记录 selector 名称、存在性和安全布尔结果；经验证并更新研究/契约后，先写失败测试，再把 selector 加入生产规则。
+**Decision**: URL/状态机/路由/Session/脱敏用 Jest；真实二维码、重定向、同进程 Session 复用、双 Profile、Windows portable 和 PPAPI 鼠标交互用可重复人工 E2E。官方流程未自然出现的 popup、二次 popup 或 redirect 事件使用自动化测试或本地受控 fixture 验证通用 handler，人工腾讯流程记录有理由的 `N/A`，不得为了触发事件修改腾讯页面。初始页面探针只定义接口、boolean/enum 返回类型、数据禁区和明确预算：只在受信任页面 `did-finish-load` 后调用，每次受信任顶层加载最多 1 次；计数以单次窗口 `LaunchFlow` 生命周期为作用域，每个 stage 最多 3 次、整个窗口流程最多 12 次，用户重新启动窗口后重置；单次超时 3 秒，不使用定时无限轮询，失败不清 Session并保持当前安全状态。生产 selector 集合在首次 Windows 验证前为空，不根据静态页面或经验猜测腾讯 selector。Windows 发现阶段由人工 DevTools 检查，只记录 selector 名称、存在性和安全布尔结果；经验证并更新研究/契约后，先写失败测试，再把 selector 加入生产规则。
 
 **Rationale**: 当前 Electron 完全 mock，无法证明 Chromium 87、腾讯服务或 Flash 行为；但纯逻辑可稳定自动化。
 
@@ -115,14 +115,108 @@ G2 不接受通配网络规则、宽泛 allowlist 或静默关闭/削弱安全�
 - 用大量 mock 声称 E2E 完成：拒绝，不能覆盖第三方页面和 PPAPI。
 - 自动扫码：拒绝，超范围且违反认证边界。
 
-**验收分母**: G1 测试账号发现扫码不计入 SC。G1/G2 PASS 后，全新 Profile 扫码并进入游戏连续 3 次；有效区服进入内部游戏窗口使用同一组三次正式启动；每个实例必须同时记录 `game_internal`、`content_visible`、`mouse_response`，三项全 PASS 才计入 passed。有效 Session 跨重启复用连续 2 次；失效 Session 返回扫码连续 2 次。每组记录 `passed/attempted`，规定矩阵必须全部通过。
+**验收分母**: G1 测试账号发现扫码不计入 SC。G1/G2 PASS 后，全新 Profile 扫码并进入游戏连续 3 次；有效区服进入内部游戏窗口使用同一组三次正式启动；每个实例必须同时记录 `game_internal`、`content_visible`、`mouse_response`，三项全 PASS 才计入 passed。Electron 主进程保持运行时，同一 Profile 关闭并重开游戏窗口后的有效 Session 复用连续 2 次；失效 Session 返回扫码连续 2 次。每组记录 `passed/attempted`，规定矩阵必须全部通过。
+
+## Decision 10: G3a 以同一主进程内的 Session 复用为验收边界
+
+**Decision**: 经 2026-07-25 Windows/Electron 11.5.0 实测并由用户确认，SC-004/T041 不再要求完整退出 Electron 主进程后免扫码。正式矩阵要求 Electron 主进程持续运行，仅关闭并重开同一 Profile 的游戏窗口；腾讯仍认可会话时连续 `2/2` 无需扫码、仍由用户手动选服。完整进程退出后再次扫码不计入该矩阵。
+
+**Rationale**: 同进程对照已证明同一 Profile 的隔离 Session 可被游戏窗口复用；完整退出后官方再次要求扫码。Electron Cookies 文档说明无 `expirationDate` 的 Cookie 是 session Cookie、不会跨应用会话保留，Electron v11.5.0 的 `network_context_service.cc` 又明确设置 `restore_old_session_cookies=false`、`persist_session_cookies=false`。`flushStore()` 不改变这种生命周期语义。
+
+**Sources**:
+
+- <https://www.electronjs.org/docs/latest/api/cookies>
+- <https://github.com/electron/electron/blob/v11.5.0/shell/browser/net/network_context_service.cc>
+- <https://github.com/electron/electron/issues/9995>
+
+**Alternatives considered**:
+
+- 读取并复制 session Cookie、添加过期时间、恢复 shadow snapshot 或重放票据：拒绝，违反 FR-013。
+- 升级/补丁 Electron 运行时：拒绝，违反冻结的 Electron 11.5.0/PPAPI 基线并扩大 Feature 范围。
+- 保持完整进程重启为验收要求：拒绝，当前运行时公开语义不支持，用户已选择同进程窗口重开口径。
 
 ## 运行时验证项
 
 - Chromium 87 下官方扫码的 iframe/popup/redirect 角色与精确顶层 host；按 G1 最多 5 轮逐跳闭合。
 - 扫码选服后的参数名称、最终 `game.huoying.qq.com/main.html` 导航和游戏页失效回退。
-- 官方 Cookie/Storage 是否在 persist Partition 跨重启复用，以及双 Profile 完整隔离。
+- 同一 Electron 主进程内关闭并重开游戏窗口时官方 Session 是否连续 `2/2` 复用，以及双 Profile 完整隔离；完整进程退出后的免扫码不属于验收。
 - 入口 SWF/CDN、mixed content、policy 文件、经 DevTools 验证的页面信号和最小 BrowserWindow 安全 flags；按 G2 文档→失败测试→最小实现→回归→重跑闭环验证。
 - Windows portable 内置 DLL 与缺失时 `.7z` fallback。
 
 上述事实均有保守默认：不认识的顶层导航和非核心外链阻止并可返回选服；不认识的会话状态不清 Cookie；Flash 未可交互不宣告成功。运行时发现若只补充技术事实（精确 host/path、既有能力的 DOM selector、CDN 地址或具体兼容参数），先更新本研究、Plan、相关契约和失败测试即可；若会改变产品需求、Feature 范围、安全边界、验收标准、成功率分母或增加用户能力，必须停止当前 Gate，先更新 `spec.md`，再同步 Plan、Tasks 和契约，重新执行 Constitution Check 并完成一致性确认后才能继续。任何分支都不得在代码中静默扩大范围或安全例外。
+
+## G1 Windows/Electron 11 运行时确认（2026-07-25）
+
+T027-T028 使用内部代号为 `test` 的测试 Profile 完成 non-SC 发现：
+
+- `https://huoying.qq.com:443/server/website/` 在父游戏窗口稳定加载；
+- 腾讯官方扫码 UI 在现有页面中自然显示；扫码成功后仍在该 SELECTOR 页面显示服务器选择界面；
+- 自然流程未创建认证子窗，也未出现顶层 AUTH navigate、redirect、`new-window` 或二次 popup；这些人工项按契约记为有理由的 `N/A`，通用 handler 由 T016 自动化/本地受控 fixture 覆盖；
+- 用户手动选择区服并点击进入游戏后，既有 `https://game.huoying.qq.com:443/main.html` 角色在应用内部承载，没有交给系统浏览器；
+- 全过程未出现新的 UNKNOWN 顶层目标，因此不新增 AUTH host/path、popup disposition、DOM selector 或网络安全例外。
+
+首次发现运行暴露一个本地生命周期缺陷：同一 BrowserWindow 的重复 `ready-to-show` 会重复执行 `TencentLaunchFlow.start()`，造成 SELECTOR 循环重载和页面闪烁。修复采用窗口级一次性门闩，并以 Red→Green 测试证明同一窗口只启动一次流程；该修复不改变导航契约或 Session。
+
+上述结果确认既有 SELECTOR/GAME_MAIN 精确元组，不形成新的产品需求、范围、安全边界、验收标准或用户能力，因此无需修改 Feature Spec，也无需新增 allowlist 失败测试或实现规则。
+
+## T056 嵌入式登录 UI selector 确认（2026-07-25 至 2026-07-26）
+
+初次 Elements 发现只提交了二维码子文档内 selector
+`#qr_area > span.qrlogin_img_out`。2026-07-26 Windows 实测证明：二维码可见时，在 DevTools
+Console `top` execution context 执行该 selector 的存在性判断返回 `false`，因此它位于子
+frame，不能作为顶层生产探针。
+
+随后人工把 `#ptlogin_iframe` 当作顶层候选，并报告二维码状态
+`exists=true/visible=true`、选服状态 `false/false`。生产实现据此先后尝试立即查询和
+2500ms observer，但两次真实 Windows 重启均在二维码可见时返回
+`SELECTOR_READY`，证明该候选的 execution context 判断不可靠。
+
+Constitution 2.0.0 生效且用户明确授权后，Codex 通过仅绑定本机的 CDP 直接读取同一测试
+Profile 的顶层页面源码和 frame tree，得到闭合事实：
+
+| 层级 | 脱敏结构事实 |
+| --- | --- |
+| 顶层 `huoying.qq.com/server/website/` | `document.readyState=complete`；存在且可见的登录节点为 `.qConnectLogin iframe.loginframe` |
+| 第一层跨域 frame | 腾讯 OAuth 页面 |
+| 第二层跨域 frame | QQ 登录页面；`#ptlogin_iframe` 属于该子 frame 链，不在顶层文档 |
+| 管理页 | 同时仍显示 `SELECTOR_READY` 对应的“等待扫码或手动选服” |
+
+顶层授权源码确认登录 iframe 的稳定结构是：
+
+```html
+<div class="qConnectLogin">
+  <!-- cover/content -->
+  <iframe class="loginframe" ...></iframe>
+</div>
+```
+
+原始 `src` query、页面文本和任何可能的认证值不写入本研究；诊断结束后只保留上述结构事实。
+
+**Decision**: 生产 selector 改为顶层精确 `.qConnectLogin iframe.loginframe`。脚本仍只检查
+该节点的存在性与顶层可见性（`getClientRects()`、`display`、`visibility`），最终只返回
+`loginUiVisible` 布尔值；不进入跨域子 frame。保留单次 probe 内 2500ms observer 作为有界
+时序容错，但它不再是根因修复。`true` 映射为 `AUTHENTICATING`，`false` 映射为
+`SELECTOR_READY`；异常或超时保持现有安全恢复契约。所有分支不清 Session、不自动循环。
+
+这是对既有页面状态探针的真实结构修正，不增加生产敏感数据采集；授权诊断边界已经同步到
+Feature Spec、Plan、Data Model、Contract、Quickstart 和 Tasks。
+
+## T056 管理卡片降级决定（2026-07-26）
+
+真实 `electron-log` 证明 DevTools Offline/刷新在部分运行中只产生一次顶层
+`did-fail-load(-106)`；第一次事件被一次自动恢复消耗后，Chromium 可能由缓存继续承载页面，
+既不产生第二次失败，也不形成可稳定判定的失败终态。追加超时收敛仍未满足用户对真实行为的
+预期，用户最终决定撤销该功能。
+
+**Decision**:
+
+- 撤销认证自动恢复后的超时失败收敛；
+- 管理卡片不再显示 `LaunchFlowState` 阶段说明或动态恢复按钮；
+- 未启动主按钮文案改为“打开”；
+- 运行中常态显示“刷新”，通过 Profile ID 由主进程窗口 registry 委托所属
+  `LaunchFlow.reloadCurrentRole()`，与 F5 共用安全角色分类；
+- 后台状态机、有界自动恢复、脱敏诊断和 Session 隔离继续保留，不接受 renderer 提交 URL，
+  不清 Cookie/Storage。
+
+该决定改变用户可见恢复要求和 SC-006 记录字段，已先同步 Spec、Plan、Tasks、Data Model、
+Navigation Contract 与 Quickstart，再进入测试和实现。

@@ -26,44 +26,40 @@
 ### 启动与配置
 
 - `package.json`：`main` 指向 `src/main.js`；定义 npm scripts、Electron/electron-builder 版本和打包资源。
-- `src/main.js`：必须在 `app.ready` 前完成配置、Flash 探测、GPU 环境变量与 Chromium flags；ready 后启动 Store、MemoryGuard、事件计时器和管理窗口。
+- `src/main.js`：必须在 `app.ready` 前完成配置、Flash 探测、GPU 环境变量与 Chromium flags；ready 后启动 Store、MemoryGuard 和管理窗口。
 - `src/main/flags.js`：唯一的 `app.commandLine.appendSwitch` 权威入口，设置 Flash、sandbox、GPU、缓存和 V8 heap flags。
 - `src/main/debug.js`、`src/preload.js`：读取 `SHINOBI_DEBUG` 并向隔离的游戏 renderer 暴露最小 bridge。
 - `src/config/settings.js`：在 Electron `userData/config.json` 读写全局设置。
-- `src/config/urls.js`：地区入口 URL、game code 和 launcher query 参数的集中定义。
+- `src/config/urls.js`：腾讯官方选服页、认证页和游戏主页面的精确 URL 角色定义。
 - `src/config/regions.js`、`hardware.js`、`optimization.js`、`i18n.js`：地区、硬件、性能预设和管理 UI 文案配置。
 
-### Profile、凭据与 Session
+### Profile 与 Session
 
 - `src/profiles/store.js`：Profile 元数据、排序、统计和启动日志的持久化 Store；上限由 `MAX_PROFILES` 定义。
-- `src/profiles/manager.js`：Profile 领域 facade；串联 Store、Vault、Partition、Launcher 和 MemoryGuard。
-- `src/profiles/partition.js`：选择 `persist:profile-<id>` 或临时 `partition:profile-<id>`，并负责 shadow partition 的 cookie snapshot/restore。
-- `src/profiles/vault.js`：兼容 facade。
-- `src/profiles/ProfileVault.js`、`PasswordManager.js`、`CryptoService.js`：凭据 CRUD、机器绑定主密码/密钥与 AES-256-GCM/PBKDF2 加解密；同时生成表单自动登录注入脚本。
+- `src/profiles/manager.js`：Profile 领域 facade；串联 Store、固定持久 Partition、Launcher 和 MemoryGuard。
+- `src/profiles/partition.js`：把每个 Profile 固定映射到唯一的
+  `persist:profile-<id>`；不读取、复制或恢复 Cookie。
 
 ### 游戏窗口、登录与页面生命周期
 
-- `src/app/Launcher.js`：按 Profile 创建带独立 partition 的 `BrowserWindow`，启用插件，安装网络层，维护游戏窗口 registry，然后挂接生命周期与快捷键。
+- `src/app/Launcher.js`：按 Profile 创建带独立持久 partition 的 `BrowserWindow`，启用插件，维护窗口 registry，并挂接腾讯流程、生命周期与快捷键。
 - `src/ui/game-launcher.js`：兼容 facade，直接 re-export `app/Launcher.js`。
-- `src/app/SessionLifecycle.js`：页面加载、预登录、表单注入、导航与弹窗、CSS/FB mock 注入、失败重试、stall/crash 恢复、JWT 续期和关闭清理。
-- `src/ui/manager/KeyboardShortcuts.js`：游戏窗口 F5、F12、Alt+F4 等快捷键；F5 委托 Launcher 做清 Session 后的 API 预登录。
+- `src/app/TencentLaunchFlow.js`：腾讯官方扫码、认证子窗、选服、游戏导航、精确 URL 分类、有界恢复和 StallDetector 的状态机。
+- `src/app/SessionLifecycle.js`：只处理通用窗口 load/ready/crash/unresponsive/close 事件，并把角色相关处理委托给 `TencentLaunchFlow`。
+- `src/ui/manager/KeyboardShortcuts.js`：游戏窗口 F5、F12、Alt+F4 等快捷键；F5 只重载当前安全角色，不清 Session。
 - `src/app/StallDetector.js`：识别关键资源停滞并触发受控恢复。
-- `src/network/api-login.js`：通过 passport API 登录，将 `oas_user` JWT cookie 注入当前 Electron Session，并支持有效性检查/续期。
-- `src/network/tempmail.js`：临时邮箱、OAS 注册/登录和服务器查询。
 
 ### 网络
 
-- `src/network/blocker.js`：每个 Session 的 `onBeforeRequest` 拦截；按域名/路径屏蔽 tracking，并把 `logintype=3` 重定向为 `4`。
-- `src/network/cookies.js`：延长游戏 cookie、删除 tracking cookie，并在唯一的 `onHeadersReceived` handler 中合并 CSP 注入。
-- `src/network/inspector.js`：可选的 `webRequest` 采集、分类和 JWT 提取，由管理 UI 的 IPC 开关控制。
-- `src/ui/server-selector.js`：通过 Electron `net` 获取/缓存服务器列表。
+- `src/network/inspector.js`：可选的安全 `webRequest` 元数据观察器，只保留
+  resource type、origin、pathname、status code 和 error code，由管理 IPC 显式控制。
 
 ### 管理窗口与 IPC
 
 - `src/ui/controller.js`：管理 UI 的薄 facade。
 - `src/ui/manager/ManagerWindow.js`：本地 dashboard `BrowserWindow` 的创建、显示、隐藏与关闭策略。
-- `src/ui/manager/IpcRouter.js`：Profile、Vault、Session、Tempmail、Inspector、Flash、诊断、窗口等 IPC 的集中路由。
-- `src/ui/manager/StateBroadcaster.js`：把 Profile、内存、事件状态推送给管理 renderer。
+- `src/ui/manager/IpcRouter.js`：通用 Profile、窗口、安全 Inspector、Flash 和诊断 IPC 的集中路由。
+- `src/ui/manager/StateBroadcaster.js`：把安全 Profile、流程和内存状态推送给管理 renderer。
 - `src/ui/index.html`、`src/ui/app.js`、`styles.css`：管理 dashboard；该窗口加载本地文件并直接启用 Node integration。
 
 ### Flash、性能和诊断
@@ -82,60 +78,59 @@
 3. 获取 single-instance lock；第二实例只聚焦/恢复管理窗口。
 4. `app.ready` 时：
    - 若找不到有效 Flash，打开本地 loading window，调用 `FlashUpdater.ensureLatest()`，成功后 `app.relaunch()`；
-   - 否则加载 Profile Store，启动 MemoryGuard/Webview GC 和事件计时器；
-   - 首次运行先显示 `src/ui/setup/setup.html`，持久化语言、地区和轻量模式设置；
+   - 否则加载 Profile Store，启动 MemoryGuard/Webview GC；
+   - 首次运行先显示 `src/ui/setup/setup.html`，持久化语言和轻量模式设置；
    - 随后注册 IPC，创建管理窗口并加载 `src/ui/index.html`。
 5. 管理 renderer 的 `src/ui/app.js` 通过 IPC 请求 Profile 操作；点击 Play 后 `IpcRouter/main.js -> ProfileManager.launch()`。
-6. ProfileManager 选择 partition；shadow 模式先异步恢复 cookie，然后调用 Launcher。
-7. Launcher 创建游戏 `BrowserWindow`、绑定独立 Session、安装 blocker/cookie+CSP handler、SessionLifecycle 和快捷键，先显示本地 loading data URL。
-8. `ready-to-show` 后，SessionLifecycle 优先用 Vault 凭据执行 API 预登录并注入 cookie，再加载 `urls.js` 生成的游戏 URL；失败时回退到页面加载后的表单脚本注入。
-9. `did-finish-load` 后执行页面清理/全屏 CSS、FB fallback、自动登录、CPU 优化和 StallDetector；同时按计划检查 JWT 续期。
-10. 游戏窗口关闭时先停止页面/Flash 对象并清理计时器；Launcher 从 registry 移除窗口，ProfileManager 注销 MemoryGuard，shadow 模式保存认证 cookie snapshot。最后一个窗口关闭时 Electron 退出，并恢复 `mms.cfg` 备份、停止后台服务。
-
-注意：shadow cookie restore 当前是异步派发后立即继续创建/加载窗口，并未等待完成；其 `AUTH_DOMAINS` 也与 API 登录写入的 `narutowebgame.com` 域名不完全一致。是否影响 shadow 模式保持登录需要运行时验证。
+6. ProfileManager 委托 Launcher；Partition 固定返回 `persist:profile-<id>`。
+7. Launcher 创建游戏 `BrowserWindow`、绑定独立 Session、挂接
+   `TencentLaunchFlow`、通用 `SessionLifecycle` 和快捷键，先显示本地 loading data URL。
+8. `ready-to-show` 后启动 `TencentLaunchFlow`，加载腾讯官方选服页；扫码认证、手动选服和
+   游戏主页面跳转全部由精确 URL 角色和父 Profile 的同一 Session 驱动。
+9. load/crash/stall/unresponsive 只委托当前角色做有界处理；不会读取 Cookie、注入密码、
+   回退 Oasis 或自动选服。
+10. 游戏窗口关闭时 flush 当前 Session 存储、清理流程和计时器、从 registry 移除窗口并
+    注销 MemoryGuard；不会 snapshot/restore Cookie。
 
 ## 4. Profile、Session、Flash、登录、网络与窗口生命周期关系
 
 ```text
 管理 UI
   -> IPC Router
-    -> Profile Store / Vault
+    -> Profile Store
     -> ProfileManager.launch(profileId)
-       -> Partition: persist 或 shadow Session 名称
-       -> shadow cookie restore
+       -> Partition: persist:profile-<id>
        -> Launcher.create BrowserWindow(partition, plugins=true)
-          -> Session webRequest: Blocker + Cookies/CSP
           -> SessionLifecycle
-             -> API Login -> oas_user cookie -> loadURL
-             -> fallback: Vault auto-login JS -> 页面表单
-             -> 页面 CSS/JS 注入、导航/弹窗、retry/stall/crash/JWT renewal
+          -> TencentLaunchFlow
+             -> 官方选服页 -> 官方扫码认证 -> 手动选服 -> 游戏主页面
+             -> 精确导航/弹窗分类 + 有界失败恢复
           -> KeyboardShortcuts
        -> MemoryGuard 注册/注销游戏 webContents
-       -> shadow cookie snapshot on close
 
 进程启动前：Flash Plugin 探测 -> flags.js 注入 ppapi-flash-path/version
 缺失时：FlashUpdater -> userData/flash-cache -> relaunch -> 再次探测
 ```
 
-Flash 是进程级 PPAPI 能力，Session 是 Profile 级隔离边界，BrowserWindow 是可见生命周期边界。登录凭据保存在 Vault；实际登录态位于各自 Session 的 cookie/storage 中。网络拦截和响应头修改必须安装到每个 Profile 对应的 Session，页面注入则作用于该 Profile 的游戏 `webContents`。
+Flash 是进程级 PPAPI 能力，Session 是 Profile 级隔离边界，BrowserWindow 是可见生命周期
+边界。登录态只由各 Profile 的 Chromium Session cookie/storage 保存；启动器不持久化凭据或
+复制认证票据。生产流程不安装 Cookie/CSP/`crossdomain.xml` 改写。
 
 ## 5. 常见改动的文件导航
 
 | 改动目标 | 首要文件 | 通常还要检查 |
 | --- | --- | --- |
-| 游戏入口 URL、地区路径、launcher 参数 | `src/config/urls.js` | `src/app/Launcher.js` 的 `getGameUrl()`；`src/app/SessionLifecycle.js` 的 `will-navigate` 参数补全；`src/ui/server-selector.js`；`urls.test.js` |
-| 登录方式/API、JWT/cookie 域名 | `src/network/api-login.js`、`src/network/tempmail.js` | `src/app/SessionLifecycle.js` 的预登录与续期；`src/profiles/ProfileVault.js` 的表单 fallback；`src/ui/manager/IpcRouter.js`；相关 network tests |
-| 登录表单选择器/点击行为 | `src/profiles/ProfileVault.js` | `src/app/SessionLifecycle.js::_tryAutoLogin()`；Vault tests |
-| 弹窗与导航处理 | `src/app/SessionLifecycle.js` 的 `new-window`、`will-navigate` | Electron 11 使用旧 `new-window` 事件；外链通过 `shell.openExternal()` |
-| 网络拦截/重定向 | `src/network/blocker.js` | `src/network/cookies.js`（响应头/CSP/cookie）；`src/network/inspector.js`（仅诊断）；对应 tests |
-| 页面注入、广告清理、全屏、FB mock | `src/app/SessionLifecycle.js` 的 `did-finish-load` | `src/profiles/ProfileVault.js`（登录脚本）；`src/preload.js`（仅安全 bridge）；`src/app/StallDetector.js` |
+| 腾讯官方入口与 URL 角色 | `src/config/urls.js` | `src/app/TencentLaunchFlow.js`、`Launcher.js`、`urls.test.js` |
+| 扫码认证、弹窗与导航 | `src/app/TencentLaunchFlow.js` | `navigation-contract.md`、`TencentLaunchFlow.test.js` |
+| 安全网络元数据观察 | `src/network/inspector.js` | `src/ui/manager/IpcRouter.js`、`inspector.test.js`、`diagnostics.test.js` |
 | Profile 字段或持久化 | `src/profiles/store.js` | `src/profiles/manager.js`、`partition.js`、`IpcRouter.js`、`src/ui/app.js` |
-| Session 隔离或 shadow 行为 | `src/profiles/partition.js` | `src/profiles/manager.js`、`src/app/Launcher.js`、MemoryGuard |
+| Session 隔离与持久映射 | `src/profiles/partition.js` | `src/profiles/manager.js`、`src/app/Launcher.js`、MemoryGuard |
 | Flash 路径、版本或兜底下载 | `src/flash/plugin.js`、`src/app/FlashUpdater.js` | `src/main/flags.js`、`src/main.js`、`flash/manifest.json`、`package.json.build.extraResources`、CI |
 | 管理窗口关闭/隐藏策略 | `src/ui/manager/ManagerWindow.js` | `src/main.js` 的全局 app lifecycle；Launcher 的 window registry |
 | 游戏窗口关闭、失败或 crash 恢复 | `src/app/SessionLifecycle.js` | `src/app/Launcher.js`、`src/profiles/manager.js`、`src/app/StallDetector.js` |
 
-Electron 的一个 Session/webRequest 事件通常只能保留一个 handler；尤其不要在别处再注册第二个 `onHeadersReceived` 覆盖 `cookies.js` 中合并后的 CSP/cookie 逻辑。
+不要为腾讯流程新增 Cookie/CSP/响应头改写；需要诊断时只使用已收敛到五字段白名单的
+`network/inspector.js`。
 
 ## 6. 安装、开发、检查与构建命令
 
@@ -202,7 +197,7 @@ CI 的直接打包命令分别是 `npx electron-builder --linux AppImage --publi
 
 - Electron `11.5.0`、vanilla UI、Electron main/renderer 架构、Linux AppImage + Windows portable x64 均由 `package.json` 和 workflow 确认。
 - Flash PPAPI 版本仍为 Linux `34.0.0.137`、Windows `34.0.0.376`，且 flags 在 ready 前应用。
-- Multi-Profile、persist/shadow partition、MemoryGuard、API Login、Tempmail、Network Inspector、诊断导出和 AES-256-GCM/PBKDF2 模块均存在并已接入 IPC/启动链路。
+- Multi-Profile、固定 persist Partition、MemoryGuard、安全 Network Inspector 和脱敏诊断导出均存在并已接入当前腾讯流程。
 - CI 仍使用 Ubuntu 22.04、Windows 2022 和 Node `16.20.2`，并执行 lint、Prettier check、Jest 和双平台构建。
 - `src/main/flags.js` 仍是 command-line flags 的单一入口；`--expose-gc`、`no-sandbox` 和 PPAPI flags 都在这里设置。
 - 调试环境变量 `SHINOBI_DEBUG` 仍存在，并通过 `main/debug.js`、preload 和 UI 使用。
@@ -210,8 +205,8 @@ CI 的直接打包命令分别是 `npx electron-builder --linux AppImage --publi
 ### STALE
 
 - “当前版本 4.9.2”：当前 `package.json` 为 `5.12.0`；README 顶部仍显示 4.7.0，本身也有文档漂移。
-- 旧目录/行数和 God Object 描述：controller、game launcher、vault、memory guard 已拆为当前的 facade + 模块结构；历史绝对路径 `/home/z/naruto-repo` 也不适用于当前工作区。
-- “F5、DevTools、JWT 自动续期、Tempmail 自动创建 Profile 尚未实现”：当前分别已接入 `KeyboardShortcuts.js`、`IpcRouter.js`、`SessionLifecycle.js` 和 `IpcRouter.js`。
+- 旧目录/行数和 God Object 描述：controller、game launcher、memory guard 已拆为当前的 facade + 模块结构；Vault/Tempmail/API login 已删除，历史绝对路径 `/home/z/naruto-repo` 也不适用于当前工作区。
+- “F5、DevTools、JWT 自动续期、Tempmail 自动创建 Profile 尚未实现”：F5/DevTools 仍有安全入口；JWT 续期与 Tempmail 已按腾讯官方扫码架构删除。
 - “6 种管理 UI 语言”：游戏入口仍覆盖多地区/语言，但 `settings.js` 当前只接受 `pt`/`en` 作为管理 UI 语言。
 - “必须创建 debug 分支/隐藏 Ctrl+Shift+D”：当前工作树位于 `main`，环境变量调试仍保留；源码调试脚本明确说明 UI 秘密快捷键已移除。
 - “只有 6 个测试文件”：当前 `src/**/__tests__` 数量远多于历史清单。
@@ -225,13 +220,11 @@ CI 的直接打包命令分别是 `npx electron-builder --linux AppImage --publi
 
 ### NEEDS_RUNTIME_VERIFICATION
 
-- “Tempmail/mail.tm 注册、passport 登录、JWT 注入在约 1 秒内且 proven working”：相关实现和测试存在，但外部 API、限流、字段与 cookie 接受情况会变化，必须联网实测。
-- 游戏入口 URL、服务器数量、表单 selector、OAS API/cookie 域名和 Flash 资源加载是否仍有效，依赖当前线上页面与服务。
+- 腾讯官方页面 URL、扫码 iframe selector、导航链和 Flash 资源加载是否仍有效，依赖当前线上页面与服务。
 - GC 是否仍导致黑屏、自动恢复是否稳定、45 MB idle/多账号内存收益等性能结论需要真实 Electron + Flash 会话测量。
-- shadow partition 的 cookie snapshot/restore 是否保持当前登录需要重点实测，原因见启动流程后的注意项。
 - Flash 缺失时的 fallback 下载/解压需要分平台实测；尤其 Linux 当前 `.tar.gz` asset 与解压分支不匹配。
 - Windows/Linux 可执行文件是否可完整打包和启动，需要在对应 OS、Node 16.20.2 环境跑 CI 等价流程；静态配置只能确认命令和目标。
-- “zero tracking”可确认项目未配置自有遥测且 blocker 存在，但第三方游戏页面在实际运行中发出哪些请求仍应通过 Inspector/DevTools 抓包验证。
+- “zero tracking”可确认项目未配置自有遥测；第三方官方页面实际发出哪些请求只能通过安全 Inspector/DevTools 运行时观察。
 
 ## 9. 当前建议
 

@@ -6,7 +6,7 @@
 
 ## Summary
 
-在现有 Electron 11 + PPAPI Flash 项目上，把面向用户的启动主链从 Oasis 账号密码、区域和服务器直达逻辑，替换为腾讯官方选服页 `https://huoying.qq.com/server/website/` 驱动的扫码登录、手动选服和内部游戏页导航。复用现有 Profile、持久 Partition、BrowserWindow、Flash 启动和窗口 registry；删除 Oasis Vault/API/JWT/tempmail、页面注入、Cookie 延寿和网络重写。新增显式导航状态、严格的顶层导航/弹窗路由、有界恢复和默认脱敏诊断，不读取或持久化腾讯票据。
+在现有 Electron 11 + PPAPI Flash 项目上，把面向用户的启动主链从 Oasis 账号密码、区域和服务器直达逻辑，替换为腾讯官方选服页 `https://huoying.qq.com/server/website/` 驱动的扫码登录、手动选服和内部游戏页导航。复用现有 Profile、持久 Partition、BrowserWindow、Flash 启动和窗口 registry；删除 Oasis Vault/API/JWT/tempmail、页面注入、Cookie 延寿和网络重写。后台保留显式导航状态、严格的顶层导航/弹窗路由和有界恢复；管理卡片不显示不可靠的阶段说明，改为运行中常态提供只重载当前安全角色的“刷新”。生产路径不读取或持久化腾讯票据，用户明确授权的临时本地诊断按 Spec 限定只读范围。
 
 ## Technical Context
 
@@ -24,7 +24,7 @@
 
 **Performance Goals**: 不新增量化性能目标；登录/选服/游戏链路不得无限刷新，恢复操作应在一次用户动作后立即开始；多 Profile 不共享 Session
 
-**Constraints**: 冻结 Node 16.20.2、npm 8.19.4、Electron 11.5.0、PPAPI 和核心依赖；不改 `package-lock.json`；不得解析、解密、复制、延长或重放官方认证材料，不构造未经 Spec 授权的腾讯认证 API；游戏必须留在支持 PPAPI 的应用窗口内。`src/main/flags.js` 当前为 PPAPI 设置全局 `no-sandbox`、`disable-gpu-sandbox`、`disable-setuid-sandbox`，本 Feature 记录该既有限制并以认证子窗强隔离、递归精确导航和最小诊断数据面补偿，不顺带修改全局 sandbox 策略
+**Constraints**: 冻结 Node 16.20.2、npm 8.19.4、Electron 11.5.0、PPAPI 和核心依赖；不改 `package-lock.json`；不得解密、复制、延长或重放官方认证材料，不构造未经 Spec 授权的腾讯认证 API；游戏必须留在支持 PPAPI 的应用窗口内。T056 已获得用户明确授权，可在当前本地会话和指定测试 Profile 内临时只读检查必要的页面、表单、URL、Cookie/Storage 或身份/Session 参数，但不得读取 QQ 密码、修改认证状态、跨 Profile 访问或持久化原始值。`src/main/flags.js` 当前为 PPAPI 设置全局 `no-sandbox`、`disable-gpu-sandbox`、`disable-setuid-sandbox`，本 Feature 记录该既有限制并以认证子窗强隔离、递归精确导航和最小生产诊断数据面补偿，不顺带修改全局 sandbox 策略
 
 **Scale/Scope**: 现有最多 10 个 Profile；本 Feature 至少以 2 个 Profile 验证隔离。一个 Profile 稳定映射一个持久 Partition、同时最多一个游戏窗口；不同 Profile 不共享 Session、窗口状态或恢复计数。只实现手动扫码、选服、启动和恢复，不注册或实现游戏自动化入口
 
@@ -47,16 +47,23 @@
 | --- | --- | --- |
 | I. 规格驱动 | PASS | 方案仅覆盖 US1-US3、FR-001 至 FR-020、SC-001 至 SC-008；未加入自动选服或自动化。 |
 | II. 腾讯国服唯一方向 | PASS | Oasis 逻辑作为删除/替换对象，不设计兼容分支。 |
-| III. 官方认证与安全边界 | PASS | 官方网页扫码是唯一认证入口；Profile 不保存 QQ 密码或应用侧票据。 |
+| III. 官方认证与受控诊断边界 | PASS | 官方网页扫码是唯一认证入口；Profile 不保存 QQ 密码或应用侧票据；T056 授权诊断限定当前会话、指定 Profile、只读、临时且不持久化。 |
 | IV. 模块化而非过度抽象 | PASS | 复用 Launcher/SessionLifecycle 边界，仅增加满足阶段状态和路由要求的腾讯流程控制器。 |
 | V. 旧版运行时兼容 | PASS | 固定 Node/npm/Electron/PPAPI，不新增依赖，不修改 lockfile。 |
 | VI. Session 隔离 | PASS | 每 Profile 固定唯一 `persist:profile-<id>`；要求双 Profile 隔离测试。 |
 | VII. 测试与验收先行 | PASS | 自动测试与 Windows 人工 E2E 范围在设计前确定。 |
 | VIII. 简单性与必要性 | PASS | 腾讯区服完全由官方页选择，不新增服务器 API、凭据层或未来自动化框架。 |
-| IX. 可诊断性 | PASS | 设计阶段状态、有界重试、人工恢复和敏感 URL/票据脱敏。 |
+| IX. 可诊断性 | PASS | 后台保留阶段状态、有界重试和脱敏诊断；管理卡片使用常态“刷新”代替不可靠的状态说明。 |
 | X. 治理与语言规范 | PASS | 规划产物使用中文，技术标识和命令保留原文。 |
 
 无 FAIL、无无理由 N/A，可进入 Phase 0。
+
+### 2026-07-26 T056 降级复核
+
+用户将管理卡片从阶段说明/动态恢复动作降级为运行中常态“刷新”。复核结果仍为 PASS：
+后台有界状态机、官方认证、Session 隔离、旧运行时和脱敏边界均未放宽；新增 IPC 只接受
+Profile ID，并由主进程窗口 registry 调用既有 `reloadCurrentRole()`，不接受任意 URL、
+不清 Session、不增加自动化能力。
 
 ## Project Structure
 
@@ -142,7 +149,7 @@ tests/                          # Jest 全局 setup；真实 Electron 行为仍�
 ### Session 隔离与敏感数据
 
 - `profileId -> persist:profile-<id>` 是唯一 Session 映射；登录态只存在于该 Chromium Partition，不复制到 Profile JSON、日志、诊断包或另一 Session。
-- 同一 Profile 重开复用 Chromium 持久 Cookie/Storage；是否有效完全由腾讯官方页面/服务端判断，不延长 Cookie、不刷新票据。
+- Electron 主进程保持运行时，同一 Profile 关闭并重开游戏窗口继续使用同一 Chromium Partition/Session；是否有效完全由腾讯官方页面/服务端判断，不延长 Cookie、不刷新票据。完整进程退出后的免扫码不属于本 Feature 验收。
 - 会话失效时保留当前 Partition，让官方页面回到登录入口并重新扫码；普通 F5、stall 或加载失败不得自动清 Cookie。
 - 本 Feature 不提供登录态重置或跨 Profile 清理；重新登录由官方页面在原 Partition 内完成。实现不得把清 Cookie 作为 F5、stall 或失败恢复的隐藏动作。
 - G0 在任何真实扫码、认证跳转或 Flash/CDN 观察前执行：先为 inspector/诊断/IPC/日志增加敏感捕获的预期失败测试，再把网络观察收敛到 resource type、origin、pathname、status code、error code 的源头 allowlist；完整 URL、query/fragment、Cookie、Set-Cookie、Authorization、JWT、ticket、QQ 身份字段、请求体、响应体、页面源码及未知字段均默认拒绝。
@@ -151,16 +158,16 @@ tests/                          # Jest 全局 setup；真实 Electron 行为仍�
 
 ### 失败恢复
 
-| 失败阶段 | 自动行为 | 用户操作 | 会话处理 |
+| 失败阶段 | 自动行为 | 管理卡片操作 | 会话处理 |
 | --- | --- | --- | --- |
-| 未认证：登录 UI 加载 | 最多一次重开认证入口；连续失败后停止 | `REOPEN_AUTH` 或 `RETURN_TO_SELECTOR` | 保留 Session；不读取/重放票据 |
-| 已认证：选服页加载 | 最多一次 reload；连续失败后停止 | `RELOAD_SELECTOR` | 保留 Session |
-| 游戏跳转 | 最多一次重试当前内存导航；失败后停止 | `RETRY_GAME_NAVIGATION` 或 `RETURN_TO_SELECTOR` | 完整 URL 仅在当前流程内存中存活，不写日志/磁盘；保留 Session |
-| 游戏加载/SWF | 仅 GAME_LOADING/GAME_READY 启用有界 stall/crash 恢复 | `RELOAD_GAME` 或 `RETURN_TO_SELECTOR` | 保留 Session；不阻断 Flash policy |
+| 未认证：登录 UI 加载 | 最多一次重开认证入口；连续失败后停止 | 常态“刷新”当前已分类官方页面 | 保留 Session；不读取/重放票据 |
+| 已认证：选服页加载 | 最多一次 reload；连续失败后停止 | 常态“刷新”当前 SELECTOR | 保留 Session |
+| 游戏跳转 | 最多一次重试当前内存导航；失败后停止 | 常态“刷新”当前已分类安全角色 | 完整 URL 仅在当前流程内存中存活，不写日志/磁盘；保留 Session |
+| 游戏加载/SWF | 仅 GAME_LOADING/GAME_READY 启用有界 stall/crash 恢复 | 常态“刷新”当前 GAME_MAIN | 保留 Session；不阻断 Flash policy |
 | 会话失效 | 识别官方回登录/选服链路并更新阶段 | 按官方页面重新扫码 | 不误报为 Flash 失败 |
 | 未知 host/协议或非核心外链 | 阻止核心窗口离开受信任链路 | `RETURN_TO_SELECTOR` | 不调用系统浏览器；保留 Session |
 
-所有自动恢复共享有限计数和时间窗；达到上限后只保留用户触发的动作，不允许无限刷新。
+所有自动恢复共享有限计数和时间窗；达到上限后停止自动刷新。管理卡片不渲染后台阶段说明或动态恢复动作，只在窗口运行时常态提供“显示窗口”“刷新”“关闭”；“刷新”复用与 F5 相同的 `reloadCurrentRole()` 安全边界。
 
 ### Runtime Gates
 
@@ -171,7 +178,7 @@ tests/                          # Jest 全局 setup；真实 Electron 行为仍�
 | G0 安全网络观察 | T007 先证明现有 inspector/诊断/IPC/日志的敏感采集失败；T013 只实现五类安全元数据及未知字段默认拒绝；T014 证明失败测试转绿和受影响回归通过 | 任一禁止字段仍可被采集、保存、广播或记录，或字段不在 allowlist 中时保持阻塞，不得开始真实扫码、认证跳转或 Flash/CDN 观察 | G0 PASS 是 T027 G1 与 T030 G2 的硬前置；Phase 6 只决定安全元数据能力保留或删除 |
 | G1 认证导航 | 仅在 G0 PASS 后，T027 可用测试账号进行不计入 SC 的发现扫码且只记录 `role/origin/pathname/disposition/frame`；T028 每轮按规格同步分流、失败测试、精确实现、回归、重新发现执行，最多 5 轮；T029 证明父窗及认证子窗递归导航链闭合。未自然出现的 popup/redirect 以自动化或本地 fixture 证明 handler，人工记录有理由的 `N/A` | UNKNOWN 安全阻止后进入下一轮；第 5 轮后未闭合、导航无法解释、需要通配/suffix/宽泛 path/port，或触发规格变更分支但尚未完成 Spec/Plan/Tasks/契约/Constitution/一致性同步时停止 | G1 PASS 后进入 T030 G2；G2 PASS 后才能执行 T031 正式 `3/3` |
 | G2 Flash/网络 | 仅在 G0/G1 PASS 后，T030 最多消耗 3 个修订轮次；每轮处理一次完整启动发现的一组阻塞事实并完成规格同步分流→失败测试→最小实现→回归；修订后连续 2 次完整启动无新阻塞资源、DOM 信号或安全配置要求即 PASS，稳定验证不消耗修订轮次 | 消耗第 3 个修订轮次后仍不稳定，需要通配网络规则、宽泛 allowlist、静默关闭安全能力，或规格变更分支尚未完成同步时停止并请求人工评审 | G2 PASS 才能执行 T031 正式 `3/3` 并完成 T032 US1 Checkpoint |
-| G3 Session/隔离 | T041-T043 按规定矩阵证明持久化、失效与双 Profile 隔离；T044 仅证明腾讯生产路径不调用 shadow API | 任一矩阵未全过、跨 Profile 污染、清 Session 或生产路径 shadow 调用均保持阻塞；本阶段不删除旧 API/实现 | T045 后进入后续故事；T059 分类生产调用者/负测试/旧自测，T062 才可原子删除 |
+| G3 Session/隔离 | T041-T043 按规定矩阵证明同一主进程内关闭/重开游戏窗口的 Session 复用、失效与双 Profile 隔离；T044 仅证明腾讯生产路径不调用 shadow API | 任一矩阵未全过、跨 Profile 污染、清 Session 或生产路径 shadow 调用均保持阻塞；完整进程退出后的免扫码不在矩阵内，本阶段不删除旧 API/实现 | T045 后进入后续故事；T059 分类生产调用者/负测试/旧自测，T062 才可原子删除 |
 
 Gate 证据只包含契约允许的脱敏字段；任何失败分支均保持当前 Profile Session，除非腾讯官方自身判定会话失效。
 
@@ -184,7 +191,7 @@ Gate 证据只包含契约允许的脱敏字段；任何失败分支均保持当
 - 腾讯 URL 常量、精确 host/path 分类、仿冒 hostname 和 query/fragment 脱敏。
 - 导航状态机的合法/非法迁移、四阶段失败、一次自动重试、上限停止与恢复动作。
 - Electron 11 `will-navigate`/redirect/`new-window` mock：游戏留在 PPAPI 窗口；认证子窗共享父 partition，固定 `plugins:false`、`nodeIntegration:false`、`contextIsolation:true`、`webSecurity:true`、`allowRunningInsecureContent:false`、`enableRemoteModule:false`、`webviewTag:false`、无游戏业务 preload；子窗及二次 popup 继续精确分类，UNKNOWN 可恢复阻止。
-- 页面探针初始测试只覆盖接口、boolean/enum、空 selector registry、数据禁区，以及 `did-finish-load` 后调用、每次顶层加载 1 次、单次窗口 `LaunchFlow` 生命周期内每 stage 3 次/全流程 12 次、重启窗口重置、3 秒超时、无定时轮询、失败不清 Session并保持安全状态；生产 selector 只在 Windows DevTools 验证、文档更新和预期失败测试之后加入。
+- 页面探针先覆盖接口、boolean/enum、空 selector registry、数据禁区，以及 `did-finish-load` 后调用、每次顶层加载 1 次、单次窗口 `LaunchFlow` 生命周期内每 stage 3 次/全流程 12 次、重启窗口重置、3 秒超时、无定时轮询、失败不清 Session并保持安全状态。T056 授权 CDP 诊断确认顶层精确 `.qConnectLogin iframe.loginframe`；`#ptlogin_iframe` 位于跨域子 frame，撤销该错误规则。生产探针仅根据顶层登录 iframe 的存在性和可见性返回 `loginUiVisible`，不进入子 frame。单次 probe 内保留一个最多 2500ms、最终必定 disconnect 的 `MutationObserver` 作为时序容错；外层仍以 3000ms 超时，禁止 interval、无界 observer 和 mutation 内容读取。SELECTOR 页结果为 `true` 时进入 `AUTHENTICATING`，为 `false` 时进入 `SELECTOR_READY`，异常/超时保持当前安全状态。
 - Profile 到 persist Partition 的稳定一对一映射；两个 Profile 使用不同 Session；一方失效/重登不影响另一方。
 - 普通 reload、stall、crash 和重新扫码均不由应用清认证存储。
 - logger/diagnostics 对 query、fragment、Cookie、Authorization、JWT/base64url/腾讯身份字段的默认脱敏；敏感 debug IPC 不再注册。
@@ -198,8 +205,8 @@ Gate 证据只包含契约允许的脱敏字段；任何失败分支均保持当
 - 全新 Profile 显示官方二维码；扫码、官方附加验证、手动选服后进入内部游戏页，连续执行 3 次。每次同时记录 `game_internal`、`content_visible`、`mouse_response`，三项全 PASS 才计入 passed，最终 `passed/attempted=3/3`。
 - 有效区服进入内部游戏窗口连续执行 3 次并记录 `passed/attempted=3/3`；进入系统浏览器为 0 次。该矩阵与 SC-003 共用同一组三次正式启动。
 - 游戏内容可见、入口 SWF 实际加载并响应一次鼠标操作。
-- 同 Profile 有效会话跨重启连续复用 2 次、失效 Session 返回扫码连续执行 2 次，分别记录 `passed/attempted=2/2`。
-- 两个 Profile 同时登录不同账号，重启、失效、恢复和清理互不影响。
+- Electron 主进程保持运行时，同 Profile 关闭并重开游戏窗口后的有效会话连续复用 2 次、失效 Session 返回扫码连续执行 2 次，分别记录 `passed/attempted=2/2`；完整进程退出后的行为不计入该矩阵。
+- 两个 Profile 同时登录不同账号，在同一主进程内关闭/重开游戏窗口、失效、恢复和清理互不影响。
 - 未认证状态登录 UI 加载失败与已认证状态选服页加载失败分别验收并记录阶段、恢复动作和 Session 保留；游戏跳转、游戏加载、SWF/renderer crash、断网/TLS/DNS 均显示正确阶段和有界恢复。
 - 官方登录 iframe/popup、新窗口和重定向路由符合契约；未自然出现的 popup、二次 popup 或 redirect 由自动化测试或本地受控 fixture 验证通用 handler，人工流程记录有理由的 `N/A` 且不修改腾讯页面；非核心帮助/协议/客服链接默认阻止，游戏进入外部浏览器次数为 0。
 - Windows portable 包中的 Flash DLL 被识别，`navigator.plugins`/Flash object 可用。
@@ -220,7 +227,7 @@ Gate 证据只包含契约允许的脱敏字段；任何失败分支均保持当
 | SC-001 | 首登矩阵 | T026、T031-T032、T066-T067 | quickstart 1；正式 `3/3` |
 | SC-002 | 内部 GAME_MAIN 矩阵 | T016、T026、T031-T032、T066-T067 | quickstart 1、9；正式 `3/3` 且外部浏览器 0 次 |
 | SC-003 | 正式启动三项矩阵 | T030-T032、T066-T067 | quickstart 1-2；每实例 `game_internal`、`content_visible`、`mouse_response` 全 PASS，正式 `3/3` |
-| SC-004 | 有效/失效 Session 矩阵 | T033、T040-T042、T045、T066-T067 | quickstart 3；有效 `2/2`、失效 `2/2` |
+| SC-004 | 同进程有效/失效 Session 矩阵 | T033、T040-T042、T045、T066-T067 | quickstart 3；同一主进程内有效 `2/2`、失效 `2/2`；完整进程重启不计入 |
 | SC-005 | 双 Profile 隔离 | T005、T033、T040、T043、T045、T066-T067 | quickstart 4；污染 0 次 |
 | SC-006 | 四类独立故障与恢复 | T046-T058、T066-T067 | quickstart 5-8；逐类 `passed/attempted` 全通过 |
 | SC-007 | Oasis 可见入口为零 | T017、T019、T023-T026、T059-T064、T067 | T019、T026、T063-T065、T067；quickstart 1 |
@@ -232,10 +239,9 @@ Gate 证据只包含契约允许的脱敏字段；任何失败分支均保持当
 
 | 事实 | 当前证据 | 验证方法 |
 | --- | --- | --- |
-| Chromium 87 下二维码是 iframe、同窗还是 popup，涉及哪些顶层认证 host | 静态 HTML 只确认 `LoginManager.login()` | 按 G1 最多 5 轮执行；可用测试账号做不计入 SC 的发现扫码，每轮导航证据只保存 `role/origin/pathname/disposition/frame` 并批准一个精确 URL 元组或 disposition，完成文档、失败测试、精确实现、回归后再发现下一跳。 |
+| Chromium 87 下二维码是 iframe、同窗还是 popup，涉及哪些顶层认证 host | T056 授权 CDP 已确认顶层 `.qConnectLogin iframe.loginframe`，内部为两层跨域登录 frame | 生产只探测顶层固定 selector；原始 URL/query 不进入文档或常驻采集。 |
 | 扫码后 `CommLoginApp.cgi` 的完整重定向和所需参数 | 官方脚本确认由服务端返回 `gameurl`，website 为同页跳转 | 测试账号扫码选服，记录参数名是否存在但不记录值，确认最终精确 host/path。 |
-| 腾讯 Cookie/Storage 分布及跨重启持久化 | `persist:` 可原生落盘，但未实测腾讯会话 | 只采集 Cookie 名、域、flags/存在性，不采值；关闭并重开同一及另一 Profile。 |
-| 会话失效在各阶段的页面/导航表征 | 游戏页有 `web.checkLogin()` 和 re-login 配置 | 官方 logout、测试会话过期或撤销后观察脱敏导航；DevTools 仅记录 selector 名称、存在性和安全 boolean，文档与失败测试先于生产 selector。 |
+| 会话失效在各阶段的页面/导航表征 | 游戏页有 `web.checkLogin()` 和 re-login 配置 | 官方 logout、测试会话过期或撤销后先观察脱敏导航；不足时按授权诊断边界临时只读检查，文档与失败测试先于生产 selector。 |
 | 腾讯 Flash CDN、mixed content、`crossdomain.xml` 和 `webSecurity` 需求 | 游戏页确认使用 swfobject，真实资源需登录后生成 | G2 最多 3 个修订轮次，每轮处理一次完整启动发现的一组阻塞事实及其修订/回归；只使用 G0 已验证的安全网络元数据。修订后连续 2 次完整启动无新阻塞事实即 PASS，稳定验证不消耗修订轮次；消耗第 3 个修订轮次后仍不稳定则人工评审。 |
 | Windows portable 的 PPAPI 与 fallback | 内置 DLL 16MB、manifest 34.0.0.376；源码链闭合 | `npm run build:win` 后在干净 Windows 环境启动；内置 DLL 缺失与 `7z` fallback 另作风险验证。 |
 
@@ -247,13 +253,64 @@ Gate 证据只包含契约允许的脱敏字段；任何失败分支均保持当
 | --- | --- | --- |
 | I | PASS | 数据模型和导航契约均映射到 Profile、官方会话、区服选择、游戏实例和流程状态。 |
 | II | PASS | 设计明确删除 Oasis 主链和测试，不保留兼容入口。 |
-| III | PASS | 官方页面拥有认证；认证子窗采用完整安全 webPreferences、无游戏 preload和递归精确导航；票据只在 Chromium Session，静态审计和 inspector 最小化任务覆盖禁止行为。 |
+| III | PASS | 官方页面拥有认证；认证子窗采用完整安全 webPreferences、无游戏 preload 和递归精确导航；生产 inspector 保持最小化，授权诊断只读且不持久化。 |
 | IV | PASS | 新增单一 `TencentLaunchFlow`；窗口、Session、Flash、诊断职责分离。 |
 | V | PASS | 无依赖、runtime、Electron、PPAPI 或 lockfile 变更。 |
 | VI | PASS | 固定持久 Partition，腾讯路径禁用 shadow 票据快照；实际删除受 Phase 6 全量调用者审计约束，并定义双 Profile 验证。 |
 | VII | PASS | quickstart 覆盖认证子窗、探针预算、G1/G2 有界门、正式 `3/3` 三字段矩阵及不可可靠自动化的 GUI/Flash E2E。 |
 | VIII | PASS | 不实现服务器 API、密码系统、自动选服、自动进入或自动化框架。 |
 | IX | PASS | 状态机、错误阶段、有界重试、返回选服和脱敏事件均已形成契约。 |
-| X | PASS | 全部设计产物为中文且与 Constitution 1.0.0 一致。 |
+| X | PASS | 全部设计产物为中文且与 Constitution 2.0.0 一致。 |
 
 Phase 1 后仍无 FAIL、无无理由 N/A、无待澄清设计项，可进入后续 Tasks 阶段。运行时未知项已有安全默认与明确验证门，不授权扩大范围或放宽认证边界。
+
+## G1 运行时复查（2026-07-25）
+
+T027-T028 的 Windows/Electron 11 non-SC 发现确认：
+
+1. SELECTOR 精确元组仍为 `https://huoying.qq.com:443/server/website/`，官方扫码 UI 在现有页面自然显示，扫码完成后同页进入服务器选择状态。
+2. 认证阶段未自然产生顶层 AUTH 窗口、navigate、redirect、`new-window` 或二次 popup；人工项记为有理由的 `N/A`，T016 已覆盖通用递归 handler。
+3. 用户手动选服后，既有 `https://game.huoying.qq.com:443/main.html` 在应用内部承载，未交给系统浏览器。
+4. G1 当时未发现 UNKNOWN 顶层目标或新的精确候选，不修改 URL 分类、认证子窗策略、selector registry 或网络规则。
+5. 首次运行发现的 SELECTOR 闪烁来自本地 `ready-to-show` 重复处理；已用窗口级一次性门闩和回归测试修复，不改变 Session 或外部页面行为。
+
+本次复查不改变 Spec、Feature 范围、安全边界、验收标准、成功率分母或用户能力。Constitution I-X 结论保持 PASS；G1 结果仍为 non-SC，不能代替 G2 或正式 `3/3`。
+
+### T056 selector 技术事实同步（2026-07-25 至 2026-07-26）
+
+初次提交的 `#qr_area > span.qrlogin_img_out` 位于二维码子 frame。真实 Windows 顶层
+Console 对它返回 `false`，上一版生产探针因此把可见二维码误判为
+`SELECTOR_READY`。后续人工把 `#ptlogin_iframe` 误认为顶层候选；立即查询和 2500ms
+observer 两版生产实现均被真实 Windows 否定。
+
+真实 Windows 重启复测进一步证明：二维码稳定可见后管理页仍显示
+`SELECTOR_READY`。Constitution 2.0.0 和用户明确授权生效后，通过本机 CDP 读取真实顶层
+HTML/frame tree，确认顶层登录 UI 是 `.qConnectLogin iframe.loginframe`；
+`#ptlogin_iframe` 位于 OAuth/QQ 登录的跨域子 frame 链，顶层查询永远为 false。原始 URL
+query、页面文本和认证值未进入文档。
+
+生产 registry 改为只包含顶层 `.qConnectLogin iframe.loginframe`。常驻探针继续只根据
+节点存在性、`getClientRects()`、`display`、`visibility` 返回布尔值，不进入子 frame，也不
+增加生产数据采集。保留单次 `executeJavaScript` 内最多 2500ms 的 `MutationObserver` 作为
+有界时序容错，结束时必须 disconnect，外层 3000ms 预算继续兜底。
+
+SELECTOR 页首次 `did-finish-load` 后先保持 `SELECTOR_LOADING` 并运行有界探针：`loginUiVisible=true` 进入 `AUTHENTICATING`，`false` 进入 `SELECTOR_READY`，首次探针失败保持 `SELECTOR_LOADING`。一旦识别为嵌入式认证，同一 SELECTOR reload 在新探针完成前保留 `AUTHENTICATING`，使其 `did-fail-load` 按现有失败契约映射为 `AUTH_FAILED`。该同步不修改 Spec、Tasks、验收分母或用户能力，Constitution I–X 继续 PASS。
+
+## G3a 验收标准变更后的 Constitution 复查（2026-07-25）
+
+T041 实测确认：同一 Electron 主进程内关闭并重开游戏窗口可以复用同一 Profile 的有效 Session；完整退出全部 Electron 进程后，Electron 11.5.0 不恢复腾讯官方 session Cookie，官方会再次要求扫码。用户选择将 SC-004 正式口径调整为前者。Spec 已先更新，随后同步 Research、Plan、Tasks、Data Model、Navigation Contract、Quickstart 与验证记录；成功分母仍为有效 `2/2`、失效 `2/2`，但有效组明确限定为同一主进程内的两次窗口重开。
+
+| 原则 | 结果 | 变更后证据 |
+| --- | --- | --- |
+| I | PASS | Profile、腾讯官方会话、窗口与流程状态的数据关系新增了明确的进程/窗口生命周期。 |
+| II | PASS | 未恢复 Oasis 或任何国际服兼容路径。 |
+| III | PASS | 完整进程退出后允许官方重新扫码；禁止复制、延长、重放 Cookie/票据及构造认证 API；授权只读诊断不得用于恢复登录。 |
+| IV | PASS | 继续由 Profile manager、Chromium Session、窗口和 `TencentLaunchFlow` 分担职责，无新增影子会话层。 |
+| V | PASS | 不升级 Node、npm、Electron、PPAPI 或依赖，不修改 lockfile。 |
+| VI | PASS | 每 Profile 固定 Partition 与双 Profile 隔离保持不变；同进程复用不调用 shadow snapshot/restore。 |
+| VII | PASS | Quickstart/T041/T042/T043 明确真实 Windows 人工矩阵、准备步骤、正式分母及完整进程重启的 non-SC 边界。 |
+| VIII | PASS | 未增加自动扫码、自动选服、自动进入或游戏自动化能力。 |
+| IX | PASS | 有效复用、官方拒绝、重新扫码和失败恢复仍使用显式状态与有界动作。 |
+| X | PASS | Spec、Plan、Tasks、Research、Data Model、Contract、Quickstart 与验证记录均以中文同步。 |
+
+本次变更没有 FAIL 或无理由 N/A。它缩小了产品验收范围，但没有放宽认证安全禁区、Profile 隔离、运行时冻结或成功率分母；完成文档一致性确认后方可按新口径重新执行 T041。

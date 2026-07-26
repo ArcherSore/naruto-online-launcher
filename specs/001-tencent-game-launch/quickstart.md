@@ -5,7 +5,9 @@
 - Windows x64，Volta 可用；仓库根目录执行命令。
 - Node.js `v16.20.2`、npm `8.19.4`、Electron `11.5.0`。
 - 仓库内置 `flash/pepflashplayer.dll`，测试 QQ 账号和扫码设备。
-- 准备两个独立 Profile（A/B）。采集证据时不得截图或复制二维码、Cookie、票据、QQ 号、完整 URL query。
+- 准备两个独立 Profile（A/B）。正式验收记录不得截图或复制二维码、Cookie、票据、QQ 号、
+  完整 URL query。用户明确授权的临时本地诊断可以只读检查必要原始数据，但不得把原始值
+  写入验收记录、文件、日志、截图、IPC 或诊断包。
 
 ## 自动检查
 
@@ -30,8 +32,8 @@ npm test -- --runInBand
 
 ### 0. G0/G1/G2 运行时门
 
-1. 先核对 G0/T007→T013→T014 证据：失败测试必须证明 inspector/诊断/IPC/日志不采集、保存、广播或记录完整 URL、query/fragment、Cookie、Set-Cookie、Authorization、JWT、ticket、QQ 身份字段、请求体、响应体、页面源码；实现后只允许 resource type、origin、pathname、status code、error code，未知字段默认拒绝。G0 未 PASS 时不得进行任何真实扫码、认证跳转或 Flash/CDN 观察。
-2. G1 从第 1 轮开始，可用测试账号执行不计入任何 SC 成功率的发现扫码。该扫码的导航记录只允许 `role`、`origin`、`pathname`、`disposition`、`frame`；每轮只批准一个精确 `scheme/hostname/port/path` 或 popup disposition。页面探针发现另行只记录 selector 名称、存在性和安全 boolean/enum，不记录源码、表单值或身份数据。
+1. 先核对 G0/T007→T013→T014 证据：失败测试必须证明生产 inspector/诊断/IPC/日志不持久采集、保存、广播或记录完整 URL、query/fragment、Cookie、Set-Cookie、Authorization、JWT、ticket、QQ 身份字段、请求体、响应体、页面源码；实现后常规路径只允许 resource type、origin、pathname、status code、error code，未知字段默认拒绝。G0 未 PASS 时不得进行任何真实扫码、认证跳转或 Flash/CDN 观察。
+2. G1 从第 1 轮开始，可用测试账号执行不计入任何 SC 成功率的发现扫码。正式导航记录只允许 `role`、`origin`、`pathname`、`disposition`、`frame`；每轮只批准一个精确 `scheme/hostname/port/path` 或 popup disposition。常规页面探针另行只记录 selector 名称、存在性和安全 boolean/enum。若这些信号不足，用户可针对具体故障明确授权当前本地会话内的临时只读诊断；必须限定指定 Profile 和最短时限，不读取 QQ 密码、不修改认证状态、不跨 Profile、不持久化原始值，最终文档只保留脱敏结构事实。
 3. 若发现只补充精确 host/path、已存在能力的 DOM selector、CDN 地址或具体兼容参数，更新 `research.md`、`plan.md`、相关契约和失败测试；若会改变产品需求、Feature 范围、安全边界、验收标准、成功率分母或增加用户能力，立即停止 Gate，先更新 `spec.md`，再同步 Plan、Tasks、契约，重新执行 Constitution Check 和文档一致性确认。同步完成前不得继续实现，也不得在代码中静默扩大范围或安全例外。
 4. G1 每轮按上述规格同步分流后，添加并运行预期失败测试，实施一条精确规则，运行自动回归，再重新发现；最多 5 轮。认证链未闭合、导航无法解释、需要宽泛规则或规格同步未完成时停止并请求人工评审。
 5. G1 必须覆盖认证子窗自身的 navigate、redirect、`new-window` 和二次 popup；官方流程未自然出现的事件由自动化测试或本地受控 fixture 验证通用 handler，人工腾讯流程记录有理由的 `N/A`，不得为了触发事件修改腾讯页面。完整链闭合后进入 G2，G2 PASS 后才执行本节场景 1 的正式 `3/3`。
@@ -55,46 +57,50 @@ npm test -- --runInBand
 
 ### 3. 同 Profile 会话复用与失效
 
-1. 对同一 Profile 正常关闭游戏窗并退出应用，再启动；确认腾讯仍认可会话时无需再次扫码，但仍由用户手动选服。连续执行 2 次。
-2. 使用官方 logout、会话撤销或测试过期方式使同一 Profile 的 Session 失效，再重开/继续流程并确认返回扫码。重新准备失效条件后连续执行 2 次。
+1. 启动应用并让同一 Profile 完成一次官方扫码，确认到达选服页；该准备步骤不计入 SC-004。
+2. 保持管理窗口和 Electron 主进程运行，只关闭该 Profile 的游戏窗口；重新打开同一 Profile，确认腾讯仍认可会话时无需再次扫码，但仍由用户手动选服。再次只关闭游戏窗口并重开，连续执行 2 个正式 Attempt。
+3. 使用官方 logout、会话撤销或测试过期方式使同一 Profile 的 Session 失效；保持 Electron 主进程运行，重开/继续流程并确认返回扫码。重新准备失效条件后连续执行 2 次。
 
-预期：有效 Session 复用 `2/2`；失效 Session 返回扫码 `2/2`。均记录 `passed/attempted`，不要求删除 Profile/Session，不触发 Oasis/API/JWT fallback。
+预期：同一主进程内有效 Session 复用 `2/2`；失效 Session 返回扫码 `2/2`。均记录 `passed/attempted`，不要求删除 Profile/Session，不触发 Oasis/API/JWT fallback。完整退出全部 Electron 进程后再次启动可能需要扫码，该行为不计入本场景。
 
 ### 4. 双 Profile 隔离
 
 1. A/B 分别扫码两个测试账号并同时打开。
-2. 关闭、重开、logout 和恢复 A；观察 B。
+2. 保持 Electron 主进程运行，关闭、重开、logout 和恢复 A；观察 B。
 3. 对 A 执行关闭、重载、失效后重新扫码等恢复动作，再次观察 B。
 
 预期：A/B 的 Cookie、页面、窗口和恢复计数互不变化；Partition 分别为 `persist:profile-A`/`persist:profile-B` 形式的不同值。
 
-### 5. 未认证状态下登录 UI 加载失败
+### 5. 管理卡片常态刷新
 
-1. 使用没有有效 Session 的全新 Profile，在官方认证 UI 开始加载时用 DevTools Network Offline 或受控断网制造失败。
-2. 记录阶段、可用动作和 Session 是否保留；恢复网络，使用 `REOPEN_AUTH`，必要时使用 `RETURN_TO_SELECTOR` 后重新触发认证。
+1. 分别观察未启动和运行中的 Profile：未启动主按钮必须为“打开”；运行中必须显示“显示窗口”“刷新”“关闭”。
+2. 卡片中不得出现“尚未启动”“正在进行官方认证”“等待扫码或手动选服”等流程状态说明，也不得出现依赖后台阶段的动态恢复按钮。
+3. 使用没有有效 Session 的全新 Profile，等待官方二维码稳定显示；点击管理卡片“刷新”，确认行为与游戏窗口 F5 一致，二维码页安全重载且 Profile/Session 未删除。
+4. 关闭游戏窗口后确认“刷新”消失；不存在或未运行的 Profile ID 经主进程 IPC 必须被拒绝。
 
-预期：显示 `AUTH` 失败阶段；自动重开不超过 1 次，随后等待用户；动作成功触发且不清 Session。
+预期：卡片 UI 与刷新 IPC 全部符合 FR-015/FR-016；刷新只调用所属 `LaunchFlow.reloadCurrentRole()`，renderer 无法提交任意 URL。
 
-### 6. 已认证状态下选服页加载失败
+### 6. 四类故障刷新
 
-1. 使用已认证且 Session 有效的 Profile，在选服页加载/刷新时用 DevTools Network Offline 或受控断网制造失败。
-2. 记录阶段、可用动作和 Session 是否保留；恢复网络，使用 `RELOAD_SELECTOR`。
+1. 分别在未认证登录 UI、有效 Session 的选服页、进入游戏跳转和游戏/SWF 加载阶段，用 DevTools Network Offline、精确 request blocking 或受控断网制造单一故障。
+2. 每类故障均确认管理卡片仍显示“刷新”；恢复网络后点击一次，记录当前安全角色是否重载、Session 是否保留和自动恢复是否有界。
+3. 另触发 renderer crash/unresponsive 与会话中途失效，确认不会删除 Profile/Session，也不会影响另一 Profile。
 
-预期：显示 `SELECTOR` 失败阶段；自动 reload 不超过 1 次，随后等待用户；有效 Session 被保留，不回退成未认证故障。
+预期：四类故障均可通过常态“刷新”重新加载当前已分类安全角色；不接受任意 URL、不清 Session、不无限自动刷新。
 
 ### 7. 游戏跳转失败
 
 1. 已登录选服后，在点击进入游戏前临时断网。
-2. 恢复网络，分别测试“重试”和“返回选服”。
+2. 恢复网络，使用管理卡片“刷新”重载当前已分类安全角色。
 
-预期：标识 `GAME_NAVIGATING` 失败；完整游戏 URL/参数不出现在错误页、日志或诊断包。
+预期：刷新不接受 renderer 提交 URL；完整游戏 URL/参数不出现在错误页、日志或诊断包。
 
 ### 8. 游戏/SWF 加载失败与 renderer crash
 
 1. 只阻断已脱敏确认的 SWF/CDN 路径或在加载期断网。
 2. 触发一次 renderer crash/unresponsive 测试。
 
-预期：只在游戏阶段启用 stall/crash 恢复；达到上限后停止；可 reload 游戏或返回选服；登录态不因自动恢复被清除。
+预期：只在游戏阶段启用 stall/crash 恢复；达到上限后停止；常态“刷新”可 reload 当前游戏角色；登录态不因自动或手动刷新被清除。
 
 ### 9. popup、重定向与非核心外链
 

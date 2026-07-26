@@ -27,12 +27,20 @@ host 判断必须比较标准化后的完整 hostname，不能使用 `includes('
 8. 完整 URL 可以短暂交给 `loadURL`，但不得持久化、广播给管理 renderer、写入日志或错误页。可观测位置只保留 `origin + pathname`。
 9. `src/main/flags.js` 的全局 `no-sandbox`/GPU sandbox 禁用项属于 PPAPI 既有限制，本 Feature 不修改；本节认证子窗隔离、递归分类和最小数据面是补偿边界，不得据此放宽任一子窗选项。
 
+## Session 生命周期边界
+
+1. `profileId -> persist:profile-<id>` 是唯一映射；同一 Electron 主进程内关闭游戏窗口时，只销毁该窗口、认证子窗、内存游戏 URL 和 `LaunchFlowState`，不得清理所属 Partition 的 Cookie/Storage。
+2. 同一主进程内重开相同 Profile 必须重新取得同一个 Partition/Session；腾讯官方仍认可会话时直接到官方选服流程，仍由用户手动选服，不得自动进入游戏。
+3. 完整退出 Electron 主进程后不保证免扫码。Electron 11 不恢复官方 session Cookie；再次启动后的状态由腾讯官方和 Chromium 原生持久数据决定，不计入 SC-004/T041。
+4. 不得为跨进程免扫码读取 Cookie 值、把 session Cookie 改为 persistent、添加/延长过期时间、恢复 shadow snapshot、构造认证 API 或重放票据。
+5. 会话失效时不得删除 Profile/Session 数据；让官方页面返回认证入口，并按 `SESSION_REJECTED`/`AUTHENTICATING` 状态与恢复契约继续。
+
 ## 事件到状态
 
 | Electron/流程事件 | 条件 | 状态/动作 |
 | --- | --- | --- |
 | `ready-to-show` | 本地 loading 页 | 显示窗口，进入 `SELECTOR_LOADING`，加载 SELECTOR。 |
-| `did-finish-load` | SELECTOR | `SELECTOR_READY`；运行只返回可见登录/选服信号的最小探针。 |
+| `did-finish-load` | SELECTOR | 先保持 `SELECTOR_LOADING` 并运行最小探针；登录 UI 存在则 `AUTHENTICATING`，不存在则 `SELECTOR_READY`。 |
 | `new-window` | AUTH | 创建共享 Partition 的认证子窗，进入 `AUTHENTICATING`。 |
 | AUTH 子窗 navigate/redirect/`new-window`/二次 popup | 已批准 AUTH 或回 SELECTOR | 递归精确分类并使用同一安全子窗策略；不加载游戏 preload。 |
 | AUTH 子窗 navigate/redirect/`new-window`/二次 popup | UNKNOWN | 阻止，保持 Session，进入可恢复的 `BLOCKED_NAVIGATION`。 |
@@ -48,17 +56,36 @@ host 判断必须比较标准化后的完整 hostname，不能使用 `includes('
 
 ## 页面探针约束
 
-- 初始实现只提供探针接口、boolean/enum 返回类型、数据禁区、失败行为和有限调用/重试约束；生产 selector registry 初始为空，不预先猜测腾讯 DOM selector。
+- 初始实现只提供探针接口、boolean/enum 返回类型、数据禁区、失败行为和有限调用/重试约束；生产 selector registry 在 Windows 验证前为空，不预先猜测腾讯 DOM selector。
+- 2026-07-26 Windows/Electron 11 顶层 Console 证明初次候选
+  `#qr_area > span.qrlogin_img_out` 位于子 frame。后续人工把 `#ptlogin_iframe` 误认为顶层
+  selector；立即查询和 2500ms observer 两版均在二维码可见时返回 false。
+- Constitution 2.0.0 下的用户授权本机 CDP 诊断直接确认：顶层登录 UI 为
+  `.qConnectLogin iframe.loginframe`；`#ptlogin_iframe` 位于 OAuth/QQ 登录的两层跨域
+  frame 链，不在顶层文档。生产 registry 只批准前者。
+- 生产探针只允许对固定 `.qConnectLogin iframe.loginframe` 检查
+  `document.querySelector`、`getClientRects()`、顶层 `display` 与 `visibility`，并只返回
+  `loginUiVisible` 布尔值；不得进入跨域子文档。
+- 单次 probe 保留最多 2500ms 的有界 observer 作为时序容错；成功或到期均 disconnect 并
+  清理 timer，外层 3000ms 预算继续兜底。不得使用 interval 或无界 observer。
 - 探针只在受信任顶层页面 `did-finish-load` 后调用；每次受信任顶层页面加载最多 1 次。计数以单次窗口 `LaunchFlow` 生命周期为作用域，每个 stage 累计最多 3 次、整个窗口流程累计最多 12 次，用户重新启动窗口后重置；单次必须在 3 秒超时，不得使用 timer/interval 做无限轮询。
-- Windows 发现阶段只通过人工 DevTools 检查候选 selector；证据只记录 selector 名称、存在性和安全 boolean/enum 结果，不记录页面源码、表单值、文本内容或身份数据。
+- 常规 Windows 发现只记录 selector、存在性和安全 boolean/enum。若这些信号不足且用户对具体
+  故障明确授权，可启动临时本地只读诊断，检查必要的页面 DOM/HTML、frame、表单、完整 URL、
+  Cookie/Storage、身份或 Session 参数；范围必须限定当前会话、指定测试 Profile 和最短时限。
 - 候选 selector 经验证后，必须先更新 `research.md` 和本契约，再添加并运行预期失败测试；只有之后才能加入生产 selector registry。
 - 探针只可返回安全布尔/枚举，例如登录 UI 是否可见、选服容器是否存在、Flash 容器/对象是否出现；具体 selector 必须来自上述验证顺序。
-- 不读取 Cookie、localStorage 值、表单值、QQ 号、昵称、票据、页面 HTML 或游戏数据。
-- 探针失败不得触发清 Session；状态保持安全的上一级，并允许用户看到官方页面。
+- 常驻生产探针不读取 Cookie、localStorage 值、表单值、身份、票据、页面 HTML 或游戏数据。
+  授权诊断不得读取 QQ 密码，不得修改认证状态、跨 Profile 访问、复制/延长/重放票据，也不得
+  把原始值写入仓库、日志、截图、IPC 或诊断包；定位完成后立即停止并丢弃。
+- SELECTOR 页探针结果为 `loginUiVisible=true` 时进入 `AUTHENTICATING`，为 `false` 时进入 `SELECTOR_READY`。首次探针失败保持 `SELECTOR_LOADING`；已识别嵌入式登录 UI 后，同一 SELECTOR reload 在新探针完成前保持 `AUTHENTICATING`，从而让加载失败映射为 `AUTH_FAILED`。探针失败不得触发清 Session，允许用户看到官方页面且不自动循环。
 
 ## G0 安全网络观察硬门
 
-1. 在任何真实扫码、认证跳转或 Flash/CDN 观察前，必须先为现有 `network/inspector.js`、诊断路径、IPC 广播和普通日志添加并运行预期失败测试，证明它们不得采集、保存、广播或写入日志：完整 URL、query、fragment、Cookie、Set-Cookie、Authorization、JWT、ticket、QQ 身份字段、请求体、响应体、页面源码。
+1. 在任何真实扫码、认证跳转或 Flash/CDN 观察前，必须先为现有生产
+   `network/inspector.js`、诊断路径、IPC 广播和普通日志添加并运行预期失败测试，证明它们
+   不得持久采集、保存、广播或写入日志：完整 URL、query、fragment、Cookie、Set-Cookie、
+   Authorization、JWT、ticket、QQ 身份字段、请求体、响应体、页面源码。该门不禁止符合
+   FR-013/FR-014 的一次性用户授权本地诊断。
 2. G0 的最小实现只允许 resource type、origin、pathname、status code、error code 进入网络观察事件；字段 allowlist 在源头执行，未知字段默认拒绝，不得依赖导出时或日志末端再脱敏。
 3. 上述失败测试转绿并完成受影响回归后 G0 才 PASS；G0 PASS 是 G1 和 G2 的共同前置条件。Phase 6 只决定保留这套安全元数据能力，或在证明本 Feature 无当前用途后删除，不负责首次消除敏感捕获。
 
@@ -94,7 +121,7 @@ host 判断必须比较标准化后的完整 hostname，不能使用 `includes('
 | `RELOAD_GAME` | `GAME_LOADING`、`GAME_READY`、`GAME_FAILED` | 所属 Profile 的自动恢复、用户动作或有界 crash/stall | 普通自动 reload 最多 1 次；crash/stall 10 分钟最多 3 次 | 只 reload 当前已分类 GAME_MAIN；返回选服或关闭即丢弃引用 | 不得清 Cookie/Storage |
 | `RETURN_TO_SELECTOR` | `AUTH_FAILED`、`NAVIGATION_FAILED`、`GAME_FAILED`、`SESSION_REJECTED`、`BLOCKED_NAVIGATION` | 用户动作或官方拒绝会话后的确定性回退 | 不自动循环；每次动作只执行 1 次 | 立即销毁游戏 URL并加载固定 SELECTOR | 不得清 Cookie/Storage |
 
-达到自动上限后 `status=waiting_user`，必须显示失败阶段、错误码/安全消息和当前阶段允许的动作。renderer 只能提交动作枚举，不能提交 URL、Profile 或清 Session 请求；F5、stall、crash 和任何失败恢复均不得清 Cookie/Storage，也不得修改另一 Profile 的恢复计数。
+达到自动上限后后台仍进入 `status=waiting_user` 并停止自动刷新，但管理卡片不显示阶段、错误码/安全消息或动态恢复动作。运行中 Profile 的卡片常态显示“刷新”，renderer 只能提交该卡片的 Profile ID；主进程必须由窗口 registry 找到所属 `LaunchFlow` 并调用 `reloadCurrentRole()`，不得接受 renderer 提交 URL。F5、卡片“刷新”、stall、crash 和任何失败恢复均不得清 Cookie/Storage，也不得修改另一 Profile 的恢复计数。
 
 ## 诊断事件契约
 
@@ -114,3 +141,16 @@ uin, qqIdentity, password, pageSource
 ```
 
 任何未知字段默认拒绝进入普通日志和诊断导出。
+
+## G1 Windows/Electron 11 闭链证据（2026-07-25）
+
+| 顺序 | Role | 精确 Origin/Pathname | Disposition/Frame | 结果 |
+| --- | --- | --- | --- | --- |
+| 1 | `SELECTOR` | `https://huoying.qq.com/server/website/` | `initial_load/top` | 父游戏窗口稳定加载 |
+| 2 | `AUTH` | `N/A` | `N/A` | 扫码 UI 在现有页面自然显示；未产生顶层 AUTH 事件 |
+| 3 | `SELECTOR` | `https://huoying.qq.com/server/website/` | `same_page/top` | 扫码成功后显示服务器选择界面 |
+| 4 | `GAME_MAIN` | `https://game.huoying.qq.com/main.html` | `internal/top` | 手动选服后由应用内部窗口承载 |
+
+自然流程没有出现认证子窗 navigate、redirect、`new-window` 或二次 popup，人工记录为有理由的 `N/A`；T016 自动化/本地受控 fixture 已验证这些通用 handler。没有发现 UNKNOWN 顶层目标，也没有新增 host/path、popup disposition、selector 或安全例外。
+
+上述为 G1 non-SC 证据，只证明认证/选服/游戏顶层导航链符合本契约；未证明 Flash 内容可见、鼠标响应、CDN/policy 或 G2 稳定性。

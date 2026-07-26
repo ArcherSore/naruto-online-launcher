@@ -42,6 +42,11 @@
 
 [Gates determined based on constitution file]
 
+If the feature may require temporary access to raw page, form, URL, Cookie/Storage, identity,
+or Session data for diagnosis, the check MUST distinguish routine production observability
+from user-authorized local diagnosis and document: authorization source, purpose, exact
+read-only scope, Profile boundary, time bound, prohibited uses, redaction, and cleanup.
+
 ## Project Structure
 
 ### Documentation (this feature)
