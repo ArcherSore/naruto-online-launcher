@@ -3,15 +3,14 @@
  *
  * ORQUESTRADOR PRINCIPAL
  *
- *   Multi-região (BR/NA/EU/HK/DE/ES/PL/FR) com idioma por perfil (pt/en/de/es/pl/fr).
- *   Backup criptografado AES-256-GCM + PBKDF2 com senha mestre.
+ *   腾讯国服 Profile 通过隔离 Partition 复用官方会话。
  *   Telemetria removida v4.9.2 — zero tracking, logs ficam no disco.
  *   Exportador de diagnóstico em Configurações → Avançado (opt-in explícito).
  *
  * ORDEM DE BOOT (CRÍTICA):
  *   1. [top-level, antes de ready] loadConfig (sync) + findFlashPlugin
  *   2. [top-level, antes de ready] main/flags.applyAll() ← ÚNICO lugar que toca commandLine
- *   3. [ready] subsystems: store.load, guard.start, eventTimers.startWithProfiles
+ *   3. [ready] subsystems: store.load, guard.start
  *   4. [ready] ui/controller.createManagerWindow()
  *
  * ARQUITETURA:
@@ -103,11 +102,9 @@ if (!gotTheLock) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const memoryGuard = require('./memory/guard');
-const eventTimers = require('./utils/EventTimers');
 const profileStore = require('./profiles/store');
 const profileManager = require('./profiles/manager');
 const partition = require('./profiles/partition');
-const vault = require('./profiles/vault');
 const i18n = require('./config/i18n');
 
 let uiManager = null;
@@ -126,7 +123,6 @@ if (config.forceBatata !== undefined) {
   memoryGuard.setForceBatata(config.forceBatata === true);
 }
 partition.setBatataMode(memoryGuard.isBatata());
-if (config.mutedEvents) eventTimers.setMuted(true);
 // v4.9.2: telemetria removida — zero tracking, logs no disco + exportador
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -256,18 +252,12 @@ function showSetupWindow(onDone) {
         const jsonStr = title.slice('__SETUP_DONE__'.length);
         const result = JSON.parse(jsonStr);
         logger.info(
-          'Setup concluído: lang=' +
-            result.language +
-            ' region=' +
-            (result.region || 'br') +
-            ' advanced=' +
-            result.advancedMode
+          'Setup concluído: lang=' + result.language + ' advanced=' + result.advancedMode
         );
 
         // Aplica configurações
         config.firstBoot = false;
         config.language = result.language || 'pt';
-        config.region = result.region || 'br'; // v4.1: region selector no setup
         config.advancedMode = result.advancedMode === true;
 
         // Sincroniza i18n
@@ -319,9 +309,6 @@ app.on('ready', function () {
   profileStore.load();
   memoryGuard.start();
   memoryGuard.startWebviewGC();
-
-  // v3.4: EventTimers com perfis completos (respeita notificationsEnabled por perfil)
-  eventTimers.startWithProfiles(profileStore.getAll());
 
   // v3.3: SEM TRAY — app fecha quando todas as janelas fecham.
 
@@ -458,30 +445,17 @@ function _initManagerAndLaunch() {
   uiManager.registerIpcHandlers({
     launchProfile: launchGameForProfile,
     closeProfile: profileManager.close, // v5.3: close game window by profile ID
+    refreshProfile: function (profileId) {
+      return require('./app/Launcher').refreshProfile(profileId);
+    },
+    requestRecoveryForSender: function (sender, action) {
+      return require('./app/Launcher').requestRecoveryForSender(sender, action);
+    },
     getMemoryStats: function () {
       return memoryGuard.getStats();
     },
     forceGC: function () {
       return memoryGuard.collect({ manual: true });
-    },
-    getEvents: function (region) {
-      return eventTimers.getUpcoming(region || 'br');
-    },
-    setMuted: function (m) {
-      eventTimers.setMuted(m);
-      _persistConfig();
-    },
-    getVault: function (profileId) {
-      return vault.getCredentials(profileId);
-    },
-    setVault: function (profileId, user, pass) {
-      return vault.setCredentials(profileId, user, pass);
-    },
-    removeVault: function (profileId) {
-      return vault.removeCredentials(profileId);
-    },
-    hasVault: function (profileId) {
-      return vault.hasCredentials(profileId);
     },
     isBatata: function () {
       return memoryGuard.isBatata();
@@ -610,7 +584,6 @@ app.on('will-quit', function () {
     /* ignore */
   }
   memoryGuard.stop();
-  eventTimers.stop();
 });
 
 // Graceful exit
@@ -644,7 +617,6 @@ function _persistConfig() {
         : memoryGuard.IS_LOW_SPEC
           ? undefined
           : config.forceBatata;
-    config.mutedEvents = eventTimers.isMuted();
     saveConfig(config);
   } catch (e) {
     logger.debug('main: saveConfig falhou: ' + e.message);

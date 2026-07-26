@@ -1,1172 +1,313 @@
-/**
- * Testes para src/app/SessionLifecycle.js (Fase 3d split)
- *
- * Verifica: attach, event handlers (did-finish-load, did-fail-load, close),
- * JWT auto-renewal timer, cleanup, _sendAutoLoginResult, _sendWindowStatus.
- */
-
 'use strict';
 
-// Mock vault before requiring SessionLifecycle
-jest.mock('../../profiles/vault', () => ({
-  hasCredentials: jest.fn(() => false),
-  getCredentials: jest.fn(() => null),
-  buildAutoLoginScript: jest.fn(() => '(function(){return "not-found";})()')
+const fs = require('fs');
+
+jest.mock('../../utils/logger', () => ({
+  debug: jest.fn(),
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn()
 }));
 
 jest.mock('../../ui/manager/ManagerWindow', () => ({
   send: jest.fn()
 }));
 
-jest.mock('../../profiles/manager', () => ({
-  reportCrash: jest.fn()
-}));
-
-jest.mock('../../memory/guard', () => ({
-  reportCrash: jest.fn()
-}));
-
-jest.mock('../../network/api-login', () => ({
-  renewIfNeeded: jest.fn(() => Promise.resolve({ renewed: false }))
-}));
+jest.mock('../../profiles/manager', () => ({ reportCrash: jest.fn() }));
+jest.mock('../../memory/guard', () => ({ reportCrash: jest.fn() }));
 
 const SessionLifecycle = require('../SessionLifecycle');
-const vault = require('../../profiles/vault');
 const ManagerWindow = require('../../ui/manager/ManagerWindow');
 
-/**
- * Cria um mock de BrowserWindow que captura handlers de evento.
- */
-function makeMockWin() {
+function createTarget() {
   const handlers = {};
-  const wcHandlers = {};
-
-  const wc = {
-    on: jest.fn((evt, fn) => {
-      wcHandlers[evt] = fn;
+  return {
+    handlers: handlers,
+    on: jest.fn(function (event, handler) {
+      handlers[event] = handler;
     }),
-    once: jest.fn(),
-    insertCSS: jest.fn(() => Promise.resolve()),
-    executeJavaScript: jest.fn(() => Promise.resolve('not-found')),
-    stop: jest.fn(),
-    loadURL: jest.fn(),
-    reload: jest.fn(),
-    isDestroyed: jest.fn(() => false),
-    session: {
-      cookies: { flushStore: jest.fn(() => Promise.resolve()) },
-      webRequest: {
-        onCompleted: jest.fn(),
-        onErrorOccurred: jest.fn()
-      }
-    }
+    removeListener: jest.fn(function (event, handler) {
+      if (handlers[event] === handler) delete handlers[event];
+    })
   };
-
-  const win = {
-    on: jest.fn((evt, fn) => {
-      handlers[evt] = fn;
-    }),
-    once: jest.fn((evt, fn) => {
-      handlers[evt] = fn;
-    }),
-    isDestroyed: jest.fn(() => false),
-    show: jest.fn(),
-    destroy: jest.fn(),
-    webContents: wc,
-    loadURL: jest.fn()
-  };
-
-  return { win, wc, handlers, wcHandlers };
 }
 
-function makeCtx(overrides) {
+function makeWindow() {
+  const windowTarget = createTarget();
+  const contentsTarget = createTarget();
+  const session = {
+    clearStorageData: jest.fn(),
+    cookies: { flushStore: jest.fn(() => Promise.resolve()) }
+  };
+  const webContents = Object.assign(contentsTarget, {
+    session: session,
+    isDestroyed: jest.fn(() => false),
+    reload: jest.fn()
+  });
+  const win = Object.assign(windowTarget, {
+    webContents: webContents,
+    isDestroyed: jest.fn(() => false),
+    show: jest.fn(),
+    destroy: jest.fn()
+  });
+  return { win: win, windowHandlers: windowTarget.handlers, wcHandlers: contentsTarget.handlers, session };
+}
+
+function makeContext(overrides) {
   return Object.assign(
     {
       profileId: 'p_001',
-      profile: { id: 'p_001', name: 'TestProfile', region: 'br', language: 'pt' },
-      entry: {
-        autoLoginTimer: null,
-        failLoadRetry: false,
-        failLoadTimer: null,
-        formInjectAttempts: 0
-      },
-      ses: {
-        cookies: { flushStore: jest.fn(() => Promise.resolve()) },
-        webRequest: {
-          onCompleted: jest.fn(),
-          onErrorOccurred: jest.fn()
-        },
-        clearStorageData: jest.fn(() => Promise.resolve()),
-        clearCache: jest.fn(() => Promise.resolve())
-      },
+      profile: { id: 'p_001', name: 'Tencent Profile' },
+      entry: { failLoadTimer: null, closeTimer: null },
       onOpened: jest.fn(),
+      onReady: jest.fn(),
       onClosed: jest.fn(),
-      getGameUrl: jest.fn(
-        () => 'https://naruto.narutowebgame.com/pt/serverlist?logintype=4&launcher=shinobi'
-      ),
-      LAUNCHER_PARAMS: 'logintype=4&leftbar_collapse=Yes&launcher=shinobi'
+      onLoadFinished: jest.fn(),
+      onLoadFailed: jest.fn(),
+      onRendererGone: jest.fn(),
+      onUnresponsive: jest.fn(),
+      onResponsive: jest.fn()
     },
     overrides
   );
 }
 
-describe('SessionLifecycle.js', () => {
+describe('SessionLifecycle 通用窗口生命周期', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    vault.hasCredentials.mockReturnValue(false);
-    vault.getCredentials.mockReturnValue(null);
   });
 
-  describe('exports', () => {
-    test('exporta attach como função', () => {
-      expect(typeof SessionLifecycle.attach).toBe('function');
-    });
+  test('只注册通用 load/close/crash 事件，不接管导航或 popup', () => {
+    const context = makeWindow();
 
-    test('exporta _sendWindowStatus como função', () => {
-      expect(typeof SessionLifecycle._sendWindowStatus).toBe('function');
-    });
+    SessionLifecycle.attach(context.win, makeContext({ ses: context.session }));
 
-    test('exporta _sendAutoLoginResult como função', () => {
-      expect(typeof SessionLifecycle._sendAutoLoginResult).toBe('function');
-    });
+    expect(Object.keys(context.wcHandlers).sort()).toEqual(
+      ['did-fail-load', 'did-finish-load', 'render-process-gone'].sort()
+    );
+    expect(Object.keys(context.windowHandlers).sort()).toEqual(
+      ['close', 'closed', 'ready-to-show', 'responsive', 'unresponsive'].sort()
+    );
+    expect(context.wcHandlers['will-navigate']).toBeUndefined();
+    expect(context.wcHandlers['new-window']).toBeUndefined();
   });
 
-  describe('_sendAutoLoginResult', () => {
-    test('result=filled envia status=success', () => {
-      SessionLifecycle._sendAutoLoginResult('p1', 'filled');
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:result', {
-        profileId: 'p1',
-        result: 'filled'
-      });
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', {
-        profileId: 'p1',
-        status: 'success',
-        result: 'filled'
-      });
-    });
+  test('did-finish-load 只刷新 Session 存储并通知调用者，不执行页面注入', async () => {
+    const context = makeWindow();
+    const ctx = makeContext({ ses: context.session });
+    context.win.webContents.executeJavaScript = jest.fn();
+    SessionLifecycle.attach(context.win, ctx);
 
-    test('result=clicked envia status=success', () => {
-      SessionLifecycle._sendAutoLoginResult('p1', 'clicked');
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', {
-        profileId: 'p1',
-        status: 'success',
-        result: 'clicked'
-      });
-    });
+    context.wcHandlers['did-finish-load']();
+    await Promise.resolve();
 
-    test('result=waiting envia status=loading', () => {
-      SessionLifecycle._sendAutoLoginResult('p1', 'waiting');
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', {
-        profileId: 'p1',
-        status: 'loading',
-        result: 'waiting'
-      });
-    });
-
-    test('result=error envia status=error', () => {
-      SessionLifecycle._sendAutoLoginResult('p1', 'error');
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', {
-        profileId: 'p1',
-        status: 'error',
-        result: 'error'
-      });
-    });
-
-    test('result=not-found envia status=idle', () => {
-      SessionLifecycle._sendAutoLoginResult('p1', 'not-found');
-      expect(ManagerWindow.send).toHaveBeenCalledWith('auto-login:status', {
-        profileId: 'p1',
-        status: 'idle',
-        result: 'not-found'
-      });
-    });
+    expect(context.session.cookies.flushStore).toHaveBeenCalledTimes(1);
+    expect(ctx.onLoadFinished).toHaveBeenCalledTimes(1);
+    expect(context.win.webContents.executeJavaScript).not.toHaveBeenCalled();
+    expect(context.session.clearStorageData).not.toHaveBeenCalled();
   });
 
-  describe('_sendWindowStatus', () => {
-    test('envia game-window:status com open=true', () => {
-      SessionLifecycle._sendWindowStatus('p1', true);
-      expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
-        profileId: 'p1',
-        open: true
-      });
-    });
+  test('did-fail-load 只向流程回传 errorCode，不传完整 URL 或描述', () => {
+    const context = makeWindow();
+    const ctx = makeContext({ ses: context.session });
+    SessionLifecycle.attach(context.win, ctx);
 
-    test('envia game-window:status com open=false', () => {
-      SessionLifecycle._sendWindowStatus('p1', false);
-      expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
-        profileId: 'p1',
-        open: false
-      });
-    });
+    context.wcHandlers['did-fail-load'](
+      {},
+      -105,
+      'fixture description with ticket',
+      'https://unknown.test/path?ticket=fixture',
+      true
+    );
+
+    expect(ctx.onLoadFailed).toHaveBeenCalledWith({ errorCode: -105 });
+    expect(JSON.stringify(ctx.onLoadFailed.mock.calls)).not.toMatch(/ticket|unknown\.test/);
+    expect(context.win.webContents.reload).not.toHaveBeenCalled();
+    expect(context.session.clearStorageData).not.toHaveBeenCalled();
   });
 
-  describe('attach', () => {
-    test('registra handlers de evento na janela e webContents', () => {
-      const { win, wc } = makeMockWin();
-      const ctx = makeCtx();
-      SessionLifecycle.attach(win, ctx);
+  test('ready-to-show 显示窗口并广播打开状态', () => {
+    const context = makeWindow();
+    const ctx = makeContext({ ses: context.session });
+    SessionLifecycle.attach(context.win, ctx);
 
-      // Verifica handlers de webContents
-      expect(wc.on).toHaveBeenCalledWith('render-process-gone', expect.any(Function));
-      expect(wc.on).toHaveBeenCalledWith('did-finish-load', expect.any(Function));
-      expect(wc.on).toHaveBeenCalledWith('did-fail-load', expect.any(Function));
-      expect(wc.on).toHaveBeenCalledWith('will-navigate', expect.any(Function));
-      expect(wc.on).toHaveBeenCalledWith('new-window', expect.any(Function));
+    context.windowHandlers['ready-to-show']();
 
-      // Verifica handlers de win
-      expect(win.on).toHaveBeenCalledWith('close', expect.any(Function));
-      expect(win.on).toHaveBeenCalledWith('closed', expect.any(Function));
-      expect(win.on).toHaveBeenCalledWith('unresponsive', expect.any(Function));
-
-      // Verifica once para ready-to-show
-      expect(win.once).toHaveBeenCalledWith('ready-to-show', expect.any(Function));
+    expect(context.win.show).toHaveBeenCalledTimes(1);
+    expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
+      profileId: 'p_001',
+      open: true
     });
+    expect(ctx.onOpened).toHaveBeenCalledTimes(1);
+    expect(ctx.onReady).toHaveBeenCalledTimes(1);
+  });
 
-    describe('did-finish-load handler', () => {
-      test('injecta CSS e chama auto-login', () => {
-        const { win, wc, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
+  test('ready-to-show 重复触发时只启动一次窗口流程', () => {
+    const context = makeWindow();
+    const ctx = makeContext({ ses: context.session });
+    SessionLifecycle.attach(context.win, ctx);
 
-        const handler = wcHandlers['did-finish-load'];
-        handler();
+    context.windowHandlers['ready-to-show']();
+    context.windowHandlers['ready-to-show']();
 
-        // executeJavaScript chamado (camada 1: adblock idempotente + camada 2: fullscreen + FB mock)
-        expect(wc.executeJavaScript).toHaveBeenCalled();
-        // insertCSS NÃO é mais usado (substituído por executeJavaScript com idempotência)
-        expect(wc.insertCSS).not.toHaveBeenCalled();
-      });
+    expect(context.win.show).toHaveBeenCalledTimes(1);
+    expect(ManagerWindow.send).toHaveBeenCalledTimes(1);
+    expect(ctx.onOpened).toHaveBeenCalledTimes(1);
+    expect(ctx.onReady).toHaveBeenCalledTimes(1);
+  });
 
-      test('reseta entry.failLoadRetry para false', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const entry = {
-          failLoadRetry: true,
-          formInjectAttempts: 0,
-          autoLoginTimer: null,
-          failLoadTimer: null
-        };
-        const ctx = makeCtx({ entry });
-        SessionLifecycle.attach(win, ctx);
+  test('renderer crash 只委托当前角色流程，不 raw reload 未知 URL 且不清 Session', () => {
+    jest.useFakeTimers();
+    const context = makeWindow();
+    const ctx = makeContext({ ses: context.session });
+    SessionLifecycle.attach(context.win, ctx);
 
-        const handler = wcHandlers['did-finish-load'];
-        handler();
+    context.wcHandlers['render-process-gone']({}, { reason: 'crashed', exitCode: 1 });
+    jest.advanceTimersByTime(1500);
 
-        expect(entry.failLoadRetry).toBe(false);
-      });
+    expect(ctx.onRendererGone).toHaveBeenCalledTimes(1);
+    expect(context.win.webContents.reload).not.toHaveBeenCalled();
+    expect(context.session.clearStorageData).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
 
-      test('chama vault.hasCredentials e _tryAutoLogin quando há credenciais', () => {
-        const { win, wcHandlers } = makeMockWin();
-        vault.hasCredentials.mockReturnValue(true);
-        vault.getCredentials.mockReturnValue({ user: 'test@x.com', pass: 'secret' });
-        vault.buildAutoLoginScript.mockReturnValue('(function(){return "filled";})()');
+  test('renderer crash 在 10 分钟内第 4 次委托为 exhausted，供当前角色转等待用户', () => {
+    jest.useFakeTimers();
+    const context = makeWindow();
+    const ctx = makeContext({ ses: context.session });
+    SessionLifecycle.attach(context.win, ctx);
 
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
+    for (let i = 0; i < 4; i++) {
+      context.wcHandlers['render-process-gone']({}, { reason: 'crashed', exitCode: i + 1 });
+      jest.advanceTimersByTime(1500);
+    }
 
-        const handler = wcHandlers['did-finish-load'];
-        handler();
-
-        expect(vault.hasCredentials).toHaveBeenCalledWith('p_001');
-      });
-
-      test('para auto-login quando formInjectAttempts > 5', () => {
-        const { win, wcHandlers } = makeMockWin();
-        vault.hasCredentials.mockReturnValue(true);
-        vault.getCredentials.mockReturnValue({ user: 'test@x.com', pass: 'secret' });
-        vault.buildAutoLoginScript.mockReturnValue('(function(){return "not-found";})()');
-        const entry = {
-          failLoadRetry: false,
-          formInjectAttempts: 6,
-          autoLoginTimer: null,
-          failLoadTimer: null
-        };
-        const ctx = makeCtx({ entry });
-        SessionLifecycle.attach(win, ctx);
-
-        // Trigger multiple did-finish-load to simulate retries
-        const handler = wcHandlers['did-finish-load'];
-        handler();
-
-        // Com formInjectAttempts=6, deve parar de tentar — não chama executeJavaScript para auto-login
-        const autoLoginCalls = win.webContents.executeJavaScript.mock.calls.filter(function (c) {
-          return typeof c[0] === 'string' && c[0].includes('doLogin');
-        });
-        expect(autoLoginCalls.length).toBe(0);
-      });
-
-      test('reseta formInjectAttempts quando auto-login succeed (result=filled)', () => {
-        // Verifica que com formInjectAttempts < 6, o auto-login script É executado
-        // (ao contrário do teste "para quando > 5" que verifica o oposto).
-        const { win, wcHandlers } = makeMockWin();
-        vault.hasCredentials.mockReturnValue(true);
-        vault.getCredentials.mockReturnValue({ user: 'test@x.com', pass: 'secret' });
-        vault.buildAutoLoginScript.mockReturnValue('AUTO_LOGIN_SCRIPT_MARKER');
-        const entry = {
-          failLoadRetry: false,
-          formInjectAttempts: 3,
-          autoLoginTimer: null,
-          failLoadTimer: null
-        };
-        const ctx = makeCtx({ entry });
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['did-finish-load'];
-        handler();
-
-        // O auto-login script (com marcador) deve ter sido passado a executeJavaScript
-        const found = win.webContents.executeJavaScript.mock.calls.some(function (c) {
-          return c[0] === 'AUTO_LOGIN_SCRIPT_MARKER';
-        });
-        expect(found).toBe(true);
-      });
-
-      test('resultado "clicked" reseta formInjectAttempts', () => {
-        vault.hasCredentials.mockReturnValue(true);
-        vault.getCredentials.mockReturnValue({ user: 'u', pass: 'p' });
-        // Make executeJavaScript resolve with 'clicked'
-        const { win, wcHandlers } = makeMockWin();
-        win.webContents.executeJavaScript = jest.fn(() => Promise.resolve('clicked'));
-        const entry = {
-          failLoadRetry: false,
-          formInjectAttempts: 3,
-          autoLoginTimer: null,
-          failLoadTimer: null
-        };
-        const ctx = makeCtx({ entry });
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['did-finish-load'];
-        handler();
-
-        // formInjectAttempts should be reset to 0 after 'clicked' result
-        // (verified via the entry reference which is mutated inside the handler)
-        setImmediate(function () {
-          expect(entry.formInjectAttempts).toBe(0);
-        });
-      });
-    });
-
-    describe('did-fail-load handler', () => {
-      test('primeira falha: tenta novamente com delay (setTimeout)', () => {
-        jest.useFakeTimers();
-        const { win, wcHandlers } = makeMockWin();
-        const entry = {
-          failLoadRetry: false,
-          formInjectAttempts: 0,
-          autoLoginTimer: null,
-          failLoadTimer: null
-        };
-        const ctx = makeCtx({ entry });
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['did-fail-load'];
-        handler({}, -102, 'ERR_CONNECTION_REFUSED', 'https://example.com');
-
-        // Deve ter marcado failLoadRetry=true e agendado retry
-        expect(entry.failLoadRetry).toBe(true);
-        expect(entry.failLoadTimer).not.toBeNull();
-
-        // Avança o timer para executar o retry
-        jest.advanceTimersByTime(1500);
-        expect(win.loadURL).toHaveBeenCalled();
-
-        jest.useRealTimers();
-      });
-
-      test('ignora data: URLs', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const entry = {
-          failLoadRetry: false,
-          formInjectAttempts: 0,
-          autoLoginTimer: null,
-          failLoadTimer: null
-        };
-        const ctx = makeCtx({ entry });
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['did-fail-load'];
-        handler({}, -2, 'ERR_FAILED', 'data:text/html,hello');
-
-        expect(entry.failLoadRetry).toBe(false);
-      });
-
-      test('ignora ERR_ABORTED (code -3)', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const entry = {
-          failLoadRetry: false,
-          formInjectAttempts: 0,
-          autoLoginTimer: null,
-          failLoadTimer: null
-        };
-        const ctx = makeCtx({ entry });
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['did-fail-load'];
-        handler({}, -3, 'ERR_ABORTED', 'https://example.com');
-
-        expect(entry.failLoadRetry).toBe(false);
-      });
-
-      test('segunda falha (alreadyRetried): exibe tela de erro', () => {
-        const { win, wc, wcHandlers } = makeMockWin();
-        const entry = {
-          failLoadRetry: true,
-          formInjectAttempts: 0,
-          autoLoginTimer: null,
-          failLoadTimer: null
-        };
-        const ctx = makeCtx({ entry });
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['did-fail-load'];
-        handler({}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://example.com');
-
-        // Deve chamar loadURL com data:text/html (tela de erro)
-        expect(wc.loadURL).toHaveBeenCalled();
-        const errorPageUrl = wc.loadURL.mock.calls[0][0];
-        expect(errorPageUrl).toContain('data:text/html');
-      });
-    });
-
-    describe('close handler', () => {
-      test('chama preventDefault na primeira chamada', () => {
-        const { win, handlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const closeHandler = handlers['close'];
-        const event = { preventDefault: jest.fn() };
-        closeHandler(event);
-
-        expect(event.preventDefault).toHaveBeenCalled();
-      });
-
-      test('limpa entry timers (autoLoginTimer, failLoadTimer)', () => {
-        const { win, handlers } = makeMockWin();
-        const fakeTimer1 = setTimeout(() => {}, 99999);
-        const fakeTimer2 = setTimeout(() => {}, 99999);
-        const entry = {
-          failLoadRetry: false,
-          formInjectAttempts: 0,
-          autoLoginTimer: fakeTimer1,
-          failLoadTimer: fakeTimer2
-        };
-        const ctx = makeCtx({ entry });
-        SessionLifecycle.attach(win, ctx);
-
-        const closeHandler = handlers['close'];
-        closeHandler({ preventDefault: jest.fn() });
-
-        // verify clearTimeout was called on those timers (can't directly spy on clearTimeout
-        // but the entry timers should be handled — we just verify no throw)
-        expect(true).toBe(true);
-
-        clearTimeout(fakeTimer1);
-        clearTimeout(fakeTimer2);
-      });
-
-      test('destroys window after 500ms timeout', () => {
-        jest.useFakeTimers();
-        const { win, handlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const closeHandler = handlers['close'];
-        closeHandler({ preventDefault: jest.fn() });
-
-        jest.advanceTimersByTime(500);
-        expect(win.destroy).toHaveBeenCalled();
-
-        jest.useRealTimers();
-      });
-    });
-
-    describe('closed handler', () => {
-      test('envia window status false e chama onClosed', () => {
-        const { win, handlers } = makeMockWin();
-        const onClosed = jest.fn();
-        const ctx = makeCtx({ onClosed });
-        SessionLifecycle.attach(win, ctx);
-
-        const closedHandler = handlers['closed'];
-        closedHandler();
-
-        expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
-          profileId: 'p_001',
-          open: false
-        });
-        expect(onClosed).toHaveBeenCalled();
-      });
-    });
-
-    describe('ready-to-show handler', () => {
-      test('mostra a janela, envia window status true e carrega URL', () => {
-        jest.useFakeTimers();
-        const { win, handlers } = makeMockWin();
-        const onOpened = jest.fn();
-        const getGameUrl = jest.fn(() => 'https://game.url');
-        const ctx = makeCtx({ onOpened, getGameUrl });
-        SessionLifecycle.attach(win, ctx);
-
-        const readyHandler = handlers['ready-to-show'];
-        readyHandler();
-
-        expect(win.show).toHaveBeenCalled();
-        expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
-          profileId: 'p_001',
-          open: true
-        });
-        expect(onOpened).toHaveBeenCalled();
-
-        // setImmediate: loadURL acontece após o handler
-        jest.advanceTimersByTime(0);
-        expect(win.loadURL).toHaveBeenCalledWith('https://game.url');
-
-        jest.useRealTimers();
-      });
-    });
-
-    describe('JWT auto-renewal timer', () => {
-      test('setTimeout é chamado com 30 minutos (base)', () => {
-        jest.useFakeTimers();
-        try {
-          const { win } = makeMockWin();
-          const ctx = makeCtx();
-          const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
-
-          SessionLifecycle.attach(win, ctx);
-
-          // Verifica que setTimeout foi chamado com 30min = 30*60*1000
-          const calls = setTimeoutSpy.mock.calls;
-          const thirtyMin = 30 * 60 * 1000;
-          const found = calls.some(function (call) {
-            return call[1] === thirtyMin;
-          });
-          expect(found).toBe(true);
-
-          setTimeoutSpy.mockRestore();
-        } finally {
-          jest.useRealTimers();
+    expect(ctx.onRendererGone.mock.calls).toEqual([
+      [
+        {
+          reason: 'crashed',
+          errorCode: 1,
+          retryCount: 1,
+          retryLimit: 3,
+          retryWindowMs: 10 * 60 * 1000,
+          exhausted: false
         }
-      });
-
-      test('unref é chamado no timer', () => {
-        const { win } = makeMockWin();
-        const ctx = makeCtx();
-        const originalSetTimeout = global.setTimeout;
-        let capturedTimer = null;
-
-        global.setTimeout = jest.fn(function (fn, ms) {
-          capturedTimer = originalSetTimeout(fn, ms);
-          capturedTimer.unref = jest.fn();
-          return capturedTimer;
-        });
-
-        SessionLifecycle.attach(win, ctx);
-
-        expect(capturedTimer).not.toBeNull();
-        expect(capturedTimer.unref).toHaveBeenCalled();
-
-        global.setTimeout = originalSetTimeout;
-        clearTimeout(capturedTimer);
-      });
-
-      test('timer é limpo no close', () => {
-        const { win, handlers } = makeMockWin();
-        const ctx = makeCtx();
-        const originalSetTimeout = global.setTimeout;
-        let capturedTimer = null;
-
-        global.setTimeout = jest.fn(function (fn, ms) {
-          capturedTimer = originalSetTimeout(fn, ms);
-          capturedTimer.unref = jest.fn();
-          return capturedTimer;
-        });
-
-        SessionLifecycle.attach(win, ctx);
-
-        const closeHandler = handlers['close'];
-        closeHandler({ preventDefault: jest.fn() });
-
-        // After close, the timer should be cleared (clearTimeout called)
-        // We can't directly verify clearTimeout was called on the exact timer
-        // but the code sets _renewTimer = null after clearTimeout
-        global.setTimeout = originalSetTimeout;
-        if (capturedTimer) clearTimeout(capturedTimer);
-      });
-
-      test('backoff real: falhas consecutivas aumentam o delay', async () => {
-        jest.useFakeTimers();
-        try {
-          const { win } = makeMockWin();
-          const ctx = makeCtx();
-          const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
-
-          // Configura mock: vault tem creds, apiLogin.renewIfNeeded rejeita
-          vault.hasCredentials.mockImplementation(() => true);
-          vault.getCredentials.mockImplementation(() => ({
-            user: 'u',
-            pass: 'p'
-          }));
-          var apiLogin = require('../../network/api-login');
-          apiLogin.renewIfNeeded.mockImplementation(() => Promise.reject(new Error('server down')));
-
-          SessionLifecycle.attach(win, ctx);
-
-          // Primeiro agendamento: 30min (base)
-          expect(setTimeoutSpy.mock.calls[0][1]).toBe(30 * 60 * 1000);
-
-          // Avança 30min — primeira tentativa falha
-          await jest.advanceTimersByTimeAsync(30 * 60 * 1000);
-          // Após 1 falha: delay = 30min * 2^0 = 30min (sem mudança na primeira)
-          var calls30 = setTimeoutSpy.mock.calls.filter(function (c) {
-            return c[1] === 30 * 60 * 1000;
-          });
-          expect(calls30.length).toBeGreaterThanOrEqual(2); // inicial + pós-1falha
-
-          // Avança mais 30min — segunda tentativa falha
-          await jest.advanceTimersByTimeAsync(30 * 60 * 1000);
-          // Após 2 falhas: delay = 30min * 2^1 = 60min (backoff REAL)
-          var call60 = setTimeoutSpy.mock.calls.find(function (c) {
-            return c[1] === 60 * 60 * 1000;
-          });
-          expect(call60).toBeTruthy();
-
-          setTimeoutSpy.mockRestore();
-          vault.hasCredentials.mockRestore();
-          vault.getCredentials.mockRestore();
-          apiLogin.renewIfNeeded.mockRestore();
-        } finally {
-          jest.useRealTimers();
+      ],
+      [
+        {
+          reason: 'crashed',
+          errorCode: 2,
+          retryCount: 2,
+          retryLimit: 3,
+          retryWindowMs: 10 * 60 * 1000,
+          exhausted: false
         }
-      });
-
-      test('sucesso reseta backoff para 30min', async () => {
-        jest.useFakeTimers();
-        try {
-          const { win } = makeMockWin();
-          const ctx = makeCtx();
-          const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
-
-          vault.hasCredentials.mockImplementation(() => true);
-          vault.getCredentials.mockImplementation(() => ({
-            user: 'u',
-            pass: 'p'
-          }));
-          var apiLogin = require('../../network/api-login');
-          // Primeira chamada falha, segunda succeeds
-          apiLogin.renewIfNeeded = jest
-            .fn()
-            .mockRejectedValueOnce(new Error('fail'))
-            .mockResolvedValueOnce({
-              renewed: true,
-              expiresAt: Date.now() + 7200000
-            });
-
-          SessionLifecycle.attach(win, ctx);
-
-          // Avança 30min — primeira tentativa falha → reagenda 30min
-          await jest.advanceTimersByTimeAsync(30 * 60 * 1000);
-          // Avança 30min — segunda tentativa sucesso → reseta para 30min
-          await jest.advanceTimersByTimeAsync(30 * 60 * 1000);
-
-          // Verifica que há um agendamento de 30min após o sucesso
-          var afterSuccess = setTimeoutSpy.mock.calls.filter(function (c) {
-            return c[1] === 30 * 60 * 1000;
-          });
-          // Deve ter pelo menos 3: o inicial + pós-1falha + pós-sucesso
-          expect(afterSuccess.length).toBeGreaterThanOrEqual(3);
-
-          setTimeoutSpy.mockRestore();
-          vault.hasCredentials.mockRestore();
-          vault.getCredentials.mockRestore();
-        } finally {
-          jest.useRealTimers();
+      ],
+      [
+        {
+          reason: 'crashed',
+          errorCode: 3,
+          retryCount: 3,
+          retryLimit: 3,
+          retryWindowMs: 10 * 60 * 1000,
+          exhausted: false
         }
-      });
-    });
-
-    describe('render-process-gone handler', () => {
-      test('registra handler sem lançar', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['render-process-gone'];
-        expect(typeof handler).toBe('function');
-        expect(() => handler({}, { reason: 'oom', exitCode: 1 })).not.toThrow();
-      });
-
-      test('auto-reload após crash "oom"', () => {
-        jest.useFakeTimers();
-        const { win, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['render-process-gone'];
-        handler({}, { reason: 'oom', exitCode: null });
-
-        // Deve agendar reload em 1.5s
-        expect(win.webContents.reload).not.toHaveBeenCalled();
-        jest.advanceTimersByTime(1500);
-        expect(win.webContents.reload).toHaveBeenCalledTimes(1);
-
-        jest.useRealTimers();
-      });
-
-      test('não recupera "clean-exit"', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['render-process-gone'];
-        handler({}, { reason: 'clean-exit', exitCode: 0 });
-
-        expect(win.webContents.reload).not.toHaveBeenCalled();
-      });
-
-      test('não recupera "killed"', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['render-process-gone'];
-        handler({}, { reason: 'killed', exitCode: 9 });
-
-        expect(win.webContents.reload).not.toHaveBeenCalled();
-      });
-
-      test('não recupera se win.isDestroyed()', () => {
-        const { win, wcHandlers } = makeMockWin();
-        win.isDestroyed.mockReturnValue(true);
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['render-process-gone'];
-        handler({}, { reason: 'crashed', exitCode: 1 });
-
-        expect(win.webContents.reload).not.toHaveBeenCalled();
-      });
-
-      test('backoff: para de recarregar após 3 crashes em 10 min', () => {
-        jest.useFakeTimers();
-        const { win, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['render-process-gone'];
-
-        // 1st crash → reload
-        handler({}, { reason: 'crashed', exitCode: 1 });
-        jest.advanceTimersByTime(1500);
-        expect(win.webContents.reload).toHaveBeenCalledTimes(1);
-
-        // 2nd crash → reload
-        handler({}, { reason: 'oom', exitCode: 2 });
-        jest.advanceTimersByTime(1500);
-        expect(win.webContents.reload).toHaveBeenCalledTimes(2);
-
-        // 3rd crash → limit reached, no reload
-        handler({}, { reason: 'abnormal-exit', exitCode: 3 });
-        expect(win.webContents.reload).toHaveBeenCalledTimes(2);
-
-        jest.useRealTimers();
-      });
-    });
-
-    describe('will-navigate handler', () => {
-      test('ignora data: URLs', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['will-navigate'];
-        expect(() => handler({ preventDefault: jest.fn() }, 'data:text/html,test')).not.toThrow();
-        expect(win.loadURL).not.toHaveBeenCalled();
-      });
-
-      test('injeta LAUNCHER_PARAMS em navegação game-host sem logintype', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['will-navigate'];
-        const evt = { preventDefault: jest.fn() };
-        handler(evt, 'https://naruto.narutowebgame.com/pt/serverlist');
-
-        expect(evt.preventDefault).toHaveBeenCalled();
-        expect(win.loadURL).toHaveBeenCalledWith(
-          'https://naruto.narutowebgame.com/pt/serverlist?logintype=4&leftbar_collapse=Yes&launcher=shinobi'
-        );
-      });
-
-      test('não interfere em assets (swf, js, css)', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['will-navigate'];
-        const evt = { preventDefault: jest.fn() };
-        handler(evt, 'https://naruto.narutowebgame.com/game.swf?v=2');
-
-        expect(evt.preventDefault).not.toHaveBeenCalled();
-      });
-
-      test('não interfere se URL já tem logintype', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['will-navigate'];
-        const evt = { preventDefault: jest.fn() };
-        handler(evt, 'https://naruto.narutowebgame.com/pt/serverlist?logintype=4');
-
-        expect(evt.preventDefault).not.toHaveBeenCalled();
-      });
-    });
-
-    describe('new-window handler', () => {
-      test('abre link do jogo na mesma janela', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['new-window'];
-        const evt = { preventDefault: jest.fn() };
-        handler(evt, 'https://naruto.narutowebgame.com/pt/news');
-
-        expect(evt.preventDefault).toHaveBeenCalled();
-        expect(win.loadURL).toHaveBeenCalledWith('https://naruto.narutowebgame.com/pt/news');
-      });
-
-      test('abre URL externa (não-jogo) via shell.openExternal', () => {
-        const { win, wcHandlers } = makeMockWin();
-        const ctx = makeCtx();
-        SessionLifecycle.attach(win, ctx);
-
-        const handler = wcHandlers['new-window'];
-        const evt = { preventDefault: jest.fn() };
-        handler(evt, 'https://www.google.com/search?q=test');
-
-        expect(evt.preventDefault).toHaveBeenCalled();
-        const { shell } = require('electron');
-        expect(shell.openExternal).toHaveBeenCalledWith('https://www.google.com/search?q=test');
-      });
-    });
+      ],
+      [
+        {
+          reason: 'crashed',
+          errorCode: 4,
+          retryCount: 3,
+          retryLimit: 3,
+          retryWindowMs: 10 * 60 * 1000,
+          exhausted: true
+        }
+      ]
+    ]);
+    expect(context.session.clearStorageData).not.toHaveBeenCalled();
+    jest.useRealTimers();
   });
 
-  describe('reloadWithPreAuth race guard', () => {
-    test('segunda chamada durante reload em andamento é ignorada (same window)', async () => {
-      const win = {
-        isDestroyed: () => false,
-        id: 42,
-        webContents: {
-          executeJavaScript: jest.fn(() => Promise.resolve()),
-          reload: jest.fn(),
-          isDestroyed: () => false
-        }
-      };
-      const ses = {
-        clearStorageData: jest.fn(() => Promise.resolve()),
-        clearCache: jest.fn(() => Promise.resolve())
-      };
+  test.each(['clean-exit', 'killed'])('%s 只委托状态且不触发自动 reload', reason => {
+    jest.useFakeTimers();
+    const context = makeWindow();
+    const ctx = makeContext({ ses: context.session });
+    SessionLifecycle.attach(context.win, ctx);
 
-      // Primeira chamada — retorna promise que não resolve imediatamente
-      var resolveFirst;
-      ses.clearStorageData = jest.fn(
-        () =>
-          new Promise(r => {
-            resolveFirst = r;
-          })
-      );
+    context.wcHandlers['render-process-gone']({}, { reason: reason, exitCode: 0 });
+    jest.advanceTimersByTime(1500);
 
-      SessionLifecycle.reloadWithPreAuth('p1', { name: 'test' }, win, ses, jest.fn());
-      SessionLifecycle.reloadWithPreAuth('p1', { name: 'test' }, win, ses, jest.fn());
-
-      // clearStorageData deve ter sido chamado apenas 1 vez (segunda chamada skipou)
-      expect(ses.clearStorageData).toHaveBeenCalledTimes(1);
-
-      // Resolve a primeira promise
-      if (resolveFirst) resolveFirst();
-      // Limpa o guard para não afetar outros testes
-      // (o setTimeout de 3s vai limpar, mas forçamos aqui)
-      await new Promise(r => setTimeout(r, 50));
+    expect(ctx.onRendererGone).toHaveBeenCalledWith({
+      reason: reason,
+      errorCode: 0,
+      retryCount: 0,
+      retryLimit: 3,
+      retryWindowMs: 10 * 60 * 1000,
+      exhausted: false
     });
+    expect(context.win.webContents.reload).not.toHaveBeenCalled();
+    expect(context.session.clearStorageData).not.toHaveBeenCalled();
+    jest.useRealTimers();
   });
 
-  // ── CRON-3: Additional coverage tests ──
+  test('unresponsive/responsive 只委托当前角色流程且不 reload、不清 Session', () => {
+    const context = makeWindow();
+    const ctx = makeContext({ ses: context.session });
+    SessionLifecycle.attach(context.win, ctx);
 
-  describe('reloadWithPreAuth — edge cases', () => {
-    test('retorna Promise.resolve() quando win é null', async () => {
-      var result = await SessionLifecycle.reloadWithPreAuth(
-        'p1',
-        { name: 't' },
-        null,
-        {},
-        jest.fn()
-      );
-      expect(result).toBeUndefined();
-    });
+    context.windowHandlers.unresponsive();
+    context.windowHandlers.responsive();
 
-    test('retorna Promise.resolve() quando win.isDestroyed() true', async () => {
-      var win = { isDestroyed: () => true, webContents: { isDestroyed: () => true } };
-      var result = await SessionLifecycle.reloadWithPreAuth(
-        'p1',
-        { name: 't' },
-        win,
-        {},
-        jest.fn()
-      );
-      expect(result).toBeUndefined();
-    });
-
-    test('retorna Promise.resolve() quando webContents.isDestroyed() true', async () => {
-      var win = { isDestroyed: () => false, id: 99, webContents: { isDestroyed: () => true } };
-      var result = await SessionLifecycle.reloadWithPreAuth(
-        'p1',
-        { name: 't' },
-        win,
-        null,
-        jest.fn()
-      );
-      expect(result).toBeUndefined();
-    });
-
-    test('sem session: faz reload direto', async () => {
-      var win = {
-        isDestroyed: () => false,
-        id: 100,
-        webContents: { isDestroyed: () => false, reload: jest.fn() }
-      };
-      await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, null, jest.fn());
-      expect(win.webContents.reload).toHaveBeenCalled();
-    });
-
-    test('com session: limpa storage e chama _loadGameWithPreAuth', async () => {
-      var win = {
-        isDestroyed: () => false,
-        id: 101,
-        loadURL: jest.fn(),
-        webContents: {
-          isDestroyed: () => false,
-          executeJavaScript: jest.fn(() => Promise.resolve()),
-          reload: jest.fn()
-        }
-      };
-      var ses = {
-        clearStorageData: jest.fn(() => Promise.resolve()),
-        clearCache: jest.fn(() => Promise.resolve())
-      };
-
-      await SessionLifecycle.reloadWithPreAuth(
-        'p1',
-        { name: 't' },
-        win,
-        ses,
-        () => 'https://game.url'
-      );
-
-      expect(ses.clearStorageData).toHaveBeenCalledWith({
-        storages: ['cookies', 'localstorage', 'sessionstorage']
-      });
-      expect(ses.clearCache).toHaveBeenCalled();
-      // _loadGameWithPreAuth deve ter sido chamado (via win.loadURL)
-    });
-
-    test('fallback reload direto quando clearStorageData falha', async () => {
-      var win = {
-        isDestroyed: () => false,
-        id: 102,
-        webContents: {
-          isDestroyed: () => false,
-          executeJavaScript: jest.fn(() => Promise.resolve()),
-          reload: jest.fn()
-        }
-      };
-      var ses = {
-        clearStorageData: jest.fn(() => Promise.reject(new Error('clear fail'))),
-        clearCache: jest.fn(() => Promise.resolve())
-      };
-
-      await SessionLifecycle.reloadWithPreAuth('p1', { name: 't' }, win, ses, jest.fn());
-
-      expect(win.webContents.reload).toHaveBeenCalled();
-    });
-
-    test('não chama loadURL quando win destruído após clearStorageData', async () => {
-      var win = {
-        isDestroyed: () => false,
-        id: 103,
-        loadURL: jest.fn(),
-        webContents: {
-          isDestroyed: () => false,
-          executeJavaScript: jest.fn(() => Promise.resolve()),
-          reload: jest.fn()
-        }
-      };
-      var ses = {
-        clearStorageData: jest.fn(function () {
-          win.isDestroyed = () => true;
-          return Promise.resolve();
-        }),
-        clearCache: jest.fn(() => Promise.resolve())
-      };
-
-      await SessionLifecycle.reloadWithPreAuth(
-        'p1',
-        { name: 't' },
-        win,
-        ses,
-        () => 'https://game.url'
-      );
-
-      // loadURL não deve ser chamado (win destruído no meio)
-      // _loadGameWithPreAuth checa win.isDestroyed internamente
-    });
+    expect(ctx.onUnresponsive).toHaveBeenCalledWith({});
+    expect(ctx.onResponsive).toHaveBeenCalledWith({});
+    expect(context.win.webContents.reload).not.toHaveBeenCalled();
+    expect(context.session.clearStorageData).not.toHaveBeenCalled();
   });
 
-  describe('_loadGameWithPreAuth', () => {
-    test('carrega URL diretamente sem credenciais', () => {
-      var win = { loadURL: jest.fn() };
-      var profile = { id: 'p_001', name: 'Test' };
-      var getGameUrl = jest.fn(() => 'https://game.url');
+  test('close 只 flush 当前 Session 后销毁窗口，closed 广播并回调', async () => {
+    const context = makeWindow();
+    const ctx = makeContext({ ses: context.session });
+    SessionLifecycle.attach(context.win, ctx);
+    const event = { preventDefault: jest.fn() };
 
-      SessionLifecycle._loadGameWithPreAuth('p_001', profile, win, {}, getGameUrl);
+    context.windowHandlers.close(event);
+    await Promise.resolve();
+    await Promise.resolve();
+    context.windowHandlers.closed();
 
-      expect(win.loadURL).toHaveBeenCalledWith('https://game.url');
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(context.session.cookies.flushStore).toHaveBeenCalledTimes(1);
+    expect(context.session.clearStorageData).not.toHaveBeenCalled();
+    expect(context.win.destroy).toHaveBeenCalledTimes(1);
+    expect(ManagerWindow.send).toHaveBeenCalledWith('game-window:status', {
+      profileId: 'p_001',
+      open: false
     });
-
-    test('carrega URL diretamente quando hasCredentials false', () => {
-      vault.hasCredentials.mockReturnValue(false);
-      var win = { loadURL: jest.fn() };
-      var profile = { id: 'p_001', name: 'Test' };
-      var getGameUrl = jest.fn(() => 'https://game.url');
-
-      SessionLifecycle._loadGameWithPreAuth('p_001', profile, win, {}, getGameUrl);
-
-      expect(win.loadURL).toHaveBeenCalledWith('https://game.url');
-    });
-
-    test('carrega URL diretamente quando creds não tem user/pass', () => {
-      vault.hasCredentials.mockReturnValue(true);
-      vault.getCredentials.mockReturnValue({ user: '', pass: '' });
-      var win = { loadURL: jest.fn() };
-      var profile = { id: 'p_001', name: 'Test' };
-      var getGameUrl = jest.fn(() => 'https://game.url');
-
-      SessionLifecycle._loadGameWithPreAuth('p_001', profile, win, {}, getGameUrl);
-
-      expect(win.loadURL).toHaveBeenCalledWith('https://game.url');
-    });
+    expect(ctx.onClosed).toHaveBeenCalledTimes(1);
   });
 
-  describe('attach — will-navigate edge cases', () => {
-    test('intercepta URL oasgames', () => {
-      var { win, wcHandlers } = makeMockWin();
-      var ctx = makeCtx();
-      SessionLifecycle.attach(win, ctx);
+  test('detach 移除已注册监听并清理通用 timer', () => {
+    const context = makeWindow();
+    const entry = { failLoadTimer: setTimeout(function () {}, 1000), closeTimer: null };
+    const lifecycle = SessionLifecycle.attach(
+      context.win,
+      makeContext({ ses: context.session, entry: entry })
+    );
 
-      var handler = wcHandlers['will-navigate'];
-      var evt = { preventDefault: jest.fn() };
-      handler(evt, 'https://www.oasgames.com/pt/serverlist');
+    lifecycle.detach();
 
-      expect(evt.preventDefault).toHaveBeenCalled();
-      expect(win.loadURL).toHaveBeenCalled();
-    });
-
-    test('não intercepta assets oasgames', () => {
-      var { win, wcHandlers } = makeMockWin();
-      var ctx = makeCtx();
-      SessionLifecycle.attach(win, ctx);
-
-      var handler = wcHandlers['will-navigate'];
-      var evt = { preventDefault: jest.fn() };
-      handler(evt, 'https://www.oasgames.com/game.js');
-
-      expect(evt.preventDefault).not.toHaveBeenCalled();
-    });
-
-    test('não intercepta URLs de outros domínios', () => {
-      var { win, wcHandlers } = makeMockWin();
-      var ctx = makeCtx();
-      SessionLifecycle.attach(win, ctx);
-
-      var handler = wcHandlers['will-navigate'];
-      var evt = { preventDefault: jest.fn() };
-      handler(evt, 'https://www.google.com/');
-
-      expect(evt.preventDefault).not.toHaveBeenCalled();
-    });
-
-    test('não quebra com URL inválida no will-navigate', () => {
-      var { win, wcHandlers } = makeMockWin();
-      var ctx = makeCtx();
-      SessionLifecycle.attach(win, ctx);
-
-      var handler = wcHandlers['will-navigate'];
-      expect(() => handler({ preventDefault: jest.fn() }, 'not-a-url')).not.toThrow();
-    });
+    expect(context.win.removeListener).toHaveBeenCalled();
+    expect(context.win.webContents.removeListener).toHaveBeenCalled();
+    expect(entry.failLoadTimer).toBeNull();
   });
 
-  describe('attach — new-window edge cases', () => {
-    test('não abre URL inválida via shell', () => {
-      var { win, wcHandlers } = makeMockWin();
-      var ctx = makeCtx();
-      SessionLifecycle.attach(win, ctx);
+  test('生产源码不再包含 Oasis 登录、页面注入或清 Session 路径', () => {
+    const source = fs.readFileSync(require.resolve('../SessionLifecycle'), 'utf8');
 
-      var handler = wcHandlers['new-window'];
-      var evt = { preventDefault: jest.fn() };
-      // URL sem protocolo válido → new URL() vai lançar, mas é capturado
-      handler(evt, 'not-a-valid-url');
-
-      expect(evt.preventDefault).toHaveBeenCalled();
-      var { shell } = require('electron');
-      expect(shell.openExternal).not.toHaveBeenCalled();
-    });
-
-    test('não abre non-http URLs via shell', () => {
-      var { win, wcHandlers } = makeMockWin();
-      var ctx = makeCtx();
-      SessionLifecycle.attach(win, ctx);
-
-      var handler = wcHandlers['new-window'];
-      var evt = { preventDefault: jest.fn() };
-      handler(evt, 'ftp://files.example.com/file.zip');
-
-      expect(evt.preventDefault).toHaveBeenCalled();
-      var { shell } = require('electron');
-      expect(shell.openExternal).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('attach — close handler edge cases', () => {
-    test('não chama destroy se win já destruído', () => {
-      jest.useFakeTimers();
-      var { win, handlers } = makeMockWin();
-      win.isDestroyed.mockReturnValue(true);
-      var ctx = makeCtx();
-      SessionLifecycle.attach(win, ctx);
-
-      var closeHandler = handlers['close'];
-      closeHandler({ preventDefault: jest.fn() });
-      jest.advanceTimersByTime(500);
-
-      // destroy não deve ser chamado se win.isDestroyed()
-      // mas o código verifica antes de chamar
-      jest.useRealTimers();
-    });
-
-    test('segunda chamada close é ignorada (isForceClosing guard)', () => {
-      jest.useFakeTimers();
-      var { win, handlers } = makeMockWin();
-      var ctx = makeCtx();
-      SessionLifecycle.attach(win, ctx);
-
-      var closeHandler = handlers['close'];
-      closeHandler({ preventDefault: jest.fn() });
-      closeHandler({ preventDefault: jest.fn() });
-
-      // Segunda chamada não deve causar problemas
-      jest.useRealTimers();
-    });
+    expect(source).not.toMatch(
+      /profiles\/vault|api-login|logintype|oas-player|window\.FB|MutationObserver|buildAutoLoginScript|clearStorageData|will-navigate|new-window/
+    );
+    expect(SessionLifecycle.reloadWithPreAuth).toBeUndefined();
+    expect(SessionLifecycle._loadGameWithPreAuth).toBeUndefined();
   });
 });

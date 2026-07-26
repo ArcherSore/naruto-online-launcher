@@ -7,7 +7,19 @@
 
 'use strict';
 
+jest.mock('../../utils/logger', () => ({
+  debug: jest.fn(),
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn()
+}));
+
 const StallDetector = require('../StallDetector');
+const logger = require('../../utils/logger');
+
+function attachDetector(win, ses, ctx) {
+  return StallDetector.attach(win, ses, Object.assign({ stage: 'GAME_LOADING' }, ctx || {}));
+}
 
 /**
  * Cria um mock de session com webRequest.onCompleted + onErrorOccurred.
@@ -43,6 +55,10 @@ function makeMockWin(destroyed) {
 }
 
 describe('StallDetector.js', function () {
+  beforeEach(function () {
+    jest.clearAllMocks();
+  });
+
   describe('exports', function () {
     test('exporta attach como função', function () {
       expect(typeof StallDetector.attach).toBe('function');
@@ -59,28 +75,28 @@ describe('StallDetector.js', function () {
 
   describe('attach — validação', function () {
     test('retorna null se win ausente', function () {
-      var result = StallDetector.attach(null, makeMockSession(), {
+      var result = attachDetector(null, makeMockSession(), {
         onStall: jest.fn()
       });
       expect(result).toBeNull();
     });
 
     test('retorna null se session ausente', function () {
-      var result = StallDetector.attach(makeMockWin(), null, {
+      var result = attachDetector(makeMockWin(), null, {
         onStall: jest.fn()
       });
       expect(result).toBeNull();
     });
 
     test('retorna null se onStall não é função', function () {
-      var result = StallDetector.attach(makeMockWin(), makeMockSession(), {
+      var result = attachDetector(makeMockWin(), makeMockSession(), {
         onStall: 'not-a-function'
       });
       expect(result).toBeNull();
     });
 
     test('retorna objeto com detach quando válido', function () {
-      var result = StallDetector.attach(makeMockWin(), makeMockSession(), {
+      var result = attachDetector(makeMockWin(), makeMockSession(), {
         profileName: 'Test',
         onStall: jest.fn()
       });
@@ -91,13 +107,41 @@ describe('StallDetector.js', function () {
 
     test('registra listeners onCompleted + onErrorOccurred na session', function () {
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'Test',
         onStall: jest.fn()
       });
       expect(ses.webRequest.onCompleted).toHaveBeenCalledTimes(1);
       expect(ses.webRequest.onErrorOccurred).toHaveBeenCalledTimes(1);
       inst.detach();
+    });
+
+    test.each(['AUTH_REQUIRED', 'AUTHENTICATING', 'SELECTOR_LOADING', 'SELECTOR_READY'])(
+      '%s 阶段不启用 stall 检测',
+      function (stage) {
+        var ses = makeMockSession();
+        var result = StallDetector.attach(makeMockWin(), ses, {
+          stage: stage,
+          onStall: jest.fn()
+        });
+
+        expect(result).toBeNull();
+        expect(ses.webRequest.onCompleted).not.toHaveBeenCalled();
+        expect(ses.webRequest.onErrorOccurred).not.toHaveBeenCalled();
+      }
+    );
+
+    test.each(['GAME_LOADING', 'GAME_READY'])('%s 阶段允许启用 stall 检测', function (stage) {
+      var ses = makeMockSession();
+      var result = StallDetector.attach(makeMockWin(), ses, {
+        stage: stage,
+        onStall: jest.fn()
+      });
+
+      expect(result).not.toBeNull();
+      expect(ses.webRequest.onCompleted).toHaveBeenCalledTimes(1);
+      expect(ses.webRequest.onErrorOccurred).toHaveBeenCalledTimes(1);
+      result.detach();
     });
   });
 
@@ -106,7 +150,7 @@ describe('StallDetector.js', function () {
       jest.useFakeTimers();
       var onStall = jest.fn();
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'TestBurst',
         onStall: onStall,
         opts: { pollIntervalMs: 1000 }
@@ -130,11 +174,32 @@ describe('StallDetector.js', function () {
       jest.useRealTimers();
     });
 
+    test('SWF 错误日志只包含 origin/path/errorCode，不泄露 query 或 fragment', function () {
+      var ses = makeMockSession();
+      var inst = attachDetector(makeMockWin(), ses, {
+        profileId: 'p_001',
+        onStall: jest.fn()
+      });
+
+      ses._callbacks.onErrorOccurred({
+        url: 'https://res.huoying.qq.com/assets/ui.swf?ticket=secret#session-token',
+        error: 'net::ERR_CONNECTION_RESET'
+      });
+
+      expect(logger.warn).toHaveBeenCalledWith('StallDetector: SWF resource failed', {
+        origin: 'https://res.huoying.qq.com',
+        path: '/assets/ui.swf',
+        errorCode: 'net::ERR_CONNECTION_RESET'
+      });
+      expect(JSON.stringify(logger.warn.mock.calls)).not.toMatch(/ticket|secret|session-token|\?/);
+      inst.detach();
+    });
+
     test('1 SWF falhando NÃO dispara onStall (threshold = 2)', function () {
       jest.useFakeTimers();
       var onStall = jest.fn();
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'TestSingle',
         onStall: onStall,
         opts: { pollIntervalMs: 1000 }
@@ -155,7 +220,7 @@ describe('StallDetector.js', function () {
       jest.useFakeTimers();
       var onStall = jest.fn();
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'TestNonSwf',
         onStall: onStall,
         opts: { pollIntervalMs: 1000 }
@@ -181,7 +246,7 @@ describe('StallDetector.js', function () {
       jest.useFakeTimers();
       var onStall = jest.fn();
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'TestInactivity',
         onStall: onStall,
         opts: {
@@ -203,7 +268,7 @@ describe('StallDetector.js', function () {
       jest.useFakeTimers();
       var onStall = jest.fn();
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'TestActive',
         onStall: onStall,
         opts: {
@@ -230,7 +295,7 @@ describe('StallDetector.js', function () {
       jest.useFakeTimers();
       var onStall = jest.fn();
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'TestBackoff',
         onStall: onStall,
         opts: {
@@ -258,7 +323,7 @@ describe('StallDetector.js', function () {
       jest.useFakeTimers();
       var onStall = jest.fn();
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'TestMaxRetries',
         onStall: onStall,
         opts: {
@@ -288,7 +353,7 @@ describe('StallDetector.js', function () {
       jest.useFakeTimers();
       var onStall = jest.fn();
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'TestReady',
         onStall: onStall,
         opts: {
@@ -317,7 +382,7 @@ describe('StallDetector.js', function () {
   describe('detach', function () {
     test('detach remove listeners da session', function () {
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'TestDetach',
         onStall: jest.fn()
       });
@@ -334,7 +399,7 @@ describe('StallDetector.js', function () {
 
     test('detach é idempotente (chamar 2x não quebra)', function () {
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'TestIdempotent',
         onStall: jest.fn()
       });
@@ -353,7 +418,7 @@ describe('StallDetector.js', function () {
       var ses = makeMockSession();
       var win = makeMockWin(false);
 
-      var inst = StallDetector.attach(win, ses, {
+      var inst = attachDetector(win, ses, {
         profileName: 'TestDestroyed',
         onStall: onStall,
         opts: { pollIntervalMs: 1000 }
@@ -375,7 +440,7 @@ describe('StallDetector.js', function () {
     test('se onStall lança erro, não quebra o detector', function () {
       jest.useFakeTimers();
       var ses = makeMockSession();
-      var inst = StallDetector.attach(makeMockWin(), ses, {
+      var inst = attachDetector(makeMockWin(), ses, {
         profileName: 'TestCallbackError',
         onStall: function () {
           throw new Error('callback bug');

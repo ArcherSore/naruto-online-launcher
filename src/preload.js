@@ -20,6 +20,38 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 const { DEBUG } = require('./main/debug');
+const RECOVERY_ACTIONS = Object.freeze([
+  'RELOAD_SELECTOR',
+  'REOPEN_AUTH',
+  'RETRY_GAME_NAVIGATION',
+  'RELOAD_GAME',
+  'RETURN_TO_SELECTOR'
+]);
+
+function sanitizeFlowSnapshot(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const error = source.error && typeof source.error === 'object' ? source.error : null;
+  return {
+    stage: typeof source.stage === 'string' ? source.stage : 'BOOTSTRAPPING',
+    status: typeof source.status === 'string' ? source.status : 'idle',
+    error: error
+      ? {
+          code:
+            typeof error.code === 'string' || typeof error.code === 'number'
+              ? error.code
+              : null,
+          safeMessage: typeof error.safeMessage === 'string' ? error.safeMessage : ''
+        }
+      : null,
+    availableActions: Array.isArray(source.availableActions)
+      ? source.availableActions.filter(function (action, index, actions) {
+          return (
+            RECOVERY_ACTIONS.indexOf(action) !== -1 && actions.indexOf(action) === index
+          );
+        })
+      : []
+  };
+}
 
 // v5.9.9 (fix preload crash): contextBridge.exposeInMainWorld no Electron 11
 // NÃO aceita primitivos (boolean/string/number) como 2º argumento — só
@@ -34,6 +66,22 @@ contextBridge.exposeInMainWorld('__SHINOBI_DEBUG__', {
   enabled: DEBUG,
   isDebug: function () {
     return DEBUG;
+  },
+  requestRecovery: function (action) {
+    if (typeof action !== 'string' || RECOVERY_ACTIONS.indexOf(action) === -1) {
+      return Promise.resolve({ ok: false, error: 'invalid-action' });
+    }
+    return ipcRenderer.invoke('launch-flow:recover', action);
+  },
+  onLaunchFlowState: function (callback) {
+    if (typeof callback !== 'function') return function () {};
+    const listener = function (_event, snapshot) {
+      callback(sanitizeFlowSnapshot(snapshot));
+    };
+    ipcRenderer.on('launch-flow:status', listener);
+    return function () {
+      ipcRenderer.removeListener('launch-flow:status', listener);
+    };
   }
 });
 

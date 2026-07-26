@@ -1,17 +1,5 @@
 /**
- * app/Launcher.js — Orquestra o launch de janelas de jogo por perfil (Fase 3d split)
- *
- * Responsabilidade ÚNICA (SRP): criar a BrowserWindow isolada por perfil
- * (partition própria, network layer, loading screen, loadURL) e delegar o
- * lifecycle ao SessionLifecycle + atalhos ao KeyboardShortcuts. Mantém o
- * registry de janelas abertas (gameWindows Map).
- *
- * Histórico: era o God Object game-launcher.js (620 linhas). Split em 3:
- *   - Launcher.js          (este) — orchestration + window registry
- *   - SessionLifecycle.js  — hooks de evento (load/fail/close/crash/auto-login)
- *   - KeyboardShortcuts.js — F5/F12/Alt+F4 antes do input do Chromium
- *
- * game-launcher.js permanece como facade re-exportando este módulo.
+ * 腾讯国服游戏窗口编排与 Profile 窗口 registry。
  */
 
 'use strict';
@@ -21,41 +9,20 @@ const { BrowserWindow } = require('electron');
 const logger = require('../utils/logger');
 const store = require('../profiles/store');
 const partition = require('../profiles/partition');
-const { setupBlocker } = require('../network/blocker');
-const { setupPersistentCookies } = require('../network/cookies');
 const SessionLifecycle = require('./SessionLifecycle');
+const TencentLaunchFlow = require('./TencentLaunchFlow');
 const KeyboardShortcuts = require('../ui/manager/KeyboardShortcuts');
+const StateBroadcaster = require('../ui/manager/StateBroadcaster');
+const urlConfig = require('../config/urls');
 
 const WINDOW_TITLE = 'Naruto Online';
-const CSP =
-  "default-src 'self' * data: blob: http: https:; " +
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https:; " +
-  "object-src 'self' * data: blob: http: https:; " +
-  "style-src 'self' 'unsafe-inline' *; " +
-  "img-src 'self' * data: blob: http: https:; " +
-  "connect-src 'self' * http: https: ws: wss:; " +
-  "media-src 'self' * data: blob: http: https:;";
-
-// Map: profileId -> { window, partitionName, isShadow, autoLoginTimer, failLoadRetry, failLoadTimer, bypassAttempts, formInjectAttempts }
 const gameWindows = new Map();
+let activeRecoveryProfileId = null;
 
-const urlConfig = require('../config/urls');
-const LAUNCHER_PARAMS = urlConfig.getLauncherParams();
-
-/**
- * Retorna URL do jogo para um perfil (região + idioma + servidor).
- * @param {Object} [profile]
- * @returns {string}
- */
-function getGameUrl(profile) {
-  if (!profile) return urlConfig.getGameUrl('br');
-  return urlConfig.getGameUrl(profile.region, profile.language, profile.server);
+function getGameUrl() {
+  return urlConfig.getGameUrl();
 }
 
-/**
- * Há alguma janela de jogo aberta? (usado pelo ManagerWindow close behavior)
- * @returns {boolean}
- */
 function hasOpenWindows() {
   for (const entry of gameWindows.values()) {
     if (entry.window && !entry.window.isDestroyed()) return true;
@@ -63,59 +30,61 @@ function hasOpenWindows() {
   return false;
 }
 
-/**
- * Resolve the application icon path (packaged > dev fallback).
- * @returns {string} absolute path to icon.png
- */
 function resolveIconPath() {
   const fs = require('fs');
   const packaged = path.join(process.resourcesPath, 'icon.png');
   try {
     if (fs.existsSync(packaged)) return packaged;
   } catch (_) {
-    /* ignore */
+    // 使用开发资产回退。
   }
   return path.join(__dirname, '..', '..', 'assets', 'icon.png');
 }
 
-/**
- * Launch a game window for a profile.
- * @param {string} profileId
- * @param {Function} [onOpened]
- * @param {Function} [onClosed]
- */
+function loadingPage(profileName) {
+  return (
+    'data:text/html,' +
+    encodeURIComponent(
+      '<html><head><meta charset="utf-8"><style>' +
+        '*{margin:0;padding:0;box-sizing:border-box}' +
+        'body{background:#0f0f14;display:flex;align-items:center;justify-content:center;height:100vh;' +
+        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;flex-direction:column;color:#FF8C00}' +
+        '.spin{width:34px;height:34px;border:3px solid rgba(255,140,0,.18);border-top-color:#FF8C00;' +
+        'border-radius:50%;animation:sp 1s linear infinite;margin-bottom:18px}' +
+        '@keyframes sp{to{transform:rotate(360deg)}}' +
+        '.t{font-size:15px;font-weight:600;letter-spacing:.2px;color:#f0ede6}' +
+        '</style></head><body><div class="spin"></div><div class="t">Carregando ' +
+        String(profileName).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+        '</div></body></html>'
+    )
+  );
+}
+
 function launchProfile(profileId, onOpened, onClosed) {
   const profile = store.get(profileId);
   if (!profile) {
-    logger.error('Launcher: perfil não encontrado: ' + profileId);
+    logger.error('Launcher: perfil não encontrado', {
+      profileId: profileId,
+      event: 'profile-not-found'
+    });
     return;
   }
 
-  // Already open → focus
   if (gameWindows.has(profileId)) {
-    const entry = gameWindows.get(profileId);
-    if (entry.window && !entry.window.isDestroyed()) {
-      entry.window.show();
-      entry.window.focus();
+    const existing = gameWindows.get(profileId);
+    if (existing.window && !existing.window.isDestroyed()) {
+      activeRecoveryProfileId = profileId;
+      existing.window.show();
+      existing.window.focus();
       if (onOpened) onOpened();
       return;
     }
   }
 
-  const partName = partition.getPartitionName(profile);
-  const isShadow = partition.shouldUseShadow(profile);
-  logger.info(
-    'Abrindo perfil "' +
-      profile.name +
-      '" • ' +
-      (isShadow ? 'shadow' : 'persist') +
-      ' partition ' +
-      partName
-  );
-
-  const LAUNCHER_UA =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 ShinobiLauncher/3.5';
-
+  const partitionName = partition.getPartitionName(profile);
+  activeRecoveryProfileId = profileId;
+  const launcherUserAgent =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 NarutoOnlineLauncher/1.0';
   const win = new BrowserWindow({
     width: 1280,
     height: 720,
@@ -127,127 +96,117 @@ function launchProfile(profileId, onOpened, onClosed) {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      plugins: true, // Flash PPAPI
+      plugins: true,
       nodeIntegration: false,
       contextIsolation: true,
       backgroundThrottling: false,
       webSecurity: false,
       allowRunningInsecureContent: true,
-      partition: partName, // <- ISOLAMENTO TOTAL por perfil
+      partition: partitionName,
       preload: path.join(__dirname, '..', 'preload.js'),
-      userAgent: LAUNCHER_UA
+      userAgent: launcherUserAgent
     }
   });
 
-  win.webContents.session.setUserAgent(LAUNCHER_UA);
-  const ses = win.webContents.session;
-
-  // Network layer para ESTA partition (blocker + cookies+CSP mesclados num handler)
-  setupBlocker(ses);
-  setupPersistentCookies(ses, { csp: CSP });
-
+  const session = win.webContents.session;
+  session.setUserAgent(launcherUserAgent);
   win.setMenuBarVisibility(false);
   win.setTitle(WINDOW_TITLE + ' — ' + profile.name);
-
-  win.on('page-title-updated', function (e) {
-    e.preventDefault();
+  win.on('page-title-updated', function (event) {
+    event.preventDefault();
     win.setTitle(WINDOW_TITLE + ' — ' + profile.name);
   });
 
-  // Cria a entrada do registry ANTES de anexar lifecycle (este precisa mutar entry)
+  const launchFlow = TencentLaunchFlow.createTencentLaunchFlow({
+    profileId: profileId,
+    window: win,
+    session: session,
+    partitionName: partitionName,
+    selectorUrl: urlConfig.getSelectorUrl(),
+    onStateChange: StateBroadcaster.pushFlowState
+  });
   const entry = {
     window: win,
-    partitionName: partName,
-    isShadow: isShadow,
-    autoLoginTimer: null,
-    failLoadRetry: false,
+    partitionName: partitionName,
+    launchFlow: launchFlow,
+    lifecycle: null,
     failLoadTimer: null,
-    bypassAttempts: 0,
-    formInjectAttempts: 0
+    closeTimer: null
   };
   gameWindows.set(profileId, entry);
 
-  // Anexa lifecycle (event handlers) + atalhos
-  SessionLifecycle.attach(win, {
+  entry.lifecycle = SessionLifecycle.attach(win, {
     profileId: profileId,
     profile: profile,
     entry: entry,
-    ses: ses,
+    ses: session,
     onOpened: onOpened,
-    onClosed: function () {
-      gameWindows.delete(profileId);
-      if (onClosed) onClosed();
+    onReady: function () {
+      launchFlow.start();
     },
-    getGameUrl: getGameUrl,
-    LAUNCHER_PARAMS: LAUNCHER_PARAMS
-  });
-  // F5 (clear login) agora faz pré-autenticação via API antes de recarregar
-  // (igual ao Play) → não mostra a tela de login do jogo, email não fica visível.
-  KeyboardShortcuts.attach(win, profile.name, ses, function onClearLogin() {
-    reloadWithPreAuth(profileId);
+    onLoadFailed: function (details) {
+      launchFlow.handleLoadFailure(details);
+    },
+    onRendererGone: function (details) {
+      launchFlow.handleRendererGone(details);
+    },
+    onUnresponsive: function () {
+      launchFlow.handleUnresponsive();
+    },
+    onResponsive: function () {
+      launchFlow.handleResponsive();
+    },
+    onClosed: function () {
+      launchFlow.close();
+      gameWindows.delete(profileId);
+      if (activeRecoveryProfileId === profileId) activeRecoveryProfileId = null;
+      if (onClosed) onClosed();
+    }
   });
 
-  // Loading screen (spinner SVG/CSS, sem emoji — fontconfig-safe)
-  win.loadURL(
-    'data:text/html,' +
-      encodeURIComponent(
-        '<html><head><meta charset="utf-8"><style>' +
-          '*{margin:0;padding:0;box-sizing:border-box}' +
-          'body{background:#0f0f14;display:flex;align-items:center;justify-content:center;height:100vh;' +
-          'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;flex-direction:column;color:#FF8C00}' +
-          '.spin{width:34px;height:34px;border:3px solid rgba(255,140,0,.18);border-top-color:#FF8C00;' +
-          'border-radius:50%;animation:sp 1s linear infinite;margin-bottom:18px}' +
-          '@keyframes sp{to{transform:rotate(360deg)}}' +
-          '.t{font-size:15px;font-weight:600;letter-spacing:.2px;color:#f0ede6}' +
-          '</style></head><body>' +
-          '<div class="spin"></div>' +
-          '<div class="t">Carregando ' +
-          String(profile.name).replace(/</g, '&lt;') +
-          '</div>' +
-          '</body></html>'
-      )
-  );
+  KeyboardShortcuts.attach(win, profile.name, function () {
+    launchFlow.reloadCurrentRole();
+  });
+  win.loadURL(loadingPage(profile.name));
 }
 
-/**
- * Focus (show + raise) a game window by profile ID.
- * @param {string} profileId
- */
 function focusProfile(profileId) {
   if (!gameWindows.has(profileId)) return;
   const entry = gameWindows.get(profileId);
   if (entry.window && !entry.window.isDestroyed()) {
+    activeRecoveryProfileId = profileId;
     entry.window.show();
     entry.window.focus();
   }
 }
 
-/**
- * Close a game window by profile ID (triggers close handler).
- * @param {string} profileId
- */
 function closeProfile(profileId) {
   if (!gameWindows.has(profileId)) return;
   const entry = gameWindows.get(profileId);
   if (entry.window && !entry.window.isDestroyed()) entry.window.close();
 }
 
-/**
- * Check if a profile's game window is currently open and alive.
- * @param {string} profileId
- * @returns {boolean}
- */
+function refreshProfile(profileId) {
+  if (!gameWindows.has(profileId)) return false;
+  const entry = gameWindows.get(profileId);
+  if (
+    !entry ||
+    !entry.window ||
+    entry.window.isDestroyed() ||
+    !entry.launchFlow ||
+    typeof entry.launchFlow.reloadCurrentRole !== 'function'
+  ) {
+    return false;
+  }
+  return entry.launchFlow.reloadCurrentRole() === true;
+}
+
 function isProfileOpen(profileId) {
   if (!gameWindows.has(profileId)) return false;
   const entry = gameWindows.get(profileId);
   return !!(entry && entry.window && !entry.window.isDestroyed());
 }
 
-/**
- * Get the WebContents for a profile's game window.
- * @param {string} profileId
- * @returns {Electron.WebContents|null}
- */
 function getWebContents(profileId) {
   if (!gameWindows.has(profileId)) return null;
   const entry = gameWindows.get(profileId);
@@ -255,44 +214,48 @@ function getWebContents(profileId) {
   return entry.window.webContents;
 }
 
-/**
- * Recarrega a janela do jogo com pré-autenticação (igual ao fluxo do Play).
- * Delegado ao SessionLifecycle.reloadWithPreAuth — usado pelo atalho F5.
- *
- * Diferente de um reload cru, limpa o login E pré-autentica via API antes de
- * recarregar, então a tela de login do Naruto Online não chega a aparecer
- * (email não fica visível). Veja SessionLifecycle.reloadWithPreAuth.
- *
- * @param {string} profileId
- */
-function reloadWithPreAuth(profileId) {
-  if (!gameWindows.has(profileId)) {
-    logger.warn('reloadWithPreAuth: perfil não está aberto — ' + profileId);
-    return;
+function requestRecoveryForSender(sender, action) {
+  let matchedProfileId = null;
+  let matchedEntry = null;
+  gameWindows.forEach(function (entry, profileId) {
+    if (
+      !matchedEntry &&
+      entry &&
+      entry.window &&
+      !entry.window.isDestroyed() &&
+      entry.window.webContents === sender
+    ) {
+      matchedProfileId = profileId;
+      matchedEntry = entry;
+    }
+  });
+
+  if (!matchedEntry && activeRecoveryProfileId && gameWindows.has(activeRecoveryProfileId)) {
+    const activeEntry = gameWindows.get(activeRecoveryProfileId);
+    if (activeEntry && activeEntry.window && !activeEntry.window.isDestroyed()) {
+      matchedProfileId = activeRecoveryProfileId;
+      matchedEntry = activeEntry;
+    }
   }
-  const entry = gameWindows.get(profileId);
-  if (!entry || !entry.window || entry.window.isDestroyed()) return;
-  const profile = store.get(profileId);
-  if (!profile) {
-    logger.warn('reloadWithPreAuth: perfil não encontrado no store — ' + profileId);
-    return;
+
+  if (!matchedEntry || !matchedEntry.launchFlow) {
+    return { ok: false, error: 'profile-mismatch' };
   }
-  SessionLifecycle.reloadWithPreAuth(
-    profileId,
-    profile,
-    entry.window,
-    entry.window.webContents.session,
-    getGameUrl
-  );
+  const ok = matchedEntry.launchFlow.requestRecovery(action, {
+    profileId: matchedProfileId,
+    source: 'user'
+  });
+  return ok ? { ok: true } : { ok: false, error: 'recovery-rejected' };
 }
 
 module.exports = {
   launchProfile: launchProfile,
   focusProfile: focusProfile,
   closeProfile: closeProfile,
+  refreshProfile: refreshProfile,
   isProfileOpen: isProfileOpen,
   getWebContents: getWebContents,
+  requestRecoveryForSender: requestRecoveryForSender,
   hasOpenWindows: hasOpenWindows,
-  getGameUrl: getGameUrl,
-  reloadWithPreAuth: reloadWithPreAuth
+  getGameUrl: getGameUrl
 };

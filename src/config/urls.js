@@ -1,127 +1,120 @@
 /**
- * config/urls.js — Game URL builder multi-região (v3.5.1)
+ * 腾讯国服顶层导航 URL 契约。
  *
- * PESQUISA REAL (2025): As URLs foram validadas extraindo HTML das páginas
- * oficiais da Oasis Games. Descobrimos que:
- *
- *   ❌ https://oasgames.com → página placeholder chinesa ("网站建设中")
- *   ❌ https://naruto.oasgames.com/pt/ → página mobile, sem form de login
- *   ✅ https://naruto.narutowebgame.com/{lang}/serverlist → PÁGINA DE LOGIN REAL
- *
- * A página de serverlist contém:
- *   - Form de login com campos: oasun (user), oaspd (password)
- *   - Lista de todos os servidores da região (/pt/serverlist/s866, etc.)
- *   - Hidden config: passport_url = //passport.oasgames.com
- *   - GameCode: 'narutopt' (PT), 'narutoen' (EN), 'narutozh' (ZH)
- *   - Facebook OAuth: app_id = 394718192364866
- *
- * SERVIDORES POR REGIÃO (validado):
- *   BR (PT): 866 servidores (S1 → S866)
- *   NA (EN): 2607 servidores (S1 → S2810)
- *   EU (EN): mesmos servidores NA (shared EN)
- *   HK (ZH): ~1000+ servidores
+ * 这里只维护已经由规格批准的精确入口。认证 host/path 在 G1 Windows
+ * 发现并完成文档与失败测试同步前保持为空；未知目标一律拒绝。
  */
 
 'use strict';
 
-// ── URLs reais de login por região (6 idiomas — validado por pesquisa 2025) ──
-// Cada região carrega a página de serverlist que TEM o form de login.
-// Campos do form: input[name="oasun"] + input[name="oaspd"] + keyLogin()
-const REGION_URLS = {
-  br: 'https://naruto.narutowebgame.com/pt/serverlist',
-  na: 'https://naruto.narutowebgame.com/en/serverlist',
-  eu: 'https://naruto.narutowebgame.com/en/serverlist',
-  hk: 'https://naruto.narutowebgame.com/zh/serverlist',
-  de: 'https://naruto.narutowebgame.com/de/serverlist',
-  es: 'https://naruto.narutowebgame.com/es/serverlist',
-  pl: 'https://naruto.narutowebgame.com/pl/serverlist',
-  fr: 'https://naruto.narutowebgame.com/fr/serverlist'
-};
+const TENCENT_URLS = Object.freeze({
+  SELECTOR: 'https://huoying.qq.com/server/website/',
+  GAME_MAIN: 'https://game.huoying.qq.com/main.html'
+});
 
-// GameCode por região (usado pela API passport.oasgames.com)
-const REGION_GAME_CODES = {
-  br: 'narutopt',
-  na: 'narutoen',
-  eu: 'narutoen',
-  hk: 'narutozh',
-  de: 'narutode',
-  es: 'narutoes',
-  pl: 'narutopl',
-  fr: 'narutofr'
-};
+const URL_ROLES = Object.freeze({
+  SELECTOR: 'SELECTOR',
+  AUTH: 'AUTH',
+  GAME_MAIN: 'GAME_MAIN',
+  UNKNOWN: 'UNKNOWN'
+});
 
-// Parâmetros de identificação do launcher (reconhecimento pelo servidor)
-const LAUNCHER_PARAMS = 'logintype=4&leftbar_collapse=Yes&launcher=shinobi';
+const TRUSTED_TARGETS = Object.freeze([
+  Object.freeze({
+    role: URL_ROLES.SELECTOR,
+    protocol: 'https:',
+    hostname: 'huoying.qq.com',
+    port: '',
+    pathname: '/server/website/'
+  }),
+  Object.freeze({
+    role: URL_ROLES.GAME_MAIN,
+    protocol: 'https:',
+    hostname: 'game.huoying.qq.com',
+    port: '',
+    pathname: '/main.html'
+  })
+]);
 
-// URL base (para construção de links de servidor)
-const BASE_URL = 'https://naruto.narutowebgame.com';
+function parseUrl(value) {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  try {
+    return new URL(value);
+  } catch (_) {
+    return null;
+  }
+}
 
 /**
- * Constrói a URL do jogo para um perfil específico.
+ * 按 scheme/hostname/port/pathname 精确分类顶层 URL。
+ * query 与 fragment 不参与信任判断；它们也不会进入安全位置输出。
  *
- * Se o perfil tem servidor (ex: "S799"), vai direto para a página desse servidor:
- *   https://naruto.narutowebgame.com/pt/serverlist/s799?logintype=4&launcher=shinobi
- *
- * Se não tem servidor, vai para a lista geral de servidores:
- *   https://naruto.narutowebgame.com/pt/serverlist?logintype=4&launcher=shinobi
- *
- * @param {string} [region] - Código da região (br/na/eu/hk)
- * @param {string} [language] - Código do idioma (pt/en/zh)
- * @param {string} [server] - Número do servidor (ex: "s799" ou "799")
- * @returns {string} URL completa com parâmetros de launcher
+ * @param {string} value
+ * @returns {string}
  */
-function getGameUrl(region, language, server) {
-  // Sem região → URL padrão (BR)
-  if (!region) region = 'br';
-
-  const baseUrl = REGION_URLS[region];
-  if (!baseUrl) return REGION_URLS.br + '?' + LAUNCHER_PARAMS;
-
-  // Se tem servidor, constrói URL direta do servidor
-  let url = baseUrl;
-  if (server) {
-    // Normaliza: "799" → "s799", "S799" → "s799"
-    let s = String(server).toLowerCase().trim();
-    if (!s.startsWith('s')) s = 's' + s;
-    url = baseUrl + '/' + s;
+function classifyUrl(value) {
+  const parsed = parseUrl(value);
+  if (!parsed || (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')) {
+    return URL_ROLES.UNKNOWN;
   }
 
-  return url + '?' + LAUNCHER_PARAMS;
+  for (let i = 0; i < TRUSTED_TARGETS.length; i++) {
+    const target = TRUSTED_TARGETS[i];
+    if (
+      parsed.protocol === target.protocol &&
+      parsed.hostname === target.hostname &&
+      parsed.port === target.port &&
+      parsed.pathname === target.pathname
+    ) {
+      return target.role;
+    }
+  }
+
+  return URL_ROLES.UNKNOWN;
 }
 
 /**
- * Retorna a URL base de serverlist para uma região.
- * @param {string} region
- * @returns {string}
+ * 将任意顶层 URL 收敛为可用于日志/诊断的安全位置。
+ *
+ * @param {string} value
+ * @returns {{role:string, origin:string|null, pathname:string|null}}
  */
-function getServerlistUrl(region) {
-  return REGION_URLS[region] || REGION_URLS.br;
+function toSafeLocation(value) {
+  const parsed = parseUrl(value);
+  if (!parsed || (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')) {
+    return {
+      role: URL_ROLES.UNKNOWN,
+      origin: null,
+      pathname: null
+    };
+  }
+
+  return {
+    role: classifyUrl(value),
+    origin: parsed.origin,
+    pathname: parsed.pathname
+  };
 }
 
-/**
- * Retorna o GameCode de uma região (para API passport).
- * @param {string} region
- * @returns {string}
- */
-function getGameCode(region) {
-  return REGION_GAME_CODES[region] || REGION_GAME_CODES.br;
+function getSelectorUrl() {
+  return TENCENT_URLS.SELECTOR;
 }
 
-/**
- * Retorna os parâmetros de launcher (para will-navigate injection).
- * @returns {string}
- */
-function getLauncherParams() {
-  return LAUNCHER_PARAMS;
+function getGameMainUrl() {
+  return TENCENT_URLS.GAME_MAIN;
+}
+
+// Launcher 在 T022 接管前仍从该名称取默认入口；参数被有意忽略。
+function getGameUrl() {
+  return getSelectorUrl();
 }
 
 module.exports = {
-  REGION_URLS: REGION_URLS,
-  REGION_GAME_CODES: REGION_GAME_CODES,
-  BASE_URL: BASE_URL,
-  LAUNCHER_PARAMS: LAUNCHER_PARAMS,
-  getGameUrl: getGameUrl,
-  getServerlistUrl: getServerlistUrl,
-  getGameCode: getGameCode,
-  getLauncherParams: getLauncherParams
+  TENCENT_URLS: TENCENT_URLS,
+  URL_ROLES: URL_ROLES,
+  classifyUrl: classifyUrl,
+  toSafeLocation: toSafeLocation,
+  getSelectorUrl: getSelectorUrl,
+  getGameMainUrl: getGameMainUrl,
+  getGameUrl: getGameUrl
 };

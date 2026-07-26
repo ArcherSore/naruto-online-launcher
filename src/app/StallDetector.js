@@ -1,5 +1,5 @@
 /**
- * app/StallDetector.js — Detecção de loader travado + auto-F5 com pré-auth
+ * app/StallDetector.js — 腾讯游戏加载阶段的有界卡顿检测
  *
  * PROBLEMA (v5.9.11): o login do Naruto Online às vezes trava em ~14% e dá
  * erro de conexão. Root cause: um SWF essencial (assets, UI, empty.swf)
@@ -11,8 +11,8 @@
  * Quando detectamos:
  *   (A) 2+ SWFs falhando em 60s → burst de falhas = servidor instável → reload
  *   (B) 45s sem nenhuma atividade de rede durante o loading → loader travado → reload
- * Chamamos onStall() que delega pra SessionLifecycle.reloadWithPreAuth
- * (mesmo fluxo do F5: limpa cookies + pré-autentica via API antes de reload).
+ * Chamamos onStall() 并委托 TencentLaunchFlow 执行当前 GAME_MAIN 的安全
+ * 恢复；本模块不 reload、不清 Cookie/Storage，也不接触认证参数。
  *
  * BACKOFF: max 3 auto-reloads em 10 min por perfil (evita loop infinito
  * se o servidor estiver realmente fora do ar).
@@ -40,6 +40,7 @@ var logger = require('../utils/logger');
 // WeakMap para rastrear filtros webRequest por session — permite detach limpo
 // sem remover listeners de outros StallDetectors na mesma session.
 var _sessionFilters = new WeakMap();
+var ACTIVE_STAGES = Object.freeze(['GAME_LOADING', 'GAME_READY']);
 
 var DEFAULTS = {
   maxRetries: 3, // max auto-reloads na janela de retry
@@ -65,9 +66,11 @@ var DEFAULTS = {
 function attach(win, ses, ctx) {
   if (!win || !ses) return null;
   if (!ctx || typeof ctx.onStall !== 'function') return null;
+  if (ACTIVE_STAGES.indexOf(ctx.stage) === -1) return null;
 
   var profileName = ctx.profileName || 'unknown';
   var onStall = ctx.onStall;
+  var onExhausted = typeof ctx.onExhausted === 'function' ? ctx.onExhausted : null;
   var opts = Object.assign({}, DEFAULTS, ctx.opts || {});
 
   var lastActivityAt = Date.now();
@@ -100,16 +103,22 @@ function attach(win, ses, ctx) {
   function onErrorOccurred(details) {
     if (stopped) return;
     lastActivityAt = Date.now();
-    if (isSwf(details.url)) {
+    if (details && isSwf(details.url)) {
       swfErrors.push(Date.now());
-      logger.warn(
-        'StallDetector: SWF falhou — ' +
-          (details.url || '').slice(0, 120) +
-          ' (erro: ' +
-          (details.error || 'unknown') +
-          ') — ' +
-          profileName
-      );
+      var origin = null;
+      var path = null;
+      try {
+        var parsed = new URL(details.url);
+        origin = parsed.origin;
+        path = parsed.pathname;
+      } catch (_) {
+        // 非法 URL 仍只输出空安全位置，不回退到原始字符串。
+      }
+      logger.warn('StallDetector: SWF resource failed', {
+        origin: origin,
+        path: path,
+        errorCode: typeof details.error === 'string' ? details.error : null
+      });
     }
   }
 
@@ -158,6 +167,19 @@ function attach(win, ses, ctx) {
           profileName +
           ' — DESISTINDO (servidor pode estar fora do ar)'
       );
+      if (onExhausted) {
+        try {
+          onExhausted({
+            errorCode: 'STALL_RETRY_LIMIT',
+            retryCount: retries.length,
+            retryLimit: opts.maxRetries,
+            retryWindowMs: opts.retryWindowMs,
+            exhausted: true
+          });
+        } catch (e) {
+          logger.error('StallDetector: onExhausted callback error: ' + e.message);
+        }
+      }
       detach();
       return;
     }
@@ -203,7 +225,12 @@ function attach(win, ses, ctx) {
     lastActivityAt = Date.now();
     swfErrors = [];
     try {
-      onStall();
+      onStall({
+        retryCount: attemptNum,
+        retryLimit: opts.maxRetries,
+        retryWindowMs: opts.retryWindowMs,
+        exhausted: false
+      });
     } catch (e) {
       logger.error('StallDetector: onStall callback lançou erro: ' + e.message);
     }

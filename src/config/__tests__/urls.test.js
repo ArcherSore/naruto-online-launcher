@@ -1,87 +1,113 @@
 /**
- * Testes para src/config/urls.js — Game URL builder
+ * 腾讯启动链 URL 契约测试。
+ *
+ * 顶层页面只按 URL 解析后的 scheme/hostname/port/pathname 分类；query 与
+ * fragment 不参与信任判断，也不得进入安全位置输出。
  */
 
 'use strict';
 
 const urls = require('../urls');
 
-describe('urls.js', () => {
-  describe('getGameUrl', () => {
-    test('retorna URL com região padrão br quando região não informada', () => {
-      const result = urls.getGameUrl(null, 'pt');
-      expect(result).toContain('narutowebgame.com/pt/serverlist');
-      expect(result).toContain('logintype=4');
+describe('腾讯 URL 配置', () => {
+  test('只暴露单一官方选服入口和固定游戏主页面', () => {
+    expect(urls.TENCENT_URLS).toEqual({
+      SELECTOR: 'https://huoying.qq.com/server/website/',
+      GAME_MAIN: 'https://game.huoying.qq.com/main.html'
     });
+    expect(urls.getSelectorUrl()).toBe(urls.TENCENT_URLS.SELECTOR);
+  });
 
-    test('retorna URL com servidor normalizado (número sem "s")', () => {
-      const result = urls.getGameUrl('br', 'pt', '799');
-      expect(result).toContain('/s799?');
+  test('导出稳定的 URL 角色枚举', () => {
+    expect(urls.URL_ROLES).toEqual({
+      SELECTOR: 'SELECTOR',
+      AUTH: 'AUTH',
+      GAME_MAIN: 'GAME_MAIN',
+      UNKNOWN: 'UNKNOWN'
     });
+  });
+});
 
-    test('retorna URL com servidor normalizado (já com "s")', () => {
-      const result = urls.getGameUrl('br', 'pt', 's799');
-      expect(result).toContain('/s799?');
-    });
+describe('classifyUrl', () => {
+  test.each([
+    ['https://huoying.qq.com/server/website/', 'SELECTOR'],
+    ['https://huoying.qq.com/server/website/?from=launcher#login', 'SELECTOR'],
+    ['https://huoying.qq.com:443/server/website/', 'SELECTOR'],
+    ['https://game.huoying.qq.com/main.html', 'GAME_MAIN'],
+    ['https://game.huoying.qq.com/main.html?server=masked#game', 'GAME_MAIN'],
+    ['https://game.huoying.qq.com:443/main.html', 'GAME_MAIN']
+  ])('精确识别可信 scheme/host/default-port/path：%s', (value, expectedRole) => {
+    expect(urls.classifyUrl(value)).toBe(expectedRole);
+  });
 
-    test('retorna URL com servidor normalizado (maiúsculo)', () => {
-      const result = urls.getGameUrl('br', 'pt', 'S799');
-      expect(result).toContain('/s799?');
-    });
+  test.each([
+    'http://huoying.qq.com/server/website/',
+    'https://huoying.qq.com:8443/server/website/',
+    'https://huoying.qq.com/server/website',
+    'https://huoying.qq.com/server/website/extra',
+    'https://game.huoying.qq.com:8443/main.html',
+    'https://game.huoying.qq.com/main.htm',
+    'https://game.huoying.qq.com/main.html/extra'
+  ])('scheme/port/path 任一不精确时归类 UNKNOWN：%s', (value) => {
+    expect(urls.classifyUrl(value)).toBe('UNKNOWN');
+  });
 
-    test('retorna URL sem servidor quando server é undefined', () => {
-      const result = urls.getGameUrl('br', 'pt');
-      expect(result).toMatch(/serverlist\?/);
-      // Não deve ter caminho de servidor (/s799 etc)
-      expect(result).not.toMatch(/serverlist\/s\d/);
-    });
+  test.each([
+    'https://huoying.qq.com.evil.example/server/website/',
+    'https://evil-huoying.qq.com/server/website/',
+    'https://qq.com/server/website/',
+    'https://game.huoying.qq.com.evil.example/main.html',
+    'https://game-huoying.qq.com/main.html'
+  ])('拒绝仿冒或仅包含可信字符串的 hostname：%s', (value) => {
+    expect(urls.classifyUrl(value)).toBe('UNKNOWN');
+  });
 
-    test('fallback para br quando região inválida', () => {
-      const result = urls.getGameUrl('xx', 'pt');
-      expect(result).toContain('narutowebgame.com/pt/serverlist');
+  test.each([
+    'javascript:alert(1)',
+    'data:text/html,unsafe',
+    'file:///C:/unsafe.html',
+    'ftp://huoying.qq.com/server/website/',
+    'not a url',
+    '',
+    null,
+    undefined
+  ])('未知协议或无效输入默认拒绝：%p', (value) => {
+    expect(urls.classifyUrl(value)).toBe('UNKNOWN');
+  });
+});
+
+describe('toSafeLocation', () => {
+  test('只输出 role、origin 和 pathname，丢弃 query/fragment', () => {
+    expect(
+      urls.toSafeLocation(
+        'https://huoying.qq.com/server/website/?openid=never-log#access_token=never-log'
+      )
+    ).toEqual({
+      role: 'SELECTOR',
+      origin: 'https://huoying.qq.com',
+      pathname: '/server/website/'
     });
   });
 
-  describe('getServerlistUrl', () => {
-    test('retorna URL br para região br', () => {
-      expect(urls.getServerlistUrl('br')).toContain('narutowebgame.com/pt/serverlist');
-    });
+  test('GAME_MAIN 安全位置同样不携带 query/fragment', () => {
+    const result = urls.toSafeLocation(
+      'https://game.huoying.qq.com/main.html?ticket=never-log#fragment'
+    );
 
-    test('fallback para br quando região inexistente', () => {
-      const invalid = urls.getServerlistUrl('invalid');
-      const br = urls.getServerlistUrl('br');
-      expect(invalid).toBe(br);
+    expect(result).toEqual({
+      role: 'GAME_MAIN',
+      origin: 'https://game.huoying.qq.com',
+      pathname: '/main.html'
     });
+    expect(JSON.stringify(result)).not.toContain('ticket');
+    expect(JSON.stringify(result)).not.toContain('fragment');
   });
 
-  describe('getGameCode', () => {
-    test('retorna game code correto para br', () => {
-      expect(urls.getGameCode('br')).toBe('narutopt');
-    });
-
-    test('fallback para br quando região inexistente', () => {
-      expect(urls.getGameCode('invalid')).toBe('narutopt');
-    });
-  });
-
-  describe('getLauncherParams', () => {
-    test('inclui logintype=4', () => {
-      expect(urls.getLauncherParams()).toContain('logintype=4');
-    });
-
-    test('inclui launcher=shinobi', () => {
-      expect(urls.getLauncherParams()).toContain('launcher=shinobi');
-    });
-  });
-
-  describe('exports', () => {
-    test('REGION_URLS tem 8 regiões', () => {
-      expect(Object.keys(urls.REGION_URLS).length).toBe(8);
-    });
-
-    test('LAUNCHER_PARAMS é string não-vazia', () => {
-      expect(typeof urls.LAUNCHER_PARAMS).toBe('string');
-      expect(urls.LAUNCHER_PARAMS.length).toBeGreaterThan(0);
+  test('无效输入返回无地址信息的 UNKNOWN，不回显原始字符串', () => {
+    expect(urls.toSafeLocation('not a url?ticket=never-log')).toEqual({
+      role: 'UNKNOWN',
+      origin: null,
+      pathname: null
     });
   });
 });

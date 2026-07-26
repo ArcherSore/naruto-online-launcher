@@ -12,6 +12,8 @@
 
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const electron = require('electron');
 
 // Mock submodules
@@ -25,36 +27,46 @@ jest.mock('../../profiles/partition', () => ({
   shouldUseShadow: jest.fn(() => false)
 }));
 
-jest.mock('../../network/blocker', () => ({
-  setupBlocker: jest.fn()
-}));
-
-jest.mock('../../network/cookies', () => ({
-  setupPersistentCookies: jest.fn()
+jest.mock('../TencentLaunchFlow', () => ({
+  createTencentLaunchFlow: jest.fn(() => ({
+    start: jest.fn(),
+    close: jest.fn(),
+    reloadCurrentRole: jest.fn(),
+    handleLoadFailure: jest.fn(),
+    handleRendererGone: jest.fn(),
+    handleUnresponsive: jest.fn(),
+    handleResponsive: jest.fn(),
+    requestRecovery: jest.fn(() => true)
+  }))
 }));
 
 jest.mock('../SessionLifecycle', () => ({
-  attach: jest.fn(),
-  reloadWithPreAuth: jest.fn()
+  attach: jest.fn()
 }));
 
 jest.mock('../../ui/manager/KeyboardShortcuts', () => ({
   attach: jest.fn()
 }));
 
+jest.mock('../../ui/manager/StateBroadcaster', () => ({
+  pushFlowState: jest.fn()
+}));
+
 jest.mock('../../config/urls', () => ({
-  getGameUrl: jest.fn(
-    () => 'https://naruto.narutowebgame.com/pt/serverlist?logintype=4&launcher=shinobi'
-  ),
-  getLauncherParams: jest.fn(() => 'logintype=4&leftbar_collapse=Yes&launcher=shinobi')
+  TENCENT_URLS: {
+    SELECTOR: 'https://huoying.qq.com/server/website/'
+  },
+  getSelectorUrl: jest.fn(() => 'https://huoying.qq.com/server/website/'),
+  getGameUrl: jest.fn(() => 'https://huoying.qq.com/server/website/'),
+  getLauncherParams: jest.fn(() => '')
 }));
 
 const Launcher = require('../Launcher');
 const store = require('../../profiles/store');
 const SessionLifecycle = require('../SessionLifecycle');
 const KeyboardShortcuts = require('../../ui/manager/KeyboardShortcuts');
-const blocker = require('../../network/blocker');
-const cookies = require('../../network/cookies');
+const TencentLaunchFlow = require('../TencentLaunchFlow');
+const urlConfig = require('../../config/urls');
 
 /**
  * Cria mock de BrowserWindow para electron.BrowserWindow.
@@ -153,6 +165,9 @@ describe('Launcher.js', () => {
     test('exporta closeProfile como função', () => {
       expect(typeof Launcher.closeProfile).toBe('function');
     });
+    test('exporta refreshProfile como função', () => {
+      expect(typeof Launcher.refreshProfile).toBe('function');
+    });
     test('exporta isProfileOpen como função', () => {
       expect(typeof Launcher.isProfileOpen).toBe('function');
     });
@@ -165,17 +180,16 @@ describe('Launcher.js', () => {
     test('exporta getGameUrl como função', () => {
       expect(typeof Launcher.getGameUrl).toBe('function');
     });
+    test('exporta requestRecoveryForSender como função', () => {
+      expect(typeof Launcher.requestRecoveryForSender).toBe('function');
+    });
   });
 
   describe('getGameUrl', () => {
-    test('retorna URL com região BR por padrão (sem perfil)', () => {
+    test('默认入口精确返回腾讯 SELECTOR，且不读取 region/server/language', () => {
       const url = Launcher.getGameUrl();
-      expect(url).toContain('naruto');
-    });
-
-    test('retorna URL para perfil específico', () => {
-      const url = Launcher.getGameUrl({ region: 'br', language: 'pt', server: 's799' });
-      expect(url).toContain('naruto');
+      expect(url).toBe('https://huoying.qq.com/server/website/');
+      expect(urlConfig.getGameUrl).toHaveBeenCalledWith();
     });
   });
 
@@ -201,13 +215,24 @@ describe('Launcher.js', () => {
       expect(opts.webPreferences.partition).toBe('persist:profile-p_001');
     });
 
-    test('chama setupBlocker e setupPersistentCookies com a session', () => {
+    test('腾讯路径不安装 Oasis blocker 或 Cookie/CSP 注入', () => {
+      const source = fs.readFileSync(path.join(__dirname, '..', 'Launcher.js'), 'utf8');
+      expect(source).not.toMatch(
+        /network\/(?:blocker|cookies)|setupBlocker|setupPersistentCookies|onHeadersReceived/
+      );
+    });
+
+    test('为游戏窗口挂接同一 Profile 的 TencentLaunchFlow', () => {
       launchAndTrack('p_001');
 
-      expect(blocker.setupBlocker).toHaveBeenCalledWith(bwMock.wc.session);
-      expect(cookies.setupPersistentCookies).toHaveBeenCalledWith(
-        bwMock.wc.session,
-        expect.any(Object)
+      expect(TencentLaunchFlow.createTencentLaunchFlow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          profileId: 'p_001',
+          window: bwMock.win,
+          session: bwMock.wc.session,
+          partitionName: 'persist:profile-p_001',
+          selectorUrl: 'https://huoying.qq.com/server/website/'
+        })
       );
     });
 
@@ -220,24 +245,87 @@ describe('Launcher.js', () => {
           profileId: 'p_001',
           profile: expect.objectContaining({ id: 'p_001' }),
           entry: expect.objectContaining({
-            failLoadRetry: false,
-            formInjectAttempts: 0
-          })
+            partitionName: 'persist:profile-p_001',
+            launchFlow: expect.any(Object),
+            failLoadTimer: null,
+            closeTimer: null
+          }),
+          onReady: expect.any(Function)
         })
       );
     });
 
-    test('anexa KeyboardShortcuts com callback onClearLogin (F5 pré-auth)', () => {
-      // v5.9.7: F5 agora delega pro callback em vez de fazer reload direto,
-      // pra pré-autenticar via API antes de recarregar (igual ao Play).
+    test('ready-to-show 生命周期回调启动 TencentLaunchFlow', () => {
       launchAndTrack('p_001');
+      const flow = TencentLaunchFlow.createTencentLaunchFlow.mock.results[0].value;
+      const ctx = SessionLifecycle.attach.mock.calls[0][1];
+
+      ctx.onReady();
+
+      expect(flow.start).toHaveBeenCalledTimes(1);
+    });
+
+    test('生命周期失败、crash 和响应状态委托给同一 TencentLaunchFlow', () => {
+      launchAndTrack('p_001');
+      const flow = TencentLaunchFlow.createTencentLaunchFlow.mock.results[0].value;
+      const ctx = SessionLifecycle.attach.mock.calls[0][1];
+      const loadFailure = { errorCode: -105 };
+      const rendererGone = {
+        reason: 'crashed',
+        errorCode: 1,
+        retryCount: 1,
+        retryLimit: 3,
+        retryWindowMs: 600000,
+        exhausted: false
+      };
+
+      ctx.onLoadFailed(loadFailure);
+      ctx.onRendererGone(rendererGone);
+      ctx.onUnresponsive();
+      ctx.onResponsive();
+
+      expect(flow.handleLoadFailure).toHaveBeenCalledWith(loadFailure);
+      expect(flow.handleRendererGone).toHaveBeenCalledWith(rendererGone);
+      expect(flow.handleUnresponsive).toHaveBeenCalledTimes(1);
+      expect(flow.handleResponsive).toHaveBeenCalledTimes(1);
+    });
+
+    test('F5 只委托 TencentLaunchFlow 的当前安全角色 reload', () => {
+      launchAndTrack('p_001');
+      const flow = TencentLaunchFlow.createTencentLaunchFlow.mock.results[0].value;
 
       expect(KeyboardShortcuts.attach).toHaveBeenCalledWith(
         bwMock.win,
         'TestProfile',
-        bwMock.wc.session,
         expect.any(Function)
       );
+      KeyboardShortcuts.attach.mock.calls[0][2]();
+      expect(flow.reloadCurrentRole).toHaveBeenCalledTimes(1);
+      expect(bwMock.wc.session).not.toHaveProperty('clearStorageData');
+    });
+
+    test('管理卡片刷新只委托所属 TencentLaunchFlow 的当前安全角色 reload', () => {
+      launchAndTrack('p_001');
+      const flow = TencentLaunchFlow.createTencentLaunchFlow.mock.results[0].value;
+      flow.reloadCurrentRole.mockReturnValue(true);
+
+      expect(Launcher.refreshProfile('p_001')).toBe(true);
+      expect(flow.reloadCurrentRole).toHaveBeenCalledTimes(1);
+      expect(bwMock.wc.session).not.toHaveProperty('clearStorageData');
+      expect(Launcher.refreshProfile('missing')).toBe(false);
+    });
+
+    test('恢复动作按 sender 反查当前 Profile，且只传 action/profileId/user 来源', () => {
+      launchAndTrack('p_001');
+      const flow = TencentLaunchFlow.createTencentLaunchFlow.mock.results[0].value;
+
+      const result = Launcher.requestRecoveryForSender(bwMock.wc, 'RELOAD_SELECTOR');
+
+      expect(result).toEqual({ ok: true });
+      expect(flow.requestRecovery).toHaveBeenCalledWith('RELOAD_SELECTOR', {
+        profileId: 'p_001',
+        source: 'user'
+      });
     });
 
     test('carrega loading screen (data:text/html)', () => {
@@ -361,56 +449,20 @@ describe('Launcher.js', () => {
       var entry = ctx.entry;
       expect(entry).toHaveProperty('window');
       expect(entry).toHaveProperty('partitionName');
-      expect(entry).toHaveProperty('isShadow');
-      expect(entry).toHaveProperty('autoLoginTimer');
-      expect(entry).toHaveProperty('failLoadRetry');
-      expect(entry).toHaveProperty('formInjectAttempts');
-    });
-  });
-
-  describe('reloadWithPreAuth (v5.9.7)', () => {
-    test('exporta reloadWithPreAuth como função', () => {
-      expect(typeof Launcher.reloadWithPreAuth).toBe('function');
+      expect(entry).toHaveProperty('launchFlow');
+      expect(entry).toHaveProperty('lifecycle');
+      expect(entry).toHaveProperty('failLoadTimer');
+      expect(entry).toHaveProperty('closeTimer');
     });
 
-    test('não lança se perfil não está aberto', () => {
-      expect(() => Launcher.reloadWithPreAuth('nonexistent')).not.toThrow();
-      expect(SessionLifecycle.reloadWithPreAuth).not.toHaveBeenCalled();
-    });
-
-    test('delega pro SessionLifecycle.reloadWithPreAuth com perfil + win + session', () => {
+    test('onClosed 关闭流程并移除 registry', () => {
       launchAndTrack('p_001');
-      SessionLifecycle.reloadWithPreAuth.mockClear();
+      const flow = TencentLaunchFlow.createTencentLaunchFlow.mock.results[0].value;
 
-      Launcher.reloadWithPreAuth('p_001');
+      onClosedCallbacks['p_001']();
 
-      expect(SessionLifecycle.reloadWithPreAuth).toHaveBeenCalledTimes(1);
-      // Args: (profileId, profile, win, ses, getGameUrl)
-      const args = SessionLifecycle.reloadWithPreAuth.mock.calls[0];
-      expect(args[0]).toBe('p_001');
-      expect(args[1]).toEqual(expect.objectContaining({ id: 'p_001' }));
-      expect(args[2]).toBe(bwMock.win);
-      expect(args[3]).toBe(bwMock.wc.session);
-      expect(typeof args[4]).toBe('function'); // getGameUrl
-    });
-
-    test('não chama SessionLifecycle se a janela foi destruída', () => {
-      launchAndTrack('p_001');
-      bwMock.win.isDestroyed.mockReturnValue(true);
-      SessionLifecycle.reloadWithPreAuth.mockClear();
-
-      Launcher.reloadWithPreAuth('p_001');
-
-      expect(SessionLifecycle.reloadWithPreAuth).not.toHaveBeenCalled();
-    });
-
-    test('não chama SessionLifecycle se perfil não está no store', () => {
-      launchAndTrack('p_001');
-      store.get.mockReturnValueOnce(null); // perfil sumiu do store
-      SessionLifecycle.reloadWithPreAuth.mockClear();
-
-      expect(() => Launcher.reloadWithPreAuth('p_001')).not.toThrow();
-      expect(SessionLifecycle.reloadWithPreAuth).not.toHaveBeenCalled();
+      expect(flow.close).toHaveBeenCalledTimes(1);
+      expect(Launcher.isProfileOpen('p_001')).toBe(false);
     });
   });
 });
