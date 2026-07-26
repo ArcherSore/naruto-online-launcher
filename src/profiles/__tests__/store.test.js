@@ -114,8 +114,9 @@ describe('store.js', () => {
       expect(p).not.toBeNull();
       expect(p.id).toMatch(/^p_[a-f0-9]{8,16}$/);
       expect(p.name).toBeDefined();
-      expect(p.region).toBe('br');
-      expect(p.language).toBe('pt');
+      expect(p).not.toHaveProperty('region');
+      expect(p).not.toHaveProperty('server');
+      expect(p).not.toHaveProperty('language');
       expect(p.notificationsEnabled).toBe(true);
       expect(p.launchCount).toBe(0);
       expect(p.totalPlayMs).toBe(0);
@@ -128,15 +129,17 @@ describe('store.js', () => {
     test('creates a profile with provided options', () => {
       const p = store.create({
         name: 'MyAccount',
-        server: 's799',
-        region: 'na',
-        language: 'en',
+        color: '#ff8c00',
+        notes: 'General note',
+        tags: ['daily'],
+        favorite: true,
         notificationsEnabled: false
       });
       expect(p.name).toBe('MyAccount');
-      expect(p.server).toBe('s799');
-      expect(p.region).toBe('na');
-      expect(p.language).toBe('en');
+      expect(p.color).toBe('#ff8c00');
+      expect(p.notes).toBe('General note');
+      expect(p.tags).toEqual(['daily']);
+      expect(p.favorite).toBe(true);
       expect(p.notificationsEnabled).toBe(false);
     });
 
@@ -145,20 +148,20 @@ describe('store.js', () => {
       expect(p.name).toMatch(/^Conta/);
     });
 
-    test('defaults region to br for invalid region', () => {
+    test('ignores legacy region input', () => {
       const p = store.create({ region: 'xx' });
-      expect(p.region).toBe('br');
+      expect(p).not.toHaveProperty('region');
     });
 
-    test('defaults language to pt for invalid language', () => {
+    test('ignores legacy language input', () => {
       const p = store.create({ language: 'xyz' });
-      expect(p.language).toBe('pt');
+      expect(p).not.toHaveProperty('language');
     });
 
-    test('accepts all 6 supported languages', () => {
+    test('does not persist former game language values', () => {
       ['pt', 'en', 'de', 'es', 'pl', 'fr'].forEach(lang => {
         const p = store.create({ language: lang });
-        expect(p.language).toBe(lang);
+        expect(p).not.toHaveProperty('language');
       });
     });
 
@@ -168,10 +171,9 @@ describe('store.js', () => {
       expect(p.name.length).toBeLessThanOrEqual(40);
     });
 
-    test('truncates server to 20 chars', () => {
-      const longServer = 's'.repeat(30);
-      const p = store.create({ server: longServer });
-      expect(p.server.length).toBeLessThanOrEqual(20);
+    test('truncates generic color metadata to 32 chars', () => {
+      const p = store.create({ color: 'c'.repeat(50) });
+      expect(p.color.length).toBeLessThanOrEqual(32);
     });
 
     test('returns null when MAX_PROFILES reached', () => {
@@ -187,6 +189,116 @@ describe('store.js', () => {
       created.forEach(function (p) {
         store.remove(p.id);
       });
+    });
+  });
+
+  describe('腾讯 Profile schema 与旧数据迁移', () => {
+    test('新 Profile 忽略 region/server/language/vault/credentials 输入', () => {
+      const profile = store.create({
+        name: 'Tencent Profile',
+        region: 'na',
+        server: 's799',
+        language: 'en',
+        hasVault: true,
+        credentials: { username: 'fixture-user', password: 'fixture-secret' }
+      });
+
+      expect(profile).toEqual(
+        expect.objectContaining({
+          name: 'Tencent Profile',
+          notes: '',
+          tags: [],
+          favorite: false
+        })
+      );
+      expect(profile).not.toHaveProperty('region');
+      expect(profile).not.toHaveProperty('server');
+      expect(profile).not.toHaveProperty('language');
+      expect(profile).not.toHaveProperty('hasVault');
+      expect(profile).not.toHaveProperty('credentials');
+    });
+
+    test('加载旧 Profile 时只迁移通用元数据并删除旧登录/区服字段', () => {
+      const profilesDir = path.join(tmpDir, 'profiles');
+      fs.mkdirSync(profilesDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(profilesDir, 'profiles.json'),
+        JSON.stringify([
+          {
+            id: 'p_aabbccdd',
+            name: 'Legacy Profile',
+            color: '#ff8c00',
+            notes: '保留的通用备注',
+            tags: ['daily'],
+            favorite: true,
+            notificationsEnabled: false,
+            launchCount: 7,
+            totalPlayMs: 9000,
+            createdAt: 100,
+            lastUsed: 200,
+            region: 'br',
+            server: 's799',
+            language: 'pt',
+            hasVault: true,
+            username: 'fixture-user',
+            password: 'fixture-secret',
+            credentials: { token: 'fixture-token' }
+          }
+        ]),
+        'utf8'
+      );
+
+      const loaded = store.load();
+
+      expect(loaded).toHaveLength(1);
+      expect(loaded[0]).toEqual(
+        expect.objectContaining({
+          id: 'p_aabbccdd',
+          name: 'Legacy Profile',
+          color: '#ff8c00',
+          notes: '保留的通用备注',
+          tags: ['daily'],
+          favorite: true,
+          notificationsEnabled: false,
+          launchCount: 7,
+          totalPlayMs: 9000,
+          createdAt: 100,
+          lastUsed: 200
+        })
+      );
+      [
+        'region',
+        'server',
+        'language',
+        'hasVault',
+        'username',
+        'password',
+        'credentials'
+      ].forEach(field => expect(loaded[0]).not.toHaveProperty(field));
+    });
+
+    test('update 不接受旧入口字段，导出内容也不含这些字段', () => {
+      const profile = store.create({ name: 'Safe Profile' });
+
+      expect(
+        store.update(profile.id, {
+          region: 'eu',
+          server: 's123',
+          language: 'de',
+          hasVault: true,
+          credentials: { token: 'fixture-token' }
+        })
+      ).toBe(true);
+
+      const persisted = store.get(profile.id);
+      expect(persisted).not.toHaveProperty('region');
+      expect(persisted).not.toHaveProperty('server');
+      expect(persisted).not.toHaveProperty('language');
+      expect(persisted).not.toHaveProperty('hasVault');
+      expect(persisted).not.toHaveProperty('credentials');
+      expect(store.exportJSON()).not.toMatch(
+        /"(?:region|server|language|hasVault|credentials|username|password)"/
+      );
     });
   });
 
@@ -211,19 +323,19 @@ describe('store.js', () => {
   });
 
   describe('update', () => {
-    test('updates profile fields', () => {
-      const p = store.create({ name: 'Original', region: 'br' });
-      const result = store.update(p.id, { name: 'Updated', region: 'na' });
+    test('updates generic profile fields', () => {
+      const p = store.create({ name: 'Original', color: '#000000' });
+      const result = store.update(p.id, { name: 'Updated', color: '#ffffff' });
       expect(result).toBe(true);
       const updated = store.get(p.id);
       expect(updated.name).toBe('Updated');
-      expect(updated.region).toBe('na');
+      expect(updated.color).toBe('#ffffff');
     });
 
-    test('ignores invalid region on update', () => {
-      const p = store.create({ region: 'br' });
-      store.update(p.id, { region: 'invalid' });
-      expect(store.get(p.id).region).toBe('br');
+    test('ignores former region on update', () => {
+      const p = store.create();
+      store.update(p.id, { region: 'br' });
+      expect(store.get(p.id)).not.toHaveProperty('region');
     });
 
     test('updates favorite flag', () => {

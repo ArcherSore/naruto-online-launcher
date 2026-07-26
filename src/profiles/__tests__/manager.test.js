@@ -2,8 +2,7 @@
  * Tests for src/profiles/manager.js — Facade de alto nível para Perfis
  *
  * Verifies: setMemoryGuard, list, create, update, remove, launch, close,
- * reportCrash, getCredentials, setCredentials, removeCredentials,
- * hasCredentials, exportAll, importAll, getStats, getOpenProfileIds,
+ * reportCrash, exportAll, importAll, getStats, getOpenProfileIds,
  * onChange, MAX_PROFILES, PALETTE.
  */
 
@@ -43,28 +42,7 @@ jest.mock('../partition', function () {
     ensurePartitionDir: jest.fn(function () {
       return true;
     }),
-    snapshotCookies: jest.fn(function () {
-      return Promise.resolve(true);
-    }),
-    restoreCookies: jest.fn(function () {
-      return Promise.resolve(0);
-    }),
-    removeSnapshot: jest.fn()
-  };
-});
-
-jest.mock('../vault', function () {
-  return {
-    getCredentials: jest.fn(),
-    setCredentials: jest.fn(function () {
-      return true;
-    }),
-    removeCredentials: jest.fn(function () {
-      return true;
-    }),
-    hasCredentials: jest.fn(function () {
-      return false;
-    })
+    getProfileSession: jest.fn()
   };
 });
 
@@ -98,7 +76,6 @@ jest.mock('../../utils/logger', function () {
 var manager = require('../manager');
 var store = require('../store');
 var partition = require('../partition');
-var vault = require('../vault');
 var gameLauncher = require('../../ui/game-launcher');
 
 describe('manager.js', function () {
@@ -116,13 +93,6 @@ describe('manager.js', function () {
       var id = (p && p.id) || p;
       return 'persist:profile-' + id;
     });
-    partition.restoreCookies.mockResolvedValue(0);
-    partition.snapshotCookies.mockResolvedValue(true);
-    // Reset vault mocks
-    vault.getCredentials.mockReturnValue(null);
-    vault.setCredentials.mockReturnValue(true);
-    vault.removeCredentials.mockReturnValue(true);
-    vault.hasCredentials.mockReturnValue(false);
     // Reset gameLauncher mocks
     gameLauncher.launchProfile.mockImplementation(function () {});
     gameLauncher.closeProfile.mockReturnValue(true);
@@ -156,18 +126,6 @@ describe('manager.js', function () {
     });
     test('exports reportCrash as function', function () {
       expect(typeof manager.reportCrash).toBe('function');
-    });
-    test('exports getCredentials as function', function () {
-      expect(typeof manager.getCredentials).toBe('function');
-    });
-    test('exports setCredentials as function', function () {
-      expect(typeof manager.setCredentials).toBe('function');
-    });
-    test('exports removeCredentials as function', function () {
-      expect(typeof manager.removeCredentials).toBe('function');
-    });
-    test('exports hasCredentials as function', function () {
-      expect(typeof manager.hasCredentials).toBe('function');
     });
     test('exports exportAll as function', function () {
       expect(typeof manager.exportAll).toBe('function');
@@ -205,14 +163,12 @@ describe('manager.js', function () {
 
     test('enriches profiles with runtime state', function () {
       store.getAll.mockReturnValue([{ id: 'p_001', name: 'Main', server: 's1', region: 'br' }]);
-      vault.hasCredentials.mockReturnValue(true);
       partition.shouldUseShadow.mockReturnValue(false);
       gameLauncher.isProfileOpen.mockReturnValue(false);
 
       var result = manager.list();
       expect(result.length).toBe(1);
       expect(result[0].id).toBe('p_001');
-      expect(result[0].hasVault).toBe(true);
       expect(result[0].shadow).toBe(false);
       expect(result[0].isOpen).toBe(false);
       expect(result[0]).toHaveProperty('openedAt');
@@ -278,13 +234,11 @@ describe('manager.js', function () {
   // ── remove ──
 
   describe('remove', function () {
-    test('closes window, removes vault, snapshot, and store entry', function () {
+    test('closes window and removes store entry', function () {
       store.remove.mockReturnValue(true);
 
       var result = manager.remove('p_001');
       expect(gameLauncher.closeProfile).toHaveBeenCalledWith('p_001');
-      expect(vault.removeCredentials).toHaveBeenCalledWith('p_001');
-      expect(partition.removeSnapshot).toHaveBeenCalledWith('p_001');
       expect(store.remove).toHaveBeenCalledWith('p_001');
       expect(result).toBe(true);
     });
@@ -302,22 +256,10 @@ describe('manager.js', function () {
       store.remove.mockReturnValue(true);
 
       var result = manager.remove('p_001');
-      expect(vault.removeCredentials).toHaveBeenCalledWith('p_001');
       expect(store.remove).toHaveBeenCalledWith('p_001');
       expect(result).toBe(true);
     });
 
-    test('continues even if vault.removeCredentials throws', function () {
-      vault.removeCredentials.mockImplementation(function () {
-        throw new Error('vault error');
-      });
-      store.remove.mockReturnValue(true);
-
-      var result = manager.remove('p_002');
-      expect(partition.removeSnapshot).toHaveBeenCalledWith('p_002');
-      expect(store.remove).toHaveBeenCalledWith('p_002');
-      expect(result).toBe(true);
-    });
   });
 
   // ── launch ──
@@ -339,26 +281,24 @@ describe('manager.js', function () {
       expect(gameLauncher.launchProfile).toHaveBeenCalled();
     });
 
-    test('calls restoreCookies for shadow profile before launch', function () {
-      var profile = { id: 'p_shadow', name: 'Shadow', server: 's1', region: 'br' };
+    test('always delegates the same Profile id to the stable launcher registry', function () {
+      var profile = { id: 'p_shadow', name: 'Shadow', shadow: true };
       store.get.mockReturnValue(profile);
       partition.shouldUseShadow.mockReturnValue(true);
-      partition.getPartitionName.mockReturnValue('partition:profile-p_shadow');
 
       manager.launch('p_shadow');
-      expect(partition.restoreCookies).toHaveBeenCalledWith(
-        'partition:profile-p_shadow',
-        'p_shadow'
-      );
+      manager.close('p_shadow');
+      manager.launch('p_shadow');
+
+      expect(gameLauncher.launchProfile.mock.calls[0][0]).toBe('p_shadow');
+      expect(gameLauncher.launchProfile.mock.calls[1][0]).toBe('p_shadow');
     });
 
-    test('does not call restoreCookies for non-shadow profile', function () {
-      var profile = { id: 'p_persist', name: 'Persist', server: 's1', region: 'br' };
-      store.get.mockReturnValue(profile);
-      partition.shouldUseShadow.mockReturnValue(false);
-
-      manager.launch('p_persist');
-      expect(partition.restoreCookies).not.toHaveBeenCalled();
+    test('生产 facade 不引用 shadow Cookie snapshot/restore API', function () {
+      var fs = require('fs');
+      var path = require('path');
+      var source = fs.readFileSync(path.join(__dirname, '..', 'manager.js'), 'utf8');
+      expect(source).not.toMatch(/snapshotCookies|restoreCookies|removeSnapshot/);
     });
 
     test('returns false when gameLauncher.launchProfile throws', function () {
@@ -392,11 +332,10 @@ describe('manager.js', function () {
       expect(mg.registerGameWebContents).toHaveBeenCalledWith('p_mg', mockWC);
     });
 
-    test('snapshots cookies and unregisters from MG on closed callback (shadow)', function () {
-      var profile = { id: 'p_close', name: 'Close', server: 's1', region: 'br' };
+    test('close callback unregisters the same Profile from MemoryGuard', function () {
+      var profile = { id: 'p_close', name: 'Close', shadow: true };
       store.get.mockReturnValue(profile);
       partition.shouldUseShadow.mockReturnValue(true);
-      partition.getPartitionName.mockReturnValue('partition:profile-p_close');
       var mg = {
         registerGameWebContents: jest.fn(),
         unregisterGameWebContents: jest.fn()
@@ -409,10 +348,8 @@ describe('manager.js', function () {
       });
 
       manager.launch('p_close');
-      expect(partition.snapshotCookies).toHaveBeenCalledWith(
-        'partition:profile-p_close',
-        'p_close'
-      );
+      manager.close('p_close');
+
       expect(mg.unregisterGameWebContents).toHaveBeenCalledWith('p_close');
     });
 
@@ -430,6 +367,85 @@ describe('manager.js', function () {
       manager.launch('p_cb', onOpened, onClosed);
       expect(onOpened).toHaveBeenCalled();
       expect(onClosed).toHaveBeenCalled();
+    });
+
+    test('reuses one launcher registry entry for repeated launches of the same profile', function () {
+      var profile = { id: 'p_single', name: 'Single' };
+      var openWindows = new Set();
+      store.get.mockReturnValue(profile);
+      gameLauncher.launchProfile.mockImplementation(function (id) {
+        openWindows.add(id);
+      });
+
+      manager.launch('p_single');
+      manager.launch('p_single');
+
+      expect(openWindows.size).toBe(1);
+      expect(Array.from(openWindows)).toEqual(['p_single']);
+    });
+
+    test('keeps A/B webContents, window state, and recovery counters separated', function () {
+      var profiles = [
+        { id: 'p_a', name: 'A' },
+        { id: 'p_b', name: 'B' }
+      ];
+      var callbacks = {};
+      var webContentsById = {
+        p_a: { id: 'wc-a' },
+        p_b: { id: 'wc-b' }
+      };
+      var openIds = new Set();
+      var mg = {
+        registerGameWebContents: jest.fn(),
+        unregisterGameWebContents: jest.fn()
+      };
+
+      store.get.mockImplementation(function (id) {
+        return profiles.find(function (profile) {
+          return profile.id === id;
+        });
+      });
+      store.getAll.mockReturnValue(profiles);
+      gameLauncher.launchProfile.mockImplementation(function (id, openedCb, closedCb) {
+        openIds.add(id);
+        callbacks[id] = { opened: openedCb, closed: closedCb };
+        openedCb();
+      });
+      gameLauncher.getWebContents.mockImplementation(function (id) {
+        return webContentsById[id];
+      });
+      gameLauncher.isProfileOpen.mockImplementation(function (id) {
+        return openIds.has(id);
+      });
+      manager.setMemoryGuard(mg);
+
+      manager.launch('p_a');
+      manager.launch('p_b');
+      manager.reportCrash('p_a');
+      manager.reportCrash('p_a');
+      manager.reportCrash('p_b');
+
+      var listed = manager.list();
+      var profileA = listed.find(function (profile) {
+        return profile.id === 'p_a';
+      });
+      var profileB = listed.find(function (profile) {
+        return profile.id === 'p_b';
+      });
+
+      expect(gameLauncher.launchProfile.mock.calls[0][0]).toBe('p_a');
+      expect(gameLauncher.launchProfile.mock.calls[1][0]).toBe('p_b');
+      expect(mg.registerGameWebContents).toHaveBeenCalledWith('p_a', webContentsById.p_a);
+      expect(mg.registerGameWebContents).toHaveBeenCalledWith('p_b', webContentsById.p_b);
+      expect(profileA).toEqual(expect.objectContaining({ isOpen: true, crashCount: 2 }));
+      expect(profileB).toEqual(expect.objectContaining({ isOpen: true, crashCount: 1 }));
+
+      openIds.delete('p_a');
+      callbacks.p_a.closed();
+
+      expect(mg.unregisterGameWebContents).toHaveBeenCalledWith('p_a');
+      expect(mg.unregisterGameWebContents).not.toHaveBeenCalledWith('p_b');
+      expect(openIds.has('p_b')).toBe(true);
     });
   });
 
@@ -470,50 +486,6 @@ describe('manager.js', function () {
       expect(function () {
         manager.reportCrash('p_no_runtime');
       }).not.toThrow();
-    });
-  });
-
-  // ── Vault credentials ──
-
-  describe('getCredentials', function () {
-    test('delegates to vault.getCredentials', function () {
-      vault.getCredentials.mockReturnValue({ user: 'u', pass: 'p' });
-      var result = manager.getCredentials('p_001');
-      expect(vault.getCredentials).toHaveBeenCalledWith('p_001');
-      expect(result).toEqual({ user: 'u', pass: 'p' });
-    });
-  });
-
-  describe('setCredentials', function () {
-    test('delegates to vault.setCredentials and notifies', function () {
-      vault.setCredentials.mockReturnValue(true);
-      var result = manager.setCredentials('p_001', 'user', 'pass');
-      expect(vault.setCredentials).toHaveBeenCalledWith('p_001', 'user', 'pass');
-      expect(result).toBe(true);
-    });
-
-    test('returns false when vault.setCredentials returns false', function () {
-      vault.setCredentials.mockReturnValue(false);
-      var result = manager.setCredentials('p_001', 'user', 'pass');
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('removeCredentials', function () {
-    test('delegates to vault.removeCredentials and notifies', function () {
-      vault.removeCredentials.mockReturnValue(true);
-      var result = manager.removeCredentials('p_001');
-      expect(vault.removeCredentials).toHaveBeenCalledWith('p_001');
-      expect(result).toBe(true);
-    });
-  });
-
-  describe('hasCredentials', function () {
-    test('delegates to vault.hasCredentials', function () {
-      vault.hasCredentials.mockReturnValue(true);
-      var result = manager.hasCredentials('p_001');
-      expect(vault.hasCredentials).toHaveBeenCalledWith('p_001');
-      expect(result).toBe(true);
     });
   });
 
@@ -576,9 +548,6 @@ describe('manager.js', function () {
       gameLauncher.isProfileOpen.mockImplementation(function (id) {
         return id === 'p_1';
       });
-      vault.hasCredentials.mockImplementation(function (id) {
-        return id === 'p_1';
-      });
       partition.shouldUseShadow.mockImplementation(function (p) {
         return p.id === 'p_2';
       });
@@ -586,7 +555,6 @@ describe('manager.js', function () {
       var stats = manager.getStats();
       expect(stats.total).toBe(2);
       expect(stats.open).toBe(1);
-      expect(stats.withVault).toBe(1);
       expect(stats.shadow).toBe(1);
       expect(stats.max).toBe(store.MAX_PROFILES);
     });

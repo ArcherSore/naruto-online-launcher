@@ -1,9 +1,8 @@
 /**
- * Tests for src/profiles/partition.js — Shadow Partition manager
+ * Tests for src/profiles/partition.js — 腾讯持久 Partition manager
  *
  * Verifies: setBatataMode, shouldUseShadow, getPartitionName,
- * snapshotCookies, restoreCookies, removeSnapshot, ensurePartitionDir,
- * AUTH_DOMAINS.
+ * getProfileSession and ensurePartitionDir.
  */
 
 'use strict';
@@ -39,7 +38,7 @@ const partition = require('../partition');
 describe('partition.js', function () {
   beforeEach(function () {
     jest.clearAllMocks();
-    // Point userData to our temp dir so snapshots & partition dirs go there
+    // Point userData to our temp dir so partition dirs go there
     electron.app.getPath.mockImplementation(function (p) {
       if (p === 'userData') return tmpDir;
       return '/tmp/naruto-test/' + p;
@@ -60,34 +59,11 @@ describe('partition.js', function () {
     test('exports getPartitionName as function', function () {
       expect(typeof partition.getPartitionName).toBe('function');
     });
-    test('exports snapshotCookies as function', function () {
-      expect(typeof partition.snapshotCookies).toBe('function');
-    });
-    test('exports restoreCookies as function', function () {
-      expect(typeof partition.restoreCookies).toBe('function');
-    });
-    test('exports removeSnapshot as function', function () {
-      expect(typeof partition.removeSnapshot).toBe('function');
+    test('exports getProfileSession as function', function () {
+      expect(typeof partition.getProfileSession).toBe('function');
     });
     test('exports ensurePartitionDir as function', function () {
       expect(typeof partition.ensurePartitionDir).toBe('function');
-    });
-    test('exports AUTH_DOMAINS as array', function () {
-      expect(Array.isArray(partition.AUTH_DOMAINS)).toBe(true);
-    });
-  });
-
-  // ── AUTH_DOMAINS ──
-
-  describe('AUTH_DOMAINS', function () {
-    test('contains oasgames.com domain', function () {
-      expect(partition.AUTH_DOMAINS).toContain('oasgames.com');
-    });
-    test('contains naruto.oasgames.com domain', function () {
-      expect(partition.AUTH_DOMAINS).toContain('naruto.oasgames.com');
-    });
-    test('has exactly 2 entries', function () {
-      expect(partition.AUTH_DOMAINS.length).toBe(2);
     });
   });
 
@@ -136,34 +112,75 @@ describe('partition.js', function () {
   // ── getPartitionName ──
 
   describe('getPartitionName', function () {
-    test('returns persist partition for non-shadow profile object', function () {
-      var result = partition.getPartitionName({ id: 'p_001' });
-      expect(result).toBe('persist:profile-p_001');
+    test('同一 Profile 始终映射到同一 persist partition', function () {
+      expect(partition.getPartitionName({ id: 'p_001' })).toBe('persist:profile-p_001');
+      expect(partition.getPartitionName('p_001')).toBe('persist:profile-p_001');
+      expect(partition.getPartitionName({ id: 'p_001', shadow: true })).toBe(
+        'persist:profile-p_001'
+      );
     });
-    test('returns shadow partition for profile with shadow=true', function () {
-      var result = partition.getPartitionName({ id: 'p_001', shadow: true });
-      expect(result).toBe('partition:profile-p_001');
+
+    test('Profile A/B 映射不同且都不使用 default/shadow partition', function () {
+      var profileA = partition.getPartitionName({ id: 'profile-a', shadow: true });
+      var profileB = partition.getPartitionName({ id: 'profile-b', shadow: false });
+
+      expect(profileA).toBe('persist:profile-profile-a');
+      expect(profileB).toBe('persist:profile-profile-b');
+      expect(profileA).not.toBe(profileB);
+      expect(profileA).not.toBe('default');
+      expect(profileA).not.toMatch(/^partition:/);
+      expect(profileB).not.toMatch(/^partition:/);
     });
-    test('accepts string id directly', function () {
-      var result = partition.getPartitionName('p_002');
-      expect(result).toBe('persist:profile-p_002');
-    });
-    test('returns shadow partition when batata mode is on', function () {
+
+    test('Modo Batata 不改变腾讯 Profile 的持久映射', function () {
       partition.setBatataMode(true);
       var result = partition.getPartitionName({ id: 'p_003' });
-      expect(result).toBe('partition:profile-p_003');
+      expect(result).toBe('persist:profile-p_003');
+    });
+
+    test('拒绝空 Profile id，避免共享异常 partition', function () {
+      expect(function () {
+        partition.getPartitionName(null);
+      }).toThrow(/profile id/i);
+      expect(function () {
+        partition.getPartitionName({});
+      }).toThrow(/profile id/i);
+    });
+  });
+
+  describe('getProfileSession', function () {
+    test('只通过稳定 persist partition 获取隔离 Session', function () {
+      var isolatedSession = { id: 'isolated-session' };
+      electron.session.fromPartition.mockReturnValue(isolatedSession);
+
+      var result = partition.getProfileSession({ id: 'profile-a', shadow: true });
+
+      expect(result).toBe(isolatedSession);
+      expect(electron.session.fromPartition).toHaveBeenCalledWith(
+        'persist:profile-profile-a'
+      );
+      expect(result).not.toBe(electron.session.defaultSession);
+    });
+
+    test('Profile A/B 使用不同 partition 获取 Session', function () {
+      partition.getProfileSession('profile-a');
+      partition.getProfileSession('profile-b');
+
+      expect(electron.session.fromPartition.mock.calls).toEqual([
+        ['persist:profile-profile-a'],
+        ['persist:profile-profile-b']
+      ]);
     });
   });
 
   // ── ensurePartitionDir ──
 
   describe('ensurePartitionDir', function () {
-    test('returns true for shadow profile (no-op, no dir created)', function () {
+    test('shadow 标志不阻止腾讯 persist partition 目录创建', function () {
       var result = partition.ensurePartitionDir({ id: 'p_sh', shadow: true });
       expect(result).toBe(true);
-      // Dir should NOT exist for shadow profiles
       var dir = path.join(tmpDir, 'Partitions', 'profile-p_sh');
-      expect(fs.existsSync(dir)).toBe(false);
+      expect(fs.existsSync(dir)).toBe(true);
     });
     test('creates partition dir for persist profile', function () {
       var result = partition.ensurePartitionDir({ id: 'p_ens1' });
@@ -183,10 +200,9 @@ describe('partition.js', function () {
       var dir = path.join(tmpDir, 'Partitions', 'profile-p_ens3');
       expect(fs.existsSync(dir)).toBe(true);
     });
-    test('returns true for profile object with no id (id coerces to truthy empty object)', function () {
-      // {} has no .id, so id = ({} && undefined) || {} = {} which is truthy
+    test('returns false for profile object with no id', function () {
       var result = partition.ensurePartitionDir({});
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
     test('returns false for null (no id)', function () {
       var result = partition.ensurePartitionDir(null);
@@ -198,250 +214,17 @@ describe('partition.js', function () {
     });
   });
 
-  // ── snapshotCookies / restoreCookies / removeSnapshot ──
+  describe('shadow Cookie snapshot 已删除', function () {
+    test('模块不导出 snapshot/restore，源码也不保留明文 JSON 路径', function () {
+      var source = fs.readFileSync(path.join(__dirname, '..', 'partition.js'), 'utf8');
 
-  describe('snapshotCookies', function () {
-    test('returns true on successful snapshot of auth cookies', async function () {
-      var mockCookies = [{ domain: '.oasgames.com', name: 'session', value: 'abc123' }];
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          get: jest.fn(function () {
-            return Promise.resolve(mockCookies);
-          })
-        }
-      });
-
-      var result = await partition.snapshotCookies('persist:profile-p_snap1', 'p_snap1');
-      expect(result).toBe(true);
-      // Clean up
-      partition.removeSnapshot('p_snap1');
-    });
-
-    test('filters only auth domain cookies (ignores others)', async function () {
-      var allCookies = [
-        { domain: '.oasgames.com', name: 'session', value: 'abc', secure: true },
-        { domain: '.google.com', name: 'analytics', value: 'xyz' },
-        { domain: '.naruto.oasgames.com', name: 'token', value: 'def' }
-      ];
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          get: jest.fn(function () {
-            return Promise.resolve(allCookies);
-          })
-        }
-      });
-
-      await partition.snapshotCookies('persist:profile-p_snap2', 'p_snap2');
-
-      // Restore and count — only auth cookies should be restored
-      var setCalls = [];
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          set: jest.fn(function (c) {
-            setCalls.push(c);
-            return Promise.resolve();
-          })
-        }
-      });
-      var count = await partition.restoreCookies('persist:profile-p_snap2', 'p_snap2');
-      expect(count).toBe(2); // oasgames.com + naruto.oasgames.com
-      // Clean up
-      partition.removeSnapshot('p_snap2');
-    });
-
-    test('returns false when session.fromPartition throws', async function () {
-      electron.session.fromPartition.mockImplementation(function () {
-        throw new Error('no session');
-      });
-
-      var result = await partition.snapshotCookies('persist:profile-p_snap3', 'p_snap3');
-      expect(result).toBe(false);
-    });
-
-    test('returns false when cookies.get rejects', async function () {
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          get: jest.fn(function () {
-            return Promise.reject(new Error('cookie error'));
-          })
-        }
-      });
-
-      var result = await partition.snapshotCookies('persist:profile-p_snap4', 'p_snap4');
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('restoreCookies', function () {
-    test('returns 0 when no snapshot exists for profile', async function () {
-      var result = await partition.restoreCookies('persist:profile-p_nosnap', 'p_nosnap_x');
-      expect(result).toBe(0);
-    });
-
-    test('restores cookies from a previous snapshot', async function () {
-      // Create snapshot first
-      var authCookies = [
-        { domain: '.oasgames.com', name: 'sid', value: 'v1', secure: true },
-        { domain: '.naruto.oasgames.com', name: 'tok', value: 'v2', secure: false }
-      ];
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          get: jest.fn(function () {
-            return Promise.resolve(authCookies);
-          })
-        }
-      });
-      await partition.snapshotCookies('persist:profile-p_rest1', 'p_rest1');
-
-      // Now restore
-      var setCalls = [];
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          set: jest.fn(function (c) {
-            setCalls.push(c);
-            return Promise.resolve();
-          })
-        }
-      });
-
-      var count = await partition.restoreCookies('persist:profile-p_rest1', 'p_rest1');
-      expect(count).toBe(2);
-      // Verify cookie.set was called with correct URL derivation
-      // Secure cookie → https://oasgames.com (leading dot stripped)
-      expect(setCalls[0].url).toBe('https://oasgames.com');
-      // Non-secure cookie → http://naruto.oasgames.com
-      expect(setCalls[1].url).toBe('http://naruto.oasgames.com');
-      // Clean up
-      partition.removeSnapshot('p_rest1');
-    });
-
-    test('continues restoring if individual cookie.set fails', async function () {
-      // Create snapshot with 2 cookies
-      var authCookies = [
-        { domain: '.oasgames.com', name: 'good', value: 'v', secure: true },
-        { domain: '.oasgames.com', name: 'bad', value: 'x', secure: true }
-      ];
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          get: jest.fn(function () {
-            return Promise.resolve(authCookies);
-          })
-        }
-      });
-      await partition.snapshotCookies('persist:profile-p_rest2', 'p_rest2');
-
-      // Restore: first cookie succeeds, second fails
-      var callIndex = 0;
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          set: jest.fn(function () {
-            callIndex++;
-            if (callIndex === 2) return Promise.reject(new Error('bad cookie'));
-            return Promise.resolve();
-          })
-        }
-      });
-
-      var count = await partition.restoreCookies('persist:profile-p_rest2', 'p_rest2');
-      expect(count).toBe(1); // Only first cookie restored
-      // Clean up
-      partition.removeSnapshot('p_rest2');
-    });
-
-    test('returns 0 when session.fromPartition throws', async function () {
-      // Ensure snapshots are loaded first
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          get: jest.fn(function () {
-            return Promise.resolve([]);
-          })
-        }
-      });
-      await partition.snapshotCookies('persist:profile-p_rest3', 'p_rest3');
-
-      // Now make fromPartition throw on restore
-      electron.session.fromPartition.mockImplementation(function () {
-        throw new Error('session gone');
-      });
-
-      var count = await partition.restoreCookies('persist:profile-p_rest3', 'p_rest3');
-      expect(count).toBe(0);
-      // Clean up
-      partition.removeSnapshot('p_rest3');
-    });
-  });
-
-  describe('removeSnapshot', function () {
-    test('removes snapshot and prevents restore', async function () {
-      // Create a snapshot
-      var authCookies = [{ domain: '.oasgames.com', name: 's', value: 'v', secure: true }];
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          get: jest.fn(function () {
-            return Promise.resolve(authCookies);
-          })
-        }
-      });
-      await partition.snapshotCookies('persist:profile-p_rem1', 'p_rem1');
-
-      // Remove it
-      partition.removeSnapshot('p_rem1');
-
-      // Verify it's gone
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          set: jest.fn(function () {
-            return Promise.resolve();
-          })
-        }
-      });
-      var count = await partition.restoreCookies('persist:profile-p_rem1', 'p_rem1');
-      expect(count).toBe(0);
-    });
-
-    test('is no-op when no snapshot exists for profile', function () {
-      expect(function () {
-        partition.removeSnapshot('p_nonexistent_xyz');
-      }).not.toThrow();
-    });
-
-    test('does not affect other profile snapshots', async function () {
-      // Create snapshots for two profiles
-      var makeCookies = function (name) {
-        return [{ domain: '.oasgames.com', name: name, value: 'v', secure: true }];
-      };
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          get: jest.fn(function () {
-            return Promise.resolve(makeCookies('cookie_a'));
-          })
-        }
-      });
-      await partition.snapshotCookies('persist:profile-p_rem_a', 'p_rem_a');
-
-      electron.session.fromPartition.mockReturnValue({
-        cookies: {
-          get: jest.fn(function () {
-            return Promise.resolve(makeCookies('cookie_b'));
-          })
-        }
-      });
-      await partition.snapshotCookies('persist:profile-p_rem_b', 'p_rem_b');
-
-      // Remove only one
-      partition.removeSnapshot('p_rem_a');
-
-      // Verify the other still exists
-      var setFn = jest.fn(function () {
-        return Promise.resolve();
-      });
-      electron.session.fromPartition.mockReturnValue({
-        cookies: { set: setFn }
-      });
-      var count = await partition.restoreCookies('persist:profile-p_rem_b', 'p_rem_b');
-      expect(count).toBe(1);
-      // Clean up
-      partition.removeSnapshot('p_rem_b');
+      expect(partition.snapshotCookies).toBeUndefined();
+      expect(partition.restoreCookies).toBeUndefined();
+      expect(partition.removeSnapshot).toBeUndefined();
+      expect(source).not.toMatch(
+        /snapshotCookies|restoreCookies|removeSnapshot|cookie-snapshots|AUTH_DOMAINS/
+      );
+      expect(source).not.toMatch(/cookies\.(?:get|set)\s*\(/);
     });
   });
 });

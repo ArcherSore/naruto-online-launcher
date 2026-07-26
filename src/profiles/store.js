@@ -42,20 +42,11 @@ const MAX_FILE_BYTES = 1024 * 1024; // 1MB sane limit
 const LAUNCH_LOG_FILE = 'launch-log.json';
 const MAX_LAUNCH_LOG_ENTRIES = 5000;
 
-// Schema validator — nunca confiar em dados lidos do disco
-// v3.4: adicionado language (pt/en) e notificationsEnabled (boolean) por perfil
-// v4.5: adicionado notes (string, max 200), launchCount (number), totalPlayMs (number)
+// 腾讯 Profile 只保存通用管理元数据；认证状态由 Chromium Partition 管理。
 function isValidProfile(p) {
   if (!p || typeof p !== 'object') return false;
   if (typeof p.id !== 'string' || !/^p_[a-f0-9]{8,16}$/.test(p.id)) return false;
   if (typeof p.name !== 'string' || p.name.length === 0 || p.name.length > 40) return false;
-  if (typeof p.server !== 'string' || p.server.length > 20) return false;
-  if (!['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(p.region)) return false;
-  // v3.4: language opcional (default 'pt' para retrocompatibilidade)
-  // v4.0.1 FIX: sync with settings.js — i18n supports 6 languages
-  if (p.language !== undefined && !['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(p.language))
-    return false;
-  // v3.4: notificationsEnabled opcional (default true para retrocompatibilidade)
   if (p.notificationsEnabled !== undefined && typeof p.notificationsEnabled !== 'boolean')
     return false;
   if (typeof p.createdAt !== 'number' || p.createdAt < 0) return false;
@@ -76,6 +67,12 @@ function isValidProfile(p) {
     return false;
   // v4.6: favorite opcional (boolean)
   if (p.favorite !== undefined && typeof p.favorite !== 'boolean') return false;
+  if (p.color !== undefined && (typeof p.color !== 'string' || p.color.length > 32)) return false;
+  if (
+    p.hardwareProfile !== undefined &&
+    (typeof p.hardwareProfile !== 'string' || p.hardwareProfile.length > 32)
+  )
+    return false;
   // v5.3: tags opcional (array de strings, max 5 tags, cada max 20 chars)
   if (p.tags !== undefined) {
     if (!Array.isArray(p.tags)) return false;
@@ -88,21 +85,27 @@ function isValidProfile(p) {
   return true;
 }
 
-// Migração automática de perfis v1 (sem language/notificationsEnabled) para v2
-// v4.5: Migração v3 (sem notes/launchCount/totalPlayMs) para v3
+// 旧 schema 迁移采用 allowlist 重建对象，源头删除区服、语言和凭据字段。
 function _migrateProfile(p) {
   if (!p) return p;
-  if (p.language === undefined) p.language = 'pt';
-  if (p.notificationsEnabled === undefined) p.notificationsEnabled = true;
-  // v4.5: novos campos com defaults seguros
-  if (p.notes === undefined) p.notes = '';
-  if (p.launchCount === undefined) p.launchCount = 0;
-  if (p.totalPlayMs === undefined) p.totalPlayMs = 0;
-  // v4.6: favorite flag (default false)
-  if (p.favorite === undefined) p.favorite = false;
-  // v5.3: tags (default empty array)
-  if (p.tags === undefined) p.tags = [];
-  return p;
+  const migrated = {
+    id: p.id,
+    name: p.name,
+    notificationsEnabled:
+      typeof p.notificationsEnabled === 'boolean' ? p.notificationsEnabled : true,
+    notes: typeof p.notes === 'string' ? p.notes.slice(0, 200) : '',
+    launchCount: typeof p.launchCount === 'number' && p.launchCount >= 0 ? p.launchCount : 0,
+    totalPlayMs: typeof p.totalPlayMs === 'number' && p.totalPlayMs >= 0 ? p.totalPlayMs : 0,
+    favorite: p.favorite === true,
+    tags: Array.isArray(p.tags) ? p.tags.slice(0, 5) : [],
+    createdAt: p.createdAt,
+    lastUsed: p.lastUsed
+  };
+  if (typeof p.color === 'string') migrated.color = p.color.slice(0, 32);
+  if (typeof p.hardwareProfile === 'string') {
+    migrated.hardwareProfile = p.hardwareProfile.slice(0, 32);
+  }
+  return migrated;
 }
 
 let _profiles = null; // cache em memória
@@ -180,7 +183,8 @@ function load() {
   }
 
   // Valida cada perfil; descarta inválidos silenciosamente
-  _profiles = parsed.filter(isValidProfile);
+  const validProfiles = parsed.filter(isValidProfile);
+  _profiles = validProfiles.map(_migrateProfile);
   if (_profiles.length !== parsed.length) {
     logger.warn(
       'ProfileStore: ' +
@@ -188,19 +192,15 @@ function load() {
         ' perfil(is) inválido(s) descartado(s)'
     );
   }
-  // v3.4: migra perfis v1 (sem language/notificationsEnabled) para v2
   let migrated = 0;
-  _profiles.forEach(function (p) {
-    const before = JSON.stringify({ l: p.language, n: p.notificationsEnabled });
-    _migrateProfile(p);
-    const after = JSON.stringify({ l: p.language, n: p.notificationsEnabled });
-    if (before !== after) migrated++;
+  validProfiles.forEach(function (p, index) {
+    if (JSON.stringify(p) !== JSON.stringify(_profiles[index])) migrated++;
   });
   if (migrated > 0) {
     logger.info(
       'ProfileStore: ' +
         migrated +
-        ' perfil(is) migrado(s) para schema v2 (language + notificationsEnabled)'
+        ' perfil(is) migrado(s) para o schema Tencent de metadados gerais'
     );
     _saveToDisk(_profiles);
   } else if (_profiles.length !== parsed.length) {
@@ -301,14 +301,6 @@ function create(opts) {
       String(opts.name || 'Conta ' + (_profiles.length + 1))
         .slice(0, 40)
         .trim() || 'Conta',
-    server: String(opts.server || '')
-      .slice(0, 20)
-      .trim(),
-    region: ['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(opts.region)
-      ? opts.region
-      : 'br',
-    // v4.0.1 FIX: sync with settings.js — i18n supports 6 languages
-    language: ['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(opts.language) ? opts.language : 'pt',
     notificationsEnabled:
       typeof opts.notificationsEnabled === 'boolean' ? opts.notificationsEnabled : true,
     // v4.5: novos campos
@@ -328,18 +320,13 @@ function create(opts) {
     createdAt: Date.now(),
     lastUsed: 0
   };
+  if (typeof opts.color === 'string') profile.color = opts.color.slice(0, 32);
+  if (typeof opts.hardwareProfile === 'string') {
+    profile.hardwareProfile = opts.hardwareProfile.slice(0, 32);
+  }
   _profiles.push(profile);
   persist();
-  logger.info(
-    'ProfileStore: perfil criado — ' +
-      profile.name +
-      (profile.server ? ' (' + profile.server + ')' : '') +
-      ' [' +
-      profile.region +
-      '/' +
-      profile.language +
-      ']'
-  );
+  logger.info('ProfileStore: perfil criado — ' + profile.name);
   return profile;
 }
 
@@ -350,18 +337,16 @@ function update(id, updates) {
   });
   if (!p) return false;
   if (typeof updates.name === 'string') p.name = updates.name.slice(0, 40).trim() || p.name;
-  if (typeof updates.server === 'string') p.server = updates.server.slice(0, 20).trim();
-  if (['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(updates.region))
-    p.region = updates.region;
-  // v4.0.1 FIX: sync with settings.js — i18n supports 6 languages
-  if (['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(updates.language))
-    p.language = updates.language;
   if (typeof updates.notificationsEnabled === 'boolean')
     p.notificationsEnabled = updates.notificationsEnabled;
   // v4.5: notes (string, max 200)
   if (typeof updates.notes === 'string') p.notes = updates.notes.slice(0, 200);
   // v4.6: favorite (boolean)
   if (typeof updates.favorite === 'boolean') p.favorite = updates.favorite;
+  if (typeof updates.color === 'string') p.color = updates.color.slice(0, 32);
+  if (typeof updates.hardwareProfile === 'string') {
+    p.hardwareProfile = updates.hardwareProfile.slice(0, 32);
+  }
   // v5.3: tags (array of strings, max 5, each max 20 chars)
   if (Array.isArray(updates.tags)) {
     p.tags = updates.tags
@@ -511,7 +496,7 @@ function exportJSON() {
 }
 
 /**
- * Importa perfis de um JSON string (merge: preserva existentes por nome+server).
+ * Importa perfis de um JSON string (merge por名称；旧字段在入口处被删除).
  * @param {string} jsonStr
  * @returns {{imported: number, skipped: number}}
  */
@@ -536,20 +521,20 @@ function importJSON(jsonStr) {
       skipped++;
       return;
     }
-    // Dedup por nome+server
+    // 腾讯 Profile 不再包含 server；按可见名称去重。
     const dup = _profiles.find(function (x) {
-      return x.name === p.name && x.server === p.server;
+      return x.name === p.name;
     });
     if (dup) {
       skipped++;
       return;
     }
     // Novo ID (evita colisão com existentes)
-    const fresh = Object.assign({}, p, {
+    const fresh = _migrateProfile(Object.assign({}, p, {
       id: 'p_' + crypto.randomBytes(6).toString('hex'),
       createdAt: Date.now(),
       lastUsed: 0
-    });
+    }));
     _profiles.push(fresh);
     imported++;
   });
