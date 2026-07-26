@@ -1,94 +1,90 @@
 /**
- * config/i18n.js — Internationalization ultra-leve
- * v2.1.0 — v5.9.15+ (settings.js restringe config.language a pt/en)
- *
- * Dicionário nativo sem dependências. ~8KB.
- * Strings organizadas por contexto: setup, settings, modes, common.
- *
- * NOTA: settings.js:validateConfig restringe config.language a 'pt' e 'en'.
- * Os dicionários de/de/es/pl/fr existem mas estão incompletos (apenas setup +
- * common). O IPC i18n:set-lang valida contra a lista completa (SUPPORTED).
+ * Lightweight dependency-free internationalization.
+ * Simplified Chinese is the default and fallback language. The setup window
+ * keeps an isolated dictionary, so its locale set is protected by tests.
  */
 
 'use strict';
 
+const DEFAULT_LANGUAGE = 'zh-CN';
+const SUPPORTED = ['zh-CN', 'en', 'de', 'es', 'pl', 'fr'];
+
 const DICTIONARY = {
-  pt: {
-    'setup.title': 'Bem-vindo ao Shinobi Launcher',
-    'setup.subtitle': 'Configure sua experiência em 30 segundos',
-    'setup.language.label': 'Idioma',
-    'setup.mode.title': 'Modo de Desempenho',
+  'zh-CN': {
+    'setup.title': '欢迎使用 Naruto Online 启动器',
+    'setup.subtitle': '约 30 秒完成首次设置',
+    'setup.language.label': '界面语言',
+    'setup.mode.title': '性能模式',
     'setup.mode.default.body':
-      'Recomendado para todos — máxima otimização segura. Sempre benéfico.',
+      '推荐所有设备使用：启用经过验证的安全优化，不降低 Flash 画质。',
     'setup.mode.lowpc.body':
-      'Apenas para PCs fracos (GPU antiga ou menos de 4GB RAM). Reduz qualidade visual do Flash para ganhar FPS. Pode ser prejudicial em PCs modernos.',
-    'setup.save': 'Começar a jogar',
-    'mode.default': 'Padrão Otimizado',
-    'mode.lowpc': 'Modo PC Fraco',
+      '仅适合旧 GPU 或少于 4GB RAM 的设备：降低 Flash 画质以提高 FPS，现代设备不建议启用。',
+    'setup.save': '保存并进入启动器',
+    'mode.default': '默认优化',
+    'mode.lowpc': '低配模式',
     'common.ram': 'RAM',
-    'common.save': 'Salvar',
-    'common.cancel': 'Cancelar',
-    'common.close': 'Fechar',
-    'common.play': 'Jogar',
-    'common.edit': 'Editar',
-    'common.delete': 'Excluir',
-    'common.settings': 'Configurações',
-    'profile.name': 'Nome',
-    'profile.new': 'Nova conta',
-    'profile.empty': 'Nenhuma conta cadastrada',
-    'profile.empty.hint': 'Clique em "Nova conta" para criar seu primeiro perfil.',
-    // v4.6: Launcher UI strings
-    'nav.accounts': 'Contas',
-    'nav.settings': 'Configurações',
-    'topbar.new': 'Nova conta',
-    'topbar.last_profile': 'Relançar último perfil',
-    'topbar.view_grid': 'Visualização em grade',
-    'topbar.view_list': 'Visualização em lista',
-    'search.placeholder': 'Buscar perfil por nome...',
-    'search.no_results': 'Nenhum resultado para',
-    'card.play': 'Play',
-    'card.edit': 'Editar',
-    'card.delete': 'Excluir',
-    'card.duplicate': 'Duplicar',
-    'card.favorite': 'Favoritar',
-    'card.unfavorite': 'Desfavoritar',
-    'card.open': 'aberta',
-    'card.status.idle': 'pronto',
-    'card.status.loading': 'preenchendo',
-    'card.status.success': 'logado',
-    'card.status.error': 'falhou',
-    'modal.edit_title': 'Editar conta',
-    'modal.new_title': 'Nova conta',
-    'modal.notes': 'Notas',
-    'modal.notes_optional': '(opcional)',
-    'modal.notes_placeholder': 'Ex: conta principal, alt para eventos, build, etc.',
-    'modal.cancel': 'Cancelar',
-    'modal.save': 'Salvar',
-    'toast.profile_deleted': 'Perfil removido',
-    'toast.name_required': 'Informe um nome',
-    'toast.exported': 'Exportado',
-    'toast.imported': 'Importados',
-    'toast.perfis': 'perfis',
-    'toast.duplicated': 'Perfil duplicado',
-    'toast.favorited': 'Perfil favoritado',
-    'toast.unfavorited': 'Perfil desfavoritado',
-    'sort.name': 'Nome (A-Z)',
-    'sort.last_used': 'Último uso',
-    'sort.launch_count': 'Mais usado',
-    'sort.play_time': 'Tempo de jogo',
-    'sort.created': 'Criação',
-    'settings.general': 'Geral',
-    'settings.language': 'Idioma',
-    'settings.language_desc': 'Idioma da interface do launcher',
-    'settings.performance': 'Modo de desempenho',
-    'settings.performance_desc_default': 'Padrão: máxima otimização segura',
-    'settings.performance_desc_lowpc': 'PC Fraco: reduz qualidade do Flash para ganhar FPS',
-    'settings.preferences': 'Preferências',
-    delete_confirm: 'Excluir este perfil e seus dados locais?'
+    'common.save': '保存',
+    'common.cancel': '取消',
+    'common.close': '关闭',
+    'common.play': '打开',
+    'common.edit': '编辑',
+    'common.delete': '删除',
+    'common.settings': '设置',
+    'profile.name': '名称',
+    'profile.new': '新建账号',
+    'profile.empty': '还没有 Profile',
+    'profile.empty.hint': '点击“新建账号”创建第一个 Profile。',
+    'nav.accounts': '账号',
+    'nav.settings': '设置',
+    'topbar.new': '新建账号',
+    'topbar.last_profile': '重新打开上次 Profile',
+    'topbar.view_grid': '网格视图',
+    'topbar.view_list': '列表视图',
+    'search.placeholder': '按名称搜索 Profile…',
+    'search.no_results': '没有匹配结果：',
+    'card.play': '打开',
+    'card.edit': '编辑',
+    'card.delete': '删除',
+    'card.duplicate': '复制',
+    'card.favorite': '收藏',
+    'card.unfavorite': '取消收藏',
+    'card.open': '运行中',
+    'card.status.idle': '就绪',
+    'card.status.loading': '加载中',
+    'card.status.success': '已登录',
+    'card.status.error': '失败',
+    'modal.edit_title': '编辑账号',
+    'modal.new_title': '新建账号',
+    'modal.notes': '备注',
+    'modal.notes_optional': '（可选）',
+    'modal.notes_placeholder': '例如：主账号、活动账号',
+    'modal.cancel': '取消',
+    'modal.save': '保存',
+    'toast.profile_deleted': 'Profile 已删除',
+    'toast.name_required': '请输入名称',
+    'toast.exported': '已导出',
+    'toast.imported': '已导入',
+    'toast.perfis': '个 Profile',
+    'toast.duplicated': 'Profile 已复制',
+    'toast.favorited': '已收藏 Profile',
+    'toast.unfavorited': '已取消收藏',
+    'sort.name': '名称（A–Z）',
+    'sort.last_used': '最近使用',
+    'sort.launch_count': '使用次数',
+    'sort.play_time': '游戏时长',
+    'sort.created': '创建时间',
+    'settings.general': '常规',
+    'settings.language': '界面语言',
+    'settings.language_desc': '设置启动器自有界面的显示语言',
+    'settings.performance': '性能模式',
+    'settings.performance_desc_default': '默认：启用安全优化',
+    'settings.performance_desc_lowpc': '低配：降低 Flash 画质以提高 FPS',
+    'settings.preferences': '偏好',
+    delete_confirm: '删除这个 Profile 及其本地数据吗？'
   },
 
   en: {
-    'setup.title': 'Welcome to Shinobi Launcher',
+    'setup.title': 'Welcome to Naruto Online Launcher',
     'setup.subtitle': 'Set up your experience in 30 seconds',
     'setup.language.label': 'Language',
     'setup.mode.title': 'Performance Mode',
@@ -162,7 +158,7 @@ const DICTIONARY = {
   },
 
   de: {
-    'setup.title': 'Willkommen beim Shinobi Launcher',
+    'setup.title': 'Willkommen beim Naruto Online Launcher',
     'setup.subtitle': 'Richten Sie Ihre Erfahrung in 30 Sekunden ein',
     'setup.language.label': 'Sprache',
     'setup.mode.title': 'Leistungsmodus',
@@ -188,7 +184,7 @@ const DICTIONARY = {
   },
 
   es: {
-    'setup.title': 'Bienvenido a Shinobi Launcher',
+    'setup.title': 'Bienvenido a Naruto Online Launcher',
     'setup.subtitle': 'Configura tu experiencia en 30 segundos',
     'setup.language.label': 'Idioma',
     'setup.mode.title': 'Modo de Rendimiento',
@@ -214,7 +210,7 @@ const DICTIONARY = {
   },
 
   pl: {
-    'setup.title': 'Witaj w Shinobi Launcher',
+    'setup.title': 'Witaj w Naruto Online Launcher',
     'setup.subtitle': 'Skonfiguruj swoje doświadczenie w 30 sekund',
     'setup.language.label': 'Język',
     'setup.mode.title': 'Tryb Wydajności',
@@ -240,7 +236,7 @@ const DICTIONARY = {
   },
 
   fr: {
-    'setup.title': 'Bienvenue sur Shinobi Launcher',
+    'setup.title': 'Bienvenue sur Naruto Online Launcher',
     'setup.subtitle': 'Configurez votre expérience en 30 secondes',
     'setup.language.label': 'Langue',
     'setup.mode.title': 'Mode de Performance',
@@ -266,11 +262,11 @@ const DICTIONARY = {
   }
 };
 
-let _currentLang = 'pt';
+let _currentLang = DEFAULT_LANGUAGE;
 
 /**
  * Define o idioma atual. Ignora silenciosamente se o idioma não existir no dicionário.
- * @param {string} lang — código do idioma (ex: 'pt', 'en')
+ * @param {string} lang locale code
  */
 function setLanguage(lang) {
   if (DICTIONARY[lang]) {
@@ -283,29 +279,30 @@ function getLanguage() {
   return _currentLang;
 }
 
-/** Traduz uma chave para o idioma atual, com fallback para pt. @param {string} key @returns {string} */
+/** Translate a key using the current locale and Chinese fallback. */
 function t(key) {
-  const dict = DICTIONARY[_currentLang] || DICTIONARY.pt;
-  return dict[key] || DICTIONARY.pt[key] || key;
+  const dict = DICTIONARY[_currentLang] || DICTIONARY[DEFAULT_LANGUAGE];
+  return dict[key] || DICTIONARY[DEFAULT_LANGUAGE][key] || key;
 }
 
-/** Traduz uma chave para um idioma específico, com fallback para pt. @param {string} key @param {string} lang @returns {string} */
+/** Translate a key for a specific locale and use the Chinese fallback. */
 function tl(key, lang) {
-  const dict = DICTIONARY[lang] || DICTIONARY.pt;
-  return dict[key] || DICTIONARY.pt[key] || key;
+  const dict = DICTIONARY[lang] || DICTIONARY[DEFAULT_LANGUAGE];
+  return dict[key] || DICTIONARY[DEFAULT_LANGUAGE][key] || key;
 }
 
 /** Retorna o dicionário completo para um idioma (ou o atual). @param {string} [lang] @returns {Object} */
 function getAll(lang) {
   const l = lang || _currentLang;
-  return DICTIONARY[l] || DICTIONARY.pt;
+  return DICTIONARY[l] || DICTIONARY[DEFAULT_LANGUAGE];
 }
 
 module.exports = {
+  DEFAULT_LANGUAGE: DEFAULT_LANGUAGE,
   setLanguage: setLanguage,
   getLanguage: getLanguage,
   t: t,
   tl: tl,
   getAll: getAll,
-  SUPPORTED: ['pt', 'en', 'de', 'es', 'pl', 'fr']
+  SUPPORTED: SUPPORTED
 };

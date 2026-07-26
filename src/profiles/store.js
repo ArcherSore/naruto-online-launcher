@@ -131,7 +131,7 @@ function ensureDir() {
       fs.mkdirSync(dir, { recursive: true });
     }
   } catch (e) {
-    logger.error('ProfileStore: falha ao criar diretório: ' + e.message);
+    logger.error('ProfileStore: create directory failed: ' + e.message);
   }
 }
 
@@ -156,23 +156,23 @@ function load() {
     if (fs.existsSync(file)) {
       const stat = fs.statSync(file);
       if (stat.size > MAX_FILE_BYTES) {
-        logger.warn('ProfileStore: arquivo muito grande (' + stat.size + ' bytes), descartando');
+        logger.warn('ProfileStore: file too large bytes=' + stat.size + ', discarding');
         throw new Error('oversized');
       }
       const raw = fs.readFileSync(file, 'utf8');
       parsed = JSON.parse(raw);
     }
   } catch (e) {
-    logger.error('ProfileStore: JSON principal corrompido: ' + e.message);
+    logger.error('ProfileStore: primary JSON corrupted: ' + e.message);
     // Tenta backup
     try {
       if (fs.existsSync(backup)) {
-        logger.warn('ProfileStore: recuperando do backup .bak');
+        logger.warn('ProfileStore: recovering from .bak backup');
         const rawBak = fs.readFileSync(backup, 'utf8');
         parsed = JSON.parse(rawBak);
       }
     } catch (e2) {
-      logger.error('ProfileStore: backup também corrompido: ' + e2.message);
+      logger.error('ProfileStore: backup also corrupted: ' + e2.message);
       parsed = null;
     }
   }
@@ -189,7 +189,7 @@ function load() {
     logger.warn(
       'ProfileStore: ' +
         (parsed.length - _profiles.length) +
-        ' perfil(is) inválido(s) descartado(s)'
+        ' invalid profile(s) discarded'
     );
   }
   let migrated = 0;
@@ -200,14 +200,14 @@ function load() {
     logger.info(
       'ProfileStore: ' +
         migrated +
-        ' perfil(is) migrado(s) para o schema Tencent de metadados gerais'
+        ' profile(s) migrated to the Tencent generic metadata schema'
     );
     _saveToDisk(_profiles);
   } else if (_profiles.length !== parsed.length) {
     _saveToDisk(_profiles);
   }
 
-  logger.info('ProfileStore: ' + _profiles.length + ' perfil(is) carregado(s)');
+  logger.info('ProfileStore: loaded profiles=' + _profiles.length);
   return _profiles;
 }
 
@@ -228,7 +228,7 @@ function _saveToDisk(profiles) {
 
     // Limite de tamanho antes de escrever
     if (Buffer.byteLength(json, 'utf8') > MAX_FILE_BYTES) {
-      logger.error('ProfileStore: recusa salvar — JSON excede 1MB');
+      logger.error('ProfileStore: save rejected - JSON exceeds 1MB');
       return false;
     }
 
@@ -238,7 +238,7 @@ function _saveToDisk(profiles) {
         fs.copyFileSync(file, backup);
       }
     } catch (e) {
-      logger.warn('ProfileStore: não foi possível criar backup: ' + e.message);
+      logger.warn('ProfileStore: create backup failed: ' + e.message);
     }
 
     // Atomic write: tmp → rename
@@ -246,7 +246,7 @@ function _saveToDisk(profiles) {
     fs.renameSync(tmp, file);
     return true;
   } catch (e) {
-    logger.error('ProfileStore: falha ao salvar: ' + e.message);
+    logger.error('ProfileStore: save failed: ' + e.message);
     // Tenta limpar tmp órfão
     try {
       if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
@@ -291,16 +291,16 @@ function get(id) {
 function create(opts) {
   if (_profiles === null) load();
   if (_profiles.length >= MAX_PROFILES) {
-    logger.warn('ProfileStore: limite de ' + MAX_PROFILES + ' perfis atingido');
+    logger.warn('ProfileStore: profile limit reached limit=' + MAX_PROFILES);
     return null;
   }
   opts = opts || {};
   const profile = {
     id: 'p_' + crypto.randomBytes(6).toString('hex'),
     name:
-      String(opts.name || 'Conta ' + (_profiles.length + 1))
+      String(opts.name || '账号 ' + (_profiles.length + 1))
         .slice(0, 40)
-        .trim() || 'Conta',
+        .trim() || '账号',
     notificationsEnabled:
       typeof opts.notificationsEnabled === 'boolean' ? opts.notificationsEnabled : true,
     // v4.5: novos campos
@@ -326,7 +326,7 @@ function create(opts) {
   }
   _profiles.push(profile);
   persist();
-  logger.info('ProfileStore: perfil criado — ' + profile.name);
+  logger.info('ProfileStore: profile created name=' + profile.name);
   return profile;
 }
 
@@ -373,10 +373,10 @@ function remove(id) {
     const partDir = path.join(app.getPath('userData'), 'Partitions', 'profile-' + id);
     if (fs.existsSync(partDir)) {
       _rmrf(partDir);
-      logger.info('ProfileStore: dados da partition removidos para ' + id);
+      logger.info('ProfileStore: partition data removed profileId=' + id);
     }
   } catch (e) {
-    logger.warn('ProfileStore: não foi possível remover partition: ' + e.message);
+    logger.warn('ProfileStore: remove partition failed: ' + e.message);
   }
   return true;
 }
@@ -506,7 +506,7 @@ function importJSON(jsonStr) {
   try {
     data = JSON.parse(jsonStr);
   } catch (e) {
-    logger.error('ProfileStore: import JSON inválido: ' + e.message);
+    logger.error('ProfileStore: import JSON invalid: ' + e.message);
     return { imported: 0, skipped: 0 };
   }
   const incoming = Array.isArray(data.profiles) ? data.profiles : Array.isArray(data) ? data : [];
@@ -541,7 +541,7 @@ function importJSON(jsonStr) {
     imported++;
   });
   persist();
-  logger.info('ProfileStore: importados ' + imported + ', ignorados ' + skipped);
+  logger.info('ProfileStore: import completed imported=' + imported + ' skipped=' + skipped);
   return { imported: imported, skipped: skipped };
 }
 
@@ -609,11 +609,11 @@ function _loadLaunchLog() {
           logger.warn(
             'LaunchLog: ' +
               (parsed.length - _launchLog.length) +
-              ' entrada(s) inválida(s) descartada(s)'
+              ' invalid entry(s) discarded'
           );
         }
       } else {
-        logger.warn('LaunchLog: arquivo não é array — iniciando vazio');
+        logger.warn('LaunchLog: file is not an array - starting empty');
         _launchLog = [];
       }
     } else {
@@ -621,7 +621,7 @@ function _loadLaunchLog() {
       _launchLog = [];
     }
   } catch (e) {
-    logger.warn('LaunchLog: arquivo corrompido (' + e.message + ') — iniciando vazio');
+    logger.warn('LaunchLog: file corrupted (' + e.message + ') - starting empty');
     _launchLog = [];
   }
   // Cap defensivo (normalmente o cap já acontece em recordLaunch)
@@ -647,7 +647,7 @@ function _persistLaunchLog() {
     fs.writeFileSync(tmp, json, 'utf8');
     fs.renameSync(tmp, file);
   } catch (e) {
-    logger.error('LaunchLog: falha ao salvar: ' + e.message);
+    logger.error('LaunchLog: save failed: ' + e.message);
     try {
       if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
     } catch (_) {

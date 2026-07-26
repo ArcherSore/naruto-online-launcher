@@ -145,7 +145,7 @@ describe('store.js', () => {
 
     test('assigns auto-generated name if not provided', () => {
       const p = store.create();
-      expect(p.name).toMatch(/^Conta/);
+      expect(p.name).toMatch(/^账号/);
     });
 
     test('ignores legacy region input', () => {

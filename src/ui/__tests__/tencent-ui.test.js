@@ -69,6 +69,14 @@ describe('腾讯 Profile 管理界面边界', () => {
     );
   });
 
+  test('默认可见文案为中文且不展示旧启动器品牌', () => {
+    expect(html).toMatch(/<html lang="zh-CN">/);
+    expect([html, setupHtml, appSource].join('\n')).not.toMatch(
+      /Bem-vindo|Carregando|Português|Shinobi Launcher/i
+    );
+    expect([html, appSource].join('\n')).toMatch(/[\u4e00-\u9fff]/);
+  });
+
   test('管理卡片不显示流程状态说明或动态恢复动作', () => {
     expect(appSource).not.toMatch(
       /STAGE_LABELS|RECOVERY_LABELS|flowSummary|flow-state|flow-recovery-actions/

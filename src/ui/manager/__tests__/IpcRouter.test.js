@@ -77,7 +77,9 @@ const mockGameLauncher = {
 jest.mock('../../game-launcher', () => mockGameLauncher);
 
 jest.mock('../../../config/i18n', () => ({
-  getLanguage: jest.fn(() => 'pt'),
+  DEFAULT_LANGUAGE: 'zh-CN',
+  SUPPORTED: ['zh-CN', 'en', 'de', 'es', 'pl', 'fr'],
+  getLanguage: jest.fn(() => 'zh-CN'),
   setLanguage: jest.fn(),
   getAll: jest.fn(() => ({})),
   t: jest.fn(key => key)
@@ -361,5 +363,14 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
     expect(source).not.toMatch(
       /profiles\/vault|network\/tempmail|network\/api-login|server-selector|vault:|tempmail:|session:check|servers:fetch|export-encrypted|import-encrypted|auto-login:status/
     );
+  });
+
+  test('用户可见摘要、对话框和默认文件名不包含葡语或普通英文动作文案', () => {
+    const source = fs.readFileSync(require.resolve('../IpcRouter'), 'utf8');
+    const visibleSource = source.replace(/\berror:\s*(['"])[^\r\n]*?\1/g, '');
+    expect(visibleSource).not.toMatch(
+      /Perfil não encontrado|Diagnóstico falhou|Exportar perfis|Importar perfis|Save profiles|Open profiles/i
+    );
+    expect(visibleSource).toMatch(/[\u4e00-\u9fff]/);
   });
 });

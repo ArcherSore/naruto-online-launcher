@@ -78,7 +78,7 @@ for (var _envKey in gpuEnvVars) {
   }
 }
 if (Object.keys(gpuEnvVars).length > 0) {
-  logger.info('GPU env vars aplicadas: ' + Object.keys(gpuEnvVars).join(', '));
+  logger.info('GPU: environment variables applied keys=' + Object.keys(gpuEnvVars).join(', '));
 }
 
 // ══ APLICAR TODAS AS FLAGS ANTES DE READY ══
@@ -113,7 +113,7 @@ let isQuitting = false;
 let activeGameWindows = 0;
 
 // v3.5: Aplica idioma do config ao i18n global
-i18n.setLanguage(config.language || 'pt');
+i18n.setLanguage(config.language || i18n.DEFAULT_LANGUAGE);
 
 // Vincula o MemoryGuard ao ProfileManager (quebra dependência circular).
 profileManager.setMemoryGuard(memoryGuard);
@@ -156,9 +156,9 @@ function launchGameForProfile(profileId) {
       // Caso contrário: manager fica visível → multi-conta simultânea habilitada.
       if (memoryGuard.isRamen() && uiManager) {
         uiManager.hideManager();
-        logger.info('Manager oculto (Ramen Mode) — RAM liberada para o jogo');
+        logger.info('Manager: hidden in Ramen Mode to free RAM for the game');
       } else {
-        logger.info('Jogo aberto — manager visível (multi-conta disponível)');
+        logger.info('Manager: game opened, manager remains visible for multiple profiles');
       }
     },
     function onClosed() {
@@ -167,7 +167,7 @@ function launchGameForProfile(profileId) {
         // Último jogo fechou: garante que o manager esteja visível (caso o
         // usuário o tenha ocultado manualmente via X durante o jogo).
         uiManager.showManager();
-        logger.info('Jogo fechado — manager restaurado');
+        logger.info('Manager: game closed, manager restored');
       }
     }
   );
@@ -221,7 +221,7 @@ function showSetupWindow(onDone) {
     useContentSize: true, // v3.5: geometria exata do HTML contra barras de título do SO
     backgroundColor: '#0a0a0f',
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
-    title: 'Shinobi Launcher — Setup',
+    title: 'Naruto Online 启动器 — 首次设置',
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
@@ -236,12 +236,12 @@ function showSetupWindow(onDone) {
     'file://' +
     path.join(__dirname, 'ui', 'setup', 'setup.html') +
     '?lang=' +
-    (config.language || 'pt');
+    (config.language || i18n.DEFAULT_LANGUAGE);
   setupWindow.loadURL(setupUrl);
 
   setupWindow.once('ready-to-show', function () {
     setupWindow.show();
-    logger.info('Setup window exibida (firstBoot)');
+    logger.info('Setup: window shown firstBoot=true');
   });
 
   // Intercepta o "close" — setup.html sinaliza via document.title '__SETUP_DONE__{json}'
@@ -252,12 +252,15 @@ function showSetupWindow(onDone) {
         const jsonStr = title.slice('__SETUP_DONE__'.length);
         const result = JSON.parse(jsonStr);
         logger.info(
-          'Setup concluído: lang=' + result.language + ' advanced=' + result.advancedMode
+          'Setup: completed language=' + result.language + ' advancedMode=' + result.advancedMode
         );
 
         // Aplica configurações
         config.firstBoot = false;
-        config.language = result.language || 'pt';
+        config.language =
+          typeof result.language === 'string' && i18n.SUPPORTED.indexOf(result.language) !== -1
+            ? result.language
+            : i18n.DEFAULT_LANGUAGE;
         config.advancedMode = result.advancedMode === true;
 
         // Sincroniza i18n
@@ -279,7 +282,7 @@ function showSetupWindow(onDone) {
         setupWindow = null;
         if (onDone) onDone();
       } catch (err) {
-        logger.error('Erro ao processar setup result: ' + err.message);
+        logger.error('Setup: result processing failed: ' + err.message);
       }
     }
   });
@@ -289,7 +292,7 @@ function showSetupWindow(onDone) {
     setupWindow = null;
     // Se firstBoot ainda é true (não salvou), mantém para próxima vez
     if (config.firstBoot !== false) {
-      logger.warn('Setup fechado sem concluir — firstBoot mantido para próxima execução');
+      logger.warn('Setup: closed before completion - keeping firstBoot for next run');
       // Não chama onDone → app não continua, fecha
       app.quit();
     }
@@ -312,7 +315,7 @@ app.on('ready', function () {
 
   // ── v3.5: ONBOARDING — se firstBoot, mostra setup antes do manager ──
   if (config.firstBoot !== false) {
-    logger.info('Primeira execução detectada — abrindo tela de setup');
+    logger.info('Setup: first run detected, opening setup window');
     showSetupWindow(function onSetupDone() {
       _initManagerAndLaunch();
     });
@@ -326,15 +329,13 @@ app.on('ready', function () {
  * Report a corrupted installation when the bundled PPAPI binary is missing.
  */
 function _showFlashMissingError() {
-  logger.error('Flash PPAPI not found — corrupted installation');
+  logger.error('Flash: PPAPI plugin not found - installation corrupted');
   dialog.showMessageBoxSync({
     type: 'error',
-    title: 'Flash not found',
-    message: 'The bundled Flash PPAPI plugin was not found.',
-    detail:
-      'The launcher installation appears corrupted. Reinstall the latest release; ' +
-      'Flash is required to run Naruto Online.',
-    buttons: ['Exit']
+    title: '未找到 Flash',
+    message: '未找到启动器随附的 Flash PPAPI 插件。',
+    detail: '当前安装可能已损坏，请重新安装最新版本。运行 Naruto Online 必须使用 Flash。',
+    buttons: ['退出']
   });
   app.exit(1);
 }
@@ -428,11 +429,11 @@ function _initManagerAndLaunch() {
     config.optimizationPreset = code;
     _persistConfig();
     logger.info(
-      'Optimization preset alterado: ' +
+      'Optimization: preset changed from=' +
         previous +
-        ' → ' +
+        ' to=' +
         code +
-        ' (requer reinício para aplicar flags Chromium)'
+        ' (restart required to apply Chromium flags)'
     );
     return {
       ok: true,
@@ -471,12 +472,12 @@ app.on('window-all-closed', function () {
 app.on('gpu-process-crashed', function (event) {
   const reason = (event && event.reason) || 'unknown';
   const exitCode = (event && event.exitCode) || '?';
-  logger.error('⚡ GPU process crashed — reason=' + reason + ' exitCode=' + exitCode);
+  logger.error('GPU: process crashed reason=' + reason + ' exitCode=' + exitCode);
 });
 
 app.on('child-process-gone', function (event, details) {
   logger.warn(
-    '⚡ Child process gone — type=' +
+    'Process: child process gone type=' +
       details.type +
       ' reason=' +
       details.reason +
@@ -528,31 +529,35 @@ function _persistConfig() {
           : config.forceBatata;
     saveConfig(config);
   } catch (e) {
-    logger.debug('main: saveConfig falhou: ' + e.message);
+    logger.debug('Main: saveConfig failed: ' + e.message);
   }
 }
 
 function _logBanner() {
   var pkg = require('../package.json');
   var ver = pkg.version || 'unknown';
-  logger.info('═══════════════════════════════════════════');
-  logger.info('  🍥 Shinobi Launcher v' + ver);
-  logger.info('  🥷 Zero tracking + Exportador de diagnóstico + UI responsiva');
-  logger.info('═══════════════════════════════════════════');
-  logger.info('Flash PPAPI: ' + (flashPath ? '✅ ' + flashVersion : '❌'));
-  logger.info('Perfis: ' + profileStore.getAll().length + '/' + profileStore.MAX_PROFILES);
-  logger.info('Idioma: ' + i18n.getLanguage());
-  logger.info('RAM do sistema: ' + memoryGuard.SYSTEM_RAM_GB + 'GB');
+  logger.info('-------------------------------------------');
+  logger.info('Naruto Online Launcher v' + ver);
+  logger.info('Zero tracking | Diagnostics export | Responsive UI');
+  logger.info('-------------------------------------------');
   logger.info(
-    'Modo Leve: ' +
+    'Flash PPAPI: ' + (flashPath ? 'available version=' + flashVersion : 'not available')
+  );
+  logger.info('Profiles: ' + profileStore.getAll().length + '/' + profileStore.MAX_PROFILES);
+  logger.info('Language: ' + i18n.getLanguage());
+  logger.info('System RAM: ' + memoryGuard.SYSTEM_RAM_GB + 'GB');
+  logger.info(
+    'Lightweight mode: ' +
       (memoryGuard.isBatata() ? 'ON' : 'OFF') +
       ' (threshold ' +
       memoryGuard.getThreshold() +
       'MB)'
   );
-  logger.info('Modo Leve Avançado: ' + (config.advancedMode ? 'ON (Flash low quality)' : 'OFF'));
+  logger.info(
+    'Advanced lightweight mode: ' + (config.advancedMode ? 'ON (Flash low quality)' : 'OFF')
+  );
   // v4.9.1: Telemetria removida (crash reporter deletado a pedido do usuário)
-  logger.info('═══════════════════════════════════════════');
+  logger.info('-------------------------------------------');
 }
 
 module.exports = {

@@ -89,8 +89,8 @@
       "icon": "assets/icon.png",
       "desktop": {
         "Name": "Naruto Online",
-        "Comment": "Play Naruto Online with Flash PPAPI — Native Linux Launcher",
-        "GenericName": "Game Launcher",
+        "Comment": "使用 Flash PPAPI 运行 Naruto Online",
+        "GenericName": "游戏启动器",
         "Categories": "Game;RolePlaying;",
         "Keywords": "game;naruto;flash;browser;mmo;anime;rpg;",
         "StartupWMClass": "Naruto Online",

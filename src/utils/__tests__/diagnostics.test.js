@@ -277,6 +277,31 @@ describe('diagnostics.js - _collectSystemInfo', () => {
 });
 
 describe('diagnostics.js - exportZip', () => {
+  test('使用中文保存对话框和 Naruto Online 诊断文件名', async () => {
+    const { dialog } = require('electron');
+    dialog.showSaveDialog.mockResolvedValueOnce({ canceled: true });
+
+    await exportZip(null);
+
+    expect(dialog.showSaveDialog).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({
+        title: '导出诊断包',
+        defaultPath: expect.stringMatching(/^naruto-online-diag-.*\.zip$/)
+      })
+    );
+  });
+
+  test('生成说明中文化但保留原始诊断 entry 与脱敏流程', () => {
+    const source = require('fs').readFileSync(require.resolve('../diagnostics'), 'utf8');
+    expect(source).toMatch(/# Naruto Online 启动器诊断信息/);
+    expect(source).toMatch(/entries\.push\(\{\s*name: 'config\.json'/);
+    expect(source).toMatch(/entries\.push\(\{\s*name: 'profiles\.json'/);
+    expect(source).toMatch(/name: 'logs\/' \+ fname/);
+    expect(source).toMatch(/crash-reports-legacy\.json/);
+    expect(source).not.toMatch(/replace\([^)]*(?:Oasis|Portugu)/i);
+  });
+
   test('retorna ok:false,canceled:true quando diálogo cancelado', async () => {
     // dialog.showSaveDialog mock retorna { canceled: true }
     const { dialog } = require('electron');

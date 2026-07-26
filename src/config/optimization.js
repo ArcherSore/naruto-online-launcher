@@ -19,7 +19,7 @@
  *                  Trade-off: none. Recommended for most users.
  *
  *   - quality:     maximum compatibility. No CPU affinity (scheduler decides),
- *                  nice=+5 (yields priority to other apps), sem OOM protection.
+ *                  nice=+5 (yields priority to other apps), without OOM protection.
  *                  Trade-off: fewer FPS on low-end PCs. Recommended for those who
  *                  runs the game in the background while working.
  */
@@ -28,22 +28,22 @@
 
 const PRESETS = {
   performance: {
-    name: 'Performance',
-    description: 'Máximo FPS • CPU em P-cores • Prioridade alta',
+    name: '高性能',
+    description: '最高 FPS • 使用 CPU P 核 • 高优先级',
     icon: '\u{1F680}',
     color: '#DC2626'
   },
 
   balanced: {
-    name: 'Balanceado',
-    description: 'Padrão • CPU em P-cores • Estável',
+    name: '均衡',
+    description: '标准性能 • 使用 CPU P 核 • 稳定运行',
     icon: '\u{2696}\u{FE0F}',
     color: '#10B981'
   },
 
   quality: {
-    name: 'Qualidade',
-    description: 'Compatibilidade • Cede prioridade • Sem affinity • Multitarefa',
+    name: '兼容',
+    description: '降低优先级 • 不设置 CPU affinity • 适合多任务',
     icon: '\u{1F33F}',
     color: '#3B82F6'
   }

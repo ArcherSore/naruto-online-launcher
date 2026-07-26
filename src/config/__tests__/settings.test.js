@@ -93,29 +93,40 @@ describe('settings.js - validateConfig', () => {
     expect(result).not.toHaveProperty('unknownProp');
   });
 
-  // ── v4.0.1: language field (6 languages) ──
+  // ── Chinese default language and legacy migration ──
 
-  test('default language é pt', () => {
-    expect(validateConfig({}).language).toBe('pt');
+  test('defaults missing, empty, invalid and Portuguese language values to zh-CN', () => {
+    [undefined, null, '', 'invalid', 'pt', 'pt-BR', 'pt_BR', 123, {}].forEach(language => {
+      expect(validateConfig({ language }).language).toBe('zh-CN');
+    });
   });
 
-  test('aceita idiomas suportados (pt, en)', () => {
-    ['pt', 'en'].forEach(lang => {
+  test('accepts zh-CN and explicitly supported non-Portuguese locales', () => {
+    ['zh-CN', 'en', 'de', 'es', 'pl', 'fr'].forEach(lang => {
       expect(validateConfig({ language: lang }).language).toBe(lang);
     });
   });
 
-  test('rejeita idiomas não suportados (de, es, pl, fr) e usa pt', () => {
-    ['de', 'es', 'pl', 'fr', 'ru', 'ja'].forEach(lang => {
-      expect(validateConfig({ language: lang }).language).toBe('pt');
+  test('language migration preserves unrelated settings', () => {
+    const bounds = { x: 10, y: 20, width: 900, height: 700 };
+    const result = validateConfig({
+      language: 'pt-BR',
+      firstBoot: false,
+      advancedMode: true,
+      windowBounds: bounds,
+      optimizationPreset: 'quality',
+      hardwareProfile: 'legacy'
     });
-  });
-
-  test('rejeita idioma inválido e usa pt como fallback', () => {
-    expect(validateConfig({ language: 'ru' }).language).toBe('pt');
-    expect(validateConfig({ language: 'ja' }).language).toBe('pt');
-    expect(validateConfig({ language: '' }).language).toBe('pt');
-    expect(validateConfig({ language: 123 }).language).toBe('pt');
+    expect(result).toEqual(
+      expect.objectContaining({
+        language: 'zh-CN',
+        firstBoot: false,
+        advancedMode: true,
+        windowBounds: bounds,
+        optimizationPreset: 'quality',
+        hardwareProfile: 'legacy'
+      })
+    );
   });
 
   // ── forceBatata ──
@@ -253,7 +264,7 @@ describe('settings.js - loadConfig', () => {
     const config = loadConfig();
     expect(config.region).toBe('br');
     expect(config.hardwareProfile).toBe('modern');
-    expect(config.language).toBe('pt');
+    expect(config.language).toBe('zh-CN');
   });
 });
 
@@ -262,7 +273,7 @@ describe('settings.js - saveConfig', () => {
     const result = saveConfig({
       region: 'br',
       hardwareProfile: 'modern',
-      language: 'pt'
+      language: 'zh-CN'
     });
     expect(result).toBe(true);
     expect(mockWriteFileSync).toHaveBeenCalledTimes(1);
@@ -272,7 +283,7 @@ describe('settings.js - saveConfig', () => {
     const written = mockWriteFileSync.mock.calls[0][1];
     const parsed = JSON.parse(written);
     expect(parsed.region).toBe('br');
-    expect(parsed.language).toBe('pt');
+    expect(parsed.language).toBe('zh-CN');
   });
 
   test('usa atomic write (tmp + rename)', () => {
@@ -326,11 +337,11 @@ describe('settings.js - saveConfig', () => {
     expect(parsed.firstBoot).toBe(true);
   });
 
-  test('language default pt é salvo corretamente', () => {
+  test('language default zh-CN is saved correctly', () => {
     saveConfig({ region: 'br', hardwareProfile: 'modern' });
     const written = mockWriteFileSync.mock.calls[0][1];
     const parsed = JSON.parse(written);
-    expect(parsed.language).toBe('pt');
+    expect(parsed.language).toBe('zh-CN');
   });
 
   test('não inclui propriedades extras', () => {

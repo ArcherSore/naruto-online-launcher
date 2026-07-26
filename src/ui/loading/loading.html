@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Carregando</title>
+    <title>正在加载</title>
     <style>
       * {
         margin: 0;
@@ -547,24 +547,24 @@
 
       <!-- Title & subtitle -->
       <div class="title fade-text" id="title">Naruto Online</div>
-      <div class="sub fade-text" id="sub">Carregando servidor...</div>
+      <div class="sub fade-text" id="sub">正在连接服务器…</div>
 
       <!-- Step indicator -->
       <div class="steps" id="steps">
         <div class="step">
-          <div class="step-dot active" id="step1"><span class="step-label">Conectando</span></div>
+          <div class="step-dot active" id="step1"><span class="step-label">连接</span></div>
         </div>
         <div class="step-line" id="line1"></div>
         <div class="step">
-          <div class="step-dot" id="step2"><span class="step-label">Baixando</span></div>
+          <div class="step-dot" id="step2"><span class="step-label">下载</span></div>
         </div>
         <div class="step-line" id="line2"></div>
         <div class="step">
-          <div class="step-dot" id="step3"><span class="step-label">Extraindo</span></div>
+          <div class="step-dot" id="step3"><span class="step-label">解压</span></div>
         </div>
         <div class="step-line" id="line3"></div>
         <div class="step">
-          <div class="step-dot" id="step4"><span class="step-label">Pronto</span></div>
+          <div class="step-dot" id="step4"><span class="step-label">完成</span></div>
         </div>
       </div>
 
@@ -576,7 +576,7 @@
       <div class="detail fade-text" id="detail"></div>
 
       <!-- Retry button (error state only) -->
-      <button class="retry-btn hidden" id="retryBtn">Tentar novamente</button>
+      <button class="retry-btn hidden" id="retryBtn">重试</button>
       <div class="recovery-actions hidden" id="recoveryActions" aria-live="polite"></div>
     </div>
 
@@ -668,7 +668,7 @@
         setSteps(1);
         showPhaseIcon('');
         fadeText(titleEl, 'Naruto Online');
-        fadeText(subEl, 'Conectando...');
+        fadeText(subEl, '正在连接…');
         pct.style.color = '#c8a23d';
         pct.textContent = '';
         detail.textContent = '';
@@ -762,9 +762,9 @@
         // ── Error phase ──
         if (phase === 'error') {
           shuriken.classList.add('error-state');
-          fadeText(titleEl, 'Erro no download');
+          fadeText(titleEl, '下载失败');
           fadeText(subEl, '');
-          pct.textContent = detailStr || 'Falha ao baixar Flash PPAPI';
+          pct.textContent = detailStr || 'Flash PPAPI 下载失败';
           pct.classList.add('err');
           detail.textContent = '';
           bar.style.display = 'none';
@@ -786,8 +786,8 @@
           bar.classList.remove('done');
 
           if (phaseChanged) {
-            fadeText(titleEl, 'Baixando Clean Flash PPAPI');
-            fadeText(subEl, 'Primeira execução — plugin Flash está sendo baixado');
+            fadeText(titleEl, '正在下载 Flash PPAPI');
+            fadeText(subEl, '首次运行需要下载 Flash 插件');
             showPhaseIcon('download');
           }
 
@@ -795,7 +795,7 @@
             bar.classList.remove('indeterminate');
             bar.classList.add('active-download');
             fill.style.width = percent + '%';
-            setSteps(2); // "Baixando" is step 2
+            setSteps(2); // Download is step 2
             pct.style.color = '#c8a23d';
             pct.textContent = percent + '%';
             var detailParts = [];
@@ -806,9 +806,9 @@
             bar.classList.add('indeterminate');
             bar.classList.remove('active-download');
             fill.style.width = '0%';
-            setSteps(1); // "Conectando" is step 1
+            setSteps(1); // Connection is step 1
             pct.textContent = '';
-            detail.textContent = 'Conectando...';
+            detail.textContent = '正在连接…';
           }
 
           // ── Extract phase ──
@@ -818,16 +818,16 @@
           bar.classList.remove('done');
 
           if (phaseChanged) {
-            fadeText(titleEl, 'Extraindo Flash PPAPI');
-            fadeText(subEl, 'Instalando no cache local');
+            fadeText(titleEl, '正在解压 Flash PPAPI');
+            fadeText(subEl, '正在安装到本地缓存');
             showPhaseIcon('extract');
           }
 
           fill.style.width = '100%';
-          setSteps(3); // "Extraindo" is step 3
+          setSteps(3); // Extraction is step 3
           pct.style.color = '#c8a23d';
           pct.textContent = '';
-          detail.textContent = 'Extraindo...';
+          detail.textContent = '正在解压…';
 
           // ── Done phase ──
         } else if (phase === 'done') {
@@ -835,12 +835,12 @@
           bar.classList.remove('indeterminate', 'active-download');
           bar.classList.add('done');
 
-          fadeText(titleEl, 'Flash pronto');
-          fadeText(subEl, 'Reiniciando launcher...');
+          fadeText(titleEl, 'Flash 已就绪');
+          fadeText(subEl, '正在重启启动器…');
           showPhaseIcon('done');
 
           fill.style.width = '100%';
-          setSteps(4); // "Pronto" is step 4
+          setSteps(4); // Done is step 4
           pct.textContent = '✓';
           pct.style.color = '#10B981';
           detail.textContent = '';
@@ -852,7 +852,7 @@
           bar.classList.remove('active-download', 'done');
 
           fadeText(titleEl, 'Naruto Online');
-          fadeText(subEl, 'Carregando servidor...');
+          fadeText(subEl, '正在连接服务器…');
           showPhaseIcon('');
 
           fill.style.width = '0%';

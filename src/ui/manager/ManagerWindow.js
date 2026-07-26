@@ -38,7 +38,7 @@ function createManagerWindow(opts) {
     height: 760,
     minWidth: 760,
     minHeight: 580,
-    title: 'Shinobi Launcher',
+    title: 'Naruto Online 启动器',
     backgroundColor: '#0f0f14',
     show: false,
     autoHideMenuBar: true,
@@ -71,7 +71,7 @@ function createManagerWindow(opts) {
     if (gameLauncher.hasOpenWindows()) {
       e.preventDefault();
       managerWindow.hide();
-      logger.info('Manager hidden (game running) — will return when game closes');
+      logger.info('Manager hidden (game running) - will return when game closes');
     }
   });
 

@@ -30,8 +30,8 @@ if [ -z "$APPIMAGE" ]; then
 fi
 
 if [ -z "$APPIMAGE" ]; then
-  echo "Error: Naruto Online Launcher not found in $SCRIPT_DIR" >&2
-  echo "Please run the installer again." >&2
+  echo "错误：在 $SCRIPT_DIR 中未找到 Naruto Online 启动器。" >&2
+  echo "请重新运行安装脚本。" >&2
   exit 1
 fi
 

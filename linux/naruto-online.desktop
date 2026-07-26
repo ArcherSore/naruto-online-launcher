@@ -2,8 +2,8 @@
 Version=1.1
 Type=Application
 Name=Naruto Online
-Comment=Play Naruto Online with Flash PPAPI — Native Linux Launcher
-GenericName=Game Launcher
+Comment=使用 Flash PPAPI 运行 Naruto Online
+GenericName=游戏启动器
 Exec=naruto-online %U
 Icon=naruto-online
 Terminal=false

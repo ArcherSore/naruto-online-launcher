@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Shinobi Launcher — Setup</title>
+    <title>Naruto Online 启动器 — 首次设置</title>
     <style>
       :root {
         --bg: #08080d;
@@ -300,18 +300,18 @@
     <header>
       <div class="logo">🍥</div>
       <div class="brand">
-        <h1 data-i18n="setup.title">Bem-vindo ao Shinobi Launcher</h1>
-        <span class="sub" data-i18n="setup.subtitle">Configure sua experiência em 30 segundos</span>
+        <h1 data-i18n="setup.title">欢迎使用 Naruto Online 启动器</h1>
+        <span class="sub" data-i18n="setup.subtitle">约 30 秒完成首次设置</span>
       </div>
     </header>
 
     <main>
       <!-- Language Selector (6 languages) -->
       <div class="section">
-        <h2 data-i18n="setup.language.label">Idioma</h2>
+        <h2 data-i18n="setup.language.label">界面语言</h2>
         <div class="lang-grid">
-          <button class="lang-btn active" data-lang="pt">
-            <span class="flag">🇧🇷</span> Português
+          <button class="lang-btn active" data-lang="zh-CN">
+            <span class="flag">🇨🇳</span> 简体中文
           </button>
           <button class="lang-btn" data-lang="en"><span class="flag">🇺🇸</span> English</button>
           <button class="lang-btn" data-lang="de"><span class="flag">🇩🇪</span> Deutsch</button>
@@ -323,52 +323,51 @@
 
       <!-- Performance Mode -->
       <div class="section">
-        <h2 data-i18n="setup.mode.title">Modo de Desempenho</h2>
+        <h2 data-i18n="setup.mode.title">性能模式</h2>
         <div class="mode-card active" data-mode="default">
-          <div class="name">⚡ <span data-i18n="mode.default">Padrão Otimizado</span></div>
+          <div class="name">⚡ <span data-i18n="mode.default">默认优化</span></div>
           <div class="desc" data-i18n="setup.mode.default.body">
-            Recomendado — máxima otimização segura (GPU, GC inteligente, anti-lag).
+            推荐所有设备使用：启用经过验证的 GPU、GC 等安全优化。
           </div>
-          <div class="hint" data-i18n="setup.mode.default.hint">Padrão • Otimizado</div>
+          <div class="hint" data-i18n="setup.mode.default.hint">默认 · 推荐</div>
         </div>
         <div class="mode-card" data-mode="lowpc">
-          <div class="name">🔥 <span data-i18n="mode.lowpc">Modo PC Fraco</span></div>
+          <div class="name">🔥 <span data-i18n="mode.lowpc">低配模式</span></div>
           <div class="desc" data-i18n="setup.mode.lowpc.body">
-            PCs fracos (GPU antiga ou <4GB RAM). Reduz qualidade visual do Flash. ⚠️ Pode prejudicar
-            em PCs modernos.
+            仅适合旧 GPU 或少于 4GB RAM 的设备：降低 Flash 画质以提高 FPS。
           </div>
-          <div class="hint" data-i18n="setup.mode.lowpc.hint">PC Fraco • Opt-in</div>
+          <div class="hint" data-i18n="setup.mode.lowpc.hint">低配设备 · 手动启用</div>
         </div>
       </div>
     </main>
 
     <footer>
-      <button class="btn-save" id="btn-save" data-i18n="setup.save">Começar a jogar</button>
+      <button class="btn-save" id="btn-save" data-i18n="setup.save">保存并进入启动器</button>
     </footer>
 
     <script>
       (function () {
         'use strict';
 
-        // ── i18n dictionary (6 languages — matches src/config/i18n.js SUPPORTED) ──
+        // ── i18n dictionary (matches src/config/i18n.js SUPPORTED) ──
         var I18N = {
-          pt: {
-            'setup.title': 'Bem-vindo ao Shinobi Launcher',
-            'setup.subtitle': 'Configure sua experiência em 30 segundos',
-            'setup.language.label': 'Idioma',
-            'setup.mode.title': 'Modo de Desempenho',
+          'zh-CN': {
+            'setup.title': '欢迎使用 Naruto Online 启动器',
+            'setup.subtitle': '约 30 秒完成首次设置',
+            'setup.language.label': '界面语言',
+            'setup.mode.title': '性能模式',
             'setup.mode.default.body':
-              'Recomendado — máxima otimização segura (GPU, GC inteligente, anti-lag).',
+              '推荐所有设备使用：启用经过验证的 GPU、GC 等安全优化。',
             'setup.mode.lowpc.body':
-              'PCs fracos (GPU antiga ou <4GB RAM). Reduz qualidade visual do Flash. ⚠️ Pode prejudicar em PCs modernos.',
-            'setup.mode.default.hint': 'Padrão • Otimizado',
-            'setup.mode.lowpc.hint': 'PC Fraco • Opt-in',
-            'setup.save': 'Começar a jogar',
-            'mode.default': 'Padrão Otimizado',
-            'mode.lowpc': 'Modo PC Fraco'
+              '仅适合旧 GPU 或少于 4GB RAM 的设备：降低 Flash 画质以提高 FPS。',
+            'setup.mode.default.hint': '默认 · 推荐',
+            'setup.mode.lowpc.hint': '低配设备 · 手动启用',
+            'setup.save': '保存并进入启动器',
+            'mode.default': '默认优化',
+            'mode.lowpc': '低配模式'
           },
           en: {
-            'setup.title': 'Welcome to Shinobi Launcher',
+            'setup.title': 'Welcome to Naruto Online Launcher',
             'setup.subtitle': 'Set up your experience in 30 seconds',
             'setup.language.label': 'Language',
             'setup.mode.title': 'Performance Mode',
@@ -383,7 +382,7 @@
             'mode.lowpc': 'Low-end PC Mode'
           },
           de: {
-            'setup.title': 'Willkommen beim Shinobi Launcher',
+            'setup.title': 'Willkommen beim Naruto Online Launcher',
             'setup.subtitle': 'Richten Sie Ihre Erfahrung in 30 Sekunden ein',
             'setup.language.label': 'Sprache',
             'setup.mode.title': 'Leistungsmodus',
@@ -397,7 +396,7 @@
             'mode.lowpc': 'Schwacher PC Modus'
           },
           es: {
-            'setup.title': 'Bienvenido al Shinobi Launcher',
+            'setup.title': 'Bienvenido al Naruto Online Launcher',
             'setup.subtitle': 'Configura tu experiencia en 30 segundos',
             'setup.language.label': 'Idioma',
             'setup.mode.title': 'Modo de rendimiento',
@@ -411,7 +410,7 @@
             'mode.lowpc': 'Modo PC Débil'
           },
           pl: {
-            'setup.title': 'Witaj w Shinobi Launcher',
+            'setup.title': 'Witaj w Naruto Online Launcher',
             'setup.subtitle': 'Skonfiguruj w 30 sekund',
             'setup.language.label': 'Język',
             'setup.mode.title': 'Tryb wydajności',
@@ -425,7 +424,7 @@
             'mode.lowpc': 'Tryb Słabego PC'
           },
           fr: {
-            'setup.title': 'Bienvenue dans Shinobi Launcher',
+            'setup.title': 'Bienvenue dans Naruto Online Launcher',
             'setup.subtitle': 'Configurez en 30 secondes',
             'setup.language.label': 'Langue',
             'setup.mode.title': 'Mode de performance',
@@ -440,7 +439,7 @@
           }
         };
 
-        var currentLang = 'pt';
+        var currentLang = 'zh-CN';
         var selectedMode = 'default';
 
         // Detect initial language via query string (?lang=en)
@@ -454,9 +453,16 @@
 
         function applyLanguage(lang) {
           currentLang = lang;
-          var dict = I18N[lang] || I18N.pt;
-          var langMap = { pt: 'pt-BR', en: 'en', de: 'de', es: 'es', pl: 'pl', fr: 'fr' };
-          document.documentElement.lang = langMap[lang] || 'pt-BR';
+          var dict = I18N[lang] || I18N['zh-CN'];
+          var langMap = {
+            'zh-CN': 'zh-CN',
+            en: 'en',
+            de: 'de',
+            es: 'es',
+            pl: 'pl',
+            fr: 'fr'
+          };
+          document.documentElement.lang = langMap[lang] || 'zh-CN';
           document.querySelectorAll('[data-i18n]').forEach(function (el) {
             var key = el.getAttribute('data-i18n');
             if (dict[key]) el.textContent = dict[key];

@@ -12,6 +12,13 @@ const logger = require('../utils/logger');
 const { isValidRegion, getDefaultRegion } = require('./regions');
 const { isValidProfile, getDefaultProfile } = require('./hardware');
 const { isValidPreset, getDefaultPreset } = require('./optimization');
+const i18n = require('./i18n');
+
+function normalizeLanguage(language) {
+  return typeof language === 'string' && i18n.SUPPORTED.indexOf(language) !== -1
+    ? language
+    : i18n.DEFAULT_LANGUAGE;
+}
 
 /**
  * Get the configuration file path
@@ -40,22 +47,21 @@ function validateConfig(rawConfig) {
     windowBounds: (rawConfig && rawConfig.windowBounds) || null,
     // v3.5: onboarding + i18n + Modo Leve Avançado
     firstBoot: rawConfig && rawConfig.firstBoot === false ? false : true, // default true até concluir setup
-    // v4.0.1 FIX: antes só aceitava pt/en, depois aceitava 6 idiomas.
-    // v5.9.15: i18n foi reduzido a pt/en (Task 225). Outros idiomas ("em breve")
-    // foram removidos. Aceitar de/es/pl/fr aqui causava idioma sem tradução.
-    language:
-      rawConfig && ['pt', 'en'].indexOf(rawConfig.language) !== -1 ? rawConfig.language : 'pt',
+    language: normalizeLanguage(rawConfig && rawConfig.language),
     advancedMode: rawConfig && rawConfig.advancedMode === true, // Modo Leve Avançado (Flash low quality)
     // v5.0.0: optimization preset (performance/balanced/quality) — aplicado em flags.js
     optimizationPreset: isValidPreset(optimizationPreset) ? optimizationPreset : getDefaultPreset()
   };
 
   if (region !== undefined && !isValidRegion(region)) {
-    logger.warn('Região inválida: ' + region + ', usando padrão: ' + validated.region);
+    logger.warn('Config: invalid region=' + region + ', using default=' + validated.region);
   }
   if (hardwareProfile !== undefined && !isValidProfile(hardwareProfile)) {
     logger.warn(
-      'Perfil inválido: ' + hardwareProfile + ', usando padrão: ' + validated.hardwareProfile
+      'Config: invalid hardwareProfile=' +
+        hardwareProfile +
+        ', using default=' +
+        validated.hardwareProfile
     );
   }
 
@@ -71,7 +77,7 @@ function loadConfig() {
 
   try {
     if (!fs.existsSync(configPath)) {
-      logger.info('Usando configurações padrão (primeiro uso)');
+      logger.info('Config: using defaults (first run)');
       return validateConfig({});
     }
 
@@ -88,16 +94,16 @@ function loadConfig() {
     try {
       rawConfig = JSON.parse(rawContent);
     } catch (parseError) {
-      logger.error('JSON inválido no config, usando padrão: ' + parseError.message);
+      logger.error('Config: invalid JSON, using defaults: ' + parseError.message);
       return validateConfig({});
     }
 
     const config = validateConfig(rawConfig);
-    logger.info('Config carregada: região=' + config.region + ', perfil=' + config.hardwareProfile);
+    logger.info('Config: loaded region=' + config.region + ', profile=' + config.hardwareProfile);
 
     return config;
   } catch (e) {
-    logger.error('Erro ao carregar config, usando padrão: ' + e.message);
+    logger.error('Config: load failed, using defaults: ' + e.message);
     return validateConfig({});
   }
 }
@@ -118,7 +124,7 @@ function saveConfig(config) {
         windowBounds: config.windowBounds || null,
         // v3.5
         firstBoot: config.firstBoot === false ? false : true,
-        language: config.language || 'pt',
+        language: normalizeLanguage(config.language),
         advancedMode: config.advancedMode === true,
         // v5.0.0: optimization preset
         optimizationPreset: config.optimizationPreset || getDefaultPreset()
@@ -130,10 +136,10 @@ function saveConfig(config) {
     const tmpPath = configPath + '.tmp';
     fs.writeFileSync(tmpPath, content, 'utf8');
     fs.renameSync(tmpPath, configPath);
-    logger.info('Config salva');
+    logger.info('Config: saved');
     return true;
   } catch (e) {
-    logger.error('Erro ao salvar config: ' + e.message);
+    logger.error('Config: save failed: ' + e.message);
     return false;
   }
 }
@@ -141,5 +147,6 @@ function saveConfig(config) {
 module.exports = {
   loadConfig: loadConfig,
   saveConfig: saveConfig,
-  validateConfig: validateConfig
+  validateConfig: validateConfig,
+  normalizeLanguage: normalizeLanguage
 };

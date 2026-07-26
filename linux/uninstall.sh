@@ -38,19 +38,19 @@ for arg in "$@"; do
   case "$arg" in
     --yes|-y|--force) ASSUME_YES=true ;;
     --help|-h)
-      echo "Uso: bash uninstall.sh [OPÇÕES]"
+      echo "用法：bash uninstall.sh [选项]"
       echo ""
-      echo "Opções:"
-      echo "  --yes, -y    Não pedir confirmação (para automação)"
-      echo "  --help, -h   Mostrar esta ajuda"
+      echo "选项："
+      echo "  --yes, -y    不询问确认（用于自动化）"
+      echo "  --help, -h   显示帮助"
       echo ""
-      echo "Remove completamente o Shinobi Launcher:"
-      echo "  - App + binário em ~/.local/share/naruto-online/"
-      echo "  - Atalho .desktop (menu + área de trabalho)"
-      echo "  - Ícones (hicolor theme)"
-      echo "  - Dados do Electron (~/.config/Naruto Online/)"
-      echo "  - Config do launcher (~/.config/naruto-online-launcher/)"
-      echo "  - Backup do mms.cfg do Flash"
+      echo "完全移除 Naruto Online 启动器："
+      echo "  - ~/.local/share/naruto-online/ 中的应用和可执行文件"
+      echo "  - 应用菜单和桌面的 .desktop 快捷方式"
+      echo "  - hicolor 主题图标"
+      echo "  - Electron 数据（~/.config/Naruto Online/）"
+      echo "  - 启动器配置（~/.config/naruto-online-launcher/）"
+      echo "  - Flash mms.cfg 备份"
       exit 0
       ;;
   esac
@@ -67,7 +67,7 @@ fi
 
 # Safety: validate REAL_HOME is an absolute path
 if [[ "$REAL_HOME" != /* ]]; then
-  echo "Erro: HOME inválido detectado ($REAL_HOME). Abortando por segurança." >&2
+  echo "错误：检测到无效 HOME（$REAL_HOME），为安全起见已中止。" >&2
   exit 1
 fi
 
@@ -92,36 +92,36 @@ LOG_FILE="$INSTALL_DIR/uninstall.log"
 
 # ── Banner ────────────────────────────────────────────────────────────────────
 echo -e "\n${BOLD}╔═══════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}║  🗑️  Shinobi Launcher — Uninstaller         ║${NC}"
+echo -e "${BOLD}║       🗑️  Naruto Online 启动器卸载程序      ║${NC}"
 echo -e "${BOLD}╚═══════════════════════════════════════════╝${NC}\n"
 
-echo "Usuário: $REAL_USER"
+echo "用户：$REAL_USER"
 echo "Home:    $REAL_HOME"
 echo ""
 
 # ── Check if installed ───────────────────────────────────────────────────────
 if [ ! -d "$INSTALL_DIR" ] && [ ! -f "$APPS_DIR/$LAUNCHER_NAME.desktop" ]; then
-  log_warn "Shinobi Launcher não encontrado neste usuário."
-  log_info "Nada a remover. Saindo."
+  log_warn "当前用户未安装 Naruto Online 启动器。"
+  log_info "没有需要移除的内容。"
   exit 0
 fi
 
 # ── Confirmation ─────────────────────────────────────────────────────────────
 if [ "$ASSUME_YES" = "false" ]; then
-  echo -e "${YELLOW}Isto irá remover COMPLETAMENTE o Shinobi Launcher:${NC}"
-  echo "  • App + binário: $INSTALL_DIR"
-  echo "  • Atalho .desktop (menu + área de trabalho)"
-  echo "  • Ícones (hicolor theme)"
-  echo "  • Dados do Electron: $ELECTRON_DATA"
-  echo "  • Config do launcher: $CONFIG_DIR"
-  echo "  • Backup do mms.cfg do Flash"
+  echo -e "${YELLOW}以下 Naruto Online 启动器内容将被完全移除：${NC}"
+  echo "  • 应用和可执行文件：$INSTALL_DIR"
+  echo "  • 应用菜单和桌面的 .desktop 快捷方式"
+  echo "  • hicolor 主题图标"
+  echo "  • Electron 数据：$ELECTRON_DATA"
+  echo "  • 启动器配置：$CONFIG_DIR"
+  echo "  • Flash mms.cfg 备份"
   echo ""
-  echo -e "${RED}⚠️  Seus perfis e credenciais salvas serão perdidos.${NC}"
-  echo -e "${YELLOW}Faça backup antes se quiser migrar (use o recurso de backup criptografado no launcher).${NC}"
+  echo -e "${RED}⚠️  已保存的 Profile、Session 和本地数据将被删除。${NC}"
+  echo -e "${YELLOW}如需迁移，请先使用启动器的 Profile 导出功能备份。${NC}"
   echo ""
-  read -rp "Confirma remoção? [s/N] " CONFIRM
+  read -rp "确认卸载吗？输入 s 确认 [s/N] " CONFIRM
   if [[ ! "$CONFIRM" =~ ^[sS](im)?$ ]]; then
-    log_info "Remoção cancelada pelo usuário."
+    log_info "用户取消了卸载。"
     exit 0
   fi
 fi
@@ -136,7 +136,7 @@ mkdir -p "$INSTALL_DIR" 2>/dev/null || true
   echo ""
 } > "$LOG_FILE"
 
-log_step "1/5 — Parando processos em execução..."
+log_step "1/5 — 停止正在运行的进程…"
 
 # Mata processos do launcher (evita "arquivo ocupado" na remoção)
 PIDS_KILLED=0
@@ -144,7 +144,7 @@ for proc_name in "naruto-online" "NarutoOnline" "Naruto Online"; do
   if command -v pkill &>/dev/null; then
     if pkill -f "$proc_name" 2>/dev/null; then
       PIDS_KILLED=$((PIDS_KILLED + 1))
-      log_info "Processo terminado: $proc_name"
+      log_info "已终止进程：$proc_name"
       echo "[kill] $proc_name" >> "$LOG_FILE"
     fi
   fi
@@ -154,19 +154,19 @@ if [ "$PIDS_KILLED" -gt 0 ]; then
   sleep 2  # dá tempo do processo liberar arquivos
 fi
 
-log_step "2/5 — Removendo atalhos e ícones..."
+log_step "2/5 — 移除快捷方式和图标…"
 
 # Desktop entry (menu de aplicativos)
 if [ -f "$APPS_DIR/$LAUNCHER_NAME.desktop" ]; then
   rm -f "$APPS_DIR/$LAUNCHER_NAME.desktop"
-  log_info "Removido: .desktop (menu)"
+  log_info "已移除应用菜单快捷方式"
   echo "[rm] $APPS_DIR/$LAUNCHER_NAME.desktop" >> "$LOG_FILE"
 fi
 
 # Desktop shortcut (área de trabalho)
 if [ -f "$DESKTOP_DIR/$LAUNCHER_NAME.desktop" ]; then
   rm -f "$DESKTOP_DIR/$LAUNCHER_NAME.desktop"
-  log_info "Removido: .desktop (área de trabalho)"
+  log_info "已移除桌面快捷方式"
   echo "[rm] $DESKTOP_DIR/$LAUNCHER_NAME.desktop" >> "$LOG_FILE"
 fi
 
@@ -198,7 +198,7 @@ if [ -f "$PIXMAPS_DIR/$LAUNCHER_NAME.png" ]; then
 fi
 
 if [ "$ICONS_REMOVED" -gt 0 ]; then
-  log_info "Removidos: $ICONS_REMOVED ícone(s)"
+  log_info "已移除 $ICONS_REMOVED 个图标"
 fi
 
 # Atualiza caches de ícone e desktop
@@ -208,11 +208,11 @@ command -v update-desktop-database &>/dev/null && update-desktop-database "$APPS
 # Bin symlink (comando terminal)
 if [ -L "$BIN_DIR/$LAUNCHER_NAME" ] || [ -f "$BIN_DIR/$LAUNCHER_NAME" ]; then
   rm -f "$BIN_DIR/$LAUNCHER_NAME"
-  log_info "Removido: comando 'naruto-online' (terminal)"
+  log_info "已移除终端命令 naruto-online"
   echo "[rm] $BIN_DIR/$LAUNCHER_NAME" >> "$LOG_FILE"
 fi
 
-log_step "3/5 — Removendo aplicação..."
+log_step "3/5 — 移除应用…"
 
 # Diretório de instalação (AppImage + run.sh + uninstall.sh + logs)
 if [ -d "$INSTALL_DIR" ]; then
@@ -221,54 +221,54 @@ if [ -d "$INSTALL_DIR" ]; then
     cp "$LOG_FILE" "/tmp/shinobi-uninstall-$(date +%s).log" 2>/dev/null || true
   fi
   rm -rf "$INSTALL_DIR"
-  log_info "Removido: $INSTALL_DIR"
+  log_info "已移除：$INSTALL_DIR"
   echo "[rm -rf] $INSTALL_DIR" >> "/tmp/shinobi-uninstall-last.log" 2>/dev/null || true
 fi
 
-log_step "4/5 — Removendo dados do Electron..."
+log_step "4/5 — 移除 Electron 数据…"
 
 # Electron userData (cookies, cache, GPUCache, logs, config.json, profiles)
 if [ -d "$ELECTRON_DATA" ]; then
   rm -rf "$ELECTRON_DATA"
-  log_info "Removido: $ELECTRON_DATA (perfis, cookies, cache)"
+  log_info "已移除：$ELECTRON_DATA（Profile、Cookie、缓存）"
   echo "[rm -rf] $ELECTRON_DATA" >> "/tmp/shinobi-uninstall-last.log" 2>/dev/null || true
 fi
 
 # Config dirs do launcher (old e new paths)
 if [ -d "$CONFIG_DIR" ]; then
   rm -rf "$CONFIG_DIR"
-  log_info "Removido: $CONFIG_DIR"
+  log_info "已移除：$CONFIG_DIR"
   echo "[rm -rf] $CONFIG_DIR" >> "/tmp/shinobi-uninstall-last.log" 2>/dev/null || true
 fi
 
 if [ -d "$LEGACY_CONFIG_DIR" ] && [ "$LEGACY_CONFIG_DIR" != "$CONFIG_DIR" ]; then
   rm -rf "$LEGACY_CONFIG_DIR"
-  log_info "Removido: $LEGACY_CONFIG_DIR (legacy)"
+  log_info "已移除旧配置目录：$LEGACY_CONFIG_DIR"
   echo "[rm -rf] $LEGACY_CONFIG_DIR" >> "/tmp/shinobi-uninstall-last.log" 2>/dev/null || true
 fi
 
-log_step "5/5 — Limpando Flash config..."
+log_step "5/5 — 清理 Flash 配置…"
 
 # Backup do mms.cfg (criado pelo launcher a cada boot)
 if [ -f "$FLASH_DIR/mms.cfg.bak" ]; then
   rm -f "$FLASH_DIR/mms.cfg.bak"
-  log_info "Removido: mms.cfg.bak (backup do Flash)"
+  log_info "已移除 Flash 的 mms.cfg.bak 备份"
   echo "[rm] $FLASH_DIR/mms.cfg.bak" >> "/tmp/shinobi-uninstall-last.log" 2>/dev/null || true
 fi
 
 # ── Resumo final ─────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}╔═══════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}${BOLD}║  ✅  Shinobi Launcher removido!            ║${NC}"
+echo -e "${GREEN}${BOLD}║       ✅ Naruto Online 启动器已卸载！       ║${NC}"
 echo -e "${GREEN}${BOLD}╚═══════════════════════════════════════════╝${NC}"
 echo ""
-echo "Removido:"
-echo "  • App + binário"
-echo "  • Atalhos (menu + desktop)"
-echo "  • Ícones"
-echo "  • Dados do Electron (perfis, cookies, cache)"
-echo "  • Config do launcher"
-echo "  • Backup do Flash mms.cfg"
+echo "已移除："
+echo "  • 应用和可执行文件"
+echo "  • 应用菜单和桌面快捷方式"
+echo "  • 图标"
+echo "  • Electron 数据（Profile、Cookie、缓存）"
+echo "  • 启动器配置"
+echo "  • Flash mms.cfg 备份"
 echo ""
-echo -e "${YELLOW}Log de remoção salvo em: /tmp/shinobi-uninstall-*.log${NC}"
+echo -e "${YELLOW}卸载日志保存在：/tmp/shinobi-uninstall-*.log${NC}"
 echo ""

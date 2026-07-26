@@ -54,7 +54,7 @@ function loadingPage(profileName) {
         'border-radius:50%;animation:sp 1s linear infinite;margin-bottom:18px}' +
         '@keyframes sp{to{transform:rotate(360deg)}}' +
         '.t{font-size:15px;font-weight:600;letter-spacing:.2px;color:#f0ede6}' +
-        '</style></head><body><div class="spin"></div><div class="t">Carregando ' +
+        '</style></head><body><div class="spin"></div><div class="t">正在加载 ' +
         String(profileName).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') +
         '</div></body></html>'
     )
@@ -64,7 +64,7 @@ function loadingPage(profileName) {
 function launchProfile(profileId, onOpened, onClosed) {
   const profile = store.get(profileId);
   if (!profile) {
-    logger.error('Launcher: perfil não encontrado', {
+    logger.error('Launcher: profile not found', {
       profileId: profileId,
       event: 'profile-not-found'
     });
@@ -166,7 +166,7 @@ function launchProfile(profileId, onOpened, onClosed) {
       try {
         auditor.destroy();
       } catch (error) {
-        logger.debug('Auditor: destroy failed — ' + error.message);
+        logger.debug('Auditor: destroy failed - ' + error.message);
       }
       gameWindows.delete(profileId);
       if (activeRecoveryProfileId === profileId) activeRecoveryProfileId = null;

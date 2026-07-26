@@ -311,7 +311,7 @@ function _makeZipFile(entries) {
  */
 async function exportZip(parentWindow) {
   try {
-    logger.info('Diagnostics: coletando informações...');
+    logger.info('Diagnostics: collecting information');
 
     const sysInfo = _collectSystemInfo();
     const config = _collectConfig();
@@ -342,23 +342,23 @@ async function exportZip(parentWindow) {
     });
     // README explicativo
     const readme = [
-      '# Diagnóstico Shinobi Launcher v' + sysInfo.app.version,
+      '# Naruto Online 启动器诊断信息 v' + sysInfo.app.version,
       '',
-      'Gerado em: ' + sysInfo.timestamp,
+      '生成时间：' + sysInfo.timestamp,
       '',
-      '## Conteúdo',
-      '- system-info.json: versões, SO, hardware (sanitizado)',
-      '- config.json: configuração do launcher (sem credenciais)',
-      '- profiles.json: perfis (nome + região + stats, sem senhas)',
-      '- logs/main.log: log principal (últimas 500 linhas)',
-      '- crash-reports-legacy.json: reports antigos do v4.7 (se existirem)',
+      '## 内容',
+      '- system-info.json：运行时、操作系统和硬件信息（已脱敏）',
+      '- config.json：启动器配置（不包含凭据）',
+      '- profiles.json：Profile 通用元数据（不包含密码或 Session）',
+      '- logs/*：原始诊断日志（大文件仅保留最后 500 行，继续执行既有脱敏）',
+      '- crash-reports-legacy.json：既有历史崩溃记录（如存在）',
       '',
-      '## Sanitização',
-      'Paths de usuário, tokens, emails e credenciais foram removidos.',
-      'Nada é enviado automaticamente — este .zip é seu, você decide o que fazer.',
+      '## 脱敏说明',
+      '用户路径、token、电子邮件和凭据已按既有规则脱敏。',
+      '启动器不会自动上传此 ZIP；是否提交由用户决定。',
       '',
-      '## Como usar',
-      'Anexe este .zip num GitHub Issue em:',
+      '## 使用方法',
+      '可将此 ZIP 附加到 GitHub Issue：',
       'https://github.com/Chrispsz/naruto-online-launcher/issues'
     ].join('\n');
     entries.push({ name: 'README.md', data: Buffer.from(readme, 'utf8') });
@@ -367,10 +367,10 @@ async function exportZip(parentWindow) {
 
     // Diálogo de salvamento
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const defaultName = 'shinobi-diag-' + stamp + '.zip';
+    const defaultName = 'naruto-online-diag-' + stamp + '.zip';
 
     const result = await dialog.showSaveDialog(parentWindow, {
-      title: 'Exportar diagnóstico',
+      title: '导出诊断包',
       defaultPath: defaultName,
       filters: [{ name: 'ZIP', extensions: ['zip'] }]
     });
@@ -382,17 +382,17 @@ async function exportZip(parentWindow) {
     fs.writeFileSync(result.filePath, zipBuf);
     const sizeKB = Math.round(zipBuf.length / 1024);
     logger.info(
-      'Diagnostics: .zip salvo em ' +
+      'Diagnostics: ZIP saved path=' +
         result.filePath +
         ' (' +
         sizeKB +
         'KB, ' +
         entries.length +
-        ' arquivos)'
+        ' files)'
     );
     return { ok: true, path: result.filePath, size: zipBuf.length, entries: entries.length };
   } catch (e) {
-    logger.error('Diagnostics: falha ao exportar — ' + e.message);
+    logger.error('Diagnostics: export failed: ' + e.message);
     return { ok: false, error: e.message };
   }
 }

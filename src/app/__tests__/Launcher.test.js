@@ -334,6 +334,10 @@ describe('Launcher.js', () => {
       expect(bwMock.win.loadURL).toHaveBeenCalled();
       const url = bwMock.win.loadURL.mock.calls[0][0];
       expect(url).toContain('data:text/html');
+      const html = decodeURIComponent(url.split(',')[1]);
+      expect(html).toContain('正在加载');
+      expect(html).toContain('TestProfile');
+      expect(html).not.toMatch(/Carregando|Shinobi Launcher/i);
     });
 
     test('se perfil já está aberto: foca a janela existente', () => {

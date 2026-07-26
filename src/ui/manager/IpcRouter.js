@@ -152,7 +152,7 @@ function registerIpcHandlers(handlers) {
     } else {
       _send('profile:toast', {
         type: 'error',
-        msg: 'Limite de ' + store.MAX_PROFILES + ' contas atingido'
+        msg: '最多只能创建 ' + store.MAX_PROFILES + ' 个 Profile'
       });
     }
   });
@@ -178,7 +178,7 @@ function registerIpcHandlers(handlers) {
 
   ipcMain.on('profile:delete', function (_e, id) {
     if (typeof id !== 'string' || !store.get(id)) {
-      _send('profile:toast', { type: 'error', msg: 'Perfil não encontrado (id inválido)' });
+      _send('profile:toast', { type: 'error', msg: '未找到 Profile（ID 无效）' });
       return;
     }
     // P2 FIX: não permite deletar perfil com jogo aberto — store.remove()
@@ -188,7 +188,7 @@ function registerIpcHandlers(handlers) {
       if (gameLauncher.isProfileOpen(id)) {
         _send('profile:toast', {
           type: 'error',
-          msg: 'Feche a janela do jogo antes de deletar esta conta'
+          msg: '请先关闭这个 Profile 的游戏窗口'
         });
         return;
       }
@@ -207,7 +207,7 @@ function registerIpcHandlers(handlers) {
     }
     store.remove(id);
     _pushProfiles();
-    _send('profile:toast', { type: 'info', msg: 'Profile removido' });
+    _send('profile:toast', { type: 'info', msg: 'Profile 已删除' });
   });
 
   ipcMain.on('profile:reorder', function (_e, order) {
@@ -218,7 +218,7 @@ function registerIpcHandlers(handlers) {
 
   ipcMain.on('profile:launch', function (_e, id) {
     if (typeof id !== 'string' || !store.get(id)) {
-      _send('profile:toast', { type: 'error', msg: 'Perfil não encontrado' });
+      _send('profile:toast', { type: 'error', msg: '未找到 Profile' });
       return;
     }
     if (_handlers.launchProfile) _handlers.launchProfile(id);
@@ -265,7 +265,7 @@ function registerIpcHandlers(handlers) {
     const src = store.get(id);
     if (!src) return { ok: false, error: 'Profile not found' };
     const copy = store.create({
-      name: String(src.name) + ' (cópia)',
+      name: String(src.name) + '（副本）',
       color: src.color,
       notes: src.notes || '',
       tags: src.tags || [],
@@ -274,7 +274,7 @@ function registerIpcHandlers(handlers) {
       hardwareProfile: src.hardwareProfile
     });
     if (!copy) return { ok: false, error: 'Max profiles reached' };
-    logger.info('Profile duplicated: ' + src.name + ' → ' + copy.name);
+    logger.info('Profile duplicated: source=' + src.name + ' copy=' + copy.name);
     _pushProfiles();
     return { ok: true, profile: copy };
   });
@@ -347,18 +347,18 @@ function registerIpcHandlers(handlers) {
         _send('profile:toast', {
           type: 'success',
           msg:
-            'Diagnóstico exportado (' +
+            '诊断包已导出（' +
             Math.round(result.size / 1024) +
-            'KB, ' +
+            'KB，' +
             result.entries +
-            ' arquivos)'
+            ' 个文件）'
         });
       } else if (!result.canceled) {
-        _send('profile:toast', { type: 'error', msg: 'Falha ao exportar: ' + result.error });
+        _send('profile:toast', { type: 'error', msg: '诊断包导出失败：' + result.error });
       }
       return result;
     } catch (e) {
-      _send('profile:toast', { type: 'error', msg: 'Diagnóstico falhou: ' + e.message });
+      _send('profile:toast', { type: 'error', msg: '诊断导出失败：' + e.message });
       return { ok: false, error: e.message };
     }
   });
@@ -370,7 +370,7 @@ function registerIpcHandlers(handlers) {
     if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     try {
       const profile = store.get(profileId);
-      if (!profile) return { ok: false, error: 'Perfil não encontrado' };
+      if (!profile) return { ok: false, error: 'Profile not found' };
       const partName = partition.getPartitionName(profile);
       const ses = session.fromPartition(partName);
       let insp = _inspectors.get(profileId);
@@ -425,7 +425,7 @@ function registerIpcHandlers(handlers) {
     if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     try {
       const wc = gameLauncher.getWebContents(profileId);
-      if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
+      if (!wc || wc.isDestroyed()) return { ok: false, error: 'Window is not open' };
       wc.reload();
       return { ok: true };
     } catch (e) {
@@ -437,7 +437,7 @@ function registerIpcHandlers(handlers) {
     if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     try {
       const wc = gameLauncher.getWebContents(profileId);
-      if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
+      if (!wc || wc.isDestroyed()) return { ok: false, error: 'Window is not open' };
       wc.toggleDevTools();
       return { ok: true };
     } catch (e) {
@@ -450,9 +450,8 @@ function registerIpcHandlers(handlers) {
   ipcMain.handle('i18n:get-lang', function () {
     return i18n.getLanguage();
   });
-  const ALLOWED_LANGS = ['pt', 'en', 'de', 'es', 'pl', 'fr'];
   ipcMain.handle('i18n:set-lang', function (_e, lang) {
-    if (typeof lang !== 'string' || !ALLOWED_LANGS.includes(lang)) return i18n.getLanguage();
+    if (typeof lang !== 'string' || !i18n.SUPPORTED.includes(lang)) return i18n.getLanguage();
     i18n.setLanguage(lang);
     return i18n.getLanguage();
   });
@@ -483,8 +482,8 @@ function registerIpcHandlers(handlers) {
     if (!win) return { ok: false };
     const json = store.exportJSON();
     const result = await dialog.showSaveDialog(win, {
-      title: 'Exportar perfis',
-      defaultPath: 'shinobi-profiles.json',
+      title: '导出 Profile',
+      defaultPath: 'naruto-online-profiles.json',
       filters: [{ name: 'JSON', extensions: ['json'] }]
     });
     if (result.canceled || !result.filePath) return { ok: false };
@@ -500,7 +499,7 @@ function registerIpcHandlers(handlers) {
     const win = _getWin();
     if (!win) return { ok: false, imported: 0 };
     const result = await dialog.showOpenDialog(win, {
-      title: 'Importar perfis',
+      title: '导入 Profile',
       filters: [{ name: 'JSON', extensions: ['json'] }],
       properties: ['openFile']
     });
@@ -540,7 +539,7 @@ function launchProfile(profileId, onOpened, onClosed) {
       try {
         store.recordLaunch(profileId);
       } catch (e) {
-        logger.warn('IpcRouter: recordLaunch falhou: ' + e.message);
+        logger.warn('IpcRouter: recordLaunch failed: ' + e.message);
       }
       _launchTimes.set(profileId, Date.now());
       _pushProfiles();
