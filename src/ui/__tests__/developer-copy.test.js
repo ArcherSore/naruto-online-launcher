@@ -37,7 +37,12 @@ function staticFragments(node) {
   if (node.type === 'TemplateLiteral') {
     return node.quasis
       .map(part => part.value.cooked || '')
-      .concat(node.expressions.reduce((parts, expression) => parts.concat(staticFragments(expression)), []));
+      .concat(
+        node.expressions.reduce(
+          (parts, expression) => parts.concat(staticFragments(expression)),
+          []
+        )
+      );
   }
   if (node.type === 'BinaryExpression' || node.type === 'LogicalExpression') {
     return staticFragments(node.left).concat(staticFragments(node.right));

@@ -75,7 +75,9 @@ function read(relativePath) {
 }
 
 function isProtectedPath(relativePath) {
-  return PROTECTED_PREFIXES.some(prefix => relativePath === prefix || relativePath.startsWith(prefix));
+  return PROTECTED_PREFIXES.some(
+    prefix => relativePath === prefix || relativePath.startsWith(prefix)
+  );
 }
 
 function visibleCopy(relativePath) {
@@ -106,13 +108,16 @@ function visibleCopy(relativePath) {
 }
 
 describe('launcher-owned copy boundary registry', () => {
-  test.each(Object.entries(SURFACES))('%s has existing sources or is explicitly N/A', (_, files) => {
-    if (files.length === 0) {
-      expect(files).toEqual([]);
-      return;
+  test.each(Object.entries(SURFACES))(
+    '%s has existing sources or is explicitly N/A',
+    (_, files) => {
+      if (files.length === 0) {
+        expect(files).toEqual([]);
+        return;
+      }
+      files.forEach(file => expect(fs.existsSync(path.join(ROOT, file))).toBe(true));
     }
-    files.forEach(file => expect(fs.existsSync(path.join(ROOT, file))).toBe(true));
-  });
+  );
 
   test('protected paths are excluded from launcher-owned copy scans', () => {
     expect(isProtectedPath('docs/REPO_MAP.md')).toBe(true);

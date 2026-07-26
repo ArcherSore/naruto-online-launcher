@@ -187,9 +187,7 @@ function load() {
   _profiles = validProfiles.map(_migrateProfile);
   if (_profiles.length !== parsed.length) {
     logger.warn(
-      'ProfileStore: ' +
-        (parsed.length - _profiles.length) +
-        ' invalid profile(s) discarded'
+      'ProfileStore: ' + (parsed.length - _profiles.length) + ' invalid profile(s) discarded'
     );
   }
   let migrated = 0;
@@ -198,9 +196,7 @@ function load() {
   });
   if (migrated > 0) {
     logger.info(
-      'ProfileStore: ' +
-        migrated +
-        ' profile(s) migrated to the Tencent generic metadata schema'
+      'ProfileStore: ' + migrated + ' profile(s) migrated to the Tencent generic metadata schema'
     );
     _saveToDisk(_profiles);
   } else if (_profiles.length !== parsed.length) {
@@ -607,9 +603,7 @@ function _loadLaunchLog() {
         });
         if (_launchLog.length !== parsed.length) {
           logger.warn(
-            'LaunchLog: ' +
-              (parsed.length - _launchLog.length) +
-              ' invalid entry(s) discarded'
+            'LaunchLog: ' + (parsed.length - _launchLog.length) + ' invalid entry(s) discarded'
           );
         }
       } else {

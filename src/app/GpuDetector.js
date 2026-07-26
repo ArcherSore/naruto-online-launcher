@@ -285,7 +285,9 @@ function detect() {
     // Detect sandbox (Flatpak/Snap) — GPU detection via sysfs/lspci may fail
     var sandbox = detectLinuxSandbox();
     if (sandbox) {
-      logger.info('GpuDetector: sandbox detected type=' + sandbox + ' - GPU detection may be limited');
+      logger.info(
+        'GpuDetector: sandbox detected type=' + sandbox + ' - GPU detection may be limited'
+      );
     }
     gpus = _listGpusLinuxSysfs();
     if (gpus.length === 0) gpus = _listGpusLinuxLspci();

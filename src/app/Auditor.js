@@ -196,7 +196,9 @@ function create(profileId, opts) {
     _state.sessionCount++;
     _sessionStartTs = _now();
     _markDirty();
-    logger.debug('Auditor: session started profileId=' + profileId + ' count=' + _state.sessionCount);
+    logger.debug(
+      'Auditor: session started profileId=' + profileId + ' count=' + _state.sessionCount
+    );
   }
 
   /**

@@ -87,7 +87,9 @@ function create(opts) {
   try {
     partition.ensurePartitionDir(p);
   } catch (e) {
-    logger.debug('ProfileManager: ensurePartitionDir failed (allowed in shadow mode): ' + e.message);
+    logger.debug(
+      'ProfileManager: ensurePartitionDir failed (allowed in shadow mode): ' + e.message
+    );
   }
   _notify();
   return p;

@@ -15,8 +15,7 @@ const DICTIONARY = {
     'setup.subtitle': '约 30 秒完成首次设置',
     'setup.language.label': '界面语言',
     'setup.mode.title': '性能模式',
-    'setup.mode.default.body':
-      '推荐所有设备使用：启用经过验证的安全优化，不降低 Flash 画质。',
+    'setup.mode.default.body': '推荐所有设备使用：启用经过验证的安全优化，不降低 Flash 画质。',
     'setup.mode.lowpc.body':
       '仅适合旧 GPU 或少于 4GB RAM 的设备：降低 Flash 画质以提高 FPS，现代设备不建议启用。',
     'setup.save': '保存并进入启动器',
