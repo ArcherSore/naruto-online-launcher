@@ -1,197 +1,77 @@
 /**
- * Network Inspector — captura dados do jogo via webRequest
- * v1.0.0 — v4.9: dev-mode network inspector (alternativa ao DevTools bloqueado)
+ * 安全网络元数据观察器。
  *
- * O jogo Naruto Online roda em Flash (PPAPI). Os dados do personagem (stats,
- * itens, party, etc.) NÃO estão no DOM — estão nas respostas HTTP que o SWF
- * faz. A única forma de capturar esses dados é interceptar via
- * session.webRequest.onBeforeRequest / onResponseStarted.
- *
- * Este módulo registra listeners na session do perfil e captura:
- *   - URLs chamadas (com método, tipo, timestamp)
- *   - Cookies oas_user capturados (JWT decodificado)
- *   - Endpoints conhecidos (passport, odp3, game backend)
- *   - Estatísticas agregadas (requests/min, domains hit, etc.)
- *
- * O DevTools (Ctrl+Shift+I) é bloqueado no jogo por segurança. Este inspector
- * é a alternativa legítima pra desenvolvedores analisarem o tráfego.
+ * 观察事件在 webRequest 回调入口即收敛为五个字段；完整 URL、headers、
+ * Cookie、body、页面源码和未知字段不会进入 entries、listener 或统计对象。
  */
 
 'use strict';
 
 const logger = require('../utils/logger');
-const jwt = require('../utils/jwt');
 
-// Endpoints interessantes pra classificar capturas
-// v5.9.10: adicionados endpoints do fluxo de login observados no F12:
-//   - ScriptLoginManager-1.2.php (login manager JS com params criptografados)
-//   - Scriptpad-zeropadding.js (crypto padding library pro form de login)
-//   - query_svr_info.fcgi (XHR que busca info do servidor por svr_id)
-// Esses 3 endpoints aparecem no tráfego normal do jogo mesmo com pre-auth
-// via API (oas_user cookie). O ScriptLoginManager é carregado pela página
-// do jogo pra validação de sessão — NÃO é bug se aparece com status 200.
-var KNOWN_ENDPOINTS = {
-  'passport.oasgames.com': { type: 'auth', label: 'Passport (login/register)' },
-  'odp3.oasgames.com': { type: 'api', label: 'Odp3 API (servers/profile)' },
-  'naruto-pl.oasgames.com': { type: 'game', label: 'PL game backend (HTTP!)' },
-  'naruto.narutowebgame.com': { type: 'site', label: 'Naruto site' },
-  'narutowebgame.com': { type: 'site', label: 'Naruto site' },
-  'oasgames.com': { type: 'parent', label: 'oasgames parent' }
-};
+const SAFE_NETWORK_FIELDS = Object.freeze([
+  'resourceType',
+  'origin',
+  'pathname',
+  'statusCode',
+  'errorCode'
+]);
 
-// v5.9.10: Path signatures para classificar requisições por nome de arquivo
-// quando o hostname já é conhecido mas o path identifica a função específica.
-// Útil pra distinguir login flow vs game API vs telemetry no inspector log.
-var KNOWN_PATH_SIGNATURES = [
-  {
-    pattern: /ScriptLoginManager/i,
-    type: 'auth',
-    label: 'ScriptLoginManager (login form JS)'
-  },
-  {
-    pattern: /Scriptpad-zeropadding/i,
-    type: 'auth',
-    label: 'Scriptpad zeropadding (login crypto)'
-  },
-  {
-    pattern: /query_svr_info\.fcgi/i,
-    type: 'game',
-    label: 'Server info query (svr_id)'
-  },
-  {
-    pattern: /oss_report\.fcgi/i,
-    type: 'telemetry',
-    label: 'iMSDK telemetry (BLOCKED)'
-  },
-  {
-    pattern: /crossdomain\.xml/i,
-    type: 'telemetry',
-    label: 'Flash policy (BLOCKED)'
+function safeLocation(value) {
+  if (typeof value !== 'string') return { origin: null, pathname: null };
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return { origin: null, pathname: null };
+    }
+    return { origin: parsed.origin, pathname: parsed.pathname };
+  } catch (_) {
+    return { origin: null, pathname: null };
   }
-];
+}
 
-/**
- * Cria um inspector pra uma session do Electron.
- * @param {Object} session — session.fromPartition(partName)
- * @param {string} profileId
- * @returns {Object} inspector instance
- */
-function create(session, profileId) {
-  var entries = []; // últimas N capturas
-  var stats = {
-    // agregados
-    totalRequests: 0,
-    byDomain: {},
-    // v5.9.10: adicionado tipo 'telemetry' (oss_report.fcgi, crossdomain.xml)
-    byType: { auth: 0, api: 0, game: 0, site: 0, parent: 0, telemetry: 0, other: 0 },
-    capturedCookies: [],
-    capturedJwts: [],
-    startedAt: Date.now()
+function safeCode(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return null;
+  return value.slice(0, 120).replace(/[?#].*$/, '');
+}
+
+function sanitizeNetworkDetails(details) {
+  const input = details && typeof details === 'object' ? details : {};
+  const location = safeLocation(input.url);
+  return {
+    resourceType: typeof input.resourceType === 'string' ? input.resourceType : null,
+    origin: location.origin,
+    pathname: location.pathname,
+    statusCode: typeof input.statusCode === 'number' ? input.statusCode : null,
+    errorCode: safeCode(input.errorCode !== undefined ? input.errorCode : input.error)
   };
-  var maxEntries = 500;
-  var listeners = { onCapture: [] };
-  var enabled = false;
-  // Filtro usado no enable() — necessário pra removable preciso no disable().
-  // Sem filtro, onBeforeRequest(null) remove TODOS os listeners da session
-  // (incluindo o ad blocker), não só os nossos. Mesmo padrão do StallDetector.
-  var _filter = { urls: ['<all_urls>'] };
+}
 
-  /**
-   * Classifica uma URL nos tipos conhecidos.
-   * v5.9.10: agora também checa KNOWN_PATH_SIGNATURES pra classificar
-   * por nome de arquivo (ScriptLoginManager, query_svr_info, etc.) —
-   * mais específico que só o hostname.
-   */
-  function classify(url) {
-    try {
-      var u = new (require('url').URL)(url);
-      var host = u.hostname;
-      var fullPath = u.pathname + u.search;
-
-      // Primeiro checa path signatures (mais específico)
-      for (var i = 0; i < KNOWN_PATH_SIGNATURES.length; i++) {
-        var sig = KNOWN_PATH_SIGNATURES[i];
-        if (sig.pattern.test(fullPath)) {
-          return {
-            domain: host,
-            path: u.pathname,
-            type: sig.type,
-            label: sig.label
-          };
-        }
-      }
-
-      // Depois checa hostname conhecido
-      for (var domain in KNOWN_ENDPOINTS) {
-        if (host === domain || host.endsWith('.' + domain)) {
-          return Object.assign({ domain: host, path: u.pathname }, KNOWN_ENDPOINTS[domain]);
-        }
-      }
-      return { type: 'other', label: host, domain: host, path: u.pathname };
-    } catch (e) {
-      return { type: 'other', label: '?', domain: '?', path: url.slice(0, 60) };
-    }
+function create(electronSession, profileId) {
+  if (!electronSession || !electronSession.webRequest) {
+    throw new TypeError('session.webRequest is required');
   }
 
-  /**
-   * Tenta extrair JWT de cookie header ou query param.
-   */
-  function tryExtractJwt(details) {
-    // Cookie header
-    var cookieHdr = details.requestHeaders && details.requestHeaders.Cookie;
-    if (cookieHdr && cookieHdr.indexOf('oas_user=') !== -1) {
-      var m = cookieHdr.match(/oas_user=([^;]+)/);
-      if (m) {
-        var decoded = jwt.decode(m[1]);
-        if (decoded && stats.capturedJwts.indexOf(m[1]) === -1) {
-          stats.capturedJwts.push(m[1]);
-          stats.capturedCookies.push({
-            name: 'oas_user',
-            value: m[1].slice(0, 30) + '...',
-            decoded: decoded,
-            capturedAt: Date.now()
-          });
-          return decoded;
-        }
-      }
-    }
-    return null;
-  }
+  let entries = [];
+  const listeners = [];
+  const maxEntries = 500;
+  let enabled = false;
+  const filter = { urls: ['<all_urls>'] };
 
-  function record(details, kind) {
-    var info = classify(details.url);
-    stats.totalRequests++;
-    stats.byDomain[info.domain] = (stats.byDomain[info.domain] || 0) + 1;
-    stats.byType[info.type] = (stats.byType[info.type] || 0) + 1;
-
-    var entry = {
-      id: details.id,
-      url: details.url,
-      method: details.method || 'GET',
-      kind: kind, // 'request' or 'response'
-      type: info.type,
-      label: info.label,
-      domain: info.domain,
-      path: info.path,
-      timestamp: details.timestamp || Date.now(),
-      statusCode: details.statusCode || null,
-      resourceType: details.resourceType || null
-    };
-
-    // Só extrai JWT de requests pra passport/oasgames
-    if (info.type === 'auth' || info.type === 'parent' || info.type === 'site') {
-      var decoded = tryExtractJwt(details);
-      if (decoded) entry.jwt = decoded;
-    }
-
+  function record(details) {
+    const entry = sanitizeNetworkDetails(details);
     entries.push(entry);
     if (entries.length > maxEntries) entries.shift();
-
-    listeners.onCapture.forEach(function (cb) {
+    listeners.slice().forEach(function (callback) {
       try {
-        cb(entry);
-      } catch (e) {
-        logger.debug('Inspector: callback error: ' + e.message);
+        callback(Object.assign({}, entry));
+      } catch (error) {
+        logger.debug('Inspector callback failed', {
+          profileId: profileId,
+          event: 'inspector-callback-failed',
+          errorCode: error && error.name ? error.name : 'CALLBACK_FAILED'
+        });
       }
     });
   }
@@ -199,77 +79,58 @@ function create(session, profileId) {
   function enable() {
     if (enabled) return;
     enabled = true;
-
-    session.webRequest.onBeforeRequest(_filter, function (details) {
-      record(details, 'request');
-      // NUNCA bloqueia — só observa
+    electronSession.webRequest.onBeforeRequest(filter, function (details, callback) {
+      record(details);
+      if (typeof callback === 'function') callback({ cancel: false });
       return { cancel: false };
     });
-
-    session.webRequest.onResponseStarted(_filter, function (details) {
-      record(details, 'response');
-    });
-
-    logger.info('Inspector: captura ativa para ' + profileId);
+    electronSession.webRequest.onResponseStarted(filter, record);
+    electronSession.webRequest.onErrorOccurred(filter, record);
+    logger.info('Inspector enabled', { profileId: profileId, event: 'inspector-enabled' });
   }
 
   function disable() {
     if (!enabled) return;
     enabled = false;
-    // Usa filtro específico pra remover APENAS nossos listeners —
-    // sem filtro, remove TODOS os onBeforeRequest da session (incluindo
-    // o ad blocker do blocker.js). Mesmo padrão do StallDetector.
     try {
-      session.webRequest.onBeforeRequest(_filter, null);
-      session.webRequest.onResponseStarted(_filter, null);
+      electronSession.webRequest.onBeforeRequest(filter, null);
+      electronSession.webRequest.onResponseStarted(filter, null);
+      electronSession.webRequest.onErrorOccurred(filter, null);
     } catch (_) {
-      /* session pode estar destruída */
+      // Session 可能已销毁；不记录其原始错误详情。
     }
-    logger.info('Inspector: captura desativada para ' + profileId);
+    logger.info('Inspector disabled', { profileId: profileId, event: 'inspector-disabled' });
   }
 
-  function getEntries(filter) {
-    if (!filter) return entries.slice();
-    return entries.filter(function (e) {
-      if (filter.type && e.type !== filter.type) return false;
-      if (filter.kind && e.kind !== filter.kind) return false;
-      if (filter.domain && e.domain !== filter.domain) return false;
-      return true;
-    });
-  }
-
-  function getStats() {
-    return Object.assign({}, stats, {
-      entriesCount: entries.length,
-      uptime: Math.round((Date.now() - stats.startedAt) / 1000),
-      requestsPerMin: stats.totalRequests / Math.max(1, (Date.now() - stats.startedAt) / 60000)
-    });
-  }
-
-  function on(event, cb) {
-    if (event === 'capture' && typeof cb === 'function') {
-      listeners.onCapture.push(cb);
+  function getEntries(requestedFilter) {
+    if (requestedFilter === null || requestedFilter === undefined) {
+      return entries.map(function (entry) { return Object.assign({}, entry); });
     }
+    if (typeof requestedFilter !== 'object' || Array.isArray(requestedFilter)) return [];
+
+    const keys = Object.keys(requestedFilter);
+    if (keys.some(function (key) { return SAFE_NETWORK_FIELDS.indexOf(key) === -1; })) return [];
+    return entries
+      .filter(function (entry) {
+        return keys.every(function (key) { return entry[key] === requestedFilter[key]; });
+      })
+      .map(function (entry) { return Object.assign({}, entry); });
+  }
+
+  function on(event, callback) {
+    if (event === 'capture' && typeof callback === 'function') listeners.push(callback);
   }
 
   function clear() {
     entries = [];
-    stats.capturedCookies = [];
-    stats.capturedJwts = [];
-    stats.totalRequests = 0;
-    stats.byDomain = {};
-    stats.byType = { auth: 0, api: 0, game: 0, site: 0, parent: 0, telemetry: 0, other: 0 };
-    stats.startedAt = Date.now();
   }
 
   return {
     enable: enable,
     disable: disable,
-    isEnabled: function () {
-      return enabled;
-    },
+    isEnabled: function () { return enabled; },
     getEntries: getEntries,
-    getStats: getStats,
+    getStats: function () { return null; },
     on: on,
     clear: clear,
     profileId: profileId
@@ -278,6 +139,6 @@ function create(session, profileId) {
 
 module.exports = {
   create: create,
-  KNOWN_ENDPOINTS: KNOWN_ENDPOINTS,
-  KNOWN_PATH_SIGNATURES: KNOWN_PATH_SIGNATURES
+  sanitizeNetworkDetails: sanitizeNetworkDetails,
+  SAFE_NETWORK_FIELDS: SAFE_NETWORK_FIELDS
 };

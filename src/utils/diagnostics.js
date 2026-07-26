@@ -40,6 +40,7 @@ const logger = require('./logger');
 
 function _sanitize(str) {
   if (typeof str !== 'string') return String(str || '');
+  str = logger.sanitizeMessage(str);
   // Paths absolutos de usuário
   str = str.replace(/\/(?:home|Users)\/[^/\s]+/g, '/home/[user]');
   str = str.replace(/[A-Z]:\\Users\\[^\\\s]+/g, 'C:\\Users\\[user]');
@@ -47,7 +48,17 @@ function _sanitize(str) {
   str = str.replace(/[a-f0-9]{40,}/gi, '[token-redacted]');
   // Emails
   str = str.replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[email-redacted]');
+  // 诊断文本中的禁止内容标签；值在进入压缩包前被丢弃。
+  str = str.replace(
+    /\b(requestBody|responseBody|pageSource)\s*=\s*[^\s,;]+/gi,
+    '$1=[redacted]'
+  );
   return str;
+}
+
+function _sanitizeEvent(event) {
+  if (!event || typeof event !== 'object' || Array.isArray(event)) return {};
+  return logger.sanitizeFields(event);
 }
 
 function _sanitizeObj(obj, depth) {
@@ -394,5 +405,6 @@ module.exports = {
   // expostos pra testes
   _sanitize: _sanitize,
   _sanitizeObj: _sanitizeObj,
+  _sanitizeEvent: _sanitizeEvent,
   _collectSystemInfo: _collectSystemInfo
 };

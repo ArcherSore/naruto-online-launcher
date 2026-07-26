@@ -3,7 +3,13 @@
  * Cobertura: _sanitize, _sanitizeObj, _collectSystemInfo, exportZip
  */
 
-const { _sanitize, _sanitizeObj, _collectSystemInfo, exportZip } = require('../diagnostics');
+const {
+  _sanitize,
+  _sanitizeObj,
+  _sanitizeEvent,
+  _collectSystemInfo,
+  exportZip
+} = require('../diagnostics');
 
 describe('diagnostics.js - _sanitize', () => {
   test('remove paths absolutos Linux', () => {
@@ -150,6 +156,61 @@ describe('diagnostics.js - _sanitizeObj', () => {
 
   test('retorna string para tipos inesperados', () => {
     expect(_sanitizeObj(function () {})).toBe(String(function () {}));
+  });
+});
+
+describe('diagnostics.js - G0 安全诊断边界', () => {
+  test('普通日志文本去掉完整 URL 的 query/fragment 及身份参数', () => {
+    const result = _sanitize(
+      'navigate https://huoying.qq.com/server/website/?openid=identity-secret#ticket=ticket-secret'
+    );
+
+    expect(result).toContain('https://huoying.qq.com/server/website/');
+    expect(result).not.toMatch(/openid|identity-secret|ticket|ticket-secret/);
+  });
+
+  test('Cookie/Set-Cookie/Authorization/JWT/QQ 号及 body/source 内容被脱敏', () => {
+    const result = _sanitize(
+      'Cookie: skey=cookie-secret Set-Cookie: p_skey=set-cookie-secret Authorization: Bearer authorization-secret JWT=jwt-secret QQ=1234567890 requestBody=request-secret responseBody=response-secret pageSource=source-secret'
+    );
+
+    expect(result).not.toMatch(
+      /cookie-secret|set-cookie-secret|authorization-secret|jwt-secret|1234567890|request-secret|response-secret|source-secret/
+    );
+  });
+
+  test('诊断事件仅允许契约字段，未知字段默认拒绝', () => {
+    const result = _sanitizeEvent({
+      profileId: 'profile-a',
+      stage: 'GAME_LOADING',
+      event: 'network-error',
+      resourceType: 'object',
+      origin: 'https://cdn.example?ticket=origin-secret',
+      pathname: '/game.swf?openid=path-secret#fragment',
+      statusCode: 503,
+      errorCode: 'ERR_FAILED',
+      url: 'https://cdn.example/game.swf?ticket=ticket-secret',
+      headers: { Cookie: 'skey=cookie-secret' },
+      requestBody: 'request-secret',
+      responseBody: 'response-secret',
+      pageSource: 'source-secret',
+      qqIdentity: '1234567890',
+      unknownField: 'unknown-secret'
+    });
+
+    expect(result).toEqual({
+      profileId: 'profile-a',
+      stage: 'GAME_LOADING',
+      event: 'network-error',
+      origin: 'https://cdn.example',
+      pathname: '/game.swf',
+      resourceType: 'object',
+      statusCode: 503,
+      errorCode: 'ERR_FAILED'
+    });
+    expect(JSON.stringify(result)).not.toMatch(
+      /origin-secret|path-secret|ticket-secret|cookie-secret|request-secret|response-secret|source-secret|1234567890|unknown-secret/
+    );
   });
 });
 
