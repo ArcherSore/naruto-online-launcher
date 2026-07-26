@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 out/
+build/
 
 # Logs
 *.log
@@ -11,6 +12,7 @@ npm-debug.log*
 
 # Environment
 .env
+.env*
 .env.local
 .env.*.local
 
