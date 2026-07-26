@@ -1,12 +1,12 @@
 /**
  * ui/manager/IpcRouter.js — Registro dos handlers IPC (Fase 3c split)
  *
- * Responsabilidade ÚNICA (SRP): registrar os handlers ipcMain.on/handle que
- * conectam o renderer (index.html) aos subsistemas (store, vault, memory,
- * events, tempmail, inspector, etc.). Um método por domínio.
+ * Single Responsibility (SRP): register ipcMain.on/handle handlers que
+ * connect the renderer (index.html) to subsystems (store, vault, memory,
+ * events, tempmail, inspector, etc.). One method per domain.
  *
- * Histórico: era parte do God Object controller.js (648 linhas). Split: este
- * módulo cuida só do roteamento IPC; ManagerWindow cuida da janela;
+ * History: was part of the God Object controller.js (648 lines). Split: this
+ * module handles only IPC routing; ManagerWindow handles the window;
  * StateBroadcaster cuida do push de estado.
  */
 
@@ -15,9 +15,8 @@
 const { ipcMain, dialog, session } = require('electron');
 const fs = require('fs');
 const logger = require('../../utils/logger');
-const { isValidRegion } = require('../../config/regions');
+const { isValidRegion, normalizeRegion } = require('../../config/regions');
 const store = require('../../profiles/store');
-const mg = require('../../memory/guard');
 const et = require('../../utils/EventTimers');
 const vault = require('../../profiles/vault');
 const partition = require('../../profiles/partition');
@@ -26,7 +25,7 @@ const StateBroadcaster = require('./StateBroadcaster');
 
 let _handlers = {};
 let _inspectors = new Map(); // profileId -> inspector instance
-// v4.5: Mapa profileId -> launchStartTime (ms) para tracking de tempo de jogo
+// Map profileId -> launchStartTime (ms) for play-time tracking
 const _launchTimes = new Map();
 let _registered = false;
 
@@ -52,19 +51,21 @@ function _getWin() {
 }
 
 /**
- * Registra TODOS os handlers IPC. Idempotente (guard _registered).
+ * Registers ALL IPC handlers. Idempotent (guard _registered).
+ * @security Every handler MUST validate input (type+length+shape) before
+ *   delegating to subsystems. See SECURITY_AUDIT.md for the per-handler matrix.
  * @param {Object} handlers - { launchProfile, getMemoryStats, forceGC, ... }
  */
 function registerIpcHandlers(handlers) {
   _handlers = handlers || {};
-  if (_registered) return; // v3.6.2: anti-duplicação
+  if (_registered) return; // anti-duplication guard
   _registered = true;
 
   ipcMain.on('manager:ready', function () {
     StateBroadcaster.pushAll();
   });
 
-  // ── v5.8: Window Always-on-Top toggle ──
+  // ── Window Always-on-Top toggle ──
   ipcMain.handle('window:toggle-always-on-top', function (_e, on) {
     const win = _getWin();
     if (!win) return { ok: false, error: 'window-unavailable' };
@@ -79,13 +80,13 @@ function registerIpcHandlers(handlers) {
     return win.isAlwaysOnTop();
   });
 
-  // ── v5.8: Window minimize / maximize helpers (for the new window controls) ──
+  // ── Window minimize / maximize helpers (for the new window controls) ──
   ipcMain.on('window:minimize', function () {
     const win = _getWin();
     if (win) win.minimize();
   });
 
-  // ── v5.0.0: App relaunch (for optimization preset change) ──
+  // ── App relaunch (for optimization preset change) ──
   ipcMain.on('app:relaunch', function () {
     logger.info('App relaunch requested (preset change)');
     const { app } = require('electron');
@@ -113,7 +114,7 @@ function registerIpcHandlers(handlers) {
     } else {
       _send('profile:toast', {
         type: 'error',
-        msg: 'Limite de ' + store.MAX_PROFILES + ' contas atingido'
+        msg: 'Profile limit reached (' + store.MAX_PROFILES + ')'
       });
     }
   });
@@ -125,7 +126,7 @@ function registerIpcHandlers(handlers) {
 
   ipcMain.on('profile:update', function (_e, data) {
     if (typeof data !== 'object' || data === null || typeof data.id !== 'string') return;
-    // v5.9.15: Whitelist updatable fields to prevent renderer from overwriting
+    // Whitelist updatable fields to prevent renderer from overwriting
     // internal fields (id, createdAt, stats, launchCount, lastPlayed, etc.)
     const ALLOWED = [
       'name',
@@ -150,24 +151,24 @@ function registerIpcHandlers(handlers) {
 
   ipcMain.on('profile:delete', function (_e, id) {
     if (typeof id !== 'string' || !store.get(id)) {
-      _send('profile:toast', { type: 'error', msg: 'Perfil não encontrado (id inválido)' });
+      _send('profile:toast', { type: 'error', msg: 'Profile not found (invalid id)' });
       return;
     }
-    // P2 FIX: não permite deletar perfil com jogo aberto — store.remove()
-    // chama _rmrf na partition dir, o que crasharia o Flash PPAPI em uso.
+    // P2 FIX: prevents deleting profile with open game — store.remove()
+    // calls _rmrf on the partition dir, which would crash the in-use Flash PPAPI.
     try {
       const gameLauncher = require('../../app/Launcher');
       if (gameLauncher.isProfileOpen(id)) {
         _send('profile:toast', {
           type: 'error',
-          msg: 'Feche a janela do jogo antes de deletar esta conta'
+          msg: 'Close the game window before deleting this account'
         });
         return;
       }
     } catch (_) {
-      // gameLauncher não disponível (dev mode sem Electron) — prossegue
+      // gameLauncher not available (dev mode without Electron) — proceeds
     }
-    // Limpa inspector se existir (evita leak no Map _inspectors)
+    // Clears inspector if it exists (prevents leak in Map _inspectors)
     var insp = _inspectors.get(id);
     if (insp) {
       try {
@@ -181,7 +182,7 @@ function registerIpcHandlers(handlers) {
     partition.removeSnapshot(id);
     store.remove(id);
     _pushProfiles();
-    _send('profile:toast', { type: 'info', msg: 'Conta removida (dados + cookies apagados)' });
+    _send('profile:toast', { type: 'info', msg: 'Account removed (data + cookies deleted)' });
   });
 
   ipcMain.on('profile:reorder', function (_e, order) {
@@ -192,7 +193,7 @@ function registerIpcHandlers(handlers) {
 
   ipcMain.on('profile:launch', function (_e, id) {
     if (typeof id !== 'string' || !store.get(id)) {
-      _send('profile:toast', { type: 'error', msg: 'Perfil não encontrado' });
+      _send('profile:toast', { type: 'error', msg: 'Profile not found' });
       return;
     }
     if (_handlers.launchProfile) _handlers.launchProfile(id);
@@ -203,7 +204,7 @@ function registerIpcHandlers(handlers) {
     return store.getStats(id);
   });
 
-  // v5.5: Launch timeline (7-day activity chart data)
+  // Launch timeline (7-day activity chart data)
   ipcMain.handle('profile:launch-timeline', function (_e, days) {
     var d = typeof days === 'number' && days > 0 ? days : 7;
     return store.getLaunchTimeline(d);
@@ -234,12 +235,12 @@ function registerIpcHandlers(handlers) {
     const src = store.get(id);
     if (!src) return { ok: false, error: 'Profile not found' };
     const copy = store.create({
-      name: String(src.name) + ' (cópia)',
+      name: String(src.name) + ' (copy)',
       server: src.server,
       region: src.region,
       language: src.language,
       notes: src.notes || '',
-      tags: src.tags || [] // v5.3: copy tags
+      tags: src.tags || [] // copy tags
     });
     if (!copy) return { ok: false, error: 'Max profiles reached' };
     logger.info('Profile duplicated: ' + src.name + ' → ' + copy.name);
@@ -252,7 +253,7 @@ function registerIpcHandlers(handlers) {
     return store.update(id, { favorite: fav === true });
   });
 
-  // v5.3: Close a running game window by profile ID
+  // Close a running game window by profile ID
   ipcMain.on('profile:close', function (_e, id) {
     if (typeof id !== 'string') return;
     // Track play time before closing
@@ -274,13 +275,20 @@ function registerIpcHandlers(handlers) {
     _send('game-window:status', data);
   });
 
-  // ── Vault (credenciais) ──
+  // ── Vault (credentials) ──
   ipcMain.handle('vault:get', function (_e, id) {
     if (typeof id !== 'string') return null;
     return vault.getCredentials(id);
   });
+  // @security input validation: type + length cap to prevent abuse (huge strings).
   ipcMain.handle('vault:set', function (_e, id, user, pass) {
-    if (typeof id !== 'string' || typeof user !== 'string' || typeof pass !== 'string')
+    if (
+      typeof id !== 'string' ||
+      typeof user !== 'string' ||
+      typeof pass !== 'string' ||
+      user.length > 10240 ||
+      pass.length > 10240
+    )
       return false;
     return vault.setCredentials(id, user, pass);
   });
@@ -293,18 +301,7 @@ function registerIpcHandlers(handlers) {
     return vault.hasCredentials(id);
   });
 
-  // ── Memory ──
-  ipcMain.handle('memory:stats', function () {
-    return mg.getStats();
-  });
-  ipcMain.handle('memory:force-gc', function () {
-    return mg.collect({ manual: true });
-  });
-  ipcMain.handle('memory:webview-stats', function () {
-    return mg.getWebviewStats();
-  });
-
-  // ── Diagnostics exporter (v4.9.2) ──
+  // ── Diagnostics exporter ──
   const diagnostics = require('../../utils/diagnostics');
   ipcMain.handle('diagnostics:export', async function () {
     try {
@@ -313,30 +310,19 @@ function registerIpcHandlers(handlers) {
         _send('profile:toast', {
           type: 'success',
           msg:
-            'Diagnóstico exportado (' +
+            'Diagnostics exported (' +
             Math.round(result.size / 1024) +
             'KB, ' +
             result.entries +
-            ' arquivos)'
+            ' files)'
         });
       } else if (!result.canceled) {
-        _send('profile:toast', { type: 'error', msg: 'Falha ao exportar: ' + result.error });
+        _send('profile:toast', { type: 'error', msg: 'Export failed: ' + result.error });
       }
       return result;
     } catch (e) {
-      _send('profile:toast', { type: 'error', msg: 'Diagnóstico falhou: ' + e.message });
+      _send('profile:toast', { type: 'error', msg: 'Diagnostics failed: ' + e.message });
       return { ok: false, error: e.message };
-    }
-  });
-
-  // ── Flash Cache Info (v5.0) ──
-  const flashUpdater = require('../../app/FlashUpdater');
-  ipcMain.handle('flash:cache-info', function () {
-    try {
-      const info = flashUpdater.getCacheInfo();
-      return info || { version: null, downloadDate: null };
-    } catch (e) {
-      return { version: null, downloadDate: null };
     }
   });
 
@@ -347,16 +333,20 @@ function registerIpcHandlers(handlers) {
 
   ipcMain.handle('tempmail:create', async function (_e, opts) {
     try {
+      // @security reject non-object / array opts to prevent shape abuse.
+      if (opts !== undefined && (typeof opts !== 'object' || Array.isArray(opts))) {
+        return { ok: false, error: 'Invalid options' };
+      }
       opts = opts || {};
       const result = await tempmail.createNarutoAccount(opts);
 
-      // Fase 3g (pendência herdada): auto-criar Profile + guardar creds no vault.
-      // Antes o tempmail criava o JWT mas não o Profile — o usuário tinha que
-      // criar o perfil manualmente e colar as credenciais. Agora é automático.
+      // Phase 3g (inherited debt): auto-create Profile + store creds in vault.
+      // Previously tempmail created the JWT but not the Profile — the user had to
+      // create the profile manually and paste credentials. Now it is automatic.
       const profile = store.create({
         name: opts.name || 'Player ' + result.game.nickname,
         server: opts.server || '',
-        region: isValidRegion(opts.region) ? opts.region : 'br',
+        region: isValidRegion(opts.region) ? normalizeRegion(opts.region) : 'br',
         language: opts.language || 'pt',
         notificationsEnabled: opts.notificationsEnabled !== false
       });
@@ -377,23 +367,29 @@ function registerIpcHandlers(handlers) {
           result.tempmail.address +
           ' (player ' +
           result.game.nickname +
-          (profile ? ' + perfil auto-criado' : '') +
+          (profile ? ' + auto-created profile' : '') +
           ')'
       });
       return { ok: true, data: result, profile: profile, vaultStored: vaultStored };
     } catch (e) {
-      _send('profile:toast', { type: 'error', msg: 'Tempmail falhou: ' + e.message });
+      _send('profile:toast', { type: 'error', msg: 'Tempmail failed: ' + e.message });
       return { ok: false, error: e.message };
     }
   });
 
   ipcMain.handle('tempmail:login', async function (_e, profileId, email, password) {
-    if (typeof email !== 'string' || typeof password !== 'string') {
+    // @security length caps prevent DOS via oversized payloads.
+    if (
+      typeof email !== 'string' ||
+      typeof password !== 'string' ||
+      email.length > 512 ||
+      password.length > 1024
+    ) {
       return { ok: false, error: 'Invalid params' };
     }
     try {
       const profile = store.get(profileId);
-      if (!profile) return { ok: false, error: 'Perfil não encontrado' };
+      if (!profile) return { ok: false, error: 'Profile not found' };
       const partName = partition.getPartitionName(profile);
       const ses = session.fromPartition(partName);
       const result = await apiLogin.loginAndInject(ses, email, password);
@@ -402,13 +398,13 @@ function registerIpcHandlers(handlers) {
         msg:
           'Login API OK — ' +
           result.nickname +
-          ' (expira em ' +
+          ' (expires in ' +
           Math.round(result.expiresAt / 1000 - Date.now() / 1000) +
           's)'
       });
       return { ok: true, data: result };
     } catch (e) {
-      _send('profile:toast', { type: 'error', msg: 'Login API falhou: ' + e.message });
+      _send('profile:toast', { type: 'error', msg: 'Login API failed: ' + e.message });
       return { ok: false, error: e.message };
     }
   });
@@ -426,9 +422,10 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('session:check', async function (_e, profileId) {
+    if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     try {
       const profile = store.get(profileId);
-      if (!profile) return { ok: false, error: 'Perfil não encontrado' };
+      if (!profile) return { ok: false, error: 'Profile not found' };
       const partName = partition.getPartitionName(profile);
       const ses = session.fromPartition(partName);
       const status = await apiLogin.checkSession(ses);
@@ -442,7 +439,7 @@ function registerIpcHandlers(handlers) {
     if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     try {
       const profile = store.get(profileId);
-      if (!profile) return { ok: false, error: 'Perfil não encontrado' };
+      if (!profile) return { ok: false, error: 'Profile not found' };
       const partName = partition.getPartitionName(profile);
       const ses = session.fromPartition(partName);
       let insp = _inspectors.get(profileId);
@@ -462,7 +459,7 @@ function registerIpcHandlers(handlers) {
     const insp = _inspectors.get(profileId);
     if (insp) {
       insp.disable();
-      _inspectors.delete(profileId); // libera memória (entries[], JWTs, cookies)
+      _inspectors.delete(profileId); // frees memory (entries[], JWTs, cookies)
     }
     return { ok: true };
   });
@@ -490,79 +487,15 @@ function registerIpcHandlers(handlers) {
 
   // ── Server Selector ──
   const serverSelector = require('../server-selector');
+  // @security region is normalized to string|undefined before reaching the selector.
   ipcMain.handle('servers:fetch', function (_e, region) {
+    if (region !== undefined && typeof region !== 'string') region = 'br';
     return serverSelector.fetchServers(region || 'br');
   });
   ipcMain.handle('servers:clear-cache', function (_e, region) {
+    if (region !== undefined && typeof region !== 'string') region = undefined;
     serverSelector.clearCache(region);
     return { ok: true };
-  });
-
-  // ── DevTools helpers (v4.9.1) ──
-  const gameLauncher = require('../game-launcher');
-  ipcMain.handle('dev:get-page-source', async function (_e, profileId) {
-    if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
-    try {
-      const wc = gameLauncher.getWebContents(profileId);
-      if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
-      const source = await wc.executeJavaScript('document.documentElement.outerHTML');
-      const url = wc.getURL();
-      const title = await wc.executeJavaScript('document.title').catch(function () {
-        return '';
-      });
-      return { ok: true, data: { url: url, title: title, source: source, size: source.length } };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  });
-
-  ipcMain.handle('dev:get-cookies', async function (_e, profileId) {
-    try {
-      const profile = store.get(profileId);
-      if (!profile) return { ok: false, error: 'Perfil não encontrado' };
-      const partName = partition.getPartitionName(profile);
-      const ses = session.fromPartition(partName);
-      const cookies = await ses.cookies.get({});
-      return {
-        ok: true,
-        data: cookies.map(function (c) {
-          return {
-            name: c.name,
-            value: (c.value || '').slice(0, 80),
-            domain: c.domain,
-            path: c.path,
-            secure: c.secure,
-            httpOnly: c.httpOnly
-          };
-        })
-      };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  });
-
-  ipcMain.handle('dev:reload-game', function (_e, profileId) {
-    if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
-    try {
-      const wc = gameLauncher.getWebContents(profileId);
-      if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
-      wc.reload();
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  });
-
-  ipcMain.handle('dev:toggle-devtools', function (_e, profileId) {
-    if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
-    try {
-      const wc = gameLauncher.getWebContents(profileId);
-      if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
-      wc.toggleDevTools();
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
   });
 
   // ── i18n ──
@@ -570,10 +503,12 @@ function registerIpcHandlers(handlers) {
   ipcMain.handle('i18n:get-lang', function () {
     return i18n.getLanguage();
   });
-  const ALLOWED_LANGS = ['pt', 'en', 'de', 'es', 'pl', 'fr'];
+  const ALLOWED_LANGS = ['en', 'pt'];
   ipcMain.handle('i18n:set-lang', function (_e, lang) {
     if (typeof lang !== 'string' || !ALLOWED_LANGS.includes(lang)) return i18n.getLanguage();
     i18n.setLanguage(lang);
+    // sync EventTimers language so event names + notifications localize
+    et.setLang(lang);
     return i18n.getLanguage();
   });
   ipcMain.handle('i18n:get-all', function () {
@@ -587,7 +522,8 @@ function registerIpcHandlers(handlers) {
   // ── Events ──
   ipcMain.handle('events:get', function (_e, region) {
     if (region && typeof region !== 'string') region = 'br';
-    return et.getUpcoming(region || 'br');
+    // pass current language so event names are localized
+    return et.getUpcoming(region || 'br', i18n.getLanguage());
   });
   ipcMain.on('events:set-muted', function (_e, m) {
     if (typeof m !== 'boolean') return;
@@ -597,6 +533,13 @@ function registerIpcHandlers(handlers) {
       et.setMuted(m);
     }
   });
+  // global reminder override (minutes before event start)
+  ipcMain.on('events:set-remind', function (_e, min) {
+    if (typeof min !== 'number' || min < 0 || min > 120) return;
+    et.setRemindMin(min);
+  });
+  // keep EventTimers language in sync with launcher language
+  et.setLang(i18n.getLanguage());
 
   // ── Export / Import ──
   ipcMain.handle('profiles:export', function () {
@@ -614,8 +557,8 @@ function registerIpcHandlers(handlers) {
   });
 
   ipcMain.handle('profiles:export-encrypted', async function (_e, password) {
-    if (typeof password !== 'string' || password.length < 8) {
-      return { ok: false, error: 'Senha deve ter pelo menos 8 caracteres' };
+    if (typeof password !== 'string' || password.length < 8 || password.length > 1024) {
+      return { ok: false, error: 'Password must be at least 8 characters (max 1024)' };
     }
     const win = _getWin();
     if (!win) return { ok: false, error: 'Manager window closed' };
@@ -630,7 +573,7 @@ function registerIpcHandlers(handlers) {
       const encrypted = vault.exportEncryptedBackup(profiles, credentialsMap, password);
 
       const result = await dialog.showSaveDialog(win, {
-        title: 'Exportar backup criptografado',
+        title: 'Export encrypted backup',
         defaultPath: 'shinobi-backup-' + new Date().toISOString().slice(0, 10) + '.enc',
         filters: [{ name: 'Shinobi Backup', extensions: ['enc'] }]
       });
@@ -638,24 +581,24 @@ function registerIpcHandlers(handlers) {
 
       fs.writeFileSync(result.filePath, encrypted, 'utf8');
       logger.info(
-        'Backup criptografado salvo: ' + result.filePath + ' (' + profiles.length + ' perfis)'
+        'Encrypted backup saved: ' + result.filePath + ' (' + profiles.length + ' perfis)'
       );
       return { ok: true, path: result.filePath, count: profiles.length };
     } catch (e) {
-      logger.error('Export backup falhou: ' + e.message);
+      logger.error('Export backup failed: ' + e.message);
       return { ok: false, error: e.message };
     }
   });
 
   ipcMain.handle('profiles:import-encrypted', async function (_e, password) {
-    if (typeof password !== 'string') {
-      return { ok: false, error: 'Senha obrigatória' };
+    if (typeof password !== 'string' || password.length > 1024) {
+      return { ok: false, error: 'Password required (max 1024 chars)' };
     }
     const win = _getWin();
     if (!win) return { ok: false, error: 'Manager window closed' };
     try {
       const result = await dialog.showOpenDialog(win, {
-        title: 'Importar backup criptografado',
+        title: 'Import encrypted backup',
         filters: [{ name: 'Shinobi Backup', extensions: ['enc'] }],
         properties: ['openFile']
       });
@@ -694,10 +637,10 @@ function registerIpcHandlers(handlers) {
 
       _pushProfiles();
       _pushEvents();
-      logger.info('Backup importado: ' + imported + ' perfis, ' + skipped + ' ignorados');
+      logger.info('Backup imported: ' + imported + ' profiles, ' + skipped + ' skipped');
       return { ok: true, imported: imported, skipped: skipped };
     } catch (e) {
-      logger.error('Import backup falhou: ' + e.message);
+      logger.error('Import backup failed: ' + e.message);
       return { ok: false, error: e.message };
     }
   });
@@ -707,7 +650,7 @@ function registerIpcHandlers(handlers) {
     if (!win) return { ok: false };
     const json = store.exportJSON();
     const result = await dialog.showSaveDialog(win, {
-      title: 'Exportar perfis',
+      title: 'Export profiles',
       defaultPath: 'shinobi-profiles.json',
       filters: [{ name: 'JSON', extensions: ['json'] }]
     });
@@ -724,7 +667,7 @@ function registerIpcHandlers(handlers) {
     const win = _getWin();
     if (!win) return { ok: false, imported: 0 };
     const result = await dialog.showOpenDialog(win, {
-      title: 'Importar perfis',
+      title: 'Import profiles',
       filters: [{ name: 'JSON', extensions: ['json'] }],
       properties: ['openFile']
     });
@@ -744,12 +687,12 @@ function registerIpcHandlers(handlers) {
     }
   });
 
-  // Inicia o broadcast periódico de estado (listeners + timer 30s)
+  // Starts periodic state broadcast (listeners + 30s timer)
   StateBroadcaster.startAutoRefresh();
 }
 
 /**
- * Lança o jogo para um perfil (delegado ao game-launcher) com tracking de
+ * Launches the game for a profile (delegated to game-launcher) with tracking of
  * launchCount + totalPlayMs via store.
  * @param {string} profileId
  * @param {Function} [onOpened]
@@ -761,11 +704,11 @@ function launchProfile(profileId, onOpened, onClosed) {
     profileId,
     function () {
       store.incrementLaunch(profileId);
-      // v5.5: registra no launch log para timeline (não pode quebrar o launch)
+      // registers in launch log for timeline (must not break the launch)
       try {
         store.recordLaunch(profileId);
       } catch (e) {
-        logger.warn('IpcRouter: recordLaunch falhou: ' + e.message);
+        logger.warn('IpcRouter: recordLaunch failed: ' + e.message);
       }
       _launchTimes.set(profileId, Date.now());
       _pushProfiles();

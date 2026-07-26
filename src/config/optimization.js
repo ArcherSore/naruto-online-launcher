@@ -1,27 +1,27 @@
 /**
- * config/optimization.js — Presets de Otimização (v1.0.0)
+ * config/optimization.js — Optimization Presets
  *
- * Responsabilidade ÚNICA: definir os 3 presets (Performance / Balanced / Quality)
- * e suas configurações específicas. Aplicados em main/flags.js + CpuOptimizer.js.
+ * Single Responsibility: define the 3 presets (Performance / Balanced / Quality)
+ * and their specific settings. Applied in main/flags.js + CpuOptimizer.js.
  *
  * PRESETS:
- *   Os presets controlam apenas: nome, descrição, ícone e cor para a UI.
- *   A lógica REAL de otimização (CPU affinity, nice, OOM) é hardcoded em
- *   CpuOptimizer.optimizeRenderer() baseado no preset STRING, não nos campos
- *   deste objeto. As env vars de GPU são aplicadas via GpuDetector.getEnvVars()
- *   em main.js antes de app.whenReady().
+ *   The presets only control: name, description, icon and color for the UI.
+ *   The REAL optimization logic (CPU affinity, nice, OOM) is hardcoded in
+ *   CpuOptimizer.optimizeRenderer() based on the preset STRING, not the fields
+ *   of this object. GPU env vars are applied via GpuDetector.getEnvVars()
+ *   in main.js before app.whenReady().
  *
- *   - performance: máx FPS, fixa CPU em P-cores, nice=-5, OOM protection,
+ *   - performance: max FPS, pins CPU to P-cores, nice=-5, OOM protection,
  *                  env vars GPU (NVIDIA threaded opts, PRIME offload, etc.).
- *                  Trade-off: mais consumo de energia, fan mais alto, PC esquenta.
+ *                  Trade-off: higher power consumption, louder fan, PC heats up.
  *
- *   - balanced:    padrão. CPU em P-cores, nice=0, OOM protection.
- *                  Trade-off: nenhum. Recomendado para maioria dos users.
+ *   - balanced:    default. CPU on P-cores, nice=0, OOM protection.
+ *                  Trade-off: none. Recommended for most users.
  *
- *   - quality:     máxima compatibilidade. Sem CPU affinity (scheduler decide),
- *                  nice=+5 (cede prioridade a outras apps), sem OOM protection.
- *                  Trade-off: menos FPS em PCs fracos. Recomendado para quem
- *                  roda o jogo em segundo plano enquanto trabalha.
+ *   - quality:     maximum compatibility. No CPU affinity (scheduler decides),
+ *                  nice=+5 (yields priority to other apps), sem OOM protection.
+ *                  Trade-off: fewer FPS on low-end PCs. Recommended for those who
+ *                  runs the game in the background while working.
  */
 
 'use strict';
@@ -52,7 +52,7 @@ const PRESETS = {
 const PRESET_CODES = Object.keys(PRESETS);
 
 /**
- * Valida um código de preset.
+ * Validates a preset code.
  * @param {string} code
  * @returns {boolean}
  */
@@ -61,7 +61,7 @@ function isValidPreset(code) {
 }
 
 /**
- * Retorna o preset padrão.
+ * Returns the default preset.
  * @returns {string}
  */
 function getDefaultPreset() {
@@ -69,16 +69,7 @@ function getDefaultPreset() {
 }
 
 /**
- * Retorna o preset pelo código (ou default se inválido).
- * @param {string} code
- * @returns {Object}
- */
-function getPreset(code) {
-  return PRESETS[isValidPreset(code) ? code : getDefaultPreset()];
-}
-
-/**
- * Lista presets formatados para UI.
+ * Lists presets formatted for UI.
  * @returns {Array<{code, name, description, icon, color}>}
  */
 function listForUI() {
@@ -95,10 +86,7 @@ function listForUI() {
 }
 
 module.exports = {
-  PRESETS: PRESETS,
-  PRESET_CODES: PRESET_CODES,
   isValidPreset: isValidPreset,
   getDefaultPreset: getDefaultPreset,
-  getPreset: getPreset,
   listForUI: listForUI
 };

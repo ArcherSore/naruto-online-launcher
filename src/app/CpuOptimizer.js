@@ -1,31 +1,31 @@
 /**
- * app/CpuOptimizer.js — Otimizações de CPU para Flash Player (v1.0.0)
+ * app/CpuOptimizer.js — CPU optimizations for Flash Player
  *
- * Responsabilidade ÚNICA: aplicar otimizações de CPU/Scheduler no processo
- * renderer do Electron onde o Flash PPAPI roda.
+ * Single Responsibility: apply CPU/Scheduler optimizations to the process
+ * Electron renderer process where Flash PPAPI runs.
  *
- * CONTEXTO CRÍTICO — Flash é SINGLE-THREADED:
- *   O ActionScript (lógica do jogo Naruto Online) roda em UM thread só dentro
- *   do processo renderer do Electron. Mesmo que a CPU tenha 16 núcleos, o Flash
- *   só usa 1 para a lógica principal. O scheduler do Linux/Windows move esse
- *   thread entre núcleos (cache thrashing) — fixar em um núcleo P (performance)
- *   reduz cache misses e dá ganho real de FPS (5-15% em CPUs híbridas).
+ * CRITICAL CONTEXT — Flash is SINGLE-THREADED:
+ *   ActionScript (Naruto Online game logic) runs in a SINGLE thread inside the
+ *   Electron renderer process. Even if the CPU has 16 cores, Flash only uses
+ *   1 for the main logic. The Linux/Windows scheduler moves this thread between
+ *   cores (cache thrashing) - pinning to a P-core (performance) reduces cache
+ *   misses and gives a real FPS gain (5-15% on hybrid CPUs).
  *
- * Otimizações aplicadas:
+ * Applied optimizations:
  *   LINUX:
- *     1. CPU affinity via `taskset -cp <cores> <pid>` (fixa renderer em P-cores).
+ *     1. CPU affinity via `taskset -cp <cores> <pid>` (pins renderer to P-cores).
  *     2. Nice priority via `renice -n <priority> -p <pid>` (-5 performance).
- *     3. oom_score_adj=-500 via /proc/<pid>/oom_score_adj (kernel não mata em OOM).
+ *     3. oom_score_adj=-500 via /proc/<pid>/oom_score_adj (kernel won't kill on OOM).
  *
  *   WINDOWS (Win10/11):
  *     1. CPU affinity via PowerShell `Set-Process -ProcessorAffinity <mask>`.
  *     2. Process priority via Node.js `os.setPriority()` (cross-platform, REAL).
- *     3. Sem oom_score_adj equivalente (Windows não tem OOM killer como Linux).
+ *     3. No oom_score_adj equivalent (Windows has no OOM killer like Linux).
  *
- *   macOS: no-op (Mac não roda Flash PPAPI — sem suporte ao plugin).
+ *   macOS: no-op (Mac doesn't run Flash PPAPI — no plugin support).
  *
- * Como Electron não expõe setAffinity direto, usamos processos externos.
- * Em AppImage sem taskset / Windows sem PowerShell, falha silenciosamente.
+ * Since Electron doesn't expose setAffinity directly, we use external processes.
+ * In AppImage without taskset / Windows without PowerShell, fails silently.
  */
 
 'use strict';
@@ -35,8 +35,11 @@ const os = require('os');
 const { execFile } = require('child_process');
 const logger = require('../utils/logger');
 
-// Windows priority constants — resolved lazily dentro de _applyWindowsPriority
-// (os mock nos testes não tem constants.priority, então não pode ser top-level).
+/**
+ * Returns Windows priority constants, resolved lazily.
+ * Cached after first call to avoid repeated property lookups.
+ * @returns {{aboveNormal: number, normal: number, belowNormal: number}}
+ */
 let _winPrioCache = null;
 function _winPrioConstants() {
   if (_winPrioCache) return _winPrioCache;
@@ -48,15 +51,15 @@ function _winPrioConstants() {
   return _winPrioCache;
 }
 
-let _appliedPids = new Set(); // pids já otimizados (evita reapply)
+let _appliedPids = new Set(); // already-optimized PIDs (avoids reapply)
 
 /**
- * Tenta executar um comando via PowerShell (Windows).
- * Win11 24H2+ e Windows Server Core podem não ter powershell.exe (v5.1).
- * Fallback: pwsh.exe (PowerShell 7+), que pode estar instalado separadamente.
- * Se nenhum estiver disponível, falha silenciosamente.
- * @param {string} script - comando PowerShell (sem -Command wrapper)
- * @param {number} timeout - timeout em ms
+ * Attempts to run a command via PowerShell (Windows).
+ * Win11 24H2+ and Windows Server Core may not have powershell.exe (v5.1).
+ * Fallback: pwsh.exe (PowerShell 7+), which may be installed separately.
+ * If neither is available, fails silently.
+ * @param {string} script - PowerShell command (without -Command wrapper)
+ * @param {number} timeout - timeout in ms
  * @returns {Promise<{ok: boolean, stdout?: string, error?: string}>}
  */
 function _execPowershell(script, timeout) {
@@ -86,10 +89,10 @@ function _tryPwsh(bin, script, timeout, callback) {
 }
 
 /**
- * Detecta o layout de núcleos P (performance) vs E (efficiency) em CPUs híbridas.
+ * Detect P-core vs E-core layout in hybrid CPUs.
  *
- * Em Intel Alder Lake+ (12a gen+), o kernel Linux expõe em
- * /sys/devices/cpu_atom/cpus (E-cores) e /sys/devices/cpu_core/cpus (P-cores).
+ * On Intel Alder Lake+ (12th gen+), the Linux kernel exposes
+ * /sys/devices/cpu_atom/cpus (E-cores) and /sys/devices/cpu_core/cpus (P-cores).
  *
  * @returns {Object} { pCores: [0,1,2,3], eCores: [4,5,6,7], isHybrid: bool }
  */
@@ -103,7 +106,7 @@ function detectCoreTopology() {
       // P-cores (cpu_core): high-performance
       if (fs.existsSync('/sys/devices/cpu_core/cpus')) {
         const raw = fs.readFileSync('/sys/devices/cpu_core/cpus', 'utf8').trim();
-        // Formato: "0-7" ou "0 1 2 3" ou "0,2,4,6"
+        // Format: "0-7" or "0 1 2 3" or "0,2,4,6"
         _parseCpuList(raw).forEach(function (n) {
           pCores.push(n);
         });
@@ -116,8 +119,8 @@ function detectCoreTopology() {
         });
       }
       // NixOS fallback: /sys/devices/system/cpu/cpu*/topology/core_type
-      // NixOS expõe topology diferente de distros padrão. Se cpu_core/cpu_atom
-      // não existem, tenta detectar via core_type (disponível no kernel 5.17+).
+      // NixOS exposes different topology from standard distros. If cpu_core/cpu_atom
+      // don't exist, tries detecting via core_type (available in kernel 5.17+).
       if (pCores.length === 0 && eCores.length === 0) {
         var cpuDir = '/sys/devices/system/cpu';
         try {
@@ -133,7 +136,7 @@ function detectCoreTopology() {
                 if (coreType === 'efficiency') {
                   eCores.push(cpuNum);
                 } else {
-                  // 'performance' ou desconhecido → assume P-core
+                  // 'performance' or unknown → assume P-core
                   pCores.push(cpuNum);
                 }
               }
@@ -142,7 +145,7 @@ function detectCoreTopology() {
             }
           }
         } catch (_) {
-          /* cpuDir não existe — muito improvável */
+          /* cpuDir doesn't exist — very unlikely */
         }
       }
     } catch (_) {
@@ -150,8 +153,8 @@ function detectCoreTopology() {
     }
   }
 
-  // Fallback: se não achou P/E separados, todos os núcleos são P (CPU uniforme).
-  // Em CPUs AMD ou Intel non-hybrid, o scheduler já faz bom work distribution.
+  // Fallback: if no separate P/E found, all cores are P (uniform CPU).
+  // On AMD or Intel non-hybrid CPUs, the scheduler already does good work distribution.
   if (pCores.length === 0 && eCores.length === 0) {
     for (let i = 0; i < totalCores; i++) pCores.push(i);
   }
@@ -165,15 +168,15 @@ function detectCoreTopology() {
 }
 
 /**
- * Parser de listas de CPU do kernel (/sys/devices/.../cpus).
- * Formatos suportados: "0-7", "0,2,4-6", "0 1 2", "0-3,8-11".
+ * Parser for kernel CPU lists (/sys/devices/.../cpus).
+ * Supported formats: "0-7", "0,2,4-6", "0 1 2", "0-3,8-11".
  * @param {string} raw
  * @returns {number[]}
  */
 function _parseCpuList(raw) {
   if (!raw || raw === '\n') return [];
   const out = [];
-  // Pode ter vírgula ou espaço como separador
+  // Can have comma or space as separator
   const parts = raw.split(/[,\s]+/).filter(Boolean);
   for (const part of parts) {
     const m = part.match(/^(\d+)-(\d+)$/);
@@ -189,9 +192,9 @@ function _parseCpuList(raw) {
 }
 
 /**
- * Aplica CPU affinity no PID via `taskset -cp <cores> <pid>`.
+ * Applies CPU affinity to PID via `taskset -cp <cores> <pid>`.
  * @param {number} pid - Process ID
- * @param {number[]} cores - Lista de núcleos (ex: [0,1,2,3])
+ * @param {number[]} cores - Core list (e.g.: [0,1,2,3])
  * @returns {Promise<{ok: boolean, error?: string}>}
  */
 function _applyTaskset(pid, cores) {
@@ -212,13 +215,13 @@ function _applyTaskset(pid, cores) {
       },
       function (err) {
         if (err) {
-          // taskset não disponível (AppImage minimal) ou sem permissão
+          // taskset unavailable (minimal AppImage) or no permission
           logger.debug(
-            'CpuOptimizer: taskset falhou pid=' + pid + ' cores=' + coresArg + ' — ' + err.message
+            'CpuOptimizer: taskset failed pid=' + pid + ' cores=' + coresArg + ' — ' + err.message
           );
           return resolve({ ok: false, error: err.message });
         }
-        logger.info('CpuOptimizer: affinity aplicada pid=' + pid + ' cores=[' + coresArg + ']');
+        logger.info('CpuOptimizer: affinity applied pid=' + pid + ' cores=[' + coresArg + ']');
         resolve({ ok: true });
       }
     );
@@ -226,11 +229,11 @@ function _applyTaskset(pid, cores) {
 }
 
 /**
- * Aplica nice priority via `renice -n <priority> -p <pid>`.
- * Usuário semum pode setar nice de 0 a 19 (menor prioridade). Para nice negativo
- * (-5, mais prioridade), precisa de CAP_SYS_NICE. Tentamos -5, se falha cai pra 0.
+ * Applies nice priority via `renice -n <priority> -p <pid>`.
+ * Unprivileged user can set nice 0-19 (lower priority). For negative nice
+ * (-5, higher priority), needs CAP_SYS_NICE. We try -5, if it fails fall back to 0.
  * @param {number} pid
- * @param {number} priority - valor nice (-20 a 19)
+ * @param {number} priority - nice value (-20 to 19)
  * @returns {Promise<{ok: boolean, priority?: number, error?: string}>}
  */
 function _applyRenice(pid, priority) {
@@ -248,11 +251,11 @@ function _applyRenice(pid, priority) {
       function (err) {
         if (err) {
           logger.debug(
-            'CpuOptimizer: renice falhou pid=' + pid + ' n=' + priority + ' — ' + err.message
+            'CpuOptimizer: renice failed pid=' + pid + ' n=' + priority + ' — ' + err.message
           );
           return resolve({ ok: false, error: err.message });
         }
-        logger.info('CpuOptimizer: nice=' + priority + ' aplicado pid=' + pid);
+        logger.info('CpuOptimizer: nice=' + priority + ' applied pid=' + pid);
         resolve({ ok: true, priority: priority });
       }
     );
@@ -260,11 +263,11 @@ function _applyRenice(pid, priority) {
 }
 
 /**
- * Ajusta oom_score_adj para -500 (kernel prefere matar outros processos em OOM).
- * Escreve diretamente em /proc/<pid>/oom_score_adj (não precisa de root se for
- * o próprio processo ou filho). Em AppImage, o renderer é filho → permitido.
+ * Sets oom_score_adj to -500 (kernel prefers killing other processes on OOM).
+ * Writes directly to /proc/<pid>/oom_score_adj (doesn't need root if it's
+ * the process itself or child). In AppImage, the renderer is a child → allowed.
  * @param {number} pid
- * @param {number} score - valor de -1000 (nunca matar) a 1000 (sempre matar)
+ * @param {number} score - value from -1000 (never kill) to 1000 (always kill)
  * @returns {Promise<{ok: boolean, error?: string}>}
  */
 function _applyOomScoreAdj(pid, score) {
@@ -275,19 +278,19 @@ function _applyOomScoreAdj(pid, score) {
     const path = '/proc/' + pid + '/oom_score_adj';
     fs.writeFile(path, String(score), function (err) {
       if (err) {
-        logger.debug('CpuOptimizer: oom_score_adj falhou pid=' + pid + ' — ' + err.message);
+        logger.debug('CpuOptimizer: oom_score_adj failed pid=' + pid + ' — ' + err.message);
         return resolve({ ok: false, error: err.message });
       }
-      logger.info('CpuOptimizer: oom_score_adj=' + score + ' aplicado pid=' + pid);
+      logger.info('CpuOptimizer: oom_score_adj=' + score + ' applied pid=' + pid);
       resolve({ ok: true });
     });
   });
 }
 
 /**
- * Aplica CPU affinity no Windows via PowerShell `Set-Process -ProcessorAffinity`.
- * Windows usa bitmask: bit N = core N. cores [0,1,2,3] → 0b1111 = 15.
- * PowerShell é o método mais confiável no Win10/11 (wmic está deprecated).
+ * Applies CPU affinity on Windows via PowerShell `Set-Process -ProcessorAffinity`.
+ * Windows uses bitmask: bit N = core N. cores [0,1,2,3] → 0b1111 = 15.
+ * PowerShell is the most reliable method on Win10/11 (wmic is deprecated).
  * @param {number} pid
  * @param {number[]} cores
  * @returns {Promise<{ok: boolean, mask?: number, error?: string}>}
@@ -300,7 +303,7 @@ function _applyWindowsAffinity(pid, cores) {
     if (!pid || cores.length === 0) {
       return resolve({ ok: false, error: 'invalid-args' });
     }
-    // Bitmask: bit N = core N (máx 64 cores suportadas pelo Windows)
+    // Bitmask: bit N = core N (max 64 cores supported by Windows)
     let mask = 0;
     cores.forEach(function (c) {
       if (c >= 0 && c < 64) mask |= 1 << c;
@@ -312,7 +315,7 @@ function _applyWindowsAffinity(pid, cores) {
     _execPowershell(script, 3000).then(function (result) {
       if (result.ok) {
         logger.info(
-          'CpuOptimizer: win affinity aplicada pid=' +
+          'CpuOptimizer: win affinity applied pid=' +
             pid +
             ' mask=' +
             mask +
@@ -323,7 +326,7 @@ function _applyWindowsAffinity(pid, cores) {
         resolve({ ok: true, mask: mask });
       } else {
         logger.debug(
-          'CpuOptimizer: win affinity falhou pid=' + pid + ' mask=' + mask + ' — ' + result.error
+          'CpuOptimizer: win affinity failed pid=' + pid + ' mask=' + mask + ' — ' + result.error
         );
         resolve({ ok: false, error: result.error });
       }
@@ -332,14 +335,14 @@ function _applyWindowsAffinity(pid, cores) {
 }
 
 /**
- * Aplica prioridade de processo no Windows via Node.js os.setPriority (cross-platform).
- * Mapeia nice-like targets (-5/0/+5) para Windows priority classes:
+ * Applies process priority on Windows via Node.js os.setPriority (cross-platform).
+ * Maps nice-like targets (-5/0/+5) to Windows priority classes:
  *   -5 → ABOVE_NORMAL (performance preset)
  *    0 → NORMAL (balanced preset)
  *   +5 → BELOW_NORMAL (quality preset)
- * Não usa HIGH/REALTIME (causa instabilidade no sistema — mouse/teclado travam).
+ * Does not use HIGH/REALTIME (causes system instability — mouse/keyboard freeze).
  * @param {number} pid
- * @param {number} niceTarget - valor nice-like (-5 a +5)
+ * @param {number} niceTarget - nice-like value (-5 to +5)
  * @returns {Promise<{ok: boolean, priority?: number, error?: string}>}
  */
 function _applyWindowsPriority(pid, niceTarget) {
@@ -354,24 +357,24 @@ function _applyWindowsPriority(pid, niceTarget) {
     else prio = c.normal;
     try {
       os.setPriority(pid, prio);
-      logger.info('CpuOptimizer: win priority aplicada pid=' + pid + ' prio=' + prio);
+      logger.info('CpuOptimizer: win priority applied pid=' + pid + ' prio=' + prio);
       resolve({ ok: true, priority: prio });
     } catch (e) {
-      // EPERM se pid pertence a outro user, ou EINVAL se pid não existe mais
-      logger.debug('CpuOptimizer: win priority falhou pid=' + pid + ' — ' + e.message);
+      // EPERM if pid belongs to another user, or EINVAL if pid no longer exists
+      logger.debug('CpuOptimizer: win priority failed pid=' + pid + ' — ' + e.message);
       resolve({ ok: false, error: e.message });
     }
   });
 }
 
 /**
- * Aplica todas as otimizações de CPU em um renderer PID (cross-platform).
+ * Applies all CPU optimizations to a renderer PID (cross-platform).
  *
  * LINUX: taskset (affinity) + renice (priority) + oom_score_adj (OOM protection).
- * WINDOWS: PowerShell (affinity) + os.setPriority (priority). Sem OOM protection.
+ * WINDOWS: PowerShell (affinity) + os.setPriority (priority). No OOM protection.
  * macOS: no-op.
  *
- * @param {number} pid - PID do processo renderer do Electron
+ * @param {number} pid - PID of the Electron renderer process
  * @param {Object} opts - { preset: 'performance'|'balanced'|'quality',
  *                          topology: detectCoreTopology() result (optional) }
  * @returns {Promise<{affinity, nice, oom}>}
@@ -388,10 +391,10 @@ async function optimizeRenderer(pid, opts) {
     };
   }
 
-  // Idempotente: se já aplicamos pro mesmo PID, pula (mas re-aplica em reload).
-  // Em reload, o PID pode ser reutilizado — checamos o Set antes de pular.
-  // Removido: o renderer PID muda em cada reload (novo processo), então o Set
-  // cresce indefinidamente. Limpar a cada 50 entradas (antes de adicionar a 51ª).
+  // Idempotent: if already applied for same PID, skip (but re-applies on reload).
+  // On reload, the PID can be reused — we check the Set before skipping.
+  // Removed: the renderer PID changes on each reload (new process), so the Set
+  // grows indefinitely. Clear every 50 entries (before adding the 51st).
   if (_appliedPids.has(pid)) {
     return {
       affinity: { ok: true, skipped: true },
@@ -404,24 +407,24 @@ async function optimizeRenderer(pid, opts) {
 
   const topology = opts.topology || detectCoreTopology();
 
-  // Performance: fixa em P-cores + 1 E-core reserva (para GC do V8 não competir
-  // com o thread principal do Flash).
-  // Balanced: fixa em P-cores apenas (deixa E-cores livres pra outras apps).
-  // Quality: NÃO aplica affinity (deixa scheduler decidir — melhor pra multi-task).
+  // Performance: pins to P-cores + 1 E-core reserve (so V8 GC doesn't compete
+  // with the main Flash thread).
+  // Balanced: pins to P-cores only (leaves E-cores free for other apps).
+  // Quality: does NOT apply affinity (lets scheduler decide — better for multi-task).
   let cores = [];
   if (preset === 'quality') {
-    // Sem affinity
+    // No affinity (quality preset lets scheduler decide)
   } else if (preset === 'performance') {
-    // P-cores + 1 E-core (se híbrido) pra GC não competir com Flash thread
+    // P-cores + 1 E-core (if hybrid) so GC doesn't compete with Flash thread
     if (topology.isHybrid && topology.pCores.length > 0) {
       cores = topology.pCores.slice();
       if (topology.eCores.length > 0) cores.push(topology.eCores[0]);
     } else {
-      // CPU uniforme: primeiros min(4, total) núcleos
+      // Uniform CPU: first min(4, total) cores
       cores = topology.pCores.slice(0, Math.min(4, topology.pCores.length));
     }
   } else {
-    // Balanced: só P-cores (ou primeiros 2 se uniforme)
+    // Balanced: P-cores only (or first 2 if uniform)
     if (topology.isHybrid) {
       cores = topology.pCores.slice(0, Math.max(1, Math.min(topology.pCores.length, 4)));
     } else {
@@ -439,7 +442,7 @@ async function optimizeRenderer(pid, opts) {
   let affinityPromise, nicePromise, oomPromise;
 
   if (process.platform === 'win32') {
-    // ── WINDOWS: PowerShell affinity + os.setPriority. Sem oom_score_adj. ──
+    // ── WINDOWS: PowerShell affinity + os.setPriority. No oom_score_adj. ──
     affinityPromise =
       cores.length > 0
         ? _applyWindowsAffinity(pid, cores)
@@ -454,7 +457,7 @@ async function optimizeRenderer(pid, opts) {
         : Promise.resolve({ ok: true, skipped: 'quality-preset' });
     nicePromise = _applyRenice(pid, niceTarget).then(function (res) {
       if (!res.ok && niceTarget < 0) {
-        // Retry com 0 (sem necessidade de CAP_SYS_NICE)
+        // Retry with 0 (no CAP_SYS_NICE needed)
         return _applyRenice(pid, 0);
       }
       return res;
@@ -486,7 +489,7 @@ async function optimizeRenderer(pid, opts) {
 }
 
 /**
- * Snapshot do estado atual (para UI mostrar ao user).
+ * Snapshot of the current state (for UI to display to user).
  * @returns {Object}
  */
 function getStats() {
@@ -498,25 +501,7 @@ function getStats() {
   };
 }
 
-/**
- * Reseta estado interno (para testes).
- */
-function _reset() {
-  _appliedPids.clear();
-  _winPrioCache = null; // limpa cache de constants Windows
-}
-
 module.exports = {
-  detectCoreTopology: detectCoreTopology,
   optimizeRenderer: optimizeRenderer,
-  getStats: getStats,
-  // expostos p/ testes
-  _reset: _reset,
-  _parseCpuList: _parseCpuList,
-  _applyTaskset: _applyTaskset,
-  _applyRenice: _applyRenice,
-  _applyOomScoreAdj: _applyOomScoreAdj,
-  _applyWindowsAffinity: _applyWindowsAffinity,
-  _applyWindowsPriority: _applyWindowsPriority,
-  _winPrioConstants: _winPrioConstants
+  getStats: getStats
 };

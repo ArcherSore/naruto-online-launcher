@@ -1,32 +1,32 @@
 /**
- * profiles/partition.js — Shadow Partition manager (RAM saver disruptivo)
- * v3.0.0 — INOVAÇÃO DISRUPTIVA
+ * profiles/partition.js — Shadow Partition manager (disruptive RAM saver)
+ * DISRUPTIVE INNOVATION
  *
  * PROBLEMA QUE RESOLVE:
- *   Cada profile com `persist:profile-<id>` grava ~30-80MB em disco e mantém
- *   cache/localStorage/indexedDB carregados em RAM. Em um PC de 2-4GB com 4
- *   contas, isso é 120-320MB SÓ de partitions — inviável.
+ *   Each profile with `persist:profile-<id>` writes ~30-80MB to disk and keeps
+ *   cache/localStorage/indexedDB loaded in RAM. On a 2-4GB PC with 4
+ *   accounts, that is 120-320MB JUST from partitions — unfeasible.
  *
- * SOLUÇÃO — SHADOW PARTITIONS:
- *   Em vez de `persist:` (grava em disco), usar `partition:profile-<id>`
- *   (EPHEMERAL — só existe em RAM enquanto a janela está aberta; wiped on close).
- *   No fechamento, tira um SNAPSHOT apenas dos cookies de autenticação do
- *   domínio do jogo (típicos 2-5KB) e salva em cookie-snapshots.json.
- *   Na próxima abertura, restaura os cookies antes de carregar a página.
+ * SOLUTION — SHADOW PARTITIONS:
+ *   Instead of `persist:` (writes to disk), use `partition:profile-<id>`
+ *   (EPHEMERAL — exists only in RAM while the window is open; wiped on close).
+ *   On close, takes a SNAPSHOT of only the authentication cookies from the
+ *   game domain (typically 2-5KB) and saves to cookie-snapshots.json.
+ *   On next open, restores cookies before loading the page.
  *
- *   Resultado: mesmo multi-conta em PC batata não acumula 300MB de partitions.
- *   O custo é re-download de assets estáticos (mitigado pelo disk-cache-size
+ *   Result: even multi-account on low-spec PC doesn't accumulate 300MB of partitions.
+ *   The cost is re-download of static assets (mitigated by disk-cache-size
  *   global compartilhado na default session).
  *
- * POLÍTICA:
- *   - Modo Batata (RAM <4GB) ou forceBatata → shadow ATIVO para todos os perfis.
- *   - Modo normal → persist (comportamento padrão, backwards-compatible).
- *   - Profile pode forçar shadow via profile.shadow=true (power-user opt-in).
+ * POLICY:
+ *   - Low-Spec mode (RAM <4GB) or forceLowSpec → shadow ACTIVE for all profiles.
+ *   - Normal mode → persist (default behavior, backwards-compatible).
+ *   - Profile can force shadow via profile.shadow=true (power-user opt-in).
  *
  * ISOLAMENTO:
- *   Shadow partitions continuam 100% isoladas entre si pelo Chromium
- *   (cada `partition:name` é um sandbox de session/cookies/storage separado).
- *   A diferença é apenas persistência em disco.
+ *   Shadow partitions remain 100% isolated from each other by Chromium
+ *   (each `partition:name` is a separate session/cookies/storage sandbox).
+ *   The difference is only disk persistence.
  */
 
 'use strict';
@@ -39,38 +39,38 @@ const logger = require('../utils/logger');
 const SNAPSHOTS_FILE = 'cookie-snapshots.json';
 const MAX_SNAPSHOTS_BYTES = 512 * 1024; // 512KB sane limit
 
-// Domínios do jogo cujos cookies são preservados no snapshot
+// Game domains whose cookies are preserved in the snapshot
 const AUTH_DOMAINS = ['oasgames.com', 'naruto.oasgames.com'];
 
 let _snapshots = null; // profileId -> [cookie, ...]
-let _batataMode = false;
+let _lowSpecMode = false;
 
 /**
  * Set whether shadow (ephemeral) partitions should be the default.
- * Called from memory/guard when Modo Batata toggles.
- * @param {boolean} batata
+ * Called from memory/guard when Modo Low-Spec toggles.
+ * @param {boolean} lowSpec
  */
-function setBatataMode(batata) {
-  _batataMode = !!batata;
+function setLowSpecMode(lowSpec) {
+  _lowSpecMode = !!lowSpec;
   logger.info(
-    'partition: Modo Batata = ' + _batataMode + ' → shadow default = ' + shouldUseShadow(null)
+    'partition: Modo Low-Spec = ' + _lowSpecMode + ' → shadow default = ' + shouldUseShadow(null)
   );
 }
 
 /**
- * Decide se um perfil deve usar shadow (ephemeral) partition.
+ * Decides whether a profile should use shadow (ephemeral) partition.
  * @param {Object|null} profile - profile object (may have .shadow override)
  * @returns {boolean}
  */
 function shouldUseShadow(profile) {
   if (profile && profile.shadow === true) return true;
-  if (_batataMode) return true;
+  if (_lowSpecMode) return true;
   return false;
 }
 
 /**
- * Retorna o nome da partition para um perfil.
- * `persist:profile-<id>` (durável) ou `partition:profile-<id>` (ephemeral).
+ * Returns the partition name for a profile.
+ * `persist:profile-<id>` (durable) or `partition:profile-<id>` (ephemeral).
  * @param {Object} profile
  * @returns {string}
  */
@@ -98,7 +98,7 @@ function _ensureSnapshotsLoaded() {
       _snapshots = {};
     }
   } catch (e) {
-    logger.error('partition: snapshots corrompidos, resetando: ' + e.message);
+    logger.error('partition: corrupted snapshots, resetting: ' + e.message);
     _snapshots = {};
   }
 }
@@ -108,22 +108,21 @@ function _persistSnapshots() {
   const file = _getSnapshotsPath();
   const tmp = file + '.tmp';
   try {
-    const json = JSON.stringify(_snapshots);
+    let json = JSON.stringify(_snapshots);
     if (Buffer.byteLength(json, 'utf8') > MAX_SNAPSHOTS_BYTES) {
-      logger.warn('partition: snapshots excedem 512KB — truncando antigos');
-      // Drop oldest entries
+      logger.warn('partition: snapshots exceed 512KB — truncating oldest');
+      // Drop oldest entries until under 80% capacity, then re-stringify once
       const keys = Object.keys(_snapshots);
-      while (
-        Buffer.byteLength(JSON.stringify(_snapshots), 'utf8') > MAX_SNAPSHOTS_BYTES * 0.8 &&
-        keys.length > 1
-      ) {
+      while (keys.length > 1) {
         delete _snapshots[keys.shift()];
+        json = JSON.stringify(_snapshots);
+        if (Buffer.byteLength(json, 'utf8') <= MAX_SNAPSHOTS_BYTES * 0.8) break;
       }
     }
     fs.writeFileSync(tmp, json, 'utf8');
     fs.renameSync(tmp, file);
   } catch (e) {
-    logger.error('partition: falha ao salvar snapshots: ' + e.message);
+    logger.error('partition: failed to save snapshots: ' + e.message);
     try {
       if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
     } catch (_) {
@@ -133,7 +132,7 @@ function _persistSnapshots() {
 }
 
 /**
- * Filtra cookies para manter apenas os de domínios de autenticação do jogo.
+ * Filters cookies to keep only those from game authentication domains.
  * @param {Array} cookies
  * @returns {Array}
  */
@@ -160,10 +159,10 @@ async function snapshotCookies(partitionName, profileId) {
     _ensureSnapshotsLoaded();
     _snapshots[profileId] = authCookies;
     _persistSnapshots();
-    logger.info('partition: snapshot de ' + authCookies.length + ' cookies para ' + profileId);
+    logger.info('partition: snapshot of ' + authCookies.length + ' cookies for ' + profileId);
     return true;
   } catch (e) {
-    logger.debug('partition: snapshot falhou: ' + e.message);
+    logger.debug('partition: snapshot failed: ' + e.message);
     return false;
   }
 }
@@ -192,10 +191,10 @@ async function restoreCookies(partitionName, profileId) {
         /* individual cookie failure is ok */
       }
     }
-    logger.info('partition: restaurados ' + restored + ' cookies para ' + profileId);
+    logger.info('partition: restored ' + restored + ' cookies for ' + profileId);
     return restored;
   } catch (e) {
-    logger.debug('partition: restore falhou: ' + e.message);
+    logger.debug('partition: restore failed: ' + e.message);
     return 0;
   }
 }
@@ -213,20 +212,20 @@ function removeSnapshot(profileId) {
 }
 
 /**
- * Cria eageramente o diretório da partition persistente no disco.
- * Necessário para que bunshin/clone de um perfil recém-criado não falhe com
- * "user-data-dir do origem não existe" (o Chromium só cria o dir no primeiro
- * launch — sem isso, operações que dependem do dir antes do primeiro launch
+ * Creates the persistent partition directory on disk eagerly.
+ * Needed so that bunshin/clone of a newly-created profile doesn't fail with
+ * "user-data-dir of the source does not exist" (Chromium only creates the dir on the first
+ * launch — without this, operations that depend on the dir before the first launch
  * quebram).
  *
- * Em shadow mode (partition:profile-<id>), a partition é ephemeral e NÃO tem
- * dir em disco — este método é no-op.
+ * In shadow mode (partition:profile-<id>), the partition is ephemeral and has NO
+ * dir on disk — this method is a no-op.
  *
  * @param {Object|string} profile - profile object ou id
- * @returns {boolean} true se criou ou já existia
+ * @returns {boolean} true if created or already existed
  */
 function ensurePartitionDir(profile) {
-  // Shadow partitions não persistem em disco — nada a fazer.
+  // Shadow partitions don't persist to disk — nothing to do.
   if (shouldUseShadow(profile)) return true;
 
   const id = (profile && profile.id) || profile;
@@ -236,17 +235,17 @@ function ensurePartitionDir(profile) {
     const dir = path.join(app.getPath('userData'), 'Partitions', 'profile-' + id);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
-      logger.info('partition: dir criado eageramente — ' + dir);
+      logger.info('partition: dir created eagerly — ' + dir);
     }
     return true;
   } catch (e) {
-    logger.warn('partition: ensurePartitionDir falhou: ' + e.message);
+    logger.warn('partition: ensurePartitionDir failed: ' + e.message);
     return false;
   }
 }
 
 module.exports = {
-  setBatataMode: setBatataMode,
+  setLowSpecMode: setLowSpecMode,
   shouldUseShadow: shouldUseShadow,
   getPartitionName: getPartitionName,
   snapshotCookies: snapshotCookies,

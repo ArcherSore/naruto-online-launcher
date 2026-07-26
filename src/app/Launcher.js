@@ -1,17 +1,17 @@
 /**
- * app/Launcher.js — Orquestra o launch de janelas de jogo por perfil (Fase 3d split)
+ * app/Launcher.js — Orchestrates game window launches per profile (Phase 3d split)
  *
- * Responsabilidade ÚNICA (SRP): criar a BrowserWindow isolada por perfil
- * (partition própria, network layer, loading screen, loadURL) e delegar o
- * lifecycle ao SessionLifecycle + atalhos ao KeyboardShortcuts. Mantém o
- * registry de janelas abertas (gameWindows Map).
+ * Single Responsibility (SRP): create an isolated BrowserWindow per profile
+ * (own partition, network layer, loading screen, loadURL) and delegate the
+ * lifecycle to SessionLifecycle + shortcuts to KeyboardShortcuts. Maintains the
+ * open window registry (gameWindows Map).
  *
- * Histórico: era o God Object game-launcher.js (620 linhas). Split em 3:
- *   - Launcher.js          (este) — orchestration + window registry
- *   - SessionLifecycle.js  — hooks de evento (load/fail/close/crash/auto-login)
- *   - KeyboardShortcuts.js — F5/F12/Alt+F4 antes do input do Chromium
+ * History: was the God Object game-launcher.js (620 lines). Split into 3:
+ *   - Launcher.js          (this module) — orchestration + window registry
+ *   - SessionLifecycle.js  — event hooks (load/fail/close/crash/auto-login)
+ *   - KeyboardShortcuts.js — F5/F12/Alt+F4 before Chromium input
  *
- * game-launcher.js permanece como facade re-exportando este módulo.
+ * game-launcher.js remains as facade re-exporting this module.
  */
 
 'use strict';
@@ -25,6 +25,7 @@ const { setupBlocker } = require('../network/blocker');
 const { setupPersistentCookies } = require('../network/cookies');
 const SessionLifecycle = require('./SessionLifecycle');
 const KeyboardShortcuts = require('../ui/manager/KeyboardShortcuts');
+const Auditor = require('./Auditor');
 
 const WINDOW_TITLE = 'Naruto Online';
 const CSP =
@@ -43,17 +44,17 @@ const urlConfig = require('../config/urls');
 const LAUNCHER_PARAMS = urlConfig.getLauncherParams();
 
 /**
- * Retorna URL do jogo para um perfil (região + idioma + servidor).
+ * Returns the game URL for a profile (region + language + server).
  * @param {Object} [profile]
  * @returns {string}
  */
 function getGameUrl(profile) {
   if (!profile) return urlConfig.getGameUrl('br');
-  return urlConfig.getGameUrl(profile.region, profile.language, profile.server);
+  return urlConfig.getGameUrl(profile.region, profile.server);
 }
 
 /**
- * Há alguma janela de jogo aberta? (usado pelo ManagerWindow close behavior)
+ * Is there a game window open? (used by ManagerWindow close behavior)
  * @returns {boolean}
  */
 function hasOpenWindows() {
@@ -87,7 +88,7 @@ function resolveIconPath() {
 function launchProfile(profileId, onOpened, onClosed) {
   const profile = store.get(profileId);
   if (!profile) {
-    logger.error('Launcher: perfil não encontrado: ' + profileId);
+    logger.error('Launcher: profile not found: ' + profileId);
     return;
   }
 
@@ -105,7 +106,7 @@ function launchProfile(profileId, onOpened, onClosed) {
   const partName = partition.getPartitionName(profile);
   const isShadow = partition.shouldUseShadow(profile);
   logger.info(
-    'Abrindo perfil "' +
+    'Opening profile "' +
       profile.name +
       '" • ' +
       (isShadow ? 'shadow' : 'persist') +
@@ -131,9 +132,14 @@ function launchProfile(profileId, onOpened, onClosed) {
       nodeIntegration: false,
       contextIsolation: true,
       backgroundThrottling: false,
-      webSecurity: false,
-      allowRunningInsecureContent: true,
-      partition: partName, // <- ISOLAMENTO TOTAL por perfil
+      // @security (audit 2-b): webSecurity MUST stay true (default) — never
+      // disable same-origin policy. allowRunningInsecureContent MUST stay false
+      // (default) — no mixed-content loading from HTTPS pages. Previously both
+      // were inverted to allow HTTP game endpoints; the cookies layer already
+      // sets secure=false on game cookies so login still works over HTTP via
+      // same-origin requests. Mixed-content (HTTPS page → HTTP resource) is
+      // now blocked by default per Chromium security model.
+      partition: partName, // <- TOTAL ISOLATION per profile
       preload: path.join(__dirname, '..', 'preload.js'),
       userAgent: LAUNCHER_UA
     }
@@ -142,7 +148,7 @@ function launchProfile(profileId, onOpened, onClosed) {
   win.webContents.session.setUserAgent(LAUNCHER_UA);
   const ses = win.webContents.session;
 
-  // Network layer para ESTA partition (blocker + cookies+CSP mesclados num handler)
+  // Network layer for THIS partition (blocker + cookies+CSP merged in one handler)
   setupBlocker(ses);
   setupPersistentCookies(ses, { csp: CSP });
 
@@ -154,7 +160,10 @@ function launchProfile(profileId, onOpened, onClosed) {
     win.setTitle(WINDOW_TITLE + ' — ' + profile.name);
   });
 
-  // Cria a entrada do registry ANTES de anexar lifecycle (este precisa mutar entry)
+  // Create the registry entry BEFORE attaching lifecycle (this one needs to mutate entry)
+  // Auditor: collects session metadata (playtime, stalls, crashes, reloads) per profile.
+  // Phase 2: wired here. Missing wire-up of recordEvent (EventTimers) — Phase 3.
+  const auditor = Auditor.create(profileId);
   const entry = {
     window: win,
     partitionName: partName,
@@ -163,31 +172,35 @@ function launchProfile(profileId, onOpened, onClosed) {
     failLoadRetry: false,
     failLoadTimer: null,
     bypassAttempts: 0,
-    formInjectAttempts: 0
+    formInjectAttempts: 0,
+    auditor: auditor
   };
   gameWindows.set(profileId, entry);
 
-  // Anexa lifecycle (event handlers) + atalhos
+  // Attach lifecycle (event handlers) + shortcuts
   SessionLifecycle.attach(win, {
     profileId: profileId,
     profile: profile,
     entry: entry,
     ses: ses,
+    auditor: auditor,
     onOpened: onOpened,
     onClosed: function () {
       gameWindows.delete(profileId);
+      // Persist auditor final state + stop throttled persistence timer.
+      try { auditor.destroy(); } catch (e) { logger.debug('auditor.destroy failed: ' + e.message); }
       if (onClosed) onClosed();
     },
     getGameUrl: getGameUrl,
     LAUNCHER_PARAMS: LAUNCHER_PARAMS
   });
-  // F5 (clear login) agora faz pré-autenticação via API antes de recarregar
-  // (igual ao Play) → não mostra a tela de login do jogo, email não fica visível.
+  // F5 (clear login) now does pre-authentication via API before reloading
+  // (same as Play) → doesn't show the game login screen, email stays hidden.
   KeyboardShortcuts.attach(win, profile.name, ses, function onClearLogin() {
     reloadWithPreAuth(profileId);
   });
 
-  // Loading screen (spinner SVG/CSS, sem emoji — fontconfig-safe)
+  // Loading screen (spinner SVG/CSS, no emoji — fontconfig-safe)
   win.loadURL(
     'data:text/html,' +
       encodeURIComponent(
@@ -201,25 +214,12 @@ function launchProfile(profileId, onOpened, onClosed) {
           '.t{font-size:15px;font-weight:600;letter-spacing:.2px;color:#f0ede6}' +
           '</style></head><body>' +
           '<div class="spin"></div>' +
-          '<div class="t">Carregando ' +
+          '<div class="t">Loading ' +
           String(profile.name).replace(/</g, '&lt;') +
           '</div>' +
           '</body></html>'
       )
   );
-}
-
-/**
- * Focus (show + raise) a game window by profile ID.
- * @param {string} profileId
- */
-function focusProfile(profileId) {
-  if (!gameWindows.has(profileId)) return;
-  const entry = gameWindows.get(profileId);
-  if (entry.window && !entry.window.isDestroyed()) {
-    entry.window.show();
-    entry.window.focus();
-  }
 }
 
 /**
@@ -256,25 +256,25 @@ function getWebContents(profileId) {
 }
 
 /**
- * Recarrega a janela do jogo com pré-autenticação (igual ao fluxo do Play).
- * Delegado ao SessionLifecycle.reloadWithPreAuth — usado pelo atalho F5.
+ * Reloads the game window with pre-authentication (same flow as Play).
+ * Delegated to SessionLifecycle.reloadWithPreAuth — used by the F5 shortcut.
  *
- * Diferente de um reload cru, limpa o login E pré-autentica via API antes de
- * recarregar, então a tela de login do Naruto Online não chega a aparecer
- * (email não fica visível). Veja SessionLifecycle.reloadWithPreAuth.
+ * Unlike a plain reload, clears the login AND pre-authenticates via API before
+ * reloading, so the Naruto Online login screen doesn't appear
+ * (email stays hidden). See SessionLifecycle.reloadWithPreAuth.
  *
  * @param {string} profileId
  */
 function reloadWithPreAuth(profileId) {
   if (!gameWindows.has(profileId)) {
-    logger.warn('reloadWithPreAuth: perfil não está aberto — ' + profileId);
+    logger.warn('reloadWithPreAuth: profile not open — ' + profileId);
     return;
   }
   const entry = gameWindows.get(profileId);
   if (!entry || !entry.window || entry.window.isDestroyed()) return;
   const profile = store.get(profileId);
   if (!profile) {
-    logger.warn('reloadWithPreAuth: perfil não encontrado no store — ' + profileId);
+    logger.warn('reloadWithPreAuth: profile not found in store — ' + profileId);
     return;
   }
   SessionLifecycle.reloadWithPreAuth(
@@ -288,7 +288,6 @@ function reloadWithPreAuth(profileId) {
 
 module.exports = {
   launchProfile: launchProfile,
-  focusProfile: focusProfile,
   closeProfile: closeProfile,
   isProfileOpen: isProfileOpen,
   getWebContents: getWebContents,

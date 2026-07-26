@@ -1,21 +1,21 @@
 /**
- * ui/manager/KeyboardShortcuts.js — Atalhos de teclado do jogo (Fase 3d split)
+ * ui/manager/KeyboardShortcuts.js — Game keyboard shortcuts (Phase 3d split)
  *
- * Responsabilidade ÚNICA (SRP): interceptar atalhos de teclado nas janelas de
- * jogo via webContents 'before-input-event'. Inclui os pendências herdadas:
- *   - F5  → Clear Login (limpa cookies + storage da partition, depois recarrega)
+ * Single Responsibility (SRP): intercept keyboard shortcuts in the game
+ * via webContents 'before-input-event'. Includes the inherited shortcuts:
+ *   - F5  → Clear Login (clears cookies + storage from partition, then reloads)
  *   - F12 → toggle DevTools
- *   - Alt+F4 → fecha a janela (kill switch graceful)
- *   - Bloqueia F10/Alt (menu bar Chromium), Ctrl+Shift+I/J (use F12)
+ *   - Alt+F4 → closes the window (graceful kill switch)
+ *   - Blocks F10/Alt (Chromium menu bar), Ctrl+Shift+I/J (use F12)
  *
- * v5.9.7: F5 agora aceita callback `onClearLogin`. Se fornecido, delega pra ele
- * (Launcher passa uma função que faz clear + pré-autenticação via API antes de
- * recarregar — igual ao Play — para não mostrar a tela de login do jogo, evitando
- * vazar o email). Se `onClearLogin` não é fornecido, mantém o comportamento
- * antigo (clear + reload direto) — backward compat.
+ * F5 now accepts an `onClearLogin` callback. When provided, it delegates to it
+ * (Launcher passes a function that does clear + pre-authentication via API before
+ * reloading — same as Play — to avoid showing the game login screen, preventing
+ * the email from leaking). If `onClearLogin` is not provided, keeps the legacy
+ * behavior (clear + direct reload) — backward compat.
  *
- * Histórico: era inline no God Object game-launcher.js (620 linhas). Extraído
- * para isolar a lógica de input. F5/F12 já existiam desde v4.9.1.
+ * History: was inline in the God Object game-launcher.js (620 lines). Extracted
+ * to isolate input logic.
  */
 
 'use strict';
@@ -23,43 +23,43 @@
 const logger = require('../../utils/logger');
 
 /**
- * Anexa o handler de atalhos ao webContents de uma janela de jogo.
+ * Attaches the shortcut handler to a game window's webContents.
  * @param {Electron.BrowserWindow} win
- * @param {string} profileName - para logging
- * @param {Electron.Session} [ses] - session da partition (fallback F5 sem callback)
- * @param {Function} [onClearLogin] - callback invocado no F5 (clear + pré-auth).
- *        Se fornecido, substitui o clear+reload manual — o callback é responsável
- *        por limpar o storage e recarregar com pré-autenticação (igual ao Play).
+ * @param {string} profileName - for logging
+ * @param {Electron.Session} [ses] - partition session (fallback F5 sem callback)
+ * @param {Function} [onClearLogin] - callback invoked on F5 (clear + pre-auth).
+ *        If provided, replaces the manual clear+reload — the callback is responsible
+ *        for clearing storage and reloading with pre-authentication (same as Play).
  */
 function attach(win, profileName, ses, onClearLogin) {
   if (!win || !win.webContents) return;
   const wc = win.webContents;
 
   wc.on('before-input-event', function (event, input) {
-    // Alt+F4 → fecha a janela (o kill switch do SessionLifecycle trata o graceful)
+    // Alt+F4 → closes the window (the kill switch from SessionLifecycle handles the graceful shutdown)
     if (input.alt && input.key === 'F4') {
       event.preventDefault();
       win.close();
       return;
     }
     // F5 → Clear Login.
-    // Se onClearLogin fornecido: delega (Launcher faz clear + pré-auth via API).
-    // Senão: fallback antigo (clear storage + reload direto).
+    // If onClearLogin provided: delegates (Launcher does clear + pre-auth via API).
+    // Otherwise: old fallback (clear storage + direct reload).
     if (input.key === 'F5' && !input.control && !input.alt && !input.shift) {
       event.preventDefault();
-      logger.info('F5: clear login para ' + profileName);
+      logger.info('F5: clear login for ' + profileName);
       if (typeof onClearLogin === 'function') {
-        // Delega pro Launcher — ele faz clearStorageData + apiLogin.loginAndInject
-        // ANTES de recarregar, então a tela de login não aparece (email não vaza).
+        // Delegates to Launcher — it does clearStorageData + apiLogin.loginAndInject
+        // BEFORE reloading, so the login screen doesn't appear (email doesn't leak).
         try {
           onClearLogin();
         } catch (e) {
-          logger.warn('F5: onClearLogin falhou — fallback reload direto: ' + e.message);
+          logger.warn('F5: onClearLogin failed — fallback direct reload: ' + e.message);
           wc.reload();
         }
         return;
       }
-      // Fallback (sem callback): clear + reload direto (comportamento pré-v5.9.7).
+      // Fallback (no callback): clear + direct reload (legacy behavior).
       if (ses) {
         Promise.all([
           ses.clearStorageData({
@@ -68,7 +68,7 @@ function attach(win, profileName, ses, onClearLogin) {
           ses.clearCache()
         ])
           .then(function () {
-            logger.info('F5: login limpo, recarregando — ' + profileName);
+            logger.info('F5: login cleared, reloading — ' + profileName);
             wc.executeJavaScript('window.onbeforeunload = null; window.onunload = null;')
               .then(function () {
                 wc.reload();
@@ -78,7 +78,7 @@ function attach(win, profileName, ses, onClearLogin) {
               });
           })
           .catch(function (e) {
-            logger.warn('F5: erro ao limpar login — ' + e.message + ' (reload forçado)');
+            logger.warn('F5: failed to clear login — ' + e.message + ' (forced reload)');
             wc.reload();
           });
       } else {
@@ -86,14 +86,14 @@ function attach(win, profileName, ses, onClearLogin) {
       }
       return;
     }
-    // F12 → toggle DevTools (liberado pra debug).
-    // Ctrl+Shift+I continua bloqueado (F12 é mais intuitivo e não conflita com o jogo).
+    // F12 → toggle DevTools (enabled for debug).
+    // Ctrl+Shift+I remains blocked (F12 is more intuitive and doesn't conflict with the game).
     if (input.key === 'F12' && !input.control && !input.alt && !input.shift) {
       event.preventDefault();
       wc.toggleDevTools();
       return;
     }
-    // Bloqueia F10 (menu bar do Chromium), Alt (menu toggle)
+    // Blocks F10 (Chromium menu bar), Alt (menu toggle)
     if (
       input.key === 'F10' ||
       (input.alt && !input.control && !input.shift && input.key !== 'F4')
@@ -101,7 +101,7 @@ function attach(win, profileName, ses, onClearLogin) {
       event.preventDefault();
       return;
     }
-    // Bloqueia Ctrl+Shift+I (DevTools), Ctrl+Shift+J (Console) — use F12
+    // Blocks Ctrl+Shift+I (DevTools), Ctrl+Shift+J (Console) — use F12
     if (input.control && input.shift && (input.key === 'I' || input.key === 'J')) {
       event.preventDefault();
       return;

@@ -1,19 +1,19 @@
 /**
- * API Login — injeta JWT oas_user na session do Electron
- * v1.0.0 — v4.9: login via API (sem Flash) + cookie injection
+ * API Login — injects JWT oas_user into the Electron session
+ * API login (no Flash) + cookie injection
  *
- * O login normal (form HTML) usa o passport.oasgames.com pra receber um JWT
- * e setar o cookie oas_user no domínio .narutowebgame.com. Esse módulo faz
- * o mesmo via API, pulando o form — útil pra:
- *   - Auto-login mais robusto (sem MutationObserver)
- *   - Login de contas tempmail recém-criadas
- *   - Renovação automática antes do JWT expirar (2h)
+ * Normal login (HTML form) uses passport.oasgames.com to receive a JWT
+ * and set the oas_user cookie on the .narutowebgame.com domain. This module does
+ * the same via API, skipping the form — useful for:
+ *   - More robust auto-login (no MutationObserver)
+ *   - Login for newly-created tempmail accounts
+ *   - Auto-renewal before JWT expires (2h)
  *
- * Verificado ao vivo: o cookie oas_user=<loginKey> é tudo que o jogo precisa
- * pra considerar a sessão logada. O servidor valida o JWT HS256.
+ * Verified live: the cookie oas_user=<loginKey> is all the game needs
+ * to consider the session logged in. The server validates the JWT HS256.
  *
- * DOMÍNIO CRÍTICO: o cookie DEVE ir no domínio .narutowebgame.com (não oasgames.com).
- * O renderer precisa estar numa página *.narutowebgame.com pra setCookie funcionar.
+ * CRITICAL DOMAIN: the cookie MUST go to .narutowebgame.com (not oasgames.com).
+ * The renderer must be on a *.narutowebgame.com page for setCookie to work.
  */
 
 'use strict';
@@ -22,11 +22,11 @@ const logger = require('../utils/logger');
 const tempmail = require('./tempmail');
 
 const OAS_USER_DOMAIN = 'narutowebgame.com';
-// O jogo carrega de naruto.narutowebgame.com/pl/serverlist — secure cookie Praace.
+// The game loads from naruto.narutowebgame.com/pl/serverlist — secure cookie Practice.
 const DEFAULT_GAME_PATH = '/pl/serverlist';
 
 /**
- * Faz login via API e injeta o cookie oas_user na session do perfil.
+ * Performs API login and injects the oas_user cookie into the profile's session.
  *
  * @param {Object} session — Electron session (session.fromPartition(partName))
  * @param {string} email
@@ -37,13 +37,13 @@ const DEFAULT_GAME_PATH = '/pl/serverlist';
  */
 async function loginAndInject(session, email, password, opts) {
   opts = opts || {};
-  logger.info('ApiLogin: autenticando ' + email);
+  logger.info('ApiLogin: authenticating ' + email);
 
-  // 1. Login via passport API → recebe loginKey (JWT)
+  // 1. Login via passport API → receives loginKey (JWT)
   const auth = await tempmail.login(email, password, opts.remember);
 
-  // 2. Injeta o cookie oas_user no domínio .narutowebgame.com
-  //    O jogo lê esse cookie pra considerar a sessão logada.
+  // 2. Injects the oas_user cookie on the .narutowebgame.com domain
+  //    The game reads this cookie to consider the session logged in.
   const cookieUrl = 'https://' + OAS_USER_DOMAIN + DEFAULT_GAME_PATH;
   await session.cookies.set({
     url: cookieUrl,
@@ -57,7 +57,7 @@ async function loginAndInject(session, email, password, opts) {
     expirationDate: Math.floor(auth.expiresAt / 1000)
   });
 
-  // 3. Seta também o cookie de idioma (pra não rebater pra tela de seleção)
+  // 3. Also sets the language cookie (to avoid bouncing to language selection screen)
   await session.cookies.set({
     url: cookieUrl,
     name: 'oas_lp_language_naruto',
@@ -70,9 +70,9 @@ async function loginAndInject(session, email, password, opts) {
   });
 
   logger.info(
-    'ApiLogin: cookie oas_user injetado em .' +
+    'ApiLogin: cookie oas_user injected into .' +
       OAS_USER_DOMAIN +
-      ' (expira em ' +
+      ' (expires in ' +
       Math.round(auth.expiresAt / 1000 - Date.now() / 1000) +
       's)'
   );
@@ -86,7 +86,7 @@ async function loginAndInject(session, email, password, opts) {
 }
 
 /**
- * Verifica se o cookie oas_user ainda é válido (não expirado).
+ * Checks if the oas_user cookie is still valid (not expired).
  * @param {Object} session
  * @returns {Promise<{valid:boolean, jwtDecoded:Object|null, expiresInSeconds:number}>}
  */
@@ -105,11 +105,11 @@ async function checkSession(session) {
 }
 
 /**
- * Renova o JWT antes de expirar, se necessário.
+ * Renews the JWT before it expires, if necessary.
  * @param {Object} session
  * @param {string} email
  * @param {string} password
- * @param {number} [thresholdSeconds=300] — renova se faltar menos que isso
+ * @param {number} [thresholdSeconds=300] — renew if fewer seconds remain than this
  * @returns {Promise<{renewed:boolean, loginKey:string|null, expiresAt:number}>}
  */
 async function renewIfNeeded(session, email, password, thresholdSeconds) {
@@ -118,7 +118,7 @@ async function renewIfNeeded(session, email, password, thresholdSeconds) {
   if (status.valid && status.expiresInSeconds > thresholdSeconds) {
     return { renewed: false, loginKey: null, expiresAt: 0 };
   }
-  logger.info('ApiLogin: renovando JWT (expira em ' + status.expiresInSeconds + 's)');
+  logger.info('ApiLogin: renewing JWT (expires in ' + status.expiresInSeconds + 's)');
   const fresh = await loginAndInject(session, email, password);
   return { renewed: true, loginKey: fresh.loginKey, expiresAt: fresh.expiresAt };
 }

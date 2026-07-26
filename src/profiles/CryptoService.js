@@ -1,14 +1,14 @@
 /**
- * profiles/CryptoService.js — Primitivas de criptografia PURAS (Fase 3e split)
+ * profiles/CryptoService.js — Pure cryptography primitives (Phase 3e split)
  *
- * Responsabilidade ÚNICA (SRP): AES-256-GCM + PBKDF2-SHA512. Nenhuma
- * dependência de Electron, disco, ou estado de máquina. Tudo é função pura
- * que recebe a chave/salt como parâmetro.
+ * Single Responsibility (SRP): AES-256-GCM + PBKDF2-SHA512. No
+ * dependency on Electron, disk, or machine state. Everything is a pure function
+ * that receives the key/salt as a parameter.
  *
- * Histórico: era parte do God Object vault.js (571 linhas). Split em 3:
- *   - CryptoService.js   (este) — primitivas cripto puras
- *   - PasswordManager.js — derivação/cache da chave de máquina + senha mestre
- *   - ProfileVault.js    — CRUD de credenciais + buildAutoLoginScript
+ * History: was part of the God Object vault.js (571 lines). Split into 3:
+ *   - CryptoService.js   (this one) — pure crypto primitives
+ *   - PasswordManager.js — machine key derivation/caching + master password
+ *   - ProfileVault.js    — CRUD of credentials + buildAutoLoginScript
  */
 
 'use strict';
@@ -23,10 +23,11 @@ const GCM_IV_LEN = 12;
 const BACKUP_VERSION = 1;
 
 /**
- * Deriva chave AES-256 a partir de senha usando PBKDF2-SHA512.
+ * Derives AES-256 key from password using PBKDF2-SHA512.
+ * @security 200k iters (OWASP 2023 min 100k), 32-byte salt, key NEVER serialized.
  * @param {string} password
  * @param {Buffer} salt
- * @returns {Buffer} chave de 32 bytes
+ * @returns {Buffer} 32-byte key
  */
 function deriveKey(password, salt) {
   return crypto.pbkdf2Sync(String(password), salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, 'sha512');
@@ -64,18 +65,20 @@ function decrypt(payload, key) {
 }
 
 /**
- * Exporta perfis + credenciais em arquivo criptografado com senha mestre.
+ * Exports profiles + credentials to an encrypted file with a master password.
+ * @security AES-256-GCM, random 12-byte IV per call, 200k PBKDF2-SHA512 iters,
+ *   32-byte salt. Envelope stores salt+iv+ct+tag but NEVER the derived key.
  * @param {Array} profiles
  * @param {Object} credentialsMap - { profileId: { user, pass } }
- * @param {string} password - senha mestre
- * @returns {string} base64 do envelope criptografado
+ * @param {string} password - master password
+ * @returns {string} base64 of the encrypted envelope
  */
 function exportEncryptedBackup(profiles, credentialsMap, password) {
   if (!password || String(password).length < 8) {
-    throw new Error('Senha mestre deve ter pelo menos 8 caracteres');
+    throw new Error('Master password must be at least 8 characters');
   }
   if (!Array.isArray(profiles)) {
-    throw new Error('Lista de perfis inválida');
+    throw new Error('Invalid profile list');
   }
 
   const payload = {
@@ -116,15 +119,15 @@ function exportEncryptedBackup(profiles, credentialsMap, password) {
 }
 
 /**
- * Importa arquivo criptografado com senha mestre.
+ * Imports an encrypted file with master password.
  * @param {string} encryptedBase64
  * @param {string} password
  * @returns {{profiles:Array, credentials:Object, exportedAt:number}}
- * @throws {Error} se senha incorreta, arquivo corrompido, ou versão incompatível
+ * @throws {Error} if incorrect password, corrupted file, or incompatible version
  */
 function importEncryptedBackup(encryptedBase64, password) {
   if (!encryptedBase64 || !password) {
-    throw new Error('Arquivo e senha são obrigatórios');
+    throw new Error('File and password are required');
   }
 
   let envelope;
@@ -132,11 +135,11 @@ function importEncryptedBackup(encryptedBase64, password) {
     const envelopeJson = Buffer.from(encryptedBase64, 'base64').toString('utf8');
     envelope = JSON.parse(envelopeJson);
   } catch (e) {
-    throw new Error('Arquivo de backup inválido ou corrompido');
+    throw new Error('Invalid or corrupted backup file');
   }
 
   if (!envelope || envelope.version !== BACKUP_VERSION) {
-    throw new Error('Versão de backup incompatível (esperada ' + BACKUP_VERSION + ')');
+    throw new Error('Incompatible backup version (expected ' + BACKUP_VERSION + ')');
   }
 
   let salt, iv, ct, tag;
@@ -146,14 +149,14 @@ function importEncryptedBackup(encryptedBase64, password) {
     ct = Buffer.from(envelope.ct, 'base64');
     tag = Buffer.from(envelope.tag, 'base64');
   } catch (e) {
-    throw new Error('Estrutura do arquivo de backup inválida');
+    throw new Error('Invalid backup file structure');
   }
 
   if (salt.length !== PBKDF2_SALT_LEN) {
-    throw new Error('Salt inválido (' + salt.length + ' bytes, esperado ' + PBKDF2_SALT_LEN + ')');
+    throw new Error('Invalid salt (' + salt.length + ' bytes, expected ' + PBKDF2_SALT_LEN + ')');
   }
   if (iv.length !== GCM_IV_LEN) {
-    throw new Error('IV inválido (' + iv.length + ' bytes, esperado ' + GCM_IV_LEN + ')');
+    throw new Error('Invalid IV (' + iv.length + ' bytes, expected ' + GCM_IV_LEN + ')');
   }
 
   const key = deriveKey(password, salt);
@@ -164,24 +167,24 @@ function importEncryptedBackup(encryptedBase64, password) {
     decipher.setAuthTag(tag);
     plaintext = Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
   } catch (e) {
-    throw new Error('Senha incorreta ou arquivo corrompido');
+    throw new Error('Incorrect password or corrupted file');
   }
 
   let payload;
   try {
     payload = JSON.parse(plaintext);
   } catch (e) {
-    throw new Error('Conteúdo descriptografado inválido');
+    throw new Error('Invalid decrypted content');
   }
 
   if (!Array.isArray(payload.profiles)) {
-    throw new Error('Schema do backup inválido: perfis não é array');
+    throw new Error('Invalid backup schema: profiles is not an array');
   }
 
-  // v5.9.15: Validate credentials is a non-null object when present
+  // Validate credentials is a non-null object when present
   if (payload.credentials !== undefined && payload.credentials !== null) {
     if (typeof payload.credentials !== 'object' || Array.isArray(payload.credentials)) {
-      throw new Error('Schema do backup inválido: credenciais não é objeto');
+      throw new Error('Invalid backup schema: credentials is not an object');
     }
   }
 
@@ -194,7 +197,7 @@ module.exports = {
   decrypt: decrypt,
   exportEncryptedBackup: exportEncryptedBackup,
   importEncryptedBackup: importEncryptedBackup,
-  // constants (p/ testes / documentação)
+  // public constants (documentation reference)
   PBKDF2_ITERATIONS: PBKDF2_ITERATIONS,
   PBKDF2_KEYLEN: PBKDF2_KEYLEN,
   PBKDF2_SALT_LEN: PBKDF2_SALT_LEN,

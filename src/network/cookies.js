@@ -1,6 +1,6 @@
 /**
  * Persistent Cookie Management
- * v1.3.0 — Idempotência anti-vazamento de listeners (cron-review-1)
+ * Idempotent anti-leak of listeners
  */
 
 'use strict';
@@ -8,13 +8,14 @@
 const logger = require('../utils/logger');
 
 const COOKIE_EXPIRY = 365 * 86400; // 1 year in seconds
+const COOKIE_RENEW_THRESHOLD_SECS = 7 * 86400; // 7 days — renew if expiring within this window
 
-// ── Idempotência: WeakSet rastreia sessions já configuradas ──
-// BUG FIX (cron-review-1): antes, cada chamada de setupPersistentCookies()
-// registrava NOVO listener em session.cookies.on('changed'). Como sessions
-// persist:profile-<id> são cached pelo Electron, reabrir um perfil
-// duplicava os listeners → cada cookie change disparava N cookies.set()
-// → degradação cumulativa de performance. Agora skipamos se já configurado.
+// ── Idempotency: WeakSet tracks already-configured sessions ──
+// BUG FIX: previously, each call to setupPersistentCookies()
+// registered a NEW listener on session.cookies.on('changed'). Since sessions
+// persist:profile-<id> are cached by Electron, reopening a profile
+// duplicated the listeners → each cookie change triggered N cookies.set()
+// → cumulative performance degradation. Now skipped if already configured.
 const _configuredSessions = new WeakSet();
 
 // Tracking domains to strip cookies from
@@ -67,22 +68,22 @@ function isTrackingDomain(hostname) {
 /**
  * Setup persistent cookies with auto-extension + optional CSP.
  *
- * IDEMPOTENTE (cron-review-1): se a session já foi configurada, skipa.
- * Resolve vazamento de listeners 'changed' acumulados em reabertura de perfis.
+ * IDEMPOTENT: if session already configured, skip.
+ * Resolves 'changed' listener leak accumulated on profile reopen.
  *
- * BUG FIX (cron-review-1): antes, callers (ex: game-launcher.js) registravam
- * um SEGUNDO onHeadersReceived para CSP, que sobrescrevia este handler
- * → cookie extension ficava morta. Agora CSP é mesclado AQUI no mesmo handler.
+ * BUG FIX: previously, callers (e.g.: game-launcher.js) registered
+ * a SECOND onHeadersReceived for CSP, which overwrote this handler
+ * → cookie extension was dead. Now CSP is merged HERE in the same handler.
  *
  * @param {Electron.Session} session - Browser session
  * @param {Object} [options]
  * @param {string} [options.csp] - Content-Security-Policy header to inject
- * @returns {boolean} true se configurou agora, false se já estava configurado
+ * @returns {boolean} true if configured now, false if already configured
  */
 function setupPersistentCookies(session, options) {
-  // Idempotência: não re-registrar listeners na mesma session
+  // Idempotency: do not re-register listeners on the same session
   if (_configuredSessions.has(session)) {
-    logger.debug('Cookies: session já configurada — skip (idempotente)');
+    logger.debug('Cookies: session already configured — skip (idempotent)');
     return false;
   }
   _configuredSessions.add(session);
@@ -107,9 +108,8 @@ function setupPersistentCookies(session, options) {
       const key = cookie.domain + '|' + cookie.name;
       if (convertingCookies.has(key)) return;
 
-      // Only extend if less than 7 days remaining
-      const sevenDays = 7 * 86400;
-      if (!cookie.expirationDate || cookie.expirationDate < Date.now() / 1000 + sevenDays) {
+      // Only extend if less than COOKIE_RENEW_THRESHOLD_SECS remaining
+      if (!cookie.expirationDate || cookie.expirationDate < Date.now() / 1000 + COOKIE_RENEW_THRESHOLD_SECS) {
         convertingCookies.add(key);
 
         const url = buildCookieUrl(cookie);
@@ -145,8 +145,8 @@ function setupPersistentCookies(session, options) {
     }
   });
 
-  // ── ÚNICO onHeadersReceived: CSP + cookie extension + tracking block ──
-  // (Electron só permite UM handler por session/evento — mesclar aqui é OBRIGATÓRIO)
+  // ── Single onHeadersReceived: CSP + cookie extension + tracking block ──
+  // (Electron only allows ONE handler per session/event — merging here is MANDATORY)
   session.webRequest.onHeadersReceived(function (details, callback) {
     const setCookie = details.responseHeaders && details.responseHeaders['set-cookie'];
 
@@ -159,7 +159,7 @@ function setupPersistentCookies(session, options) {
 
     const responseHeaders = Object.assign({}, details.responseHeaders);
 
-    // 1. CSP injection (se passado pelo caller)
+    // 1. CSP injection (if passed by the caller)
     if (csp && (details.url.startsWith('http:') || details.url.startsWith('https:'))) {
       responseHeaders['Content-Security-Policy'] = [csp];
     }
@@ -186,18 +186,8 @@ function setupPersistentCookies(session, options) {
     callback({ responseHeaders: responseHeaders });
   });
 
-  logger.info('Cookies persistentes configurados' + (csp ? ' (+ CSP)' : ''));
+  logger.info('Persistent cookies configured' + (csp ? ' (+ CSP)' : ''));
   return true;
-}
-
-/**
- * Reseta o estado de idempotência de uma session (para testes ou reset explícito).
- * NÃO remove os listeners já registrados — use session.cookies.removeAllListeners('changed')
- * se precisar de limpeza profunda.
- * @param {Electron.Session} session
- */
-function forgetSession(session) {
-  _configuredSessions.delete(session);
 }
 
 /**
@@ -212,35 +202,6 @@ function buildCookieUrl(cookie) {
   return protocol + domain + cookiePath;
 }
 
-/**
- * Clear all cookies and cache
- * @param {Electron.Session} session - Browser session
- * @returns {Promise<boolean>}
- */
-async function clearAllCookies(session) {
-  try {
-    const cookies = await session.cookies.get({});
-
-    // Remove all cookies in parallel for speed
-    await Promise.all(
-      cookies.map(function (c) {
-        return session.cookies.remove(buildCookieUrl(c), c.name).catch(function () {});
-      })
-    );
-
-    await session.clearCache();
-    await session.clearStorageData();
-
-    logger.info('Cookies e cache limpos');
-    return true;
-  } catch (e) {
-    logger.error('Erro ao limpar cookies: ' + e.message);
-    return false;
-  }
-}
-
 module.exports = {
-  setupPersistentCookies: setupPersistentCookies,
-  clearAllCookies: clearAllCookies,
-  forgetSession: forgetSession
+  setupPersistentCookies: setupPersistentCookies
 };

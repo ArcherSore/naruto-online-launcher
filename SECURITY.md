@@ -4,65 +4,73 @@
 
 | Version | Supported | Status |
 |---------|-----------|--------|
-| 3.6.x   | ✅        | Active development |
-| 3.5.x   | ✅        | Maintenance |
-| < 3.5   | ❌        | End of life |
+| 1.4.x   | ✅        | Active development |
+| 1.0–1.3 | ✅        | Maintenance (security fixes only) |
+| < 1.0   | ❌        | End of life |
 
-## Known Security Considerations
+## Known security considerations
 
 ### Electron 11.5.0 (EOL)
 
 Electron 11.5.0 is End-of-Life. We use it because it's the **last version with Pepper Flash PPAPI support**. Flash is required by Naruto Online (Oasgames).
 
 **Mitigations:**
-- `--no-sandbox` is required for PPAPI injection (documented limitation)
-- `--always-authorize-plugins` ensures Flash loads without user interaction
-- Network requests are filtered by `network/blocker.js` (tracker blocking)
-- CSP headers are injected per-session via `network/cookies.js`
-- `contextIsolation: true` and `nodeIntegration: false` on all game windows
+- `--no-sandbox` is required for PPAPI injection (documented Chromium limitation, not a launcher vulnerability).
+- `--always-authorize-plugins` ensures Flash loads without user interaction.
+- Network requests are filtered by `network/blocker.js` (tracker domains blocked at the WebRequest level).
+- `contextIsolation: true` and `nodeIntegration: false` on all game windows — the renderer can't access Node APIs.
+- The launcher only loads `naruto.oasgames.com` and `narutowebgame.com` (trusted game domains). No arbitrary browsing is possible.
 
-**Risk:** Chromium 87 vulnerabilities exist but the launcher only loads `narutowebgame.com` (trusted game domain). No arbitrary browsing is possible.
+**Risk:** Chromium 87 has known CVEs, but the attack surface is limited to the two trusted game domains. A vulnerability in the game's SWF could still execute Flash bytecode in the PPAPI sandbox.
 
-### Vault Key Derivation (v3.6)
+### Vault key derivation (v3.6+, current)
 
-Credentials are encrypted with AES-256-GCM. The key is derived via:
+Credentials are encrypted with **AES-256-GCM**. The key is derived via:
+
 ```
 key = PBKDF2(machineSeed, salt, 100000, 'sha512', 32)
-machineSeed = hostname + username + userDataPath + version
+machineSeed = hostname + username + userDataPath + launcherVersion
 salt = 32 random bytes (persisted in vault.salt, unique per installation)
 ```
 
-**Before v3.6:** Key was `SHA-256(hostname+username+userDataPath)` — deterministic, no salt. Now uses PBKDF2 with random salt.
+- **Machine-bound**: the key only works on the machine that created the vault. A stolen `vault.json` is useless on another machine.
+- **Salted**: each installation has a unique salt, so identical credentials on two machines produce different ciphertexts.
+- **PBKDF2 100k iterations**: brute-force is computationally expensive even if the machineSeed is guessed.
 
-### Auto-Login (v3.6)
+**Before v3.6:** Key was `SHA-256(hostname+username+userDataPath)` — deterministic, no salt. Upgraded in v3.6.
 
-Credentials are sent via **POST** to `passport.oasgames.com` (not GET). This prevents exposure in:
-- Server access logs
-- Browser history
-- HTTP Referer headers
+### Auto-login injection
 
-**Fallback:** If POST fails, MutationObserver injects credentials directly into the DOM form (never exposed in network traffic).
+Credentials are injected into the login form via `webContents.executeJavaScript()` in the game page's main world. The script:
+
+- Only runs on `oasgames.com` / `naruto.oasgames.com` pages (the `will-navigate` handler blocks injection on other domains).
+- Never logs credential values — the script string contains them, but it executes in the renderer's main world, isolated from the manager process's console.
+- Uses a React/Vue-compatible value setter (descriptor-based) to trigger the framework's change handlers — setting `.value` directly would submit an empty form.
+
+See **[docs/AUTO-LOGIN.md](docs/AUTO-LOGIN.md)** for the full flow.
+
+### Diagnostics export
+
+Settings → Advanced → Export diagnostics (.zip) includes:
+- Launcher logs (rotated, last 7 days).
+- `config.json` (with all credential fields redacted).
+- System info (OS, CPU, RAM, GPU vendor — no serial numbers).
+- Flash plugin version + path.
+
+**Never includes:** credentials, cookies, session tokens, or anything from the vault.
 
 ### Telemetry
 
-Crash reports are sanitized before sending:
-- Paths are redacted (`/home/user/` → `/home/[user]/`)
-- Tokens are redacted (40+ hex chars → `[token-redacted]`)
-- Emails are redacted
-- No cookies, credentials, or game data are collected
+**None.** The launcher does not phone home — no crash reporter, no usage analytics, no auto-update checks. Everything stays local.
 
-Reports are sent to a Vercel serverless function which creates GitHub issues. The GitHub token is **never** in the client code — it lives only as a Vercel environment variable.
+## Reporting a vulnerability
 
-## AI Evolution Branch
+Email: **security@chrispsz.dev** (or open a private security advisory on GitHub).
 
-The `ai-evolve` branch is used by the autonomous AI cron (`scripts/ai-cron.js`).
-- **Never merged to `main` without human review.**
-- All changes are atomic (1 fix per commit) with automatic rollback on failure.
-- `git checkout -- .` is used if `npm run lint` or `npm test` fails.
-- The branch is isolated — no force push to `main` is ever automated.
+**Response time:** 48h.
 
-## Reporting a Vulnerability
-
-Email: security@chrispsz.dev (or open a private security advisory on GitHub)
-
-Response time: 48h
+Please include:
+1. Launcher version (Settings → About).
+2. OS + version.
+3. Steps to reproduce.
+4. Impact assessment (what an attacker could do).

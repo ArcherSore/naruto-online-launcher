@@ -1,22 +1,28 @@
 /**
- * EventTimers — Lembretes de eventos com conversão matemática de fusos
- * v2.1.0
+ * EventTimers — Event reminders with timezone math + bilingual names
+ * 6-cluster model + bilingual events + days[] + end-notification
  *
- * REAVALIAÇÃO:
- *   v2.0 tinha timezone hardcoded America/Sao_Paulo. ERRADO para um produto global.
- *   v2.1: cada região de servidor (BR/NA/EU/HK) tem seu próprio fuso e catálogo.
- *   Conversão matemática server-TZ → user-local-TZ feita sem libs (apenas Date + offsets).
+ * CHANGES:
+ *   - 6 server clusters: br/na/de/es/pl/fr (replaced old 4-cluster br/na/eu/hk)
+ *   - eu schedule moved to de/es/pl/fr (all are European clusters, UTC+1/+2 DST)
+ *   - hk removed (zh cluster DNS-dead since 2024; legacy profiles migrate hk→na)
+ *   - Each event has name_pt + name_en (rendered by launcher language)
+ *   - Each event has `days`: array of weekday numbers (0=Sun..6=Sat). Empty = daily.
+ *   - Each event has `durationMin` (how long the event lasts)
+ *   - Notification fires `remindMin` before start (configurable globally via setRemindMin)
+ *   - When event ends, an "ended" notification fires (smarter: only the active badge
+ *     on the Events nav item disappears; the start toast auto-dismisses)
  *
- * REGIÕES SUPORTADAS:
- *   br — America/Sao_Paulo (UTC-3)
+ * SUPPORTED REGIONS (6 real Naruto Online server clusters):
+ *   br — America/Sao_Paulo (UTC-3, sem DST)
  *   na — America/New_York   (UTC-5/-4 DST)
- *   eu — Europe/Berlin      (UTC+1/+2 DST)
- *   hk — Asia/Hong_Kong     (UTC+8, sem DST)
+ *   de — Europe/Berlin      (UTC+1/+2 DST)
+ *   es — Europe/Madrid      (UTC+1/+2 DST)
+ *   pl — Europe/Warsaw      (UTC+1/+2 DST)
+ *   fr — Europe/Paris       (UTC+1/+2 DST)
  *
- * NOTIFICAÇÕES:
- *   - Nativas do SO via Electron Notification
- *   - Toggle global de mute (persistido em config)
- *   - Disparam X minutos antes do evento (configurável por evento)
+ * Validation: naruto.narutowebgame.com/{pt|en|de|es|pl|fr}/serverlist — 6 clusters.
+ * Legacy codes eu/hk/pt/en are migrated by regions.js (eu→na, hk→na, pt→br, en→na).
  */
 
 'use strict';
@@ -24,154 +30,145 @@
 const { Notification } = require('electron');
 const path = require('path');
 const logger = require('../utils/logger');
+const { normalizeRegion } = require('../config/regions');
 
-// Offsets UTC aproximados por região (sem libs de TZ).
-// DST é auto-detectado comparando o offset atual do Date com o offset base.
+// Timer constants
+const TICK_INTERVAL_MS = 30000; // 30s — how often the timer loop runs
+const NOTIFY_WINDOW_MS = 60000; // 60s — time window to fire start/end notifications
+const EVICTION_CUTOFF_MS = 3 * 60 * 60 * 1000; // 3h — drop old entries from fired Map
+const MAX_FIRED_ENTRIES = 200; // threshold to trigger eviction cleanup
+
+// Approximate UTC offsets by region (without TZ libs).
+// DST is auto-detected by comparing the current Date offset with the base offset.
+// flag field uses [XX] text tag (not emoji) — native OS notifications
+// can't render SVG and Windows doesn't render flag emoji. Text tag works everywhere.
 const REGION_TZ = {
-  br: { name: 'Brasil', flag: '🇧🇷', baseOffset: -3 }, // UTC-3, sem DST
-  na: { name: 'América do Norte', flag: '🇺🇸', baseOffset: -5 }, // UTC-5, DST -4
-  eu: { name: 'Europa', flag: '🇪🇺', baseOffset: 1 }, // UTC+1, DST +2
-  hk: { name: 'Hong Kong', flag: '🇭🇰', baseOffset: 8 } // UTC+8, sem DST
+  br: { name: 'Brasil', name_en: 'Brazil', flag: '[BR]', baseOffset: -3 }, // UTC-3, sem DST
+  na: { name: 'América do Norte', name_en: 'North America', flag: '[NA]', baseOffset: -5 }, // UTC-5, DST -4
+  de: { name: 'Deutschland', name_en: 'Germany', flag: '[DE]', baseOffset: 1 }, // UTC+1, DST +2
+  es: { name: 'España', name_en: 'Spain', flag: '[ES]', baseOffset: 1 }, // UTC+1, DST +2
+  pl: { name: 'Polska', name_en: 'Poland', flag: '[PL]', baseOffset: 1 }, // UTC+1, DST +2
+  fr: { name: 'France', name_en: 'France', flag: '[FR]', baseOffset: 1 } // UTC+1, DST +2
 };
 
-// Catálogo de eventos por região (horários no fuso do SERVIDOR)
-// SOURCE (atualizado 2025):
-//   - https://narutooasis.fandom.com/wiki/Timed_Events (autoritativo)
-//   - https://naruto.narutowebgame.com/en/articlelist (news oficial)
-//   - Padrões confirmados pela comunidade (Reddit r/naruto_online)
+// Event catalog by region (times in SERVER timezone)
+// SOURCE (validated 2025):
+//   - https://narutooasis.fandom.com/wiki/Timed_Events
+//   - Patterns confirmed by the community
 //
-// NOTA: Daily Reset é 5:00 AM server-time (confirmado por fandom).
-// Boss Mundial tem 2 janelas diárias (12:00 e 20:00 server-time).
-// Arena 3v3 reset semanal. Team Dungeon tem cooldown diário.
-// Eventos especiais (Bond, Treasure, Rebate) seguem calendário semanal no portal oficial.
-//
-// v5.9.3: Todos os nomes/descrições em PORTUGUÊS independente da região do
-// servidor. Apenas os HORÁRIOS seguem o fuso do servidor (convertidos para
-// o relógio local do usuário via nextOccurrenceMs). Idioma consistente.
+// STRUCTURE of each event:
+//   id            — unique identifier
+//   name_pt       — name in Portuguese
+//   name_en       — name in English
+//   days          — weekday array (0=Sun, 1=Mon, ..., 6=Sat). EMPTY = daily
+//   hours         — array of hours (0-23) in the SERVER timezone when the event starts
+//   durationMin   — duration in minutes (default 60)
+//   category      — boss | arena | arena_guild | dungeon | escort | instance | social | reset
+//   remindMin     — minutes before start to notify (default 5; override global via setRemindMin)
 const EVENTS_BY_REGION = {
+  // ── Brasil (PT) — 11 events ──
   br: [
-    {
-      id: 'br-boss-mundial',
-      name: 'Boss Mundial',
-      hours: [12, 20],
-      category: 'boss',
-      remindMin: 5
-    },
-    { id: 'br-arena-3v3', name: 'Arena 3v3 (PvP)', hours: [18], category: 'arena', remindMin: 10 },
-    {
-      id: 'br-dungeon-team',
-      name: 'Dungeon em Time',
-      hours: [14, 21],
-      category: 'dungeon',
-      remindMin: 5
-    },
-    { id: 'br-guerra-cla', name: 'Guerra de Clã', hours: [20], category: 'social', remindMin: 30 },
-    {
-      id: 'br-arena-guild',
-      name: 'Arena de Guildas',
-      hours: [19],
-      category: 'arena',
-      remindMin: 15
-    },
-    {
-      id: 'br-bond-checkin',
-      name: 'Bond / Check-in Diário',
-      hours: [5],
-      category: 'social',
-      remindMin: 0
-    },
-    { id: 'br-reset', name: 'Reset Diário (5h)', hours: [5], category: 'reset', remindMin: 0 }
+    { id: 'br-boss-mundial', name_pt: 'Boss Mundial', name_en: 'World Boss', days: [], hours: [12, 20], durationMin: 60, category: 'boss', remindMin: 5 },
+    { id: 'br-arena-3v3', name_pt: 'Arena 3v3 (PvP)', name_en: 'Arena 3v3 (PvP)', days: [], hours: [18], durationMin: 60, category: 'arena', remindMin: 10 },
+    { id: 'br-dungeon-team', name_pt: 'Dungeon em Time', name_en: 'Team Dungeon', days: [], hours: [14, 21], durationMin: 90, category: 'dungeon', remindMin: 5 },
+    { id: 'br-escolta', name_pt: 'Escolta', name_en: 'Escort', days: [], hours: [11, 19], durationMin: 60, category: 'escort', remindMin: 5 },
+    { id: 'br-instancia-ninja', name_pt: 'Instância Ninja', name_en: 'Ninja Instance', days: [], hours: [10, 22], durationMin: 60, category: 'instance', remindMin: 5 },
+    { id: 'br-treinamento', name_pt: 'Treinamento Ninja', name_en: 'Ninja Training', days: [], hours: [6, 12, 18], durationMin: 45, category: 'instance', remindMin: 0 },
+    { id: 'br-guerra-cla', name_pt: 'Guerra de Clã', name_en: 'Clan War', days: [6, 0], hours: [20], durationMin: 120, category: 'social', remindMin: 30 },
+    { id: 'br-arena-guild', name_pt: 'Arena de Guildas', name_en: 'Guild Arena', days: [2, 4, 6], hours: [19], durationMin: 60, category: 'arena_guild', remindMin: 15 },
+    { id: 'br-bond-checkin', name_pt: 'Bond / Check-in Diário', name_en: 'Bond / Daily Check-in', days: [], hours: [5], durationMin: 30, category: 'social', remindMin: 0 },
+    { id: 'br-desafio-diario', name_pt: 'Desafio Diário (meia-noite)', name_en: 'Daily Challenge (midnight)', days: [], hours: [0], durationMin: 5, category: 'reset', remindMin: 0 },
+    { id: 'br-reset', name_pt: 'Reset Diário (5h)', name_en: 'Daily Reset (5 AM)', days: [], hours: [5], durationMin: 5, category: 'reset', remindMin: 0 }
   ],
+  // ── North America (EN) — 11 events ──
   na: [
-    { id: 'na-boss-world', name: 'Boss Mundial', hours: [11, 19], category: 'boss', remindMin: 5 },
-    { id: 'na-arena-3v3', name: 'Arena 3v3 (PvP)', hours: [17], category: 'arena', remindMin: 10 },
-    {
-      id: 'na-dungeon',
-      name: 'Dungeon em Time',
-      hours: [13, 20],
-      category: 'dungeon',
-      remindMin: 5
-    },
-    { id: 'na-clan-war', name: 'Guerra de Clã', hours: [19], category: 'social', remindMin: 30 },
-    {
-      id: 'na-guild-arena',
-      name: 'Arena de Guildas',
-      hours: [18],
-      category: 'arena',
-      remindMin: 15
-    },
-    {
-      id: 'na-bond-checkin',
-      name: 'Bond / Check-in Diário',
-      hours: [5],
-      category: 'social',
-      remindMin: 0
-    },
-    { id: 'na-reset', name: 'Reset Diário (5h)', hours: [5], category: 'reset', remindMin: 0 }
+    { id: 'na-boss-world', name_pt: 'Boss Mundial', name_en: 'World Boss', days: [], hours: [11, 19], durationMin: 60, category: 'boss', remindMin: 5 },
+    { id: 'na-arena-3v3', name_pt: 'Arena 3v3 (PvP)', name_en: 'Arena 3v3 (PvP)', days: [], hours: [17], durationMin: 60, category: 'arena', remindMin: 10 },
+    { id: 'na-dungeon', name_pt: 'Dungeon em Time', name_en: 'Team Dungeon', days: [], hours: [13, 20], durationMin: 90, category: 'dungeon', remindMin: 5 },
+    { id: 'na-escolta', name_pt: 'Escolta', name_en: 'Escort', days: [], hours: [10, 18], durationMin: 60, category: 'escort', remindMin: 5 },
+    { id: 'na-instancia-ninja', name_pt: 'Instância Ninja', name_en: 'Ninja Instance', days: [], hours: [9, 21], durationMin: 60, category: 'instance', remindMin: 5 },
+    { id: 'na-treinamento', name_pt: 'Treinamento Ninja', name_en: 'Ninja Training', days: [], hours: [5, 11, 17], durationMin: 45, category: 'instance', remindMin: 0 },
+    { id: 'na-clan-war', name_pt: 'Guerra de Clã', name_en: 'Clan War', days: [6, 0], hours: [19], durationMin: 120, category: 'social', remindMin: 30 },
+    { id: 'na-guild-arena', name_pt: 'Arena de Guildas', name_en: 'Guild Arena', days: [2, 4, 6], hours: [18], durationMin: 60, category: 'arena_guild', remindMin: 15 },
+    { id: 'na-bond-checkin', name_pt: 'Bond / Check-in Diário', name_en: 'Bond / Daily Check-in', days: [], hours: [5], durationMin: 30, category: 'social', remindMin: 0 },
+    { id: 'na-desafio-diario', name_pt: 'Desafio Diário (meia-noite)', name_en: 'Daily Challenge (midnight)', days: [], hours: [0], durationMin: 5, category: 'reset', remindMin: 0 },
+    { id: 'na-reset', name_pt: 'Reset Diário (5h)', name_en: 'Daily Reset (5 AM)', days: [], hours: [5], durationMin: 5, category: 'reset', remindMin: 0 }
   ],
-  eu: [
-    { id: 'eu-boss-world', name: 'Boss Mundial', hours: [12, 20], category: 'boss', remindMin: 5 },
-    { id: 'eu-arena-3v3', name: 'Arena 3v3 (PvP)', hours: [18], category: 'arena', remindMin: 10 },
-    {
-      id: 'eu-dungeon',
-      name: 'Dungeon em Time',
-      hours: [14, 21],
-      category: 'dungeon',
-      remindMin: 5
-    },
-    { id: 'eu-clan-war', name: 'Guerra de Clã', hours: [20], category: 'social', remindMin: 30 },
-    {
-      id: 'eu-guild-arena',
-      name: 'Arena de Guildas',
-      hours: [19],
-      category: 'arena',
-      remindMin: 15
-    },
-    {
-      id: 'eu-bond-checkin',
-      name: 'Bond / Check-in Diário',
-      hours: [5],
-      category: 'social',
-      remindMin: 0
-    },
-    { id: 'eu-reset', name: 'Reset Diário (5h)', hours: [5], category: 'reset', remindMin: 0 }
+  // ── Deutschland (DE) — 11 events (European schedule, UTC+1/+2 DST) ──
+  de: [
+    { id: 'de-boss-world', name_pt: 'Boss Mundial', name_en: 'World Boss', days: [], hours: [12, 20], durationMin: 60, category: 'boss', remindMin: 5 },
+    { id: 'de-arena-3v3', name_pt: 'Arena 3v3 (PvP)', name_en: 'Arena 3v3 (PvP)', days: [], hours: [18], durationMin: 60, category: 'arena', remindMin: 10 },
+    { id: 'de-dungeon', name_pt: 'Dungeon em Time', name_en: 'Team Dungeon', days: [], hours: [14, 21], durationMin: 90, category: 'dungeon', remindMin: 5 },
+    { id: 'de-escolta', name_pt: 'Escolta', name_en: 'Escort', days: [], hours: [11, 19], durationMin: 60, category: 'escort', remindMin: 5 },
+    { id: 'de-instancia-ninja', name_pt: 'Instância Ninja', name_en: 'Ninja Instance', days: [], hours: [10, 22], durationMin: 60, category: 'instance', remindMin: 5 },
+    { id: 'de-treinamento', name_pt: 'Treinamento Ninja', name_en: 'Ninja Training', days: [], hours: [6, 12, 18], durationMin: 45, category: 'instance', remindMin: 0 },
+    { id: 'de-clan-war', name_pt: 'Guerra de Clã', name_en: 'Clan War', days: [6, 0], hours: [20], durationMin: 120, category: 'social', remindMin: 30 },
+    { id: 'de-guild-arena', name_pt: 'Arena de Guildas', name_en: 'Guild Arena', days: [2, 4, 6], hours: [19], durationMin: 60, category: 'arena_guild', remindMin: 15 },
+    { id: 'de-bond-checkin', name_pt: 'Bond / Check-in Diário', name_en: 'Bond / Daily Check-in', days: [], hours: [5], durationMin: 30, category: 'social', remindMin: 0 },
+    { id: 'de-desafio-diario', name_pt: 'Desafio Diário (meia-noite)', name_en: 'Daily Challenge (midnight)', days: [], hours: [0], durationMin: 5, category: 'reset', remindMin: 0 },
+    { id: 'de-reset', name_pt: 'Reset Diário (5h)', name_en: 'Daily Reset (5 AM)', days: [], hours: [5], durationMin: 5, category: 'reset', remindMin: 0 }
   ],
-  hk: [
-    { id: 'hk-boss-world', name: 'Boss Mundial', hours: [12, 20], category: 'boss', remindMin: 5 },
-    { id: 'hk-arena-3v3', name: 'Arena 3v3 (PvP)', hours: [18], category: 'arena', remindMin: 10 },
-    {
-      id: 'hk-dungeon',
-      name: 'Dungeon em Time',
-      hours: [14, 21],
-      category: 'dungeon',
-      remindMin: 5
-    },
-    { id: 'hk-clan-war', name: 'Guerra de Clã', hours: [20], category: 'social', remindMin: 30 },
-    {
-      id: 'hk-guild-arena',
-      name: 'Arena de Guildas',
-      hours: [19],
-      category: 'arena',
-      remindMin: 15
-    },
-    {
-      id: 'hk-bond-checkin',
-      name: 'Bond / Check-in Diário',
-      hours: [5],
-      category: 'social',
-      remindMin: 0
-    },
-    { id: 'hk-reset', name: 'Reset Diário (5h)', hours: [5], category: 'reset', remindMin: 0 }
+  // ── España (ES) — 11 events (European schedule) ──
+  es: [
+    { id: 'es-boss-world', name_pt: 'Boss Mundial', name_en: 'World Boss', days: [], hours: [12, 20], durationMin: 60, category: 'boss', remindMin: 5 },
+    { id: 'es-arena-3v3', name_pt: 'Arena 3v3 (PvP)', name_en: 'Arena 3v3 (PvP)', days: [], hours: [18], durationMin: 60, category: 'arena', remindMin: 10 },
+    { id: 'es-dungeon', name_pt: 'Dungeon em Time', name_en: 'Team Dungeon', days: [], hours: [14, 21], durationMin: 90, category: 'dungeon', remindMin: 5 },
+    { id: 'es-escolta', name_pt: 'Escolta', name_en: 'Escort', days: [], hours: [11, 19], durationMin: 60, category: 'escort', remindMin: 5 },
+    { id: 'es-instancia-ninja', name_pt: 'Instância Ninja', name_en: 'Ninja Instance', days: [], hours: [10, 22], durationMin: 60, category: 'instance', remindMin: 5 },
+    { id: 'es-treinamento', name_pt: 'Treinamento Ninja', name_en: 'Ninja Training', days: [], hours: [6, 12, 18], durationMin: 45, category: 'instance', remindMin: 0 },
+    { id: 'es-clan-war', name_pt: 'Guerra de Clã', name_en: 'Clan War', days: [6, 0], hours: [20], durationMin: 120, category: 'social', remindMin: 30 },
+    { id: 'es-guild-arena', name_pt: 'Arena de Guildas', name_en: 'Guild Arena', days: [2, 4, 6], hours: [19], durationMin: 60, category: 'arena_guild', remindMin: 15 },
+    { id: 'es-bond-checkin', name_pt: 'Bond / Check-in Diário', name_en: 'Bond / Daily Check-in', days: [], hours: [5], durationMin: 30, category: 'social', remindMin: 0 },
+    { id: 'es-desafio-diario', name_pt: 'Desafio Diário (meia-noite)', name_en: 'Daily Challenge (midnight)', days: [], hours: [0], durationMin: 5, category: 'reset', remindMin: 0 },
+    { id: 'es-reset', name_pt: 'Reset Diário (5h)', name_en: 'Daily Reset (5 AM)', days: [], hours: [5], durationMin: 5, category: 'reset', remindMin: 0 }
+  ],
+  // ── Polska (PL) — 11 events (European schedule) ──
+  pl: [
+    { id: 'pl-boss-world', name_pt: 'Boss Mundial', name_en: 'World Boss', days: [], hours: [12, 20], durationMin: 60, category: 'boss', remindMin: 5 },
+    { id: 'pl-arena-3v3', name_pt: 'Arena 3v3 (PvP)', name_en: 'Arena 3v3 (PvP)', days: [], hours: [18], durationMin: 60, category: 'arena', remindMin: 10 },
+    { id: 'pl-dungeon', name_pt: 'Dungeon em Time', name_en: 'Team Dungeon', days: [], hours: [14, 21], durationMin: 90, category: 'dungeon', remindMin: 5 },
+    { id: 'pl-escolta', name_pt: 'Escolta', name_en: 'Escort', days: [], hours: [11, 19], durationMin: 60, category: 'escort', remindMin: 5 },
+    { id: 'pl-instancia-ninja', name_pt: 'Instância Ninja', name_en: 'Ninja Instance', days: [], hours: [10, 22], durationMin: 60, category: 'instance', remindMin: 5 },
+    { id: 'pl-treinamento', name_pt: 'Treinamento Ninja', name_en: 'Ninja Training', days: [], hours: [6, 12, 18], durationMin: 45, category: 'instance', remindMin: 0 },
+    { id: 'pl-clan-war', name_pt: 'Guerra de Clã', name_en: 'Clan War', days: [6, 0], hours: [20], durationMin: 120, category: 'social', remindMin: 30 },
+    { id: 'pl-guild-arena', name_pt: 'Arena de Guildas', name_en: 'Guild Arena', days: [2, 4, 6], hours: [19], durationMin: 60, category: 'arena_guild', remindMin: 15 },
+    { id: 'pl-bond-checkin', name_pt: 'Bond / Check-in Diário', name_en: 'Bond / Daily Check-in', days: [], hours: [5], durationMin: 30, category: 'social', remindMin: 0 },
+    { id: 'pl-desafio-diario', name_pt: 'Desafio Diário (meia-noite)', name_en: 'Daily Challenge (midnight)', days: [], hours: [0], durationMin: 5, category: 'reset', remindMin: 0 },
+    { id: 'pl-reset', name_pt: 'Reset Diário (5h)', name_en: 'Daily Reset (5 AM)', days: [], hours: [5], durationMin: 5, category: 'reset', remindMin: 0 }
+  ],
+  // ── France (FR) — 11 events (European schedule) ──
+  fr: [
+    { id: 'fr-boss-world', name_pt: 'Boss Mundial', name_en: 'World Boss', days: [], hours: [12, 20], durationMin: 60, category: 'boss', remindMin: 5 },
+    { id: 'fr-arena-3v3', name_pt: 'Arena 3v3 (PvP)', name_en: 'Arena 3v3 (PvP)', days: [], hours: [18], durationMin: 60, category: 'arena', remindMin: 10 },
+    { id: 'fr-dungeon', name_pt: 'Dungeon em Time', name_en: 'Team Dungeon', days: [], hours: [14, 21], durationMin: 90, category: 'dungeon', remindMin: 5 },
+    { id: 'fr-escolta', name_pt: 'Escolta', name_en: 'Escort', days: [], hours: [11, 19], durationMin: 60, category: 'escort', remindMin: 5 },
+    { id: 'fr-instancia-ninja', name_pt: 'Instância Ninja', name_en: 'Ninja Instance', days: [], hours: [10, 22], durationMin: 60, category: 'instance', remindMin: 5 },
+    { id: 'fr-treinamento', name_pt: 'Treinamento Ninja', name_en: 'Ninja Training', days: [], hours: [6, 12, 18], durationMin: 45, category: 'instance', remindMin: 0 },
+    { id: 'fr-clan-war', name_pt: 'Guerra de Clã', name_en: 'Clan War', days: [6, 0], hours: [20], durationMin: 120, category: 'social', remindMin: 30 },
+    { id: 'fr-guild-arena', name_pt: 'Arena de Guildas', name_en: 'Guild Arena', days: [2, 4, 6], hours: [19], durationMin: 60, category: 'arena_guild', remindMin: 15 },
+    { id: 'fr-bond-checkin', name_pt: 'Bond / Check-in Diário', name_en: 'Bond / Daily Check-in', days: [], hours: [5], durationMin: 30, category: 'social', remindMin: 0 },
+    { id: 'fr-desafio-diario', name_pt: 'Desafio Diário (meia-noite)', name_en: 'Daily Challenge (midnight)', days: [], hours: [0], durationMin: 5, category: 'reset', remindMin: 0 },
+    { id: 'fr-reset', name_pt: 'Reset Diário (5h)', name_en: 'Daily Reset (5 AM)', days: [], hours: [5], durationMin: 5, category: 'reset', remindMin: 0 }
   ]
 };
+
+// Backwards-compat: backfill `name` (= name_en) on each event so old code that
+// reads event.name directly (instead of getUpcoming()) still works. New code
+// should prefer getUpcoming() which returns name based on current language.
+Object.keys(EVENTS_BY_REGION).forEach(function (region) {
+  EVENTS_BY_REGION[region].forEach(function (ev) {
+    if (!ev.name) ev.name = ev.name_en || ev.name_pt;
+  });
+});
 
 let _muted = false;
 let _timer = null;
 let _remindListeners = [];
+let _globalRemindMin = null; // override; null = use per-event remindMin
+let _lang = 'en'; // 'en' or 'pt' — controls notification language
 
 /**
- * Calcula o offset UTC ATUAL do usuário (incluindo DST local) em horas.
- * Ex: São Paulo no verão = -3, Nova York no verão = -4.
+ * Calculates the user's CURRENT UTC offset (including local DST) in hours.
  */
 function getUserOffsetHours() {
   const now = new Date();
@@ -179,85 +176,92 @@ function getUserOffsetHours() {
 }
 
 /**
- * Calcula o offset UTC ATUAL de uma região de servidor.
- * Aproximação: usa o offset base + detecção de DST via diferença janeiro/julho.
- * Para br/hk (sem DST) é direto. Para na/eu detectamos DST.
+ * Calculates the CURRENT UTC offset of a server region.
+ * Legacy codes (eu/hk/pt/en) are normalized to a current cluster first.
  */
 function getServerOffsetHours(region) {
-  const r = REGION_TZ[region];
+  const norm = normalizeRegion(region);
+  const r = REGION_TZ[norm];
   if (!r) return 0;
-  if (region === 'br' || region === 'hk') return r.baseOffset; // sem DST
-
-  // Detecção de DST: compara offset de janeiro vs julho no fuso do servidor
-  // Simplificação: usamos o offset base + 1 se estamos no hemisfério correto para DST
+  if (norm === 'br') return r.baseOffset; // sem DST
   const now = new Date();
   const month = now.getUTCMonth(); // 0-11
-  // NA DST: mar-nov. EU DST: mar-out.
-  const inDST = region === 'na' ? month >= 2 && month <= 10 : month >= 2 && month <= 9;
+  const inDST = norm === 'na' ? month >= 2 && month <= 10 : month >= 2 && month <= 9;
   return r.baseOffset + (inDST ? 1 : 0);
 }
 
 /**
- * Diferença em horas entre o fuso do servidor e o fuso do usuário.
- * serverHour (no fuso do servidor) → userHour (no fuso do usuário)
- * userHour = serverHour + (userOffset - serverOffset)
- */
-function serverToUserOffsetHours(region) {
-  return getUserOffsetHours() - getServerOffsetHours(region);
-}
-
-/**
- * Calcula o timestamp (ms) da próxima ocorrência de um evento no fuso do servidor,
- * convertido para o relógio local do usuário.
+ * Calculates the timestamp (ms) of the next occurrence of an event in the server timezone,
+ * converted to the user's local clock.
+ * Honors `days` (allowed weekdays); empty = any day.
  * @param {string} region
- * @param {number} hourUTC do servidor (0-23)
+ * @param {number} serverHour 0-23
+ * @param {number[]} [days] — weekday numbers (0=Sun..6=Sat). Empty/missing = any day.
  * @returns {number} timestamp ms
  */
-function nextOccurrenceMs(region, serverHour) {
+function nextOccurrenceMs(region, serverHour, days) {
   const serverOffset = getServerOffsetHours(region);
-
-  // Converte hora do servidor para UTC
   const utcHour = serverHour - serverOffset;
-
-  // Agora encontra a próxima ocorrência desse UTC hour
   const now = new Date();
   const candidate = new Date();
   candidate.setUTCHours(utcHour, 0, 0, 0);
-  if (candidate.getTime() <= now.getTime()) {
+  // Walk forward day-by-day up to 8 days until we find an allowed weekday (or any if days is empty)
+  const allowedDays = Array.isArray(days) && days.length > 0 ? days : null;
+  for (let i = 0; i < 9; i++) {
+    if (candidate.getTime() > now.getTime()) {
+      if (!allowedDays || allowedDays.indexOf(candidate.getUTCDay()) !== -1) {
+        return candidate.getTime();
+      }
+    }
     candidate.setUTCDate(candidate.getUTCDate() + 1);
   }
   return candidate.getTime();
 }
 
 /**
- * Lista os eventos de uma região com countdown até o próximo disparo.
- * @param {string} region
- * @returns {Array}
+ * Returns upcoming events for a region, sorted by time until next reminder fires.
+ * @param {string} region — server region code (br/na/de/es/pl/fr or legacy eu/hk)
+ * @param {string} [lang] — 'en' or 'pt' (defaults to current lang)
+ * @returns {Array<Object>} sorted event objects with countdown/time metadata
  */
-function getUpcoming(region) {
-  const events = EVENTS_BY_REGION[region] || EVENTS_BY_REGION.br;
+function getUpcoming(region, lang) {
+  // Normalize legacy region codes (eu/hk/pt/en) to current clusters.
+  const norm = normalizeRegion(region);
+  const events = EVENTS_BY_REGION[norm] || EVENTS_BY_REGION.br;
+  const useLang = lang || _lang;
   return events
     .map(function (ev) {
-      // Pega a próxima ocorrência entre as horas do evento
       let soonest = Infinity;
       for (let i = 0; i < ev.hours.length; i++) {
-        const occ = nextOccurrenceMs(region, ev.hours[i]);
+        const occ = nextOccurrenceMs(norm, ev.hours[i], ev.days);
         if (occ < soonest) soonest = occ;
       }
-      const fireAt = soonest - ev.remindMin * 60 * 1000;
+      const remind = _globalRemindMin !== null ? _globalRemindMin : ev.remindMin;
+      const fireAt = soonest - remind * 60 * 1000;
       const ms = fireAt - Date.now();
+      const durationMin = ev.durationMin || 60;
       return {
         id: ev.id,
-        name: ev.name,
+        name: useLang === 'pt' ? ev.name_pt : ev.name_en,
+        name_pt: ev.name_pt,
+        name_en: ev.name_en,
+        days: ev.days || [],
+        daily: !ev.days || ev.days.length === 0,
         hours: ev.hours,
         category: ev.category,
-        remindMin: ev.remindMin,
-        durationMin: ev.durationMin || 60, // v5.9.12: duração do evento (default 60min)
-        region: region,
+        remindMin: remind,
+        durationMin: durationMin,
+        region: norm,
         nextFireMs: ms,
-        nextFireLabel: formatCountdown(ms),
-        // Hora no fuso do servidor (para display)
-        userTimeLabel: formatUserTime(soonest, region)
+        nextFireLabel: formatCountdown(ms, useLang),
+        // User-local time when the event starts
+        userTimeLabel: formatUserTime(soonest),
+        // Server-local time (string HH:MM)
+        serverTimeLabel: formatServerTime(soonest, norm),
+        // When the event actually starts (without remind offset)
+        startsAtMs: soonest,
+        // When the event ends (startsAtMs + durationMin)
+        endsAtMs: soonest + durationMin * 60000
       };
     })
     .sort(function (a, b) {
@@ -265,8 +269,8 @@ function getUpcoming(region) {
     });
 }
 
-function formatCountdown(ms) {
-  if (ms < 0) return 'agora';
+function formatCountdown(ms, lang) {
+  if (ms < 0) return (lang || _lang) === 'pt' ? 'agora' : 'now';
   const totalMin = Math.floor(ms / 60000);
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
@@ -276,7 +280,20 @@ function formatCountdown(ms) {
   return Math.floor(ms / 1000) + 's';
 }
 
-function formatUserTime(ms, region) {
+/**
+ * Format a timestamp as HH:MM in the USER's local timezone.
+ */
+function formatUserTime(ms) {
+  var d = new Date(ms);
+  var h = d.getHours();
+  var m = d.getMinutes();
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
+/**
+ * Format a timestamp as HH:MM in the SERVER's timezone for the given region.
+ */
+function formatServerTime(ms, region) {
   var meta = REGION_TZ[region] || REGION_TZ.br;
   var d = new Date(ms);
   var h = (((d.getUTCHours() + meta.baseOffset) % 24) + 24) % 24;
@@ -284,45 +301,64 @@ function formatUserTime(ms, region) {
   return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }
 
-/**
- * Check if event notifications are globally muted.
- * @returns {boolean}
- */
+/** Returns whether event notifications are muted. */
 function isMuted() {
   return _muted;
 }
-/**
- * Set global mute state for event notifications.
- * @param {boolean} m - true to mute, false to unmute
- */
+/** Mutes or unmutes event notifications. */
 function setMuted(m) {
   _muted = !!m;
-  logger.info('EventTimers: notificações ' + (_muted ? 'MUTADAS' : 'ativas'));
+  logger.info('EventTimers: notifications ' + (_muted ? 'MUTED' : 'active'));
 }
 
 /**
- * Register a callback invoked when an event reminder fires.
- * @param {Function} cb - callback(event)
+ * Set the global reminder override (minutes before event start).
+ * Pass null to use per-event remindMin.
+ * @param {number|null} min
  */
+function setRemindMin(min) {
+  _globalRemindMin = typeof min === 'number' && min >= 0 ? min : null;
+}
+
+/**
+ * Set the language for event names in notifications and getUpcoming() default.
+ * @param {string} lang — 'en' or 'pt'
+ */
+function setLang(lang) {
+  if (lang === 'pt' || lang === 'en') _lang = lang;
+}
+
+/** Registers a callback invoked when an event reminder fires. */
 function onRemind(cb) {
   if (typeof cb === 'function') _remindListeners.push(cb);
 }
 
-function showNotification(event, region) {
+function localizedEventName(ev, lang) {
+  return lang === 'pt' ? ev.name_pt : ev.name_en;
+}
+
+function showNotification(event, region, lang) {
   if (_muted) return;
   if (!Notification.isSupported()) return;
   try {
     const iconPath = path.join(__dirname, '..', '..', 'assets', 'icon.png');
-    const r = REGION_TZ[region] || {};
-    const n = new Notification({
-      title: r.flag + ' ' + event.name + ' em ' + event.remindMin + 'min',
-      body: 'Começa às ' + event.hours.join('h e ') + 'h (' + r.name + ')',
-      icon: iconPath,
-      silent: false
-    });
+    const norm = normalizeRegion(region);
+    const r = REGION_TZ[norm] || {};
+    const useLang = lang || _lang;
+    const name = localizedEventName(event, useLang);
+    const remind = _globalRemindMin !== null ? _globalRemindMin : event.remindMin;
+    const title =
+      remind > 0
+        ? r.flag + ' ' + name + ' in ' + remind + 'min'
+        : r.flag + ' ' + name + ' starting now';
+    const body =
+      useLang === 'pt'
+        ? 'Starts at ' + event.hours.join('h and ') + 'h • ' + (event.durationMin || 60) + 'min'
+        : 'Starts at ' + event.hours.join('h & ') + 'h • ' + (event.durationMin || 60) + 'min';
+    const n = new Notification({ title: title, body: body, icon: iconPath, silent: false });
     n.show();
   } catch (e) {
-    logger.debug('EventTimers: notificação falhou: ' + e.message);
+    logger.debug('EventTimers: notification failed: ' + e.message);
   }
   _remindListeners.forEach(function (cb) {
     try {
@@ -333,53 +369,77 @@ function showNotification(event, region) {
   });
 }
 
+function showEndNotification(event, region, lang) {
+  if (_muted) return;
+  if (!Notification.isSupported()) return;
+  try {
+    const iconPath = path.join(__dirname, '..', '..', 'assets', 'icon.png');
+    const norm = normalizeRegion(region);
+    const r = REGION_TZ[norm] || {};
+    const useLang = lang || _lang;
+    const name = localizedEventName(event, useLang);
+    const n = new Notification({
+      title: r.flag + ' ' + name + ' — ended',
+      body: useLang === 'pt' ? 'O evento foi encerrado.' : 'The event has ended.',
+      icon: iconPath,
+      silent: true
+    });
+    n.show();
+  } catch (e) {
+    logger.debug('EventTimers: end-notification failed: ' + e.message);
+  }
+}
+
 /**
- * v3.4: Inicia o loop com perfis completos (respeita notificationsEnabled por perfil).
- * Filtra apenas regiões de perfis que têm notificationsEnabled !== false.
- * @param {Array<Object>} profiles - perfis completos com region + notificationsEnabled
+ * Starts the event timer for the regions of profiles that have notifications enabled.
+ * Falls back to ['br'] if no profiles have notifications enabled.
+ * @param {Array<Object>} profiles — profile objects with .region and .notificationsEnabled
  */
 function startWithProfiles(profiles) {
   if (_timer) return;
   if (!Array.isArray(profiles) || profiles.length === 0) {
     return start(['br']);
   }
-  // Filtra apenas perfis com notificationsEnabled (default true)
   const enabledProfiles = profiles.filter(function (p) {
     return p && p.notificationsEnabled !== false;
   });
   if (enabledProfiles.length === 0) {
-    logger.info('EventTimers: nenhum perfil com notificações habilitadas — daemon ocioso');
+    logger.info('EventTimers: no profiles with notifications enabled — idle daemon');
     return;
   }
-  // Extrai regiões únicas dos perfis habilitados
   const regions = [];
   enabledProfiles.forEach(function (p) {
-    if (p.region && regions.indexOf(p.region) === -1) regions.push(p.region);
+    if (p.region) {
+      // Normalize legacy codes (eu→na, hk→na, pt→br, en→na) so old profiles
+      // still get event notifications under their migrated cluster.
+      const norm = normalizeRegion(p.region);
+      if (regions.indexOf(norm) === -1) regions.push(norm);
+    }
   });
   if (regions.length === 0) regions.push('br');
   logger.info(
-    'EventTimers: iniciado (v3.4) — ' +
+    'EventTimers: started — ' +
       enabledProfiles.length +
       '/' +
       profiles.length +
-      ' perfil(is) com notificações, regiões: ' +
+      ' profile(s) with notifications, regions: ' +
       regions.join(', ')
   );
   start(regions);
 }
 
 /**
- * Inicia o loop. Monitora TODAS as regiões ativas (para perfis de regiões diferentes).
- * A cada 30s checa se algum lembrete deve disparar.
- * @param {Array<string>} activeRegions — regiões dos perfis ativos
+ * Starts the event timer loop for the given regions.
+ * Every 30s checks if any reminder should fire or any active event just ended.
+ * @param {Array<string>} activeRegions — regions of active profiles
  */
 function start(activeRegions) {
   if (_timer) return;
   const regions = Array.isArray(activeRegions) && activeRegions.length > 0 ? activeRegions : ['br'];
-  logger.info('EventTimers: iniciado — regiões monitoradas: ' + regions.join(', '));
+  logger.info('EventTimers: started — monitored regions: ' + regions.join(', '));
 
-  // Estado: map region+eventId → já lembrou (evita duplo disparo)
-  const fired = new Set();
+  // State: map region+eventId+occ → flags {reminded:bool, endFired:bool}
+  const fired = new Map();
 
   _timer = setInterval(function () {
     const now = Date.now();
@@ -387,30 +447,51 @@ function start(activeRegions) {
       const events = EVENTS_BY_REGION[region] || [];
       events.forEach(function (ev) {
         ev.hours.forEach(function (hour) {
-          const occ = nextOccurrenceMs(region, hour);
-          const fireAt = occ - ev.remindMin * 60 * 1000;
+          const occ = nextOccurrenceMs(region, hour, ev.days);
+          const remind = _globalRemindMin !== null ? _globalRemindMin : ev.remindMin;
+          const fireAt = occ - remind * 60 * 1000;
+          const endAt = occ + (ev.durationMin || 60) * 60000;
           const key = region + ':' + ev.id + ':' + occ;
-          // Dispara se estamos na janela de 0-60s após o fireAt e não disparamos ainda
-          if (now >= fireAt && now < fireAt + 60000 && !fired.has(key)) {
-            fired.add(key);
-            showNotification(ev, region);
-            // Limpa o set periodicamente (mantém <1000 entradas)
-            if (fired.size > 500) {
-              const it = fired.values();
-              for (let i = 0; i < 400; i++) fired.delete(it.next().value);
-            }
+          let state = fired.get(key);
+          if (!state) {
+            // Performance: cache occ so cleanup compares timestamps directly (no key parsing).
+            state = { reminded: false, endFired: false, occ: occ };
+            fired.set(key, state);
+          }
+          // Fire reminder if we're in the NOTIFY_WINDOW_MS after fireAt and haven't yet
+          if (!state.reminded && now >= fireAt && now < fireAt + NOTIFY_WINDOW_MS) {
+            state.reminded = true;
+            showNotification(ev, region, _lang);
+          }
+          // Fire end notification if event just ended (within 0-60s of endAt) and we reminded its start
+          if (
+            state.reminded &&
+            !state.endFired &&
+            now >= endAt &&
+            now < endAt + NOTIFY_WINDOW_MS
+          ) {
+            state.endFired = true;
+            showEndNotification(ev, region, _lang);
           }
         });
       });
     });
-  }, 30000);
+    // Cleanup old states — keeps map bounded.
+    // (1) Delete entries for events that have already ended.
+    // (2) Delete entries whose occurrence was >3h ago (missed end window).
+    if (fired.size > MAX_FIRED_ENTRIES) {
+      var cutoff = now - EVICTION_CUTOFF_MS;
+      // Performance: use cached state.occ instead of parsing the key each tick.
+      for (const [k, s] of fired.entries()) {
+        if (s.endFired || (s.occ && s.occ < cutoff)) fired.delete(k);
+      }
+    }
+  }, TICK_INTERVAL_MS);
 
   if (_timer.unref) _timer.unref();
 }
 
-/**
- * Stop the event timer interval.
- */
+/** Stops the event timer loop. */
 function stop() {
   if (_timer) {
     clearInterval(_timer);
@@ -425,10 +506,8 @@ module.exports = {
   getUpcoming: getUpcoming,
   isMuted: isMuted,
   setMuted: setMuted,
+  setRemindMin: setRemindMin,
+  setLang: setLang,
   onRemind: onRemind,
-  REGION_TZ: REGION_TZ,
-  EVENTS_BY_REGION: EVENTS_BY_REGION,
-  getUserOffsetHours: getUserOffsetHours,
-  getServerOffsetHours: getServerOffsetHours,
-  serverToUserOffsetHours: serverToUserOffsetHours
+  getUserOffsetHours: getUserOffsetHours
 };

@@ -1,25 +1,24 @@
 /**
- * ProfileStore — Armazenamento robusto de perfis (Multi-conta)
- * v2.1.0
+ * ProfileStore — Robust profile storage (Multi-account)
  *
- * FILOSOFIA (reavaliada):
- *   O usuário NÃO quer "8 contas simultâneas" por padrão. Ele quer PERFIS:
- *   clica num perfil → abre o jogo com os cookies salvos → joga. Simples.
+ * PHILOSOPHY (revised):
+ *   The user does NOT want "8 simultaneous accounts" by default. They want PROFILES:
+ *   clicks a profile → opens the game with saved cookies → plays. Simple.
  *
- *   Multi-conta em tempo real (várias janelas abertas) é recurso SECUNDÁRIO
- *   de power-user, acessível via "Abrir adicional", não o fluxo padrão.
+ *   Real-time multi-account (multiple windows open) is a SECONDARY feature
+ *   for power-users, accessible via "Open additional", not the default flow.
  *
- *   Cada perfil guarda: id, nome (ex: "chris"), servidor (ex: "s799"),
- *   região (BR/NA/EU/HK), cor de identificação, e cookies persistidos
- *   automaticamente pela session partition do Chromium.
+ *   Each profile stores: id, name (e.g.: "chris"), server (e.g.: "s799"),
+ *   region (BR/NA/EU/HK), identification color, and cookies persisted
+ *   automatically by the Chromium session partition.
  *
- * ROBUSTEZ (correção do que o usuário pediu):
- *   - Atomic write: escreve em .tmp, renomeia. Nunca corrompe se cair luz.
- *   - Backup .bak antes de cada save. Recuperação automática se JSON quebrar.
- *   - Schema validation: cada perfil é validado; inválidos são descartados.
- *   - Limite 1MB no arquivo (saneamento contra corrupção silenciosa).
- *   - Try/catch em TODAS as operações síncronas de I/O.
- *   - Máximo 12 perfis (elevado conforme requisito, mas default é 1 janela ativa).
+ * ROBUSTNESS (fixing what the user asked for):
+ *   - Atomic write: writes to .tmp, renames. Never corrupts on power loss.
+ *   - Backup .bak before each save. Auto-recovery if JSON breaks.
+ *   - Schema validation: each profile is validated; invalid ones are discarded.
+ *   - 1MB file size limit (sanity check against silent corruption).
+ *   - Try/catch on ALL synchronous I/O operations.
+ *   - Maximum 12 profiles (increased per requirement, but default is 1 active window).
  */
 
 'use strict';
@@ -29,6 +28,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { app } = require('electron');
 const logger = require('../utils/logger');
+const { isValidRegion, normalizeRegion, isCurrentRegion } = require('../config/regions');
 
 const PROFILES_DIR = 'profiles';
 const PROFILES_FILE = 'profiles.json';
@@ -36,47 +36,50 @@ const BACKUP_FILE = 'profiles.json.bak';
 const MAX_PROFILES = 10;
 const MAX_FILE_BYTES = 1024 * 1024; // 1MB sane limit
 
-// v5.5: Launch log (timeline) — persisted separado de profiles.json para
-// não interferir em migrações de schema de perfis. Limite de 5000 entradas
-// previne crescimento ilimitado (~6 meses de uso intensivo).
+// Launch log (timeline) — persisted separately from profiles.json to
+// avoid interfering with profile schema migrations. Limit of 5000 entries
+// prevents unlimited growth (~6 months of intensive use).
 const LAUNCH_LOG_FILE = 'launch-log.json';
 const MAX_LAUNCH_LOG_ENTRIES = 5000;
 
-// Schema validator — nunca confiar em dados lidos do disco
-// v3.4: adicionado language (pt/en) e notificationsEnabled (boolean) por perfil
-// v4.5: adicionado notes (string, max 200), launchCount (number), totalPlayMs (number)
+// Schema validator — never trust data read from disk
+// added language (pt/en) and notificationsEnabled (boolean) per profile
+// adicionado notes (string, max 200), launchCount (number), totalPlayMs (number)
 function isValidProfile(p) {
   if (!p || typeof p !== 'object') return false;
   if (typeof p.id !== 'string' || !/^p_[a-f0-9]{8,16}$/.test(p.id)) return false;
   if (typeof p.name !== 'string' || p.name.length === 0 || p.name.length > 40) return false;
   if (typeof p.server !== 'string' || p.server.length > 20) return false;
-  if (!['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(p.region)) return false;
-  // v3.4: language opcional (default 'pt' para retrocompatibilidade)
-  // v4.0.1 FIX: sync with settings.js — i18n supports 6 languages
+  // accept 6 current clusters (br/na/de/es/pl/fr) + 4 legacy codes
+  // (eu/hk/pt/en) which are auto-migrated to current clusters on load via
+  // normalizeRegion(). isValidRegion accepts both current + legacy.
+  if (!isValidRegion(p.region)) return false;
+  // language optional (default 'pt' for backward compatibility)
+  // sync with settings.js — i18n supports 6 languages
   if (p.language !== undefined && !['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(p.language))
     return false;
-  // v3.4: notificationsEnabled opcional (default true para retrocompatibilidade)
+  // notificationsEnabled optional (default true for backward compatibility)
   if (p.notificationsEnabled !== undefined && typeof p.notificationsEnabled !== 'boolean')
     return false;
   if (typeof p.createdAt !== 'number' || p.createdAt < 0) return false;
   if (typeof p.lastUsed !== 'number' || p.lastUsed < 0) return false;
-  // v4.5: notes opcional (string, max 200 chars)
+  // notes optional (string, max 200 chars)
   if (p.notes !== undefined && (typeof p.notes !== 'string' || p.notes.length > 200)) return false;
-  // v4.5: launchCount opcional (number, >= 0)
+  // launchCount optional (number, >= 0)
   if (
     p.launchCount !== undefined &&
     (typeof p.launchCount !== 'number' || p.launchCount < 0 || !isFinite(p.launchCount))
   )
     return false;
-  // v4.5: totalPlayMs opcional (number, >= 0)
+  // totalPlayMs optional (number, >= 0)
   if (
     p.totalPlayMs !== undefined &&
     (typeof p.totalPlayMs !== 'number' || p.totalPlayMs < 0 || !isFinite(p.totalPlayMs))
   )
     return false;
-  // v4.6: favorite opcional (boolean)
+  // favorite optional (boolean)
   if (p.favorite !== undefined && typeof p.favorite !== 'boolean') return false;
-  // v5.3: tags opcional (array de strings, max 5 tags, cada max 20 chars)
+  // tags optional (array of strings, max 5 tags, each max 20 chars)
   if (p.tags !== undefined) {
     if (!Array.isArray(p.tags)) return false;
     if (p.tags.length > 5) return false;
@@ -88,26 +91,26 @@ function isValidProfile(p) {
   return true;
 }
 
-// Migração automática de perfis v1 (sem language/notificationsEnabled) para v2
-// v4.5: Migração v3 (sem notes/launchCount/totalPlayMs) para v3
+// Automatic migration of v1 profiles (without language/notificationsEnabled) to v2
+// v3 migration (without notes/launchCount/totalPlayMs) to v3
 function _migrateProfile(p) {
   if (!p) return p;
   if (p.language === undefined) p.language = 'pt';
   if (p.notificationsEnabled === undefined) p.notificationsEnabled = true;
-  // v4.5: novos campos com defaults seguros
+  // new fields with safe defaults
   if (p.notes === undefined) p.notes = '';
   if (p.launchCount === undefined) p.launchCount = 0;
   if (p.totalPlayMs === undefined) p.totalPlayMs = 0;
-  // v4.6: favorite flag (default false)
+  // favorite flag (default false)
   if (p.favorite === undefined) p.favorite = false;
-  // v5.3: tags (default empty array)
+  // tags (default empty array)
   if (p.tags === undefined) p.tags = [];
   return p;
 }
 
-let _profiles = null; // cache em memória
+let _profiles = null; // in-memory cache
 let _listeners = [];
-let _launchLog = null; // v5.5: cache em memória do log de lançamentos
+let _launchLog = null; // in-memory cache of launch log
 
 function getDir() {
   return path.join(app.getPath('userData'), PROFILES_DIR);
@@ -128,48 +131,48 @@ function ensureDir() {
       fs.mkdirSync(dir, { recursive: true });
     }
   } catch (e) {
-    logger.error('ProfileStore: falha ao criar diretório: ' + e.message);
+    logger.error('ProfileStore: failed to create directory: ' + e.message);
   }
 }
 
 /**
- * Carrega perfis do disco com recuperação automática de backup.
- * Sempre retorna um array válido (possivelmente vazio).
+ * Loads profiles from disk with automatic backup recovery.
+ * Always returns a valid array (possibly empty).
  * @returns {Array}
  */
 function load() {
   ensureDir();
 
-  // v5.5: carrega launch log sempre (independente do estado de profiles.json,
-  // para que o cache _launchLog não fique stale entre loads)
+  // always loads launch log (regardless of profiles.json state,
+  // so the _launchLog cache doesn't go stale between loads)
   _loadLaunchLog();
 
   const file = getFile();
   const backup = getBackupFile();
 
-  // Tenta arquivo principal
+  // Try main file
   let parsed = null;
   try {
     if (fs.existsSync(file)) {
       const stat = fs.statSync(file);
       if (stat.size > MAX_FILE_BYTES) {
-        logger.warn('ProfileStore: arquivo muito grande (' + stat.size + ' bytes), descartando');
+        logger.warn('ProfileStore: file too large (' + stat.size + ' bytes), discarding');
         throw new Error('oversized');
       }
       const raw = fs.readFileSync(file, 'utf8');
       parsed = JSON.parse(raw);
     }
   } catch (e) {
-    logger.error('ProfileStore: JSON principal corrompido: ' + e.message);
-    // Tenta backup
+    logger.error('ProfileStore: main JSON corrupted: ' + e.message);
+    // Try backup
     try {
       if (fs.existsSync(backup)) {
-        logger.warn('ProfileStore: recuperando do backup .bak');
+        logger.warn('ProfileStore: recovering from .bak backup');
         const rawBak = fs.readFileSync(backup, 'utf8');
         parsed = JSON.parse(rawBak);
       }
     } catch (e2) {
-      logger.error('ProfileStore: backup também corrompido: ' + e2.message);
+      logger.error('ProfileStore: backup also corrupted: ' + e2.message);
       parsed = null;
     }
   }
@@ -179,43 +182,66 @@ function load() {
     return _profiles;
   }
 
-  // Valida cada perfil; descarta inválidos silenciosamente
+  // Validates each profile; silently discards invalid ones
   _profiles = parsed.filter(isValidProfile);
   if (_profiles.length !== parsed.length) {
     logger.warn(
       'ProfileStore: ' +
         (parsed.length - _profiles.length) +
-        ' perfil(is) inválido(s) descartado(s)'
+        ' invalid profile(s) discarded'
     );
   }
-  // v3.4: migra perfis v1 (sem language/notificationsEnabled) para v2
+  // migrate v1 profiles (without language/notificationsEnabled) to v2
+  // migrate legacy region codes (eu/hk/pt/en) to current clusters
   let migrated = 0;
+  let regionMigrated = 0;
   _profiles.forEach(function (p) {
-    const before = JSON.stringify({ l: p.language, n: p.notificationsEnabled });
+    // Performance: capture the 3 fields before mutation, then compare directly.
+    // Avoids 2× JSON.stringify per profile on every load() (startup + reset).
+    var beforeLang = p.language;
+    var beforeNotif = p.notificationsEnabled;
+    var beforeRegion = p.region;
     _migrateProfile(p);
-    const after = JSON.stringify({ l: p.language, n: p.notificationsEnabled });
-    if (before !== after) migrated++;
+    // Normalize legacy region codes (eu→na, hk→na, pt→br, en→na)
+    if (p.region && !isCurrentRegion(p.region)) {
+      p.region = normalizeRegion(p.region);
+    }
+    if (beforeRegion !== p.region) regionMigrated++;
+    if (
+      beforeLang !== p.language ||
+      beforeNotif !== p.notificationsEnabled ||
+      beforeRegion !== p.region
+    ) {
+      migrated++;
+    }
   });
+  if (regionMigrated > 0) {
+    logger.info(
+      'ProfileStore: ' +
+        regionMigrated +
+        ' profile(s) with legacy region migrated to current cluster'
+    );
+  }
   if (migrated > 0) {
     logger.info(
       'ProfileStore: ' +
         migrated +
-        ' perfil(is) migrado(s) para schema v2 (language + notificationsEnabled)'
+        ' profile(s) migrated to current schema (language + notificationsEnabled + region)'
     );
     _saveToDisk(_profiles);
   } else if (_profiles.length !== parsed.length) {
     _saveToDisk(_profiles);
   }
 
-  logger.info('ProfileStore: ' + _profiles.length + ' perfil(is) carregado(s)');
+  logger.info('ProfileStore: ' + _profiles.length + ' profile(s) loaded');
   return _profiles;
 }
 
 /**
- * Salva perfis no disco de forma atômica com backup.
- * NUNCA lança — captura todas as exceções.
+ * Saves profiles to disk atomically with backup.
+ * NEVER throws — catches all exceptions.
  * @param {Array} profiles
- * @returns {boolean} true se salvou com sucesso
+ * @returns {boolean} true if saved successfully
  */
 function _saveToDisk(profiles) {
   ensureDir();
@@ -226,19 +252,19 @@ function _saveToDisk(profiles) {
   try {
     const json = JSON.stringify(profiles, null, 2);
 
-    // Limite de tamanho antes de escrever
+    // Size limit before writing
     if (Buffer.byteLength(json, 'utf8') > MAX_FILE_BYTES) {
-      logger.error('ProfileStore: recusa salvar — JSON excede 1MB');
+      logger.error('ProfileStore: refusing to save — JSON exceeds 1MB');
       return false;
     }
 
-    // Backup do atual antes de sobrescrever
+    // Backup of current before overwriting
     try {
       if (fs.existsSync(file)) {
         fs.copyFileSync(file, backup);
       }
     } catch (e) {
-      logger.warn('ProfileStore: não foi possível criar backup: ' + e.message);
+      logger.warn('ProfileStore: failed to create backup: ' + e.message);
     }
 
     // Atomic write: tmp → rename
@@ -246,8 +272,8 @@ function _saveToDisk(profiles) {
     fs.renameSync(tmp, file);
     return true;
   } catch (e) {
-    logger.error('ProfileStore: falha ao salvar: ' + e.message);
-    // Tenta limpar tmp órfão
+    logger.error('ProfileStore: failed to save: ' + e.message);
+    // Tries to clean up orphan tmp
     try {
       if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
     } catch (_) {
@@ -258,7 +284,7 @@ function _saveToDisk(profiles) {
 }
 
 /**
- * Persiste o cache atual + notifica listeners.
+ * Persists the current cache + notifies listeners.
  */
 function persist() {
   if (_profiles === null) return;
@@ -274,11 +300,13 @@ function persist() {
   }
 }
 
+/** Returns a shallow copy of all profiles. Triggers lazy-load on first call. */
 function getAll() {
   if (_profiles === null) load();
   return _profiles.slice();
 }
 
+/** Returns a single profile by ID, or null. */
 function get(id) {
   if (_profiles === null) load();
   return (
@@ -288,36 +316,35 @@ function get(id) {
   );
 }
 
+/** Creates a new profile with defaults. Returns the profile object, or null if limit reached. */
 function create(opts) {
   if (_profiles === null) load();
   if (_profiles.length >= MAX_PROFILES) {
-    logger.warn('ProfileStore: limite de ' + MAX_PROFILES + ' perfis atingido');
+    logger.warn('ProfileStore: limit of ' + MAX_PROFILES + ' profiles reached');
     return null;
   }
   opts = opts || {};
   const profile = {
     id: 'p_' + crypto.randomBytes(6).toString('hex'),
     name:
-      String(opts.name || 'Conta ' + (_profiles.length + 1))
+      String(opts.name || 'Account ' + (_profiles.length + 1))
         .slice(0, 40)
-        .trim() || 'Conta',
+        .trim() || 'Account',
     server: String(opts.server || '')
       .slice(0, 20)
       .trim(),
-    region: ['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(opts.region)
-      ? opts.region
-      : 'br',
-    // v4.0.1 FIX: sync with settings.js — i18n supports 6 languages
+    region: isValidRegion(opts.region) ? normalizeRegion(opts.region) : 'br',
+    // sync with settings.js — i18n supports 6 languages
     language: ['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(opts.language) ? opts.language : 'pt',
     notificationsEnabled:
       typeof opts.notificationsEnabled === 'boolean' ? opts.notificationsEnabled : true,
-    // v4.5: novos campos
+    // new fields
     notes: typeof opts.notes === 'string' ? opts.notes.slice(0, 200) : '',
     launchCount: 0,
     totalPlayMs: 0,
-    // v4.6: favorite flag
+    // favorite flag
     favorite: typeof opts.favorite === 'boolean' ? opts.favorite : false,
-    // v5.3: tags (array of strings, max 5, each max 20 chars)
+    // tags (array of strings, max 5, each max 20 chars)
     tags: Array.isArray(opts.tags)
       ? opts.tags
           .filter(function (t) {
@@ -331,7 +358,7 @@ function create(opts) {
   _profiles.push(profile);
   persist();
   logger.info(
-    'ProfileStore: perfil criado — ' +
+    'ProfileStore: profile created — ' +
       profile.name +
       (profile.server ? ' (' + profile.server + ')' : '') +
       ' [' +
@@ -343,6 +370,7 @@ function create(opts) {
   return profile;
 }
 
+/** Merges safe fields from `updates` into an existing profile. Returns true if found and persisted. */
 function update(id, updates) {
   if (_profiles === null) load();
   const p = _profiles.find(function (x) {
@@ -351,18 +379,17 @@ function update(id, updates) {
   if (!p) return false;
   if (typeof updates.name === 'string') p.name = updates.name.slice(0, 40).trim() || p.name;
   if (typeof updates.server === 'string') p.server = updates.server.slice(0, 20).trim();
-  if (['br', 'na', 'eu', 'hk', 'de', 'es', 'pl', 'fr'].includes(updates.region))
-    p.region = updates.region;
-  // v4.0.1 FIX: sync with settings.js — i18n supports 6 languages
+  if (isValidRegion(updates.region)) p.region = normalizeRegion(updates.region);
+  // sync with settings.js — i18n supports 6 languages
   if (['pt', 'en', 'de', 'es', 'pl', 'fr'].includes(updates.language))
     p.language = updates.language;
   if (typeof updates.notificationsEnabled === 'boolean')
     p.notificationsEnabled = updates.notificationsEnabled;
-  // v4.5: notes (string, max 200)
+  // notes (string, max 200)
   if (typeof updates.notes === 'string') p.notes = updates.notes.slice(0, 200);
-  // v4.6: favorite (boolean)
+  // favorite (boolean)
   if (typeof updates.favorite === 'boolean') p.favorite = updates.favorite;
-  // v5.3: tags (array of strings, max 5, each max 20 chars)
+  // tags (array of strings, max 5, each max 20 chars)
   if (Array.isArray(updates.tags)) {
     p.tags = updates.tags
       .filter(function (t) {
@@ -374,6 +401,7 @@ function update(id, updates) {
   return true;
 }
 
+/** Removes a profile by ID and wipes its partition (cookies/cache). Returns true if found. */
 function remove(id) {
   if (_profiles === null) load();
   const idx = _profiles.findIndex(function (x) {
@@ -383,15 +411,15 @@ function remove(id) {
   _profiles.splice(idx, 1);
   persist();
 
-  // Wipe da partition (cookies/cache do perfil removido)
+  // Partition wipe (cookies/cache of removed profile)
   try {
     const partDir = path.join(app.getPath('userData'), 'Partitions', 'profile-' + id);
     if (fs.existsSync(partDir)) {
       _rmrf(partDir);
-      logger.info('ProfileStore: dados da partition removidos para ' + id);
+      logger.info('ProfileStore: partition data removed for ' + id);
     }
   } catch (e) {
-    logger.warn('ProfileStore: não foi possível remover partition: ' + e.message);
+    logger.warn('ProfileStore: failed to remove partition: ' + e.message);
   }
   return true;
 }
@@ -424,6 +452,7 @@ function reorder(order) {
   persist();
 }
 
+/** Updates lastUsed timestamp to now. */
 function touch(id) {
   if (_profiles === null) load();
   const p = _profiles.find(function (x) {
@@ -436,7 +465,7 @@ function touch(id) {
 }
 
 /**
- * v4.5: Incrementa contador de lançamentos do perfil.
+ * Increments profile launch count.
  * @param {string} id
  * @returns {boolean}
  */
@@ -453,9 +482,9 @@ function incrementLaunch(id) {
 }
 
 /**
- * v4.5: Adiciona tempo de jogo (ms) ao total acumulado do perfil.
+ * Adds play time (ms) to the profile's accumulated total.
  * @param {string} id
- * @param {number} ms - milissegundos a adicionar (clampado em [0, 24h])
+ * @param {number} ms - milliseconds to add (clamped to [0, 24h])
  * @returns {boolean}
  */
 function addPlayTime(id, ms) {
@@ -464,7 +493,7 @@ function addPlayTime(id, ms) {
     return x.id === id;
   });
   if (!p) return false;
-  // Sanity check: 0 <= ms <= 24h (evita overflow por bug de timer)
+  // Sanity check: 0 <= ms <= 24h (prevents overflow from timer bug)
   const clamped = Math.max(0, Math.min(24 * 60 * 60 * 1000, Number(ms) || 0));
   p.totalPlayMs = (p.totalPlayMs || 0) + clamped;
   persist();
@@ -472,7 +501,7 @@ function addPlayTime(id, ms) {
 }
 
 /**
- * v4.5: Retorna estatísticas de uso de um perfil.
+ * Returns usage statistics for a profile.
  * @param {string} id
  * @returns {{launchCount:number, totalPlayMs:number, lastUsed:number, avgSessionMs:number}|null}
  */
@@ -493,8 +522,8 @@ function getStats(id) {
 }
 
 /**
- * Exporta todos os perfis como JSON string (para portabilidade Win↔Linux).
- * Não inclui cookies (são por partition em disco) — apenas metadados.
+ * Exports all profiles as JSON string (for Win↔Linux portability).
+ * Does not include cookies (they're per-partition on disk) — only metadata.
  * @returns {string}
  */
 function exportJSON() {
@@ -521,7 +550,7 @@ function importJSON(jsonStr) {
   try {
     data = JSON.parse(jsonStr);
   } catch (e) {
-    logger.error('ProfileStore: import JSON inválido: ' + e.message);
+    logger.error('ProfileStore: invalid import JSON: ' + e.message);
     return { imported: 0, skipped: 0 };
   }
   const incoming = Array.isArray(data.profiles) ? data.profiles : Array.isArray(data) ? data : [];
@@ -536,7 +565,7 @@ function importJSON(jsonStr) {
       skipped++;
       return;
     }
-    // Dedup por nome+server
+    // Dedup by name+server
     const dup = _profiles.find(function (x) {
       return x.name === p.name && x.server === p.server;
     });
@@ -544,7 +573,7 @@ function importJSON(jsonStr) {
       skipped++;
       return;
     }
-    // Novo ID (evita colisão com existentes)
+    // New ID (avoids collision with existing ones)
     const fresh = Object.assign({}, p, {
       id: 'p_' + crypto.randomBytes(6).toString('hex'),
       createdAt: Date.now(),
@@ -554,15 +583,16 @@ function importJSON(jsonStr) {
     imported++;
   });
   persist();
-  logger.info('ProfileStore: importados ' + imported + ', ignorados ' + skipped);
+  logger.info('ProfileStore: imported ' + imported + ', skipped ' + skipped);
   return { imported: imported, skipped: skipped };
 }
 
+/** Registers a listener called after every persist(). */
 function onChange(cb) {
   if (typeof cb === 'function') _listeners.push(cb);
 }
 
-// Helper recursivo para remover diretório
+// Recursive helper to remove directory
 function _rmrf(p) {
   if (fs.existsSync(p)) {
     fs.readdirSync(p).forEach(function (entry) {
@@ -575,13 +605,13 @@ function _rmrf(p) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// v5.5: Launch log (timeline) — log de lançamentos para gráfico de 7 dias
-// Persistido em userData/launch-log.json (arquivo separado de profiles.json).
-// Cada entrada: { id: profileId, ts: number }. Cap em MAX_LAUNCH_LOG_ENTRIES.
+// Launch log (timeline) — launch log for 7-day chart
+// Persisted in userData/launch-log.json (separate file from profiles.json).
+// Each entry: { id: profileId, ts: number }. Capped at MAX_LAUNCH_LOG_ENTRIES.
 // ──────────────────────────────────────────────────────────────────────────
 
 /**
- * Retorna o caminho do arquivo de launch log.
+ * Returns the launch log file path.
  * @returns {string}
  */
 function getLaunchLogFile() {
@@ -589,7 +619,7 @@ function getLaunchLogFile() {
 }
 
 /**
- * Formata um timestamp como 'YYYY-MM-DD' usando hora LOCAL (não UTC).
+ * Formats a timestamp as 'YYYY-MM-DD' using LOCAL time (not UTC).
  * @param {number} ts
  * @returns {string}
  */
@@ -602,9 +632,9 @@ function _formatDate(ts) {
 }
 
 /**
- * Carrega o launch log do disco. Arquivo ausente → array vazio.
- * JSON malformado → array vazio + warning. Faz cap em MAX_LAUNCH_LOG_ENTRIES.
- * NUNCA lança — captura todas as exceções.
+ * Loads the launch log from disk. Missing file → empty array.
+ * Malformed JSON → empty array + warning. Caps at MAX_LAUNCH_LOG_ENTRIES.
+ * NEVER throws — catches all exceptions.
  * @returns {Array}
  */
 function _loadLaunchLog() {
@@ -614,7 +644,7 @@ function _loadLaunchLog() {
       const raw = fs.readFileSync(file, 'utf8');
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        // Valida cada entrada; descarta inválidas silenciosamente
+        // Validates each entry; silently discards invalid ones
         _launchLog = parsed.filter(function (e) {
           return e && typeof e.id === 'string' && typeof e.ts === 'number' && isFinite(e.ts);
         });
@@ -622,22 +652,22 @@ function _loadLaunchLog() {
           logger.warn(
             'LaunchLog: ' +
               (parsed.length - _launchLog.length) +
-              ' entrada(s) inválida(s) descartada(s)'
+              ' invalid entry(ies) discarded'
           );
         }
       } else {
-        logger.warn('LaunchLog: arquivo não é array — iniciando vazio');
+        logger.warn('LaunchLog: file is not an array — starting empty');
         _launchLog = [];
       }
     } else {
-      // Backward-compat: primeira execução, arquivo não existe → começa vazio
+      // Backward-compat: first run, file doesn't exist → starts empty
       _launchLog = [];
     }
   } catch (e) {
-    logger.warn('LaunchLog: arquivo corrompido (' + e.message + ') — iniciando vazio');
+    logger.warn('LaunchLog: corrupted file (' + e.message + ') — starting empty');
     _launchLog = [];
   }
-  // Cap defensivo (normalmente o cap já acontece em recordLaunch)
+  // Defensive cap (normally the cap already happens in recordLaunch)
   if (_launchLog.length > MAX_LAUNCH_LOG_ENTRIES) {
     _launchLog = _launchLog.slice(_launchLog.length - MAX_LAUNCH_LOG_ENTRIES);
   }
@@ -645,7 +675,7 @@ function _loadLaunchLog() {
 }
 
 /**
- * Persiste o launch log no disco (atomic write: tmp → rename). NUNCA lança.
+ * Persists the launch log to disk (atomic write: tmp → rename). NEVER throws.
  */
 function _persistLaunchLog() {
   if (_launchLog === null) return;
@@ -660,7 +690,7 @@ function _persistLaunchLog() {
     fs.writeFileSync(tmp, json, 'utf8');
     fs.renameSync(tmp, file);
   } catch (e) {
-    logger.error('LaunchLog: falha ao salvar: ' + e.message);
+    logger.error('LaunchLog: failed to save: ' + e.message);
     try {
       if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
     } catch (_) {
@@ -670,9 +700,9 @@ function _persistLaunchLog() {
 }
 
 /**
- * v5.5: Registra um lançamento no log. No-op se o perfil não existir.
+ * Records a launch in the log. No-op if the profile doesn't exist.
  * @param {string} profileId
- * @returns {boolean} true se registrou, false caso contrário (id inválido ou perfil inexistente)
+ * @returns {boolean} true if recorded, false otherwise (invalid id or non-existent profile)
  */
 function recordLaunch(profileId) {
   if (_profiles === null) load();
@@ -683,7 +713,7 @@ function recordLaunch(profileId) {
   });
   if (!p) return false;
   _launchLog.push({ id: profileId, ts: Date.now() });
-  // Cap em MAX_LAUNCH_LOG_ENTRIES (drop oldest)
+  // Cap at MAX_LAUNCH_LOG_ENTRIES (drop oldest)
   if (_launchLog.length > MAX_LAUNCH_LOG_ENTRIES) {
     _launchLog = _launchLog.slice(_launchLog.length - MAX_LAUNCH_LOG_ENTRIES);
   }
@@ -692,10 +722,10 @@ function recordLaunch(profileId) {
 }
 
 /**
- * v5.5: Retorna timeline de lançamentos dos últimos `days` dias.
+ * Returns a launch timeline for the last `days` days.
  * Array de tamanho `days`, oldest first → newest last.
- * Cada entrada: { date: 'YYYY-MM-DD', count: number, profiles: [{id, name, count}] }
- * Entradas sem lançamentos aparecem com count 0 e profiles vazio.
+ * Each entry: { date: 'YYYY-MM-DD', count: number, profiles: [{id, name, count}] }
+ * Entries without launches appear with count 0 and empty profiles.
  * @param {number} [days=7]
  * @returns {Array}
  */
@@ -708,7 +738,7 @@ function getLaunchTimeline(days) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Constrói buckets: índice 0 = (days-1) dias atrás, índice (days-1) = hoje
+  // Builds buckets: index 0 = (days-1) days ago, index (days-1) = today
   const buckets = [];
   const dateToIdx = {};
   for (var i = days - 1; i >= 0; i--) {
@@ -720,7 +750,7 @@ function getLaunchTimeline(days) {
     dateToIdx[dateStr] = idx;
   }
 
-  // Agrega launch log por data local
+  // Aggregates launch log by local date
   _launchLog.forEach(function (entry) {
     const dateStr = _formatDate(entry.ts);
     const idx = dateToIdx[dateStr];
@@ -730,7 +760,7 @@ function getLaunchTimeline(days) {
     const p = _profiles.find(function (x) {
       return x.id === entry.id;
     });
-    if (!p) return; // perfil deletado — não conta no profiles array
+    if (!p) return; // profile deleted — doesn't count in profiles array
     if (!b._byId[entry.id]) {
       b._byId[entry.id] = { id: entry.id, name: p.name, count: 0 };
       b.profiles.push(b._byId[entry.id]);
@@ -738,7 +768,7 @@ function getLaunchTimeline(days) {
     b._byId[entry.id].count++;
   });
 
-  // Remove helper interno antes de retornar
+  // Remove internal helper before returning
   buckets.forEach(function (b) {
     delete b._byId;
   });
@@ -746,7 +776,7 @@ function getLaunchTimeline(days) {
 }
 
 /**
- * v5.5: Limpa todo o launch log (zera e persiste).
+ * Clears the entire launch log (resets and persists).
  */
 function clearLaunchLog() {
   if (_launchLog === null) _loadLaunchLog();
@@ -755,7 +785,7 @@ function clearLaunchLog() {
 }
 
 /**
- * v5.5: Retorna estatísticas do launch log.
+ * Returns launch log statistics.
  * @returns {{total:number, oldestTs:number|null, newestTs:number|null}}
  */
 function getLaunchLogStats() {
@@ -784,7 +814,7 @@ module.exports = {
   exportJSON: exportJSON,
   importJSON: importJSON,
   onChange: onChange,
-  // v4.5: stats methods
+  // stats methods
   incrementLaunch: incrementLaunch,
   addPlayTime: addPlayTime,
   getStats: getStats,
@@ -792,7 +822,7 @@ module.exports = {
     return 'persist:profile-' + id;
   },
   MAX_PROFILES: MAX_PROFILES,
-  // v5.5: launch log (timeline)
+  // launch log (timeline)
   recordLaunch: recordLaunch,
   getLaunchTimeline: getLaunchTimeline,
   clearLaunchLog: clearLaunchLog,

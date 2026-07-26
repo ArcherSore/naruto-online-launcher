@@ -1,20 +1,18 @@
 /**
  * Logger - electron-log Integration
- * v1.1.0 - Persistent file logging with structured output
+ * Persistent file logging with structured output
  */
 
 'use strict';
 
 const log = require('electron-log');
 
+const MAX_LOG_SIZE_BYTES = 5 * 1024 * 1024; // 5MB rotation
+
 // Configure electron-log
-// v5.0 (Fase 3, Decisão B): quando SHINOBI_DEBUG=1, sobe console level pra debug.
-const __SHINOBI_DEBUG = process.env.SHINOBI_DEBUG === '1' || process.env.SHINOBI_DEBUG === 'true';
 log.transports.file.level = 'info';
-log.transports.console.level = (
-  process.env.LOG_LEVEL || (__SHINOBI_DEBUG ? 'debug' : 'info')
-).toLowerCase();
-log.transports.file.maxSize = 5 * 1024 * 1024; // 5MB rotation
+log.transports.console.level = (process.env.LOG_LEVEL || 'info').toLowerCase();
+log.transports.file.maxSize = MAX_LOG_SIZE_BYTES;
 log.transports.file.maxFiles = 3;
 
 // Custom format with timestamp and emoji icons

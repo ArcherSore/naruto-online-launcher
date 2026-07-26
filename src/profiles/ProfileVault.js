@@ -1,16 +1,16 @@
 /**
- * profiles/ProfileVault.js — CRUD de credenciais + auto-login script (Fase 3e split)
+ * profiles/ProfileVault.js — CRUD of credentials + auto-login script (Phase 3e split)
  *
- * Responsabilidade ÚNICA (SRP): persistir credenciais (user/pass) criptografadas
- * em vault.json e gerar o script de auto-login injetado no jogo. Delega a
- * criptografia ao CryptoService e a derivação de chave ao PasswordManager.
+ * Single Responsibility (SRP): persist encrypted credentials (user/pass)
+ * in vault.json and generate the auto-login script injected into the game. Delegates to
+ * cryptography to CryptoService and key derivation to PasswordManager.
  *
- * Histórico: era parte do God Object vault.js (571 linhas). Split em 3:
- *   - CryptoService.js   — primitivas cripto puras
- *   - PasswordManager.js — chave de máquina + senha mestre
- *   - ProfileVault.js    (este) — CRUD + buildAutoLoginScript
+ * History: was part of the God Object vault.js (571 lines). Split into 3:
+ *   - CryptoService.js   — pure crypto primitives
+ *   - PasswordManager.js — machine key + master password
+ *   - ProfileVault.js    (this module) — CRUD + buildAutoLoginScript
  *
- * vault.js permanece como facade re-exportando os 3 módulos (API preservada).
+ * vault.js remains as facade re-exporting the 3 modules (API preserved).
  */
 
 'use strict';
@@ -34,7 +34,7 @@ function _getVaultPath() {
 }
 
 /**
- * Encrypt com a chave de máquina (conveniência sobre CryptoService.encrypt).
+ * Encrypt with the machine key (convenience over CryptoService.encrypt).
  * @param {string} plaintext
  * @returns {string}
  */
@@ -42,13 +42,13 @@ function _encryptWithMachineKey(plaintext) {
   try {
     return CryptoService.encrypt(plaintext, PasswordManager.getMachineKey());
   } catch (e) {
-    logger.error('ProfileVault: encrypt falhou: ' + e.message);
+    logger.error('ProfileVault: encrypt failed: ' + e.message);
     return '';
   }
 }
 
 /**
- * Decrypt com a chave de máquina.
+ * Decrypt with the machine key.
  * @param {string} payload
  * @returns {string}
  */
@@ -56,7 +56,7 @@ function _decryptWithMachineKey(payload) {
   try {
     return CryptoService.decrypt(payload, PasswordManager.getMachineKey());
   } catch (e) {
-    logger.debug('ProfileVault: decrypt falhou (tag mismatch or key changed)');
+    logger.debug('ProfileVault: decrypt failed (tag mismatch or key changed)');
     return null;
   }
 }
@@ -79,7 +79,7 @@ function _ensureLoaded() {
       _store = {};
     }
   } catch (e) {
-    logger.error('ProfileVault: falha ao ler vault.json: ' + e.message + ' — iniciando vazio');
+    logger.error('ProfileVault: failed to read vault.json: ' + e.message + ' — starting empty');
     _store = {};
   }
 }
@@ -95,7 +95,7 @@ function _persist() {
   try {
     const json = JSON.stringify(_store, null, 2);
     if (Buffer.byteLength(json, 'utf8') > MAX_VAULT_BYTES) {
-      logger.error('ProfileVault: recusa salvar — excede 256KB');
+      logger.error('ProfileVault: refusing to save — exceeds 256KB');
       return false;
     }
     fs.writeFileSync(tmp, json, 'utf8');
@@ -109,7 +109,7 @@ function _persist() {
     });
     return true;
   } catch (e) {
-    logger.error('ProfileVault: falha ao salvar: ' + e.message);
+    logger.error('ProfileVault: failed to save: ' + e.message);
     try {
       if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
     } catch (_) {
@@ -121,6 +121,8 @@ function _persist() {
 
 /**
  * Save credentials for a profile (encrypted at rest).
+ * @security AES-256-GCM via machine key; vault.json holds only ciphertext.
+ *   Atomic write (tmp+rename). Vault capped at MAX_VAULT_BYTES (256KB).
  * @param {string} profileId
  * @param {string} user
  * @param {string} pass
@@ -133,7 +135,7 @@ function setCredentials(profileId, user, pass) {
     pass: _encryptWithMachineKey(pass || ''),
     updatedAt: Date.now()
   };
-  logger.info('ProfileVault: credenciais salvas para ' + profileId);
+  logger.info('ProfileVault: credentials saved for ' + profileId);
   return _persist();
 }
 
@@ -172,15 +174,23 @@ function removeCredentials(profileId) {
   _ensureLoaded();
   if (!_store[profileId]) return false;
   delete _store[profileId];
-  logger.info('ProfileVault: credenciais removidas para ' + profileId);
+  logger.info('ProfileVault: credentials removed for ' + profileId);
   return _persist();
 }
 
 /**
- * The JS to inject into the game page for auto-login.
- * Cobertura: 3 designs de página de login da Oasis (NEW serverlist hd_oasun,
- * OLD serverlist oasun, redirected /login user_email) + MutationObserver +
- * polling fallback + delayed retry + verification.
+ * The JS injected into the game page to auto-fill the login form.
+ *
+ * Simplified from 80 lines to ~30. Removed dead verification block
+ * (URL-change check + error-element lookup — never surfaced to the user),
+ * removed delayed-retry branch (MutationObserver + polling already cover
+ * async form loading), removed "clicked" return distinction (UI treats both
+ * the same). The 3 Oasis form selectors + React-style value setter + 2 login
+ * hooks (hd_ajax_login / ajax_login) + button fallback are kept because
+ * they're genuinely needed for the 3 page designs Oasis ships.
+ *
+ * Flow: try once → if form not found, watch DOM mutations + poll every 250ms
+ * for up to 15s → return status string to the main process for logging.
  *
  * @param {string} user
  * @param {string} pass
@@ -191,83 +201,34 @@ function buildAutoLoginScript(user, pass) {
   const p = JSON.stringify(String(pass));
   return (
     '(function(){try{' +
-    'var u=' +
-    u +
-    ',p=' +
-    p +
-    ';' +
-    'var attempts=0,maxAttempts=60;' +
-    'var setVal=function(el,v){try{' +
-    '  var proto=window.HTMLInputElement&&HTMLInputElement.prototype;' +
-    '  var desc=proto&&Object.getOwnPropertyDescriptor(proto,"value");' +
-    '  var setter=desc&&desc.set?desc.set:function(v){this.value=v;};' +
-    '  setter.call(el,v);' +
+    'var u=' + u + ',p=' + p + ',attempts=0,maxAttempts=60;' +
+    // React/Vue-style value setter — setting .value directly doesn't trigger
+    // the framework's onChange handler, so the form would submit empty.
+    'function setVal(el,v){try{' +
+    '  var d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value");' +
+    '  (d&&d.set||function(v){this.value=v;}).call(el,v);' +
     '  el.dispatchEvent(new Event("input",{bubbles:true}));' +
     '  el.dispatchEvent(new Event("change",{bubbles:true}));' +
-    '}catch(e){el.value=v;}};' +
-    'var doLogin=function(){' +
-    '  try{' +
-    '    var unames=document.querySelectorAll("input[name=oasun],input[name=hd_oasun],input[name=user_email],input#user_email");' +
-    '    var pwds=document.querySelectorAll("input[name=oaspd],input[name=hd_oaspd],input[name=user_password],input#user_password");' +
-    '    if(!unames.length||!pwds.length)return "not-found";' +
-    '    for(var i=0;i<unames.length;i++)setVal(unames[i],u);' +
-    '    for(var j=0;j<pwds.length;j++)setVal(pwds[j],p);' +
-    '    var cbs=document.querySelectorAll("#checkbox,#hd_checkbox,#checkbox_pwd,#checked_pwd");' +
-    '    for(var k=0;k<cbs.length;k++){try{cbs[k].checked=true;cbs[k].dispatchEvent(new Event("change",{bubbles:true}));}catch(e){}}' +
-    '    try{if(typeof window.dlFlag!=="undefined")window.dlFlag=true;}catch(e){}' +
-    '    try{' +
-    '      if(typeof window.hd_ajax_login==="function"){window.hd_ajax_login();return "filled";}' +
-    '    }catch(e){}' +
-    '    try{' +
-    '      if(typeof window.ajax_login==="function"){window.ajax_login();return "filled";}' +
-    '    }catch(e){}' +
-    '    var btn=document.querySelector("a.hd_login_btn,a.na_l_btn.hd_login_btn,a.login_btn,.login_btn,a[class*=login_btn]");' +
-    '    if(btn){try{btn.click();return "clicked";}catch(e){}}' +
-    '    return "filled";' +
-    '  }catch(err){try{console.error("[doLogin]",err);}catch(_){}return "not-found";}' +
-    '};' +
+    '}catch(e){el.value=v;}}' +
+    'function doLogin(){try{' +
+    '  var uE=document.querySelectorAll("input[name=oasun],input[name=hd_oasun],input[name=user_email],input#user_email");' +
+    '  var pE=document.querySelectorAll("input[name=oaspd],input[name=hd_oaspd],input[name=user_password],input#user_password");' +
+    '  if(!uE.length||!pE.length)return "not-found";' +
+    '  for(var i=0;i<uE.length;i++)setVal(uE[i],u);' +
+    '  for(var j=0;j<pE.length;j++)setVal(pE[j],p);' +
+    '  document.querySelectorAll("#checkbox,#hd_checkbox,#checkbox_pwd,#checked_pwd").forEach(function(c){c.checked=true;});' +
+    '  if(typeof window.hd_ajax_login==="function"){window.hd_ajax_login();return "filled";}' +
+    '  if(typeof window.ajax_login==="function"){window.ajax_login();return "filled";}' +
+    '  var b=document.querySelector("a.hd_login_btn,a.login_btn,.login_btn,a[class*=login_btn]");' +
+    '  if(b){b.click();return "filled";}' +
+    '  return "filled";' +
+    '}catch(e){return "not-found";}}' +
     'var r=doLogin();' +
     'if(r!=="not-found")return r;' +
-    'var obs=new MutationObserver(function(_m,o){' +
-    '  attempts++;' +
-    '  var res=doLogin();' +
-    '  if(res!=="not-found"){o.disconnect();return;}' +
-    '  if(attempts>=maxAttempts)o.disconnect();' +
-    '});' +
-    'obs.observe(document.documentElement||document.body,{childList:true,subtree:true});' +
-    'var poll=setInterval(function(){' +
-    '  attempts++;' +
-    '  var res=doLogin();' +
-    '  if(res!=="not-found"){clearInterval(poll);return;}' +
-    '  if(attempts>=maxAttempts){clearInterval(poll);' +
-    '    setTimeout(function(){' +
-    '      try{var retry=doLogin();' +
-    '        if(retry!=="not-found"){' +
-    '          try{console.warn("[auto-login] delayed retry succeeded:",retry);}catch(_){}' +
-    '        }else{' +
-    '          try{console.warn("[auto-login] delayed retry: form still not found after 18s");}catch(_){}' +
-    '        }' +
-    '      }catch(e){try{console.error("[auto-login] delayed retry error:",e);}catch(_){}}' +
-    '    },3000);' +
-    '  }' +
-    '},250);' +
-    'var verifyLogin=function(){' +
-    '  var startUrl=window.location.href;' +
-    '  setTimeout(function(){' +
-    '    try{' +
-    '      var currentUrl=window.location.href;' +
-    '      var errEl=document.querySelector(".login-error,.error-msg,.alert-error,[class*=error_msg]");' +
-    '      if(currentUrl!==startUrl){' +
-    '        try{console.info("[auto-login] verification: URL changed — login likely succeeded");}catch(_){}' +
-    '      }else if(errEl){' +
-    '        try{console.warn("[auto-login] verification: error element found — login may have failed:",errEl.textContent.trim());}catch(_){}' +
-    '      }else{' +
-    '        try{console.warn("[auto-login] verification: URL unchanged and no error element — login status uncertain (server may be slow)");}catch(_){}' +
-    '      }' +
-    '    }catch(e){try{console.error("[auto-login] verification error:",e);}catch(_){}}' +
-    '  },5000);' +
-    '};' +
-    'if(r==="filled"){verifyLogin();} ' +
+    // Form not in DOM yet (Oasis loads it async) — watch + poll.
+    'new MutationObserver(function(_,o){if(doLogin()!=="not-found")o.disconnect();else if(++attempts>=maxAttempts)o.disconnect();})' +
+    '.observe(document.documentElement,{childList:true,subtree:true});' +
+    'var poll=setInterval(function(){if(doLogin()!=="not-found"||++attempts>=maxAttempts)clearInterval(poll);},250);' +
     'return "waiting";' +
     '}catch(e){return "error:"+e.message;}})()'
   );
@@ -288,7 +249,6 @@ module.exports = {
   removeCredentials: removeCredentials,
   buildAutoLoginScript: buildAutoLoginScript,
   onChange: onChange,
-  // exposto p/ testes
   _getVaultPath: _getVaultPath,
   MAX_VAULT_BYTES: MAX_VAULT_BYTES
 };

@@ -1,28 +1,25 @@
 /**
- * ui/manager/StateBroadcaster.js — Push de estado para a UI (Fase 3c split)
+ * ui/manager/StateBroadcaster.js — State push to UI (Phase 3c split)
  *
- * Responsabilidade ÚNICA (SRP): empurrar snapshots de estado (perfis, memória,
- * eventos) para o renderer do manager via IPC, em intervalos e em resposta a
- * mudanças. Não cria janelas nem registra handlers de ação — isso é papel do
+ * Single Responsibility (SRP): push state snapshots (profiles, memory,
+ * events) to the manager renderer via IPC, at intervals and in response to
+ * changes. Does not create windows or register action handlers — that is the role of
  * ManagerWindow e IpcRouter.
  *
- * Histórico: era parte do God Object controller.js. Split: este módulo cuida
- * só do broadcast de estado.
+ * History: was part of the God Object controller.js. Split: this module handles
+ * only state broadcast.
  */
 
 'use strict';
 
 const store = require('../../profiles/store');
-const mg = require('../../memory/guard');
 const et = require('../../utils/EventTimers');
 const vault = require('../../profiles/vault');
 const partition = require('../../profiles/partition');
 const ManagerWindow = require('./ManagerWindow');
 
-// Guards anti-duplicação de listeners (v3.6.2)
-let _memCb = null,
-  _gcCb = null,
-  _remindCb = null;
+// Anti-duplication guards for listeners
+let _remindCb = null;
 let _pushTimer = null;
 let _storeChangeCb = null;
 let _started = false;
@@ -35,6 +32,7 @@ function _activeRegions() {
   return seen.length ? seen : ['br'];
 }
 
+/** Sends full profile list (with vault/shadow metadata) to the manager window. */
 function pushProfiles() {
   const list = store.getAll().map(function (p) {
     return Object.assign({}, p, {
@@ -45,10 +43,7 @@ function pushProfiles() {
   ManagerWindow.send('profiles:updated', list);
 }
 
-function pushMemory() {
-  ManagerWindow.send('memory:update', mg.getStats());
-}
-
+/** Sends upcoming events to the manager window. If no region, broadcasts all active regions. */
 function pushEvents(region) {
   const regions = region ? [region] : _activeRegions();
   const all = {};
@@ -58,33 +53,21 @@ function pushEvents(region) {
   ManagerWindow.send('events:update', { byRegion: all, userOffset: et.getUserOffsetHours() });
 }
 
+/** Pushes profiles + events in one call. Used for initial load. */
 function pushAll() {
   pushProfiles();
-  pushMemory();
   pushEvents();
 }
 
 /**
- * Registra listeners de mudança de estado (memory guard, GC, event remind,
- * store changes) e inicia o timer de refresh periódico (30s).
- * Idempotente — seguro chamar múltiplas vezes.
+ * Registers state-change listeners (event remind, store changes)
+ * and starts the periodic refresh timer (30s).
+ * Idempotent — safe to call multiple times.
  */
 function startAutoRefresh() {
   if (_started) return;
   _started = true;
 
-  if (!_memCb) {
-    _memCb = function () {
-      pushMemory();
-    };
-    mg.onMemoryUpdate(_memCb);
-  }
-  if (!_gcCb) {
-    _gcCb = function () {
-      pushMemory();
-    };
-    mg.onGC(_gcCb);
-  }
   if (!_remindCb) {
     _remindCb = function () {
       pushEvents();
@@ -95,7 +78,6 @@ function startAutoRefresh() {
   if (_pushTimer) clearInterval(_pushTimer);
   _pushTimer = setInterval(function () {
     pushEvents();
-    pushMemory();
   }, 30000);
   if (_pushTimer.unref) _pushTimer.unref();
 
@@ -107,6 +89,7 @@ function startAutoRefresh() {
   }
 }
 
+/** Stops the periodic timer and unregisters listeners. */
 function stopAutoRefresh() {
   if (_pushTimer) {
     clearInterval(_pushTimer);
@@ -117,7 +100,6 @@ function stopAutoRefresh() {
 
 module.exports = {
   pushProfiles: pushProfiles,
-  pushMemory: pushMemory,
   pushEvents: pushEvents,
   pushAll: pushAll,
   startAutoRefresh: startAutoRefresh,

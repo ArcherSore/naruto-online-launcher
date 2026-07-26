@@ -1,334 +1,167 @@
 /**
- * config/i18n.js — Internationalization ultra-leve
- * v2.1.0 — v5.9.15+ (settings.js restringe config.language a pt/en)
+ * config/i18n.js — Internationalization (EN + PT)
+ * clean bilingual dictionary, human-friendly copy.
  *
- * Dicionário nativo sem dependências. ~8KB.
- * Strings organizadas por contexto: setup, settings, modes, common.
- *
- * NOTA: settings.js:validateConfig restringe config.language a 'pt' e 'en'.
- * Os dicionários de/de/es/pl/fr existem mas estão incompletos (apenas setup +
- * common). O IPC i18n:set-lang valida contra a lista completa (SUPPORTED).
+ * Only keys actually referenced by the UI are kept.
+ * Setup/mode keys preserved for the first-run setup window in main.js.
+ * No technical jargon — plain language for end users.
  */
 
 'use strict';
 
 const DICTIONARY = {
-  pt: {
-    'setup.title': 'Bem-vindo ao Shinobi Launcher',
-    'setup.subtitle': 'Configure sua experiência em 30 segundos',
-    'setup.language.label': 'Idioma',
-    'setup.mode.title': 'Modo de Desempenho',
-    'setup.mode.default.body':
-      'Recomendado para todos — máxima otimização segura. Sempre benéfico.',
-    'setup.mode.lowpc.body':
-      'Apenas para PCs fracos (GPU antiga ou menos de 4GB RAM). Reduz qualidade visual do Flash para ganhar FPS. Pode ser prejudicial em PCs modernos.',
-    'setup.save': 'Começar a jogar',
-    'mode.default': 'Padrão Otimizado',
-    'mode.lowpc': 'Modo PC Fraco',
-    'common.ram': 'RAM',
-    'common.save': 'Salvar',
-    'common.cancel': 'Cancelar',
-    'common.close': 'Fechar',
-    'common.play': 'Jogar',
-    'common.edit': 'Editar',
-    'common.delete': 'Excluir',
-    'common.settings': 'Configurações',
-    'profile.name': 'Nome',
-    'profile.server': 'Servidor',
-    'profile.region': 'Região',
-    'profile.new': 'Nova conta',
-    'profile.empty': 'Nenhuma conta cadastrada',
-    'profile.empty.hint': 'Clique em "Nova conta" para criar seu primeiro perfil.',
-    // v4.6: Launcher UI strings
-    'nav.accounts': 'Contas',
-    'nav.events': 'Eventos',
-    'nav.settings': 'Configurações',
-    'topbar.new': 'Nova conta',
-    'topbar.last_profile': 'Relançar último perfil',
-    'topbar.notifications': 'Notificações',
-    'topbar.view_grid': 'Visualização em grade',
-    'topbar.view_list': 'Visualização em lista',
-    'search.placeholder': 'Buscar conta por nome, servidor ou região...',
-    'search.no_results': 'Nenhum resultado para',
-    'card.play': 'Play',
-    'card.edit': 'Editar',
-    'card.vault': 'Credenciais',
-    'card.delete': 'Excluir',
-    'card.duplicate': 'Duplicar',
-    'card.favorite': 'Favoritar',
-    'card.unfavorite': 'Desfavoritar',
-    'card.no_server': 'sem servidor',
-    'card.auto_login': 'auto-login',
-    'card.open': 'aberta',
-    'card.status.idle': 'pronto',
-    'card.status.loading': 'preenchendo',
-    'card.status.success': 'logado',
-    'card.status.error': 'falhou',
-    'modal.edit_title': 'Editar conta',
-    'modal.new_title': 'Nova conta',
-    'modal.notes': 'Notas',
-    'modal.notes_optional': '(opcional)',
-    'modal.notes_placeholder': 'Ex: conta principal, alt para eventos, build, etc.',
-    'modal.cancel': 'Cancelar',
-    'modal.save': 'Salvar',
-    'modal.vault_title': 'Credenciais',
-    'modal.vault_user': 'Usuário',
-    'modal.vault_pass': 'Senha',
-    'modal.vault_user_ph': 'Login da conta',
-    'modal.vault_pass_ph': 'Senha',
-    'modal.vault_remove': 'Remover',
-    'modal.vault_hint':
-      'Criptografado com AES-256-GCM. Auto-login injeta no formulário quando os cookies expiram.',
-    'toast.creds_saved': 'Credenciais salvas',
-    'toast.creds_removed': 'Credenciais removidas',
-    'toast.server_changed': 'Servidor trocado para',
-    'toast.profile_deleted': 'Conta removida (dados + cookies apagados)',
-    'toast.name_required': 'Informe um nome',
-    'toast.creds_required': 'Usuário e senha obrigatórios',
-    'toast.exported': 'Exportado',
-    'toast.imported': 'Importados',
-    'toast.perfis': 'perfis',
-    'toast.notif_muted': 'Notificações mutadas',
-    'toast.notif_active': 'Notificações ativas',
-    'toast.duplicated': 'Perfil duplicado',
-    'toast.favorited': 'Perfil favoritado',
-    'toast.unfavorited': 'Perfil desfavoritado',
-    'sort.name': 'Nome (A-Z)',
-    'sort.last_used': 'Último uso',
-    'sort.launch_count': 'Mais usado',
-    'sort.play_time': 'Tempo de jogo',
-    'sort.region': 'Região',
-    'sort.created': 'Criação',
-    'settings.general': 'Geral',
-    'settings.language': 'Idioma',
-    'settings.language_desc': 'Idioma da interface do launcher',
-    'settings.performance': 'Modo de desempenho',
-    'settings.performance_desc_default': 'Padrão: máxima otimização segura',
-    'settings.performance_desc_lowpc': 'PC Fraco: reduz qualidade do Flash para ganhar FPS',
-    'settings.preferences': 'Preferências',
-    'settings.notifications': 'Notificações',
-    'settings.notifications_desc': 'Alertas de eventos do jogo',
-    delete_confirm: 'Excluir esta conta? Cookies e credenciais serão apagados.',
-    vault_remove_confirm: 'Remover credenciais?'
-  },
-
   en: {
     'setup.title': 'Welcome to Shinobi Launcher',
     'setup.subtitle': 'Set up your experience in 30 seconds',
     'setup.language.label': 'Language',
     'setup.mode.title': 'Performance Mode',
     'setup.mode.default.body':
-      'Recommended for everyone — maximum safe optimization. Always beneficial.',
+      'Recommended for everyone — always on, always safe.',
     'setup.mode.lowpc.body':
-      'Only for low-end PCs (old GPU or less than 4GB RAM). Reduces Flash visual quality to gain FPS. May be harmful on modern PCs.',
+      'For old PCs or under 4GB RAM. Frees up memory and rests the GPU.',
     'setup.save': 'Start playing',
     'mode.default': 'Optimized Default',
     'mode.lowpc': 'Low-end PC Mode',
-    'common.ram': 'RAM',
     'common.save': 'Save',
     'common.cancel': 'Cancel',
     'common.close': 'Close',
-    'common.play': 'Play',
-    'common.edit': 'Edit',
-    'common.delete': 'Delete',
-    'common.settings': 'Settings',
+    'common.export': 'Export',
+    'common.import': 'Import',
     'profile.name': 'Name',
     'profile.server': 'Server',
     'profile.region': 'Region',
-    'profile.new': 'New account',
-    'profile.empty': 'No accounts registered',
-    'profile.empty.hint': 'Click "New account" to create your first profile.',
-    // v4.6: Launcher UI strings (en)
+    // Launcher UI strings
     'nav.accounts': 'Accounts',
     'nav.events': 'Events',
     'nav.settings': 'Settings',
     'topbar.new': 'New account',
-    'topbar.last_profile': 'Relaunch last profile',
-    'topbar.notifications': 'Notifications',
-    'topbar.view_grid': 'Grid view',
-    'topbar.view_list': 'List view',
-    'search.placeholder': 'Search account by name, server or region...',
-    'search.no_results': 'No results for',
-    'card.play': 'Play',
-    'card.edit': 'Edit',
-    'card.vault': 'Credentials',
-    'card.delete': 'Delete',
-    'card.duplicate': 'Duplicate',
-    'card.favorite': 'Favorite',
-    'card.unfavorite': 'Unfavorite',
-    'card.no_server': 'no server',
-    'card.auto_login': 'auto-login',
-    'card.open': 'open',
-    'card.status.idle': 'ready',
-    'card.status.loading': 'filling',
-    'card.status.success': 'logged in',
-    'card.status.error': 'failed',
-    'modal.edit_title': 'Edit account',
-    'modal.new_title': 'New account',
-    'modal.notes': 'Notes',
-    'modal.notes_optional': '(optional)',
-    'modal.notes_placeholder': 'Ex: main account, alt for events, build, etc.',
-    'modal.cancel': 'Cancel',
-    'modal.save': 'Save',
+    'modal.search': 'Search',
+    'modal.server_hint': 'Type the server number or click Search.',
+    'modal.auto_create': 'Create automatically',
     'modal.vault_title': 'Credentials',
+    'modal.vault_subtitle': 'Saved securely — auto-filled when login expires',
     'modal.vault_user': 'Username',
     'modal.vault_pass': 'Password',
-    'modal.vault_user_ph': 'Account login',
-    'modal.vault_pass_ph': 'Password',
     'modal.vault_remove': 'Remove',
     'modal.vault_hint':
-      'Encrypted with AES-256-GCM. Auto-login injects into the form when cookies expire.',
-    'toast.creds_saved': 'Credentials saved',
-    'toast.creds_removed': 'Credentials removed',
-    'toast.server_changed': 'Server changed to',
-    'toast.profile_deleted': 'Account removed (data + cookies cleared)',
-    'toast.name_required': 'Name is required',
-    'toast.creds_required': 'Username and password are required',
-    'toast.exported': 'Exported',
-    'toast.imported': 'Imported',
-    'toast.perfis': 'profiles',
-    'toast.notif_muted': 'Notifications muted',
-    'toast.notif_active': 'Notifications active',
-    'toast.duplicated': 'Profile duplicated',
-    'toast.favorited': 'Profile favorited',
-    'toast.unfavorited': 'Profile unfavorited',
-    'sort.name': 'Name (A-Z)',
-    'sort.last_used': 'Last used',
-    'sort.launch_count': 'Most used',
-    'sort.play_time': 'Play time',
-    'sort.region': 'Region',
-    'sort.created': 'Created',
+      'Saved securely on this computer. Filled in automatically when your session expires.',
     'settings.general': 'General',
     'settings.language': 'Language',
-    'settings.language_desc': 'Launcher interface language',
-    'settings.performance': 'Performance mode',
-    'settings.performance_desc_default': 'Default: maximum safe optimization',
-    'settings.performance_desc_lowpc': 'Low-end PC: reduces Flash quality to gain FPS',
-    'settings.preferences': 'Preferences',
+    'settings.language.desc': 'Launcher interface language',
+    'settings.optimization': 'Optimization',
+    'settings.optimization.hint': 'Automatic',
+    'settings.advanced': 'Advanced',
     'settings.notifications': 'Notifications',
-    'settings.notifications_desc': 'Game event alerts',
+    'settings.notifications.desc': 'Alert me before events start',
+    'settings.remind': 'Reminder time',
+    'settings.remind.desc': 'Minutes before each event to notify',
+    'settings.restart': 'Restart required',
+    'settings.restart.desc':
+      'Restart the launcher to apply this change.',
+    'settings.restart.btn': 'Restart now',
+    'settings.lowpc': 'Low-end PC mode',
+    'settings.lowpc.desc':
+      'For old PCs or under 4GB RAM. Frees up memory and rests the GPU.',
+    'settings.cpu_render': 'Force CPU rendering',
+    'settings.cpu_render.desc':
+      'For GPUs with issues. Uses the processor — slower, but more stable.',
+    'settings.backup': 'Encrypted backup',
+    'settings.backup.desc':
+      'Save your accounts and passwords to a secure file',
+    'settings.diag': 'Export diagnostics',
+    'settings.diag.desc':
+      'System info file for support (no passwords included)',
+    'settings.diag.btn': 'Export .zip',
+    'settings.about': 'About',
+    'about.tagline': 'Multi-account Flash launcher for Naruto Online',
+    'about.author': 'Author',
+    'about.license': 'License',
+    'about.platform': 'Platform',
+    'about.runtime': 'Runtime',
+    'about.report': 'Report issue',
     delete_confirm: 'Delete this account? Cookies and credentials will be cleared.',
     vault_remove_confirm: 'Remove credentials?'
   },
 
-  de: {
-    'setup.title': 'Willkommen beim Shinobi Launcher',
-    'setup.subtitle': 'Richten Sie Ihre Erfahrung in 30 Sekunden ein',
-    'setup.language.label': 'Sprache',
-    'setup.mode.title': 'Leistungsmodus',
-    'setup.mode.default.body':
-      'Für alle empfohlen — maximale sichere Optimierung. Immer vorteilhaft.',
-    'setup.mode.lowpc.body':
-      'Nur für schwache PCs (alte GPU oder weniger als 4GB RAM). Reduziert Flash-Visualqualität für mehr FPS. Kann auf modernen PCs schädlich sein.',
-    'setup.save': 'Spielen starten',
-    'mode.default': 'Optimierter Standard',
-    'mode.lowpc': 'Schwacher PC Modus',
-    'common.ram': 'RAM',
-    'common.save': 'Speichern',
-    'common.cancel': 'Abbrechen',
-    'common.close': 'Schließen',
-    'common.play': 'Spielen',
-    'common.edit': 'Bearbeiten',
-    'common.delete': 'Löschen',
-    'common.settings': 'Einstellungen',
-    'profile.name': 'Name',
-    'profile.server': 'Server',
-    'profile.region': 'Region',
-    'profile.new': 'Neues Konto',
-    'profile.empty': 'Keine Konten registriert',
-    'profile.empty.hint': 'Klicken Sie auf "Neues Konto", um Ihr erstes Profil zu erstellen.'
-  },
-
-  es: {
-    'setup.title': 'Bienvenido a Shinobi Launcher',
-    'setup.subtitle': 'Configura tu experiencia en 30 segundos',
+  pt: {
+    'setup.title': 'Bem-vindo ao Shinobi Launcher',
+    'setup.subtitle': 'Configure sua experiência em 30 segundos',
     'setup.language.label': 'Idioma',
-    'setup.mode.title': 'Modo de Rendimiento',
+    'setup.mode.title': 'Modo de Desempenho',
     'setup.mode.default.body':
-      'Recomendado para todos — máxima optimización segura. Siempre beneficioso.',
+      'Recomendado para todos — sempre ativo, sempre seguro.',
     'setup.mode.lowpc.body':
-      'Solo para PCs débiles (GPU antigua o menos de 4GB RAM). Reduce la calidad visual de Flash para ganar FPS. Puede ser perjudicial en PCs modernos.',
-    'setup.save': 'Empezar a jugar',
-    'mode.default': 'Predeterminado Optimizado',
-    'mode.lowpc': 'Modo PC Débil',
-    'common.ram': 'RAM',
-    'common.save': 'Guardar',
+      'Para PCs antigos ou com menos de 4GB RAM. Libera memória e descansa a placa de vídeo.',
+    'setup.save': 'Começar a jogar',
+    'mode.default': 'Padrão Otimizado',
+    'mode.lowpc': 'Modo PC Fraco',
+    'common.save': 'Salvar',
     'common.cancel': 'Cancelar',
-    'common.close': 'Cerrar',
-    'common.play': 'Jugar',
-    'common.edit': 'Editar',
-    'common.delete': 'Eliminar',
-    'common.settings': 'Configuración',
-    'profile.name': 'Nombre',
+    'common.close': 'Fechar',
+    'common.export': 'Exportar',
+    'common.import': 'Importar',
+    'profile.name': 'Nome',
     'profile.server': 'Servidor',
-    'profile.region': 'Región',
-    'profile.new': 'Nueva cuenta',
-    'profile.empty': 'Sin cuentas registradas',
-    'profile.empty.hint': 'Haz clic en "Nueva cuenta" para crear tu primer perfil.'
-  },
-
-  pl: {
-    'setup.title': 'Witaj w Shinobi Launcher',
-    'setup.subtitle': 'Skonfiguruj swoje doświadczenie w 30 sekund',
-    'setup.language.label': 'Język',
-    'setup.mode.title': 'Tryb Wydajności',
-    'setup.mode.default.body':
-      'Zalecane dla wszystkich — maksymalna bezpieczna optymalizacja. Zawsze korzystne.',
-    'setup.mode.lowpc.body':
-      'Tylko dla słabych PC (stary GPU lub mniej niż 4GB RAM). Redukuje jakość wizualną Flash, aby zyskać FPS. Może być szkodliwe na nowoczesnych PC.',
-    'setup.save': 'Rozpocznij grę',
-    'mode.default': 'Optymalny Domyślny',
-    'mode.lowpc': 'Tryb Słabego PC',
-    'common.ram': 'RAM',
-    'common.save': 'Zapisz',
-    'common.cancel': 'Anuluj',
-    'common.close': 'Zamknij',
-    'common.play': 'Graj',
-    'common.edit': 'Edytuj',
-    'common.delete': 'Usuń',
-    'common.settings': 'Ustawienia',
-    'profile.name': 'Nazwa',
-    'profile.server': 'Serwer',
-    'profile.region': 'Region',
-    'profile.new': 'Nowe konto',
-    'profile.empty': 'Brak zarejestrowanych kont',
-    'profile.empty.hint': 'Kliknij "Nowe konto", aby utworzyć swój pierwszy profil.'
-  },
-
-  fr: {
-    'setup.title': 'Bienvenue sur Shinobi Launcher',
-    'setup.subtitle': 'Configurez votre expérience en 30 secondes',
-    'setup.language.label': 'Langue',
-    'setup.mode.title': 'Mode de Performance',
-    'setup.mode.default.body':
-      'Recommandé pour tous — optimisation sécurisée maximale. Toujours bénéfique.',
-    'setup.mode.lowpc.body':
-      'Uniquement pour PC faibles (ancien GPU ou moins de 4GB RAM). Réduit la qualité visuelle de Flash pour gagner en FPS. Peut être nuisible sur PC modernes.',
-    'setup.save': 'Commencer à jouer',
-    'mode.default': 'Défaut Optimisé',
-    'mode.lowpc': 'Mode PC Faible',
-    'common.ram': 'RAM',
-    'common.save': 'Sauvegarder',
-    'common.cancel': 'Annuler',
-    'common.close': 'Fermer',
-    'common.play': 'Jouer',
-    'common.edit': 'Modifier',
-    'common.delete': 'Supprimer',
-    'common.settings': 'Paramètres',
-    'profile.name': 'Nom',
-    'profile.server': 'Serveur',
-    'profile.region': 'Région',
-    'profile.new': 'Nouveau compte',
-    'profile.empty': 'Aucun compte enregistré',
-    'profile.empty.hint': 'Cliquez sur "Nouveau compte" pour créer votre premier profil.'
+    'profile.region': 'Região',
+    // Launcher UI strings
+    'nav.accounts': 'Contas',
+    'nav.events': 'Eventos',
+    'nav.settings': 'Configurações',
+    'topbar.new': 'Nova conta',
+    'modal.search': 'Buscar',
+    'modal.server_hint': 'Digite o número do servidor ou clique em Buscar.',
+    'modal.auto_create': 'Criar automaticamente',
+    'modal.vault_title': 'Credenciais',
+    'modal.vault_subtitle': 'Salvo com segurança — preenchido quando o login expirar',
+    'modal.vault_user': 'Usuário',
+    'modal.vault_pass': 'Senha',
+    'modal.vault_remove': 'Remover',
+    'modal.vault_hint':
+      'Salvo com segurança neste computador. Preenchido automaticamente quando sua sessão expirar.',
+    'settings.general': 'Geral',
+    'settings.language': 'Idioma',
+    'settings.language.desc': 'Idioma da interface do launcher',
+    'settings.optimization': 'Otimização',
+    'settings.optimization.hint': 'Automática',
+    'settings.advanced': 'Avançado',
+    'settings.notifications': 'Notificações',
+    'settings.notifications.desc': 'Avisar antes dos eventos começarem',
+    'settings.remind': 'Tempo de lembrete',
+    'settings.remind.desc': 'Quantos minutos antes avisar',
+    'settings.restart': 'Reinício necessário',
+    'settings.restart.desc':
+      'Reinicie o launcher para aplicar esta alteração.',
+    'settings.restart.btn': 'Reiniciar agora',
+    'settings.lowpc': 'Modo PC Fraco',
+    'settings.lowpc.desc':
+      'Para PCs antigos ou com menos de 4GB de RAM. Libera memória e descansa a placa de vídeo.',
+    'settings.cpu_render': 'Forçar renderização por CPU',
+    'settings.cpu_render.desc':
+      'Para GPUs com problema. Usa o processador — mais lento, mas mais estável.',
+    'settings.backup': 'Backup criptografado',
+    'settings.backup.desc':
+      'Salva suas contas e senhas em um arquivo seguro',
+    'settings.diag': 'Exportar diagnóstico',
+    'settings.diag.desc':
+      'Arquivo com dados do sistema para suporte (sem senhas)',
+    'settings.diag.btn': 'Exportar .zip',
+    'settings.about': 'Sobre',
+    'about.tagline': 'Launcher Flash multi-conta para Naruto Online',
+    'about.author': 'Autor',
+    'about.license': 'Licença',
+    'about.platform': 'Plataforma',
+    'about.runtime': 'Runtime',
+    'about.report': 'Reportar problema',
+    delete_confirm: 'Excluir esta conta? Cookies e credenciais serão apagados.',
+    vault_remove_confirm: 'Remover credenciais?'
   }
 };
 
-let _currentLang = 'pt';
+let _currentLang = 'en';
 
 /**
- * Define o idioma atual. Ignora silenciosamente se o idioma não existir no dicionário.
- * @param {string} lang — código do idioma (ex: 'pt', 'en')
+ * Sets the current language. Silently ignores if language doesn't exist in dictionary.
+ * @param {string} lang — language code (e.g. 'pt', 'en')
  */
 function setLanguage(lang) {
   if (DICTIONARY[lang]) {
@@ -336,24 +169,18 @@ function setLanguage(lang) {
   }
 }
 
-/** Retorna o idioma atual. @returns {string} */
+/** Returns the current language. @returns {string} */
 function getLanguage() {
   return _currentLang;
 }
 
-/** Traduz uma chave para o idioma atual, com fallback para pt. @param {string} key @returns {string} */
+/** Translates a key to the current language, with en/pt fallback. @param {string} key @returns {string} */
 function t(key) {
-  const dict = DICTIONARY[_currentLang] || DICTIONARY.pt;
-  return dict[key] || DICTIONARY.pt[key] || key;
+  const dict = DICTIONARY[_currentLang] || DICTIONARY.en;
+  return dict[key] || DICTIONARY.en[key] || DICTIONARY.pt[key] || key;
 }
 
-/** Traduz uma chave para um idioma específico, com fallback para pt. @param {string} key @param {string} lang @returns {string} */
-function tl(key, lang) {
-  const dict = DICTIONARY[lang] || DICTIONARY.pt;
-  return dict[key] || DICTIONARY.pt[key] || key;
-}
-
-/** Retorna o dicionário completo para um idioma (ou o atual). @param {string} [lang] @returns {Object} */
+/** Returns the complete dictionary for a language (or the current one). @param {string} [lang] @returns {Object} */
 function getAll(lang) {
   const l = lang || _currentLang;
   return DICTIONARY[l] || DICTIONARY.pt;
@@ -363,7 +190,5 @@ module.exports = {
   setLanguage: setLanguage,
   getLanguage: getLanguage,
   t: t,
-  tl: tl,
-  getAll: getAll,
-  SUPPORTED: ['pt', 'en', 'de', 'es', 'pl', 'fr']
+  getAll: getAll
 };

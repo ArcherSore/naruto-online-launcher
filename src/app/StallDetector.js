@@ -1,66 +1,66 @@
 /**
- * app/StallDetector.js — Detecção de loader travado + auto-F5 com pré-auth
+ * app/StallDetector.js — Stuck loader detection + auto-F5 with pre-auth
  *
- * PROBLEMA (v5.9.11): o login do Naruto Online às vezes trava em ~14% e dá
- * erro de conexão. Root cause: um SWF essencial (assets, UI, empty.swf)
- * falha no download (network hiccup, timeout, Mixed Content). O preloader
- * do Flash NÃO tem retry — quando um SWF falha, o loader fica preso
- * forever naquela porcentagem. O usuário precisa fechar e reabrir manualmente.
+ * PROBLEM: Naruto Online login sometimes gets stuck at ~14% with
+ * connection error. Root cause: an essential SWF (assets, UI, empty.swf)
+ * fails to download (network hiccup, timeout, Mixed Content). The preloader
+ * of Flash has NO retry — when an SWF fails, the loader gets stuck
+ * forever at that percentage. The user has to close and reopen manually.
  *
- * SOLUÇÃO: monitorar a session via webRequest.onCompleted + onErrorOccurred.
- * Quando detectamos:
- *   (A) 2+ SWFs falhando em 60s → burst de falhas = servidor instável → reload
- *   (B) 45s sem nenhuma atividade de rede durante o loading → loader travado → reload
- * Chamamos onStall() que delega pra SessionLifecycle.reloadWithPreAuth
- * (mesmo fluxo do F5: limpa cookies + pré-autentica via API antes de reload).
+ * SOLUTION: monitor the session via webRequest.onCompleted + onErrorOccurred.
+ * When detected:
+ *   (A) 2+ SWFs failing in 60s → burst of failures = unstable server → reload
+ *   (B) 45s without any network activity during loading → stuck loader → reload
+ * Calls onStall() which delegates to SessionLifecycle.reloadWithPreAuth
+ * (same flow as F5: clears cookies + pre-authenticates via API before reload).
  *
- * BACKOFF: max 3 auto-reloads em 10 min por perfil (evita loop infinito
- * se o servidor estiver realmente fora do ar).
+ * BACKOFF: max 3 auto-reloads in 10 min per profile (avoids infinite loop
+ * if the server is actually down).
  *
- * AUTO-STOP: após 120s de atividade contínua sem stall, consideramos o
- * jogo "pronto" e encerramos o monitoramento (o jogo está rodando, não
- * precisa mais de watchdog).
+ * AUTO-STOP: after 120s of continuous activity without stall, consider the
+ * game "ready" and end monitoring (the game is running, no
+ * longer needs a watchdog).
  *
- * LISTENER CLEANUP: Electron 11's webRequest.onCompleted(null) remove TODOS
- * os listeners da session, não apenas o nosso. Isso causava leak quando
- * múltiplas janelas usavam a mesma session. Fix: usamos um WeakMap para
- * rastrear os filtros registrados por cada session e passamos o filtro
- * correto no detach(). Se não for possível remover com filtro, usamos
- * um flag 'stopped' para no-op nos handlers (listeners ficam mas são inertes).
+ * LISTENER CLEANUP: Electron 11's webRequest.onCompleted(null) removes ALL
+ * listeners from the session, not just ours. This caused leaks when
+ * multiple windows used the same session. Fix: we use a WeakMap to
+ * track registered filters per session and pass the correct filter
+ * on detach(). If removal with filter isn't possible, we use
+ * a 'stopped' flag to no-op in handlers (listeners remain but are inert).
  *
- * Nota: did-fail-load (em SessionLifecycle) cuida de erros da página HTML
- * principal. Este módulo cuida de falhas de SUB-RECURSOS (SWFs dentro do
- * Flash player) que o did-fail-load não detecta.
+ * Note: did-fail-load (in SessionLifecycle) handles HTML page errors.
+ * This module handles SUB-RESOURCE failures (SWFs inside the
+ * Flash player) that did-fail-load doesn't detect.
  */
 
 'use strict';
 
 var logger = require('../utils/logger');
 
-// WeakMap para rastrear filtros webRequest por session — permite detach limpo
-// sem remover listeners de outros StallDetectors na mesma session.
+// WeakMap to track webRequest filters per session — enables clean detach
+// without removing listeners from other StallDetectors on the same session.
 var _sessionFilters = new WeakMap();
 
 var DEFAULTS = {
-  maxRetries: 3, // max auto-reloads na janela de retry
-  retryWindowMs: 600000, // 10 min — janela pra contar retries
-  stallThresholdMs: 45000, // 45s sem atividade = loader travado
-  swfErrorThreshold: 2, // 2 SWFs falhando em 60s = burst = reload
-  swfErrorWindowMs: 60000, // 60s — janela pra contar SWF errors
-  pollIntervalMs: 10000, // check a cada 10s
-  readyAfterMs: 120000 // 120s de atividade contínua = jogo pronto
+  maxRetries: 3, // max auto-reloads in retry window
+  retryWindowMs: 600000, // 10 min — window for counting retries
+  stallThresholdMs: 45000, // 45s without activity = loader stuck
+  swfErrorThreshold: 2, // 2 SWFs failing in 60s = burst = reload
+  swfErrorWindowMs: 60000, // 60s — window for counting SWF errors
+  pollIntervalMs: 10000, // check every 10s
+  readyAfterMs: 120000 // 120s of continuous activity = game ready
 };
 
 /**
- * Cria e anexa um StallDetector a uma janela de jogo.
+ * Creates and attaches a StallDetector to a game window.
  *
  * @param {Electron.BrowserWindow} win
  * @param {Electron.Session} ses
  * @param {Object} ctx
- * @param {string} ctx.profileName — nome do perfil (pra logs)
- * @param {Function} ctx.onStall — callback chamado quando stall detectado
+ * @param {string} ctx.profileName — profile name (for logs)
+ * @param {Function} ctx.onStall — callback called when stall is detected
  * @param {Object} [ctx.opts] — overrides de thresholds (pra testes)
- * @returns {Object|null} instância com método detach(), ou null se inválido
+ * @returns {Object|null} instance with detach() method, or null if invalid
  */
 function attach(win, ses, ctx) {
   if (!win || !ses) return null;
@@ -72,14 +72,14 @@ function attach(win, ses, ctx) {
 
   var lastActivityAt = Date.now();
   var startedAt = Date.now();
-  var swfErrors = []; // timestamps de falhas de SWF
-  var retries = []; // timestamps de auto-reloads
+  var swfErrors = []; // timestamps of SWF failures
+  var retries = []; // timestamps of auto-reloads
   var stopped = false;
   var ready = false;
   var pollInterval = null;
 
   /**
-   * Verifica se uma URL é um arquivo SWF.
+   * Check if a URL is a SWF file.
    */
   function isSwf(url) {
     if (!url) return false;
@@ -87,7 +87,7 @@ function attach(win, ses, ctx) {
   }
 
   /**
-   * Listener onCompleted — qualquer recurso que completa = atividade de rede.
+   * Listener onCompleted — any resource that completes = network activity.
    */
   function onCompleted() {
     if (stopped) return;
@@ -95,7 +95,7 @@ function attach(win, ses, ctx) {
   }
 
   /**
-   * Listener onErrorOccurred — registra falhas, especialmente SWFs.
+   * Listener onErrorOccurred — records failures, especially SWFs.
    */
   function onErrorOccurred(details) {
     if (stopped) return;
@@ -103,9 +103,9 @@ function attach(win, ses, ctx) {
     if (isSwf(details.url)) {
       swfErrors.push(Date.now());
       logger.warn(
-        'StallDetector: SWF falhou — ' +
+        'StallDetector: SWF failed — ' +
           (details.url || '').slice(0, 120) +
-          ' (erro: ' +
+          ' (error: ' +
           (details.error || 'unknown') +
           ') — ' +
           profileName
@@ -114,7 +114,7 @@ function attach(win, ses, ctx) {
   }
 
   /**
-   * Poll principal — roda a cada pollIntervalMs, checa condições de stall.
+   * Main poll — runs every pollIntervalMs, checks stall conditions.
    */
   function check() {
     if (stopped || ready) return;
@@ -125,7 +125,7 @@ function attach(win, ses, ctx) {
 
     var now = Date.now();
 
-    // Limpa entradas antigas
+    // Clear old entries
     swfErrors = swfErrors.filter(function (t) {
       return now - t < opts.swfErrorWindowMs;
     });
@@ -133,63 +133,63 @@ function attach(win, ses, ctx) {
       return now - t < opts.retryWindowMs;
     });
 
-    // ── Check: jogo pronto? ──
-    // Após readyAfterMs de atividade contínua sem stall, consideramos carregado.
+    // ── Check: game ready? ──
+    // After readyAfterMs of continuous activity without stall, we consider it loaded.
     if (now - startedAt > opts.readyAfterMs && now - lastActivityAt < opts.stallThresholdMs) {
       ready = true;
       logger.info(
-        'StallDetector: jogo pronto após ' +
+        'StallDetector: game ready after ' +
           Math.round((now - startedAt) / 1000) +
-          's — monitoramento encerrado — ' +
+          's — monitoring ended — ' +
           profileName
       );
       detach();
       return;
     }
 
-    // ── Check: limite de retries atingido? ──
+    // ── Check: retry limit reached? ──
     if (retries.length >= opts.maxRetries) {
       logger.error(
-        'StallDetector: limite de auto-reload atingido (' +
+        'StallDetector: auto-reload limit reached (' +
           opts.maxRetries +
-          ' em ' +
+          ' in ' +
           Math.round(opts.retryWindowMs / 60000) +
           'min) — ' +
           profileName +
-          ' — DESISTINDO (servidor pode estar fora do ar)'
+          ' — GIVING UP (server may be down)'
       );
       detach();
       return;
     }
 
-    // ── Check: burst de falhas de SWF? ──
+    // ── Check: SWF failure burst? ──
     if (swfErrors.length >= opts.swfErrorThreshold) {
       triggerStall(
-        'burst de falhas SWF (' +
+        'SWF failure burst (' +
           swfErrors.length +
-          ' em ' +
+          ' in ' +
           Math.round(opts.swfErrorWindowMs / 1000) +
           's)'
       );
       return;
     }
 
-    // ── Check: inatividade de rede? ──
+    // ── Check: network inactivity? ──
     var inactiveFor = now - lastActivityAt;
     if (inactiveFor > opts.stallThresholdMs) {
-      triggerStall('sem atividade de rede por ' + Math.round(inactiveFor / 1000) + 's');
+      triggerStall('no network activity for ' + Math.round(inactiveFor / 1000) + 's');
       return;
     }
   }
 
   /**
-   * Dispara o stall: loga, registra retry, chama onStall.
+   * Fire the stall: log, record retry, call onStall.
    */
   function triggerStall(reason) {
     if (stopped || ready) return;
     var attemptNum = retries.length + 1;
     logger.warn(
-      'StallDetector: STALL detectado — ' +
+      'StallDetector: STALL detected — ' +
         reason +
         ' — ' +
         profileName +
@@ -199,22 +199,22 @@ function attach(win, ses, ctx) {
         opts.maxRetries
     );
     retries.push(Date.now());
-    // Reset activity + errors pra não re-trigger imediatamente no próximo poll
+    // Reset activity + errors to avoid immediate re-trigger on next poll
     lastActivityAt = Date.now();
     swfErrors = [];
     try {
       onStall();
     } catch (e) {
-      logger.error('StallDetector: onStall callback lançou erro: ' + e.message);
+      logger.error('StallDetector: onStall callback threw error: ' + e.message);
     }
   }
 
   /**
-   * Desanexa listeners + limpa interval.
-   * IMPORTANTE: 'stopped' flag torna os handlers inertes. Mesmo que não
-   * consigamos remover o listener do webRequest (Electron 11 API limitada),
-   * o handler checka 'stopped' no topo e retorna imediatamente — sem leak
-   * de CPU ou side-effects.
+   * Detach listeners + clear interval.
+   * IMPORTANT: 'stopped' flag makes handlers inert. Even if we can't
+   * remove the listener from webRequest (Electron 11 limited API),
+   * the handler checks 'stopped' at the top and returns immediately — no
+   * CPU leak or side-effects.
    */
   function detach() {
     if (stopped) return;
@@ -223,10 +223,10 @@ function attach(win, ses, ctx) {
       clearInterval(pollInterval);
       pollInterval = null;
     }
-    // Tenta remover listeners com o filtro armazenado. Electron 11's
-    // webRequest.onCompleted/onErrorOccurred(null) remove TODOS os
-    // listeners da session — isso é perigoso com múltiplas janelas.
-    // Passamos o filtro específico se disponível.
+    // Try to remove listeners with the stored filter. Electron 11's
+    // webRequest.onCompleted/onErrorOccurred(null) removes ALL
+    // listeners from the session — this is dangerous with multiple windows.
+    // We pass the specific filter if available.
     try {
       var filters = _sessionFilters.get(ses);
       if (filters) {
@@ -235,14 +235,14 @@ function attach(win, ses, ctx) {
         _sessionFilters.delete(ses);
       }
     } catch (_) {
-      // Session pode já estar destruída — 'stopped' garante handlers são no-op
+      // Session may already be destroyed — 'stopped' ensures handlers are no-op
     }
   }
 
-  // ── Inicialização ──
-  // Armazena filtro para remoção precisa no detach. Se a session tiver
-  // outros StallDetectors (múltiplas janelas na mesma partition), não
-  // os afetaremos — cada um remove apenas seu próprio filtro.
+  // ── Initialization ──
+  // Store filter for precise removal on detach. If the session has
+  // other StallDetectors (multiple windows on the same partition), we won't
+  // affect them — each one removes only its own filter.
   var _filter = { urls: ['<all_urls>'] };
   _sessionFilters.set(ses, _filter);
   ses.webRequest.onCompleted(_filter, onCompleted);
@@ -251,13 +251,13 @@ function attach(win, ses, ctx) {
   if (pollInterval.unref) pollInterval.unref();
 
   logger.info(
-    'StallDetector: monitorando — ' +
+    'StallDetector: monitoring — ' +
       profileName +
       ' (stall=' +
       opts.stallThresholdMs / 1000 +
       's, swfBurst=' +
       opts.swfErrorThreshold +
-      ' em ' +
+      ' in ' +
       opts.swfErrorWindowMs / 1000 +
       's, maxRetry=' +
       opts.maxRetries +
@@ -266,7 +266,7 @@ function attach(win, ses, ctx) {
 
   return {
     detach: detach,
-    // exposto pra testes/inspeção
+    // internal inspection
     _isReady: function () {
       return ready;
     },
@@ -280,6 +280,5 @@ function attach(win, ses, ctx) {
 }
 
 module.exports = {
-  attach: attach,
-  DEFAULTS: DEFAULTS
+  attach: attach
 };

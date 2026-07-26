@@ -1,6 +1,6 @@
 /**
- * Carregamento e Salvamento de Configuração
- * v1.2.0 - Window bounds persistence, async file operations
+ * Configuration Loading and Saving
+ * Window bounds persistence, async file operations
  */
 
 'use strict';
@@ -9,7 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const { app } = require('electron');
 const logger = require('../utils/logger');
-const { isValidRegion, getDefaultRegion } = require('./regions');
+const { isValidRegion, normalizeRegion, getDefaultRegion } = require('./regions');
 const { isValidProfile, getDefaultProfile } = require('./hardware');
 const { isValidPreset, getDefaultPreset } = require('./optimization');
 
@@ -29,34 +29,39 @@ function getConfigPath() {
 function validateConfig(rawConfig) {
   const region = rawConfig && rawConfig.region;
   const hardwareProfile = rawConfig && rawConfig.hardwareProfile;
-  const forceBatata = rawConfig && rawConfig.forceBatata;
+  // Backward-compat: migrate legacy forceBatata → forceLowSpec
+  const forceLowSpec = rawConfig
+    ? rawConfig.forceLowSpec !== undefined
+      ? rawConfig.forceLowSpec
+      : rawConfig.forceBatata
+    : undefined;
 
   const optimizationPreset = rawConfig && rawConfig.optimizationPreset;
 
   const validated = {
-    region: isValidRegion(region) ? region : getDefaultRegion(),
+    region: isValidRegion(region) ? normalizeRegion(region) : getDefaultRegion(),
     hardwareProfile: isValidProfile(hardwareProfile) ? hardwareProfile : getDefaultProfile(),
-    forceBatata: forceBatata === true ? true : forceBatata === false ? false : undefined,
+    forceLowSpec: forceLowSpec === true ? true : forceLowSpec === false ? false : undefined,
     mutedEvents: rawConfig && rawConfig.mutedEvents === true,
     windowBounds: (rawConfig && rawConfig.windowBounds) || null,
-    // v3.5: onboarding + i18n + Modo Leve Avançado
-    firstBoot: rawConfig && rawConfig.firstBoot === false ? false : true, // default true até concluir setup
-    // v4.0.1 FIX: antes só aceitava pt/en, depois aceitava 6 idiomas.
-    // v5.9.15: i18n foi reduzido a pt/en (Task 225). Outros idiomas ("em breve")
-    // foram removidos. Aceitar de/es/pl/fr aqui causava idioma sem tradução.
+    // skip firstBoot setup wizard — defaults are sensible (EN + balanced preset).
+    // Setting firstBoot=false means setup.html is never shown on first launch.
+    firstBoot: rawConfig && rawConfig.firstBoot === false ? false : false,
+    // EN is the default (more global). PT remains as alternative.
+    // Legacy configs with 'pt' are preserved; invalid values fall back to 'en'.
     language:
-      rawConfig && ['pt', 'en'].indexOf(rawConfig.language) !== -1 ? rawConfig.language : 'pt',
-    advancedMode: rawConfig && rawConfig.advancedMode === true, // Modo Leve Avançado (Flash low quality)
-    // v5.0.0: optimization preset (performance/balanced/quality) — aplicado em flags.js
+      rawConfig && ['pt', 'en'].indexOf(rawConfig.language) !== -1 ? rawConfig.language : 'en',
+    advancedMode: rawConfig && rawConfig.advancedMode === true, // Advanced Light Mode (Flash low quality)
+    // optimization preset (performance/balanced/quality) — applied in flags.js
     optimizationPreset: isValidPreset(optimizationPreset) ? optimizationPreset : getDefaultPreset()
   };
 
   if (region !== undefined && !isValidRegion(region)) {
-    logger.warn('Região inválida: ' + region + ', usando padrão: ' + validated.region);
+    logger.warn('Invalid region: ' + region + ', using default: ' + validated.region);
   }
   if (hardwareProfile !== undefined && !isValidProfile(hardwareProfile)) {
     logger.warn(
-      'Perfil inválido: ' + hardwareProfile + ', usando padrão: ' + validated.hardwareProfile
+      'Invalid hardware profile: ' + hardwareProfile + ', using default: ' + validated.hardwareProfile
     );
   }
 
@@ -72,11 +77,11 @@ function loadConfig() {
 
   try {
     if (!fs.existsSync(configPath)) {
-      logger.info('Usando configurações padrão (primeiro uso)');
+      logger.info('Using default configuration (first run)');
       return validateConfig({});
     }
 
-    // v5.9.15: Reject unreasonably large config files (prevent OOM on corruption)
+    // Reject unreasonably large config files (prevent OOM on corruption)
     var stat = fs.statSync(configPath);
     if (stat.size > 1 * 1024 * 1024) {
       logger.error('Config file too large (' + stat.size + ' bytes), using defaults');
@@ -89,16 +94,16 @@ function loadConfig() {
     try {
       rawConfig = JSON.parse(rawContent);
     } catch (parseError) {
-      logger.error('JSON inválido no config, usando padrão: ' + parseError.message);
+      logger.error('Invalid JSON in config, using defaults: ' + parseError.message);
       return validateConfig({});
     }
 
     const config = validateConfig(rawConfig);
-    logger.info('Config carregada: região=' + config.region + ', perfil=' + config.hardwareProfile);
+    logger.info('Config loaded: region=' + config.region + ', profile=' + config.hardwareProfile);
 
     return config;
   } catch (e) {
-    logger.error('Erro ao carregar config, usando padrão: ' + e.message);
+    logger.error('Failed to load config, using defaults: ' + e.message);
     return validateConfig({});
   }
 }
@@ -115,14 +120,13 @@ function saveConfig(config) {
       {
         region: config.region,
         hardwareProfile: config.hardwareProfile,
-        forceBatata: config.forceBatata,
+        forceLowSpec: config.forceLowSpec,
         mutedEvents: config.mutedEvents,
         windowBounds: config.windowBounds || null,
-        // v3.5
-        firstBoot: config.firstBoot === false ? false : true,
-        language: config.language || 'pt',
+        firstBoot: false,
+        language: config.language || 'en',
         advancedMode: config.advancedMode === true,
-        // v5.0.0: optimization preset
+        // optimization preset
         optimizationPreset: config.optimizationPreset || getDefaultPreset()
       },
       null,
@@ -132,16 +136,15 @@ function saveConfig(config) {
     const tmpPath = configPath + '.tmp';
     fs.writeFileSync(tmpPath, content, 'utf8');
     fs.renameSync(tmpPath, configPath);
-    logger.info('Config salva');
+    logger.info('Config saved');
     return true;
   } catch (e) {
-    logger.error('Erro ao salvar config: ' + e.message);
+    logger.error('Failed to save config: ' + e.message);
     return false;
   }
 }
 
 module.exports = {
   loadConfig: loadConfig,
-  saveConfig: saveConfig,
-  validateConfig: validateConfig
+  saveConfig: saveConfig
 };

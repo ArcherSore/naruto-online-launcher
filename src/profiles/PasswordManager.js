@@ -1,15 +1,15 @@
 /**
- * profiles/PasswordManager.js — Chave de máquina + senha mestre (Fase 3e split)
+ * profiles/PasswordManager.js — Machine key + master password (Phase 3e split)
  *
- * Responsabilidade ÚNICA (SRP): derivar e cachear a chave simétrica usada pelo
- * CryptoService para criptografar credenciais em repouso. A chave é derivada de
- * um identificador de máquina (hostname + username + userDataPath) + salt
- * aleatório persistido, via PBKDF2.
+ * Single Responsibility (SRP): derive and cache the symmetric key usada pelo
+ * CryptoService to encrypt credentials at rest. The key is derived from
+ * a machine identifier (hostname + username + userDataPath) + salt
+ * random persisted salt, via PBKDF2.
  *
- * Modelo de ameaça: protege contra leitura offline do vault.json em outra
- * máquina/usuário. NÃO protege contra attacker com acesso ao processo rodando.
+ * Threat model: protects against offline reading of vault.json on another
+ * machine/user. Does NOT protect against an attacker with access to the running process.
  *
- * Histórico: era parte do God Object vault.js. Split: este módulo cuida só de
+ * History: was part of the God Object vault.js. Split: this module handles only
  * chaves; CryptoService cuida das primitivas; ProfileVault cuida do CRUD.
  */
 
@@ -33,10 +33,11 @@ function _getSaltPath() {
 }
 
 /**
- * Carrega (ou gera+persiste) o salt aleatório de 32 bytes único por instalação.
+ * Loads (or generates+persists) the random 32-byte salt unique per installation.
+ * Internal helper of getMachineKey (not exported).
  * @returns {Buffer}
  */
-function getSalt() {
+function _loadSalt() {
   if (_cachedSalt) return _cachedSalt;
   const saltPath = _getSaltPath();
   try {
@@ -45,19 +46,21 @@ function getSalt() {
     } else {
       _cachedSalt = crypto.randomBytes(CryptoService.PBKDF2_SALT_LEN);
       fs.writeFileSync(saltPath, _cachedSalt);
-      logger.info('PasswordManager: salt aleatório gerado e persistido');
+      logger.info('PasswordManager: random salt generated and persisted');
     }
   } catch (e) {
-    logger.error('PasswordManager: erro ao carregar salt: ' + e.message);
+    logger.error('PasswordManager: failed to load salt: ' + e.message);
     _cachedSalt = crypto.randomBytes(CryptoService.PBKDF2_SALT_LEN); // fallback in-memory
   }
   return _cachedSalt;
 }
 
 /**
- * Deriva a chave de máquina (PBKDF2-SHA512, 100k iters).
- * Cacheada em memória após primeira chamada.
- * @returns {Buffer} chave de 32 bytes
+ * Derives the machine key (PBKDF2-SHA512, 100k iters). Cached in memory.
+ * @security Machine-bound (hostname+username+userDataPath+32-byte salt). Key is
+ *   cached in memory ONLY — NEVER written to disk. Stolen vault.json+salt is
+ *   useless on another machine. 100k iters acceptable (seed is unguessable).
+ * @returns {Buffer} 32-byte key
  */
 function getMachineKey() {
   if (_cachedKey) return _cachedKey;
@@ -74,35 +77,12 @@ function getMachineKey() {
     /* ignore */
   }
   const machineSeed = os.hostname() + '|' + username + '|' + userDataPath + '|shinobi-vault-v2';
-  const salt = getSalt();
-  // 100k iters para a chave de máquina (diferente das 200k do backup c/ senha)
+  const salt = _loadSalt();
+  // 100k iters for machine key (different from backup's 200k with password)
   _cachedKey = crypto.pbkdf2Sync(machineSeed, salt, 100000, CryptoService.PBKDF2_KEYLEN, 'sha512');
   return _cachedKey;
 }
 
-/**
- * Deriva chave a partir de uma senha mestre digitada (para backup export/import).
- * Delega ao CryptoService.deriveKey (200k iters).
- * @param {string} password
- * @param {Buffer} salt
- * @returns {Buffer}
- */
-function deriveMasterKey(password, salt) {
-  return CryptoService.deriveKey(password, salt);
-}
-
-/**
- * Limpa os caches (p/ testes).
- */
-function _resetCache() {
-  _cachedKey = null;
-  _cachedSalt = null;
-}
-
 module.exports = {
-  getSalt: getSalt,
-  getMachineKey: getMachineKey,
-  deriveMasterKey: deriveMasterKey,
-  _resetCache: _resetCache,
-  VAULT_SALT_FILE: VAULT_SALT_FILE
+  getMachineKey: getMachineKey
 };

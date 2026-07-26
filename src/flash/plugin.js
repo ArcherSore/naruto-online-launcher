@@ -1,15 +1,10 @@
 /**
- * Detecção e Configuração do Flash PPAPI
- * v3.0.0 - Clean Flash PPAPI configuration
+ * Flash PPAPI Detection and Configuration
+ * Clean Flash PPAPI configuration
  *
- * v3.0: REMOVIDO js-flags e disable-plugin-power-saver daqui — essas flags
- * agora são gerenciadas por main/flags.js (single source of truth). Antes,
- * configureFlash() sobrescrevia o js-flags setado pelo main.js, perdendo
- * --expose-gc e quebrando o MemoryGuard. Bug crítico corrigido.
- *
- * v4.9.3 (Fase 2): findFlashPlugin() agora procura TAMBÉM no cache on-demand
- * (userData/flash-cache/). Se não achar nenhum binário, main.js aciona o
- * FlashUpdater (download + relaunch). Veja src/app/FlashUpdater.js.
+ * findFlashPlugin() also searches the on-demand cache
+ * (userData/flash-cache/) for backward-compat with old installs.
+ * The main binary is committed in the repo under flash/.
  */
 
 'use strict';
@@ -51,7 +46,7 @@ function getFlashVersion(flashDir) {
       }
     }
   } catch (e) {
-    logger.debug('Erro ao ler manifest.json: ' + e.message);
+    logger.debug('Failed to read manifest.json: ' + e.message);
   }
   return FLASH_VERSIONS[process.platform] || '34.0.0.0';
 }
@@ -64,21 +59,20 @@ function findFlashPlugin() {
   const platform = process.platform;
 
   if (platform !== 'win32' && platform !== 'linux') {
-    logger.warn('Plataforma não suportada para Flash');
+    logger.warn('Unsupported platform for Flash');
     return null;
   }
 
   const pluginName = FLASH_PLUGIN_NAMES[platform];
 
   // Robust search paths for ASAR, portable, dev modes, AND on-demand cache.
-  // v4.9.3: userData/flash-cache/ é onde o FlashUpdater baixa o Clean Flash.
+  // userData/flash-cache/ kept for backward-compat (old installs).
   const searchPaths = [
     path.join(process.resourcesPath, 'flash', pluginName),
     path.join(path.dirname(app.getPath('exe')), 'flash', pluginName),
     path.join(app.getAppPath().replace(/\.asar$/, ''), 'flash', pluginName),
     path.join(process.cwd(), 'flash', pluginName),
     path.join(__dirname, '..', '..', 'flash', pluginName),
-    // v4.9.3 (Fase 2): cache on-demand (FlashUpdater)
     path.join(app.getPath('userData'), 'flash-cache', pluginName)
   ];
 
@@ -91,7 +85,7 @@ function findFlashPlugin() {
     }
   }
 
-  logger.info('Procurando Flash PPAPI em:');
+  logger.info('Searching for Flash PPAPI in:');
   for (let j = 0; j < uniquePaths.length; j++) {
     logger.info('  → ' + uniquePaths[j]);
     try {
@@ -99,7 +93,7 @@ function findFlashPlugin() {
         const stats = fs.statSync(uniquePaths[j]);
         if (stats.size > MIN_FLASH_SIZE) {
           logger.info(
-            '✅ Flash encontrado: ' +
+            '✅ Flash found: ' +
               uniquePaths[j] +
               ' (' +
               (stats.size / 1024 / 1024).toFixed(1) +
@@ -107,36 +101,20 @@ function findFlashPlugin() {
           );
           return uniquePaths[j];
         } else {
-          logger.warn('Arquivo muito pequeno: ' + uniquePaths[j] + ' (' + stats.size + ' bytes)');
+          logger.warn('File too small: ' + uniquePaths[j] + ' (' + stats.size + ' bytes)');
         }
       }
     } catch (err) {
-      logger.debug('Erro: ' + uniquePaths[j] + ': ' + err.message);
+      logger.debug('Error: ' + uniquePaths[j] + ': ' + err.message);
     }
   }
 
-  logger.error('❌ Flash PPAPI NÃO encontrado!');
-  logger.error('Caminhos testados:\n  ' + uniquePaths.join('\n  '));
+  logger.error('❌ Flash PPAPI NOT found!');
+  logger.error('Paths tested:\n  ' + uniquePaths.join('\n  '));
   return null;
-}
-
-/**
- * Configure Flash PPAPI path+version ONLY.
- * js-flags and disable-plugin-power-saver are now managed by main/flags.js.
- * @param {string} flashPath - Absolute path to Flash binary
- * @returns {boolean} True if configured successfully
- */
-function configureFlash(flashPath) {
-  if (!flashPath) return false;
-  const version = getFlashVersion(path.dirname(flashPath));
-  app.commandLine.appendSwitch('ppapi-flash-path', flashPath);
-  app.commandLine.appendSwitch('ppapi-flash-version', version);
-  logger.info('Flash ' + version + ' path configurado (flags GPU/JS em main/flags.js)');
-  return true;
 }
 
 module.exports = {
   findFlashPlugin: findFlashPlugin,
-  configureFlash: configureFlash,
   getFlashVersion: getFlashVersion
 };

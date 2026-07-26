@@ -1,8 +1,8 @@
 /**
- * main/flags.js — Single source of truth: Chromium 87 command-line flags (v4.0.0)
+ * main/flags.js — Single source of truth: Chromium 87 command-line flags
  *
- * Consolidado e enxugado de v3.6.2.
- * Merge único de disable-features, enable-features e js-flags.
+ * Consolidated and streamlined.
+ * Single merge of disable-features, enable-features and js-flags.
  */
 
 'use strict';
@@ -12,6 +12,7 @@ const { app } = require('electron');
 
 const TOTAL_RAM_GB = os.totalmem() / (1024 * 1024 * 1024);
 const CPU_CORES = os.cpus().length;
+/** True when running under Wayland (affects GPU flag selection on Linux). */
 const IS_WAYLAND = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
 
 const _disabled = new Set([
@@ -22,16 +23,16 @@ const _disabled = new Set([
   'BackForwardCache'
 ]);
 const _enabled = new Set(['VizDisplayCompositor']);
-const _jsFlags = ['--expose-gc'];
+const _jsFlags = [];
 let _applied = false;
 
 /**
  * Compute the V8 heap size in MB based on available RAM.
- * @param {boolean} [forceBatata=false] - Force low-RAM mode
+ * @param {boolean} [forceLowSpec=false] - Force low-RAM mode
  * @returns {number} heap size in MB
  */
-function _computeHeapMB(forceBatata) {
-  const low = forceBatata || TOTAL_RAM_GB < 4;
+function _computeHeapMB(forceLowSpec) {
+  const low = forceLowSpec || TOTAL_RAM_GB < 4;
   if (low) return 384;
   if (TOTAL_RAM_GB < 8) return 768;
   if (TOTAL_RAM_GB < 16) return 1024;
@@ -39,17 +40,17 @@ function _computeHeapMB(forceBatata) {
 }
 
 /**
- * Aplica TODAS as flags. Idempotente (só roda 1x).
- * @param {Object} opts - { flashPath, flashVersion, hardwareProfile, forceBatata }
+ * Applies ALL flags. Idempotent (runs only once).
+ * @param {Object} opts - { flashPath, flashVersion, hardwareProfile, forceLowSpec }
  */
 function applyAll(opts) {
   opts = opts || {};
   if (_applied) return;
   _applied = true;
 
-  const low = !!opts.forceBatata || TOTAL_RAM_GB < 4;
+  const low = !!opts.forceLowSpec || TOTAL_RAM_GB < 4;
 
-  // Sandbox (global — PPAPI precisa)
+  // Sandbox (global — required by PPAPI)
   app.commandLine.appendSwitch('no-sandbox');
   app.commandLine.appendSwitch('disable-gpu-sandbox');
   app.commandLine.appendSwitch('disable-setuid-sandbox');
@@ -61,8 +62,8 @@ function applyAll(opts) {
   // Background throttling off
   // NOTE: disable-background-networking, disable-component-update, disable-default-apps,
   // disable-extensions, disable-translate, disable-domain-reliability, disable-client-side-
-  // phishing-detection são PLACEBO para Flash PPAPI (não afetam o plugin), mas são
-  // harmlessness e reduzem ruído de rede/processos. Mantidos.
+  // phishing-detection are PLACEBO for Flash PPAPI (don't affect the plugin), but are
+  // harmless and reduce network/process noise. Kept.
   [
     'disable-background-timer-throttling',
     'disable-renderer-backgrounding',
@@ -106,7 +107,7 @@ function applyAll(opts) {
   }
 
   // JS heap
-  _jsFlags.push('--max-old-space-size=' + _computeHeapMB(opts.forceBatata));
+  _jsFlags.push('--max-old-space-size=' + _computeHeapMB(opts.forceLowSpec));
 
   // Flash
   if (opts.flashPath) {
@@ -114,7 +115,7 @@ function applyAll(opts) {
     if (opts.flashVersion) app.commandLine.appendSwitch('ppapi-flash-version', opts.flashVersion);
   }
 
-  // Merge único
+  // Single merge
   app.commandLine.appendSwitch('disable-features', Array.from(_disabled).join(','));
   app.commandLine.appendSwitch('enable-features', Array.from(_enabled).join(','));
   app.commandLine.appendSwitch('js-flags', _jsFlags.join(' '));
@@ -136,11 +137,18 @@ function getAppliedSnapshot() {
   };
 }
 
+/** True when the machine has less than 4 GB RAM (triggers low-spec mode). */
+const IS_LOW_SPEC = TOTAL_RAM_GB < 4;
+/** True when the machine has less than 2 GB RAM (extreme low-spec, reduced functionality). */
+const IS_MINIMAL = TOTAL_RAM_GB < 2;
+/** Total system RAM in GB, rounded to 1 decimal. Used for heap/cache sizing. */
+const SYSTEM_RAM_GB = Math.round(TOTAL_RAM_GB * 10) / 10;
+
 module.exports = {
   applyAll,
   getAppliedSnapshot,
-  IS_LOW_SPEC: TOTAL_RAM_GB < 4,
-  IS_RAMEN: TOTAL_RAM_GB < 2,
+  IS_LOW_SPEC: IS_LOW_SPEC,
+  IS_MINIMAL: IS_MINIMAL,
   IS_WAYLAND: IS_WAYLAND,
-  SYSTEM_RAM_GB: Math.round(TOTAL_RAM_GB * 10) / 10
+  SYSTEM_RAM_GB: SYSTEM_RAM_GB
 };

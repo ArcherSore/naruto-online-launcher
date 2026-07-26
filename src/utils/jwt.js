@@ -1,19 +1,19 @@
 /**
- * JWT Decoder — para o cookie oas_user do Naruto Online
- * v1.0.0 — v4.9: tempmail + API login + dev inspector
+ * JWT Decoder — for the Naruto Online oas_user cookie
+ * tempmail + API login + dev inspector
  *
- * O passport.oasgames.com retorna um loginKey (JWT HS256) de 2h. Esse JWT
- * vai parar no cookie oas_user (domínio .narutowebgame.com) e é o que
- * mantém a sessão logada no jogo.
+ * The passport.oasgames.com returns a loginKey (JWT HS256) valid for 2h. This JWT
+ * will end up in the oas_user cookie (domain .narutowebgame.com) and is what
+ * keeps the session logged in to the game.
  *
- * Este módulo decodifica SEM validar a assinatura (o servidor valida).
- * Usado pelo Inspector de Rede pra mostrar o payload do JWT capturado.
+ * This module decodes WITHOUT validating the signature (the server validates).
+ * Used by the Network Inspector to display the captured JWT payload.
  */
 
 'use strict';
 
 /**
- * Decodifica um JWT (header + payload) sem validar a assinatura.
+ * Decodes a JWT (header + payload) without validating the signature.
  * @param {string} token — JWT completo (xxx.yyy.zzz)
  * @returns {{header:Object, payload:Object, signature:string, exp:Date, iat:Date, expired:boolean, expiresInSeconds:number}|null}
  */
@@ -53,28 +53,6 @@ function decode(token) {
   }
 }
 
-/**
- * Formata o JWT decodificado para exibição amigável (PT-BR).
- * @param {string} token
- * @returns {string} resumo legível
- */
-function summarize(token) {
-  const d = decode(token);
-  if (!d) return 'JWT inválido ou malformado';
-  const p = d.payload;
-  const lines = [];
-  lines.push('Player: ' + (p.nickname || p.playerId || '?'));
-  lines.push('Email: ' + (p.username || '?'));
-  lines.push('ID: ' + (p.playerId || p.uuid || '?'));
-  lines.push('Emitido: ' + (d.iat ? d.iat.toISOString() : '?'));
-  lines.push('Expira: ' + (d.exp ? d.exp.toISOString() : '?') + (d.expired ? ' [EXPIRADO]' : ''));
-  lines.push('Lifetime: ' + (d.lifetime ? d.lifetime / 60 + ' min' : '?'));
-  lines.push('Roles: ' + JSON.stringify(p.roles || []));
-  lines.push('GrantType: ' + (p.loginGrantType || '?'));
-  return lines.join('\n');
-}
-
 module.exports = {
-  decode: decode,
-  summarize: summarize
+  decode: decode
 };

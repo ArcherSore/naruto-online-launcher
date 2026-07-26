@@ -1,14 +1,14 @@
 /**
  * Tracker and Analytics Blocker
- * v1.3.0 — Idempotência anti-vazamento (cron-review-1)
+ * Idempotent anti-leak
  */
 
 'use strict';
 
 const logger = require('../utils/logger');
 
-// Idempotência: sessions já configuradas (onBeforeRequest substitui, mas
-// evitamos trabalho redundante em reabertura de perfis)
+// Idempotency: sessions already configured (onBeforeRequest replaces, but
+// we avoid redundant work on profile reopening)
 const _configuredSessions = new WeakSet();
 
 // Blocked domains
@@ -59,14 +59,14 @@ const BLOCKED_DOMAINS = new Set([
   'cdn.mxpnl.com'
 ]);
 
-// v5.9.9: URL path patterns to block (para telemetry que roda no MESMO domínio
-// do jogo, onde bloquear por hostname quebraria o jogo). Caso constatado no F12:
-// oss_report.fcgi?uin=...&role_id=...&svr_id=... é o iMSDK da Tencent reportando
-// server_id + role_id + uin pra telemetria, no mesmo host naruto-pl.oasgames.com.
-// Bloquear o PATH (não o domínio) preserva o jogo e corta o vazamento.
+// URL path patterns to block (for telemetry that runs on the SAME domain
+// of the game, where blocking by hostname would break the game). If observed in F12:
+// oss_report.fcgi?uin=...&role_id=...&svr_id=... is the iMSDK from Tencent reporting
+// server_id + role_id + uin for telemetry, on the same host naruto-pl.oasgames.com.
+// Blocking the PATH (not the domain) preserves the game and cuts the leak.
 const BLOCKED_PATH_PATTERNS = [
   /\/oss_report\.fcgi\b/i, // Tencent iMSDK telemetry (server_id, role_id, uin)
-  /\/crossdomain\.xml$/i // Flash security policy — sempre falha (404/timeout), só gera ruído
+  /\/crossdomain\.xml$/i // Flash security policy — always fails (404/timeout), only generates noise
 ];
 
 /**
@@ -84,8 +84,8 @@ function isBlockedDomain(hostname) {
 }
 
 /**
- * Check if a URL path matches any blocked path pattern (v5.9.9).
- * Usado para telemetry que roda no MESMO domínio do jogo (ex: oss_report.fcgi
+ * Check if a URL path matches any blocked path pattern.
+ * Used for telemetry that runs on the SAME game domain (e.g.: oss_report.fcgi
  * em naruto-pl.oasgames.com) onde bloquear o hostname quebraria o jogo.
  * @param {string} pathname - URL pathname to check
  * @returns {boolean} True if blocked
@@ -116,20 +116,20 @@ function shouldBlock(url) {
 
 /**
  * Setup request blocker on a session.
- * Idempotente (cron-review-1): skipa se já configurada.
+ * Idempotent: skips if already configured.
  * @param {Electron.Session} session - Browser session
- * @returns {boolean} true se configurou agora
+ * @returns {boolean} true if newly configured this call (false if already set up)
  */
 function setupBlocker(session) {
   if (_configuredSessions.has(session)) {
-    logger.debug('Blocker: session já configurada — skip');
+    logger.debug('Blocker: session already configured — skip');
     return false;
   }
   _configuredSessions.add(session);
 
   session.webRequest.onBeforeRequest(function (details, callback) {
     if (shouldBlock(details.url)) {
-      logger.debug('Bloqueado: ' + details.url);
+      logger.debug('Blocked: ' + details.url);
       return callback({ cancel: true });
     }
 
@@ -149,27 +149,13 @@ function setupBlocker(session) {
   logger.info(
     'Blocker: ' +
       BLOCKED_DOMAINS.size +
-      ' domínios + ' +
+      ' domains + ' +
       BLOCKED_PATH_PATTERNS.length +
       ' path patterns'
   );
   return true;
 }
 
-/**
- * Reseta o estado de idempotência de uma session.
- * @param {Electron.Session} session
- */
-function forgetSession(session) {
-  _configuredSessions.delete(session);
-}
-
 module.exports = {
-  BLOCKED_DOMAINS: BLOCKED_DOMAINS,
-  BLOCKED_PATH_PATTERNS: BLOCKED_PATH_PATTERNS,
-  isBlockedDomain: isBlockedDomain,
-  isBlockedPath: isBlockedPath,
-  shouldBlock: shouldBlock,
-  setupBlocker: setupBlocker,
-  forgetSession: forgetSession
+  setupBlocker: setupBlocker
 };

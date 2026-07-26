@@ -1,13 +1,13 @@
 /**
- * app/SessionLifecycle.js — Hooks de lifecycle da janela de jogo (Fase 3d split)
+ * app/SessionLifecycle.js — Game window lifecycle hooks (Phase 3d split)
  *
- * Responsabilidade ÚNICA (SRP): anexar handlers de evento (did-finish-load,
+ * Single Responsibility (SRP): attach event handlers (did-finish-load,
  * did-fail-load, render-process-gone, unresponsive, will-navigate, new-window,
- * close, closed, ready-to-show) a uma BrowserWindow de jogo. Inclui CSS
- * injection, FB mock, e auto-login via vault.
+ * close, closed, ready-to-show) to a game BrowserWindow. Includes CSS
+ * injection, FB mock, and auto-login via vault.
  *
- * Histórico: era inline no God Object game-launcher.js (620 linhas). Extraído
- * para isolar o lifecycle do launch/orchestration.
+ * History: was inline in the God Object game-launcher.js (620 lines). Extracted
+ * to isolate the lifecycle from launch/orchestration.
  */
 
 'use strict';
@@ -18,12 +18,12 @@ const ManagerWindow = require('../ui/manager/ManagerWindow');
 const StallDetector = require('./StallDetector');
 
 /**
- * Carrega a página do jogo com pré-autenticação via API quando possível.
- * Se o perfil tem credenciais no vault, chama apiLogin.loginAndInject() ANTES
- * de loadURL — assim o cookie oas_user já está setado e o servidor redireciona
- * direto pro jogo, sem mostrar a tela de login do Naruto Online.
- * Fallback: se API login falha, carrega a URL normalmente (form-injection auto-login
- * via MutationObserver cuida do login depois).
+ * Loads the game page with pre-authentication via API when possible.
+ * If the profile has credentials in the vault, calls apiLogin.loginAndInject() BEFORE
+ * loadURL — so the oas_user cookie is already set and the server redirects
+ * straight to the game, without showing the Naruto Online login screen.
+ * Fallback: if API login fails, loads the URL normally (form-injection auto-login
+ * via MutationObserver handles the login after that).
  */
 function _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl) {
   var url = getGameUrl(profile);
@@ -32,7 +32,7 @@ function _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl) {
     var creds = vault.getCredentials(profileId);
     if (creds && creds.user && creds.pass) {
       var apiLogin = require('../network/api-login');
-      logger.info('Login direto via API para "' + profile.name + '" (cookie pré-injetado)');
+      logger.info('Direct API login for "' + profile.name + '" (cookie pre-injected)');
       apiLogin
         .loginAndInject(ses, creds.user, creds.pass)
         .then(function () {
@@ -42,7 +42,7 @@ function _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl) {
         .catch(function (e) {
           if (win.isDestroyed()) return;
           logger.warn(
-            'Login via API falhou para "' +
+            'API login failed for "' +
               profile.name +
               '" — fallback form-injection: ' +
               e.message
@@ -53,12 +53,12 @@ function _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl) {
     }
   }
 
-  logger.info('Carregando jogo para "' + profile.name + '": ' + url);
+  logger.info('Loading game for "' + profile.name + '": ' + url);
   win.loadURL(url);
 }
 
 /**
- * Envia resultado do auto-login ao manager window (UI feedback).
+ * Send auto-login result to manager window (UI feedback).
  * @param {string} profileId
  * @param {string} result - 'filled'|'clicked'|'waiting'|'not-found'|'error'
  */
@@ -73,7 +73,7 @@ function _sendAutoLoginResult(profileId, result) {
 }
 
 /**
- * Envia status de janela aberta/fechada ao manager window.
+ * Send window open/closed status to manager window.
  * @param {string} profileId
  * @param {boolean} isOpen
  */
@@ -82,7 +82,7 @@ function _sendWindowStatus(profileId, isOpen) {
 }
 
 /**
- * Limpa timers pendentes de um entry de lifecycle (autoLogin + failLoad).
+ * Clear pending timers from a lifecycle entry (autoLogin + failLoad).
  * @param {Object|null} entry
  */
 function _clearEntryTimers(entry) {
@@ -92,11 +92,11 @@ function _clearEntryTimers(entry) {
 }
 
 /**
- * Tenta auto-login injetando credenciais do vault no form da página.
- * Loop guard: max 5 tentativas de form injection por sessão.
+ * Attempt auto-login by injecting vault credentials into the page form.
+ * Loop guard: max 5 form injection attempts per session.
  * @param {string} profileId
  * @param {Electron.BrowserWindow} win
- * @param {Object} entry - entrada do gameWindows Map (mutada para tracking)
+ * @param {Object} entry - gameWindows Map entry (mutated for tracking)
  */
 function _tryAutoLogin(profileId, win, entry) {
   if (!vault.hasCredentials(profileId)) return;
@@ -105,9 +105,9 @@ function _tryAutoLogin(profileId, win, entry) {
   if (entry) {
     if (entry.formInjectAttempts > 5) {
       logger.debug(
-        'Auto-login form: max attempts atingido para ' +
+        'Auto-login form: max attempts reached for ' +
           profileId +
-          ' — parando (possível loop de redirect)'
+          ' — stopping (possible redirect loop)'
       );
       return;
     }
@@ -120,34 +120,33 @@ function _tryAutoLogin(profileId, win, entry) {
   win.webContents
     .executeJavaScript(script)
     .then(function (result) {
+      // simplified return values — "filled" (form found + submitted),
+      // "waiting" (MutationObserver watching async form), "not-found" (no form
+      // on page — likely already logged in via cookie), "error:<msg>".
       if (result === 'filled') {
-        logger.info('Auto-login: credenciais injetadas + login chamado para ' + profileId);
+        logger.info('Auto-login: credentials injected for ' + profileId);
         if (entry) entry.formInjectAttempts = 0;
         _sendAutoLoginResult(profileId, 'filled');
-      } else if (result === 'clicked') {
-        logger.info('Auto-login: botão fallback clicado para ' + profileId);
-        if (entry) entry.formInjectAttempts = 0;
-        _sendAutoLoginResult(profileId, 'clicked');
       } else if (result === 'waiting') {
-        logger.info('Auto-login: MutationObserver aguardando form para ' + profileId);
+        logger.info('Auto-login: waiting for async form for ' + profileId);
         _sendAutoLoginResult(profileId, 'waiting');
       } else if (result === 'not-found') {
-        logger.debug('Auto-login: form não encontrado (página sem login) para ' + profileId);
+        logger.debug('Auto-login: form not found (already logged-in?) for ' + profileId);
         _sendAutoLoginResult(profileId, 'not-found');
       } else if (typeof result === 'string' && result.indexOf('error:') === 0) {
-        logger.warn('Auto-login: erro no script para ' + profileId + ' — ' + result);
+        logger.warn('Auto-login: script error for ' + profileId + ' — ' + result);
         _sendAutoLoginResult(profileId, 'error');
       } else {
-        logger.debug('Auto-login: resultado inesperado para ' + profileId + ' — ' + result);
+        logger.debug('Auto-login: unexpected result for ' + profileId + ' — ' + result);
       }
     })
     .catch(function (e) {
-      logger.debug('Auto-login falhou (ok se já logado por cookie): ' + e.message);
+      logger.debug('Auto-login failed (ok if already logged in via cookie): ' + e.message);
     });
 }
 
 /**
- * Anexa todos os handlers de lifecycle a uma janela de jogo.
+ * Attach all lifecycle handlers to a game window.
  * @param {Electron.BrowserWindow} win
  * @param {Object} ctx - { profileId, profile, entry, ses, onOpened, onClosed, getGameUrl, LAUNCHER_PARAMS }
  */
@@ -160,17 +159,22 @@ function attach(win, ctx) {
   const onClosed = ctx.onClosed;
   const getGameUrl = ctx.getGameUrl;
   const LAUNCHER_PARAMS = ctx.LAUNCHER_PARAMS;
+  // Auditor (optional — backward compatible with old tests/callers).
+  // Phase 2: sessionStart/sessionEnd + recordCrash/recordReload/recordStall.
+  const auditor = ctx.auditor || null;
 
-  // ── StallDetector instance (auto-F5 quando SWF essencial falha) ──
-  // Anexado em did-finish-load, desanexado em close/reload.
+  // ── StallDetector instance (auto-F5 when essential SWF fails) ──
+  // Attached on did-finish-load, detached on close/reload.
   var _stallDetector = null;
 
-  // ── ISOLAMENTO DE CRASH + AUTO-RECOVERY ──
-  // Backoff: max 3 auto-reloads em 10 min por perfil (evita crash loop).
+  // ── CRASH ISOLATION + AUTO-RECOVERY ──
+  // Backoff: max MAX_AUTO_RELOADS auto-reloads in CRASH_WINDOW_MS per profile (prevents crash loop).
+  var CRASH_WINDOW_MS = 10 * 60 * 1000; // 10 min
+  var MAX_AUTO_RELOADS = 3;
   var _crashTimestamps = [];
   win.webContents.on('render-process-gone', function (_e, details) {
     logger.error(
-      'SessionLifecycle: render-process-gone em "' +
+      'SessionLifecycle: render-process-gone in "' +
         profile.name +
         '" — reason=' +
         details.reason +
@@ -181,16 +185,11 @@ function attach(win, ctx) {
       const manager = require('../profiles/manager');
       manager.reportCrash(profileId);
     } catch (e) {
-      logger.debug('render-process-gone: reportCrash(profile) falhou: ' + e.message);
-    }
-    try {
-      require('../memory/guard').reportCrash();
-    } catch (e) {
-      logger.debug('render-process-gone: reportCrash(memory) falhou: ' + e.message);
+      logger.debug('render-process-gone: reportCrash(profile) failed: ' + e.message);
     }
 
-    // Auto-recovery: reload se webContents ainda válido e dentro do backoff.
-    // Causas recuperáveis: oom, crashed, abnormal-exit (não recupera 'clean-exit').
+    // Auto-recovery: reload if webContents still valid and within backoff.
+    // Recoverable causes: oom, crashed, abnormal-exit (doesn't recover 'clean-exit').
     if (win.isDestroyed()) return;
     if (win.webContents.isDestroyed()) return;
     var reason = details && details.reason;
@@ -198,22 +197,28 @@ function attach(win, ctx) {
 
     var now = Date.now();
     _crashTimestamps = _crashTimestamps.filter(function (ts) {
-      return now - ts < 600000;
-    }); // janela de 10 min
-    if (_crashTimestamps.length >= 3) {
+      return now - ts < CRASH_WINDOW_MS;
+    }); // CRASH_WINDOW_MS window
+    if (_crashTimestamps.length >= MAX_AUTO_RELOADS) {
       logger.error(
-        'SessionLifecycle: crash limit atingido para "' + profile.name + '" — não recarrega (loop)'
+        'SessionLifecycle: crash limit reached for "' + profile.name + '" — not reloading (loop)'
       );
       return;
     }
     _crashTimestamps.push(now);
-    logger.info('SessionLifecycle: auto-reload em 1.5s para "' + profile.name + '"');
+    logger.info('SessionLifecycle: auto-reload in 1.5s for "' + profile.name + '"');
+    if (auditor) {
+      try {
+        auditor.recordCrash(details && details.reason ? details.reason : 'unknown');
+        auditor.recordReload();
+      } catch (e) { logger.debug('auditor.recordCrash/Reload failed: ' + e.message); }
+    }
     var reloadTimer = setTimeout(function () {
       if (win.isDestroyed() || win.webContents.isDestroyed()) return;
       try {
         win.webContents.reload();
       } catch (e) {
-        logger.warn('SessionLifecycle: reload falhou para "' + profile.name + '": ' + e.message);
+        logger.warn('SessionLifecycle: reload failed for "' + profile.name + '": ' + e.message);
       }
     }, 1500);
     if (reloadTimer.unref) reloadTimer.unref();
@@ -221,11 +226,11 @@ function attach(win, ctx) {
 
   win.on('unresponsive', function () {
     logger.warn(
-      'SessionLifecycle: janela UNRESPONSIVE — "' + profile.name + '" (outras contas continuam ok)'
+      'SessionLifecycle: window UNRESPONSIVE — "' + profile.name + '" (other accounts continue ok)'
     );
   });
   win.on('responsive', function () {
-    logger.info('SessionLifecycle: janela RESPONSIVE novamente — "' + profile.name + '"');
+    logger.info('SessionLifecycle: window RESPONSIVE again — "' + profile.name + '"');
   });
 
   // ── Navigation handling ──
@@ -244,7 +249,7 @@ function attach(win, ctx) {
         win.loadURL(url + sep + LAUNCHER_PARAMS);
       }
     } catch (e) {
-      logger.debug('will-navigate: URL parse falhou para ' + url);
+      logger.debug('will-navigate: URL parse failed for ' + url);
     }
   });
 
@@ -260,7 +265,7 @@ function attach(win, ctx) {
           shell.openExternal(url);
         }
       } catch (e) {
-        logger.debug('new-window: URL inválida ignorada — ' + url);
+        logger.debug('new-window: invalid URL ignored — ' + url);
       }
     }
   });
@@ -270,9 +275,9 @@ function attach(win, ctx) {
     if (entry) entry.failLoadRetry = false;
     ses.cookies.flushStore().catch(function () {});
 
-    // ── v5.0.0: CPU optimization (cross-platform) ──
-    // Aplicado aqui (e não no ready-to-show) porque getOSProcessId() só retorna
-    // valor válido após o renderer process spawn — que acontece no loadURL.
+    // ── CPU optimization (cross-platform) ──
+    // Applied here (not in ready-to-show) because getOSProcessId() only returns
+    // a valid value after the renderer process spawn — which happens on loadURL.
     // LINUX: taskset (affinity) + renice (priority) + oom_score_adj (OOM protection).
     // WINDOWS: PowerShell (affinity) + os.setPriority (priority).
     // macOS: no-op.
@@ -287,17 +292,17 @@ function attach(win, ctx) {
             preset: cfg.optimizationPreset || 'balanced'
           })
           .catch(function (e) {
-            logger.debug('CpuOptimizer: falhou (não-fatal) — ' + e.message);
+            logger.debug('CpuOptimizer: failed (non-fatal) — ' + e.message);
           });
       }
     } catch (e) {
       logger.debug('CpuOptimizer: skip — ' + e.message);
     }
 
-    // CAMADA 1: limpeza leve (ads, cookies, popups, poluição do site do jogo)
-    // Usa executeJavaScript com guard de idempotência — insertCSS() adiciona
+    // LAYER 1: light cleanup (ads, cookies, popups, game site clutter)
+    // Uses executeJavaScript with idempotency guard — insertCSS() adds
     // um novo <style> a CADA chamada (incluindo sub-frame loads do Flash),
-    // acumulando estilos duplicados. Com o guard, injeta exatamente uma vez.
+    // accumulating duplicate styles. With the guard, injects exactly once.
     win.webContents
       .executeJavaScript(
         '(function(){' +
@@ -318,16 +323,16 @@ function attach(win, ctx) {
       )
       .catch(function () {});
 
-    // CAMADA 2: fullscreen limpo — esconde header/footer/sidebars do site e faz
-    // o #oas-player preencher a janela (experiência imersiva só do jogo).
+    // LAYER 2: clean fullscreen — hides header/footer/sidebars and makes
+    // #oas-player to fill the window (immersive game-only experience).
     //
-    // v5.9.8: Usa MutationObserver + polling (mesmo padrão robusto do auto-login)
-    // em vez de um check único no did-finish-load. O Naruto Online carrega o
-    // embed #oas-player ASYNC via JS — no did-finish-load ele geralmente ainda
-    // não existe no DOM, então o check único falhava e o CSS não injetava.
-    // Resultado: a top bar às vezes sumia (numa sub-navegação onde #oas-player
-    // já existia) e às vezes ficava visível — inconsistente. Agora o observer
-    // detecta #oas-player assim que ele aparece e injeta o CSS de forma confiável.
+    // Uses MutationObserver + polling (same robust pattern as auto-login)
+    // instead of a single check on did-finish-load. Naruto Online loads the
+    // embed #oas-player ASYNC via JS — at did-finish-load it generally
+    // doesn't exist in the DOM yet, so the single check failed and the CSS didn't inject.
+    // Result: the top bar sometimes disappeared (on a sub-navigation where #oas-player
+    // already existed) and sometimes stayed visible — inconsistent. Now the observer
+    // detects #oas-player as soon as it appears and injects CSS reliably.
     win.webContents
       .executeJavaScript(
         '(function(){' +
@@ -368,16 +373,16 @@ function attach(win, ctx) {
       )
       .then(function (result) {
         if (result === 'applied') {
-          logger.info('Fullscreen CSS aplicado imediatamente — ' + profile.name);
+          logger.info('Fullscreen CSS applied immediately — ' + profile.name);
         } else if (result === 'observing') {
           logger.info(
-            'Fullscreen CSS: aguardando #oas-player (MutationObserver) — ' + profile.name
+            'Fullscreen CSS: waiting for #oas-player (MutationObserver) — ' + profile.name
           );
         }
       })
       .catch(function () {});
 
-    // Mock FB object — fallback se SDK real não carrega
+    // Mock FB object — fallback if real SDK doesn't load
     win.webContents
       .executeJavaScript(
         'if (typeof window.FB === "undefined") {' +
@@ -389,11 +394,11 @@ function attach(win, ctx) {
 
     _tryAutoLogin(profileId, win, entry);
 
-    // ── StallDetector: auto-F5 quando SWF essencial falha (v5.9.11) ──
-    // Monitora webRequest.onCompleted + onErrorOccurred. Se 2+ SWFs falham
-    // em 60s, ou 45s sem atividade de rede durante o loading → trigger
-    // reloadWithPreAuth (mesmo fluxo do F5: limpa + pré-auth via API).
-    // Backoff: max 3 auto-reloads em 10 min. Auto-stop após 120s de atividade.
+    // ── StallDetector: auto-F5 when essential SWF fails ──
+    // Monitors webRequest.onCompleted + onErrorOccurred. If 2+ SWFs fail
+    // in 60s, or 45s without network activity during loading → trigger
+    // reloadWithPreAuth (same flow as F5: clear + pre-auth via API).
+    // Backoff: max 3 auto-reloads in 10 min. Auto-stop after 120s of activity.
     if (_stallDetector) {
       try {
         _stallDetector.detach();
@@ -406,17 +411,20 @@ function attach(win, ctx) {
       profileName: profile.name,
       onStall: function () {
         if (win.isDestroyed()) return;
-        logger.info('StallDetector disparou auto-F5 (pré-auth) — "' + profile.name + '"');
+        logger.info('StallDetector triggered auto-F5 (pre-auth) — "' + profile.name + '"');
+        if (auditor) {
+          try { auditor.recordStall('swf-stall'); } catch (e) { logger.debug('auditor.recordStall failed: ' + e.message); }
+        }
         reloadWithPreAuth(profileId, profile, win, ses, getGameUrl);
       }
     });
     _windowStallDetectors.set(win, _stallDetector);
-    // Libera o guard de reload agora que o novo StallDetector está ativo.
-    // (O guard foi adicionado em reloadWithPreAuth antes do loadURL.)
+    // Releases the reload guard now that the new StallDetector is active.
+    // (The guard was added in reloadWithPreAuth before loadURL.)
     _reloadingWindows.delete(win.id);
   });
 
-  // ── did-fail-load: retry 1x + tela de erro amigável ──
+  // ── did-fail-load: retry 1x + friendly error page ──
   win.webContents.on('did-fail-load', function (_e, code, desc, url) {
     if (url.startsWith('data:')) return;
     if (code === -3) return; // ERR_ABORTED
@@ -424,13 +432,13 @@ function attach(win, ctx) {
     const alreadyRetried = entry && entry.failLoadRetry;
     if (!alreadyRetried) {
       logger.warn(
-        'Falha ao carregar (' +
+        'Load failure (' +
           profile.name +
           '): ' +
           code +
           ' ' +
           desc +
-          ' — tentando novamente...'
+          ' — retrying...'
       );
       if (entry) entry.failLoadRetry = true;
       if (entry) {
@@ -444,13 +452,13 @@ function attach(win, ctx) {
       }
     } else {
       logger.error(
-        'Falha ao carregar (' +
+        'Load failure (' +
           profile.name +
           '): ' +
           code +
           ' ' +
           desc +
-          ' — retry esgotado, exibindo tela de erro'
+          ' — retry exhausted, showing error page'
       );
       const safeDesc = String(desc)
         .replace(/&/g, '&amp;')
@@ -468,13 +476,13 @@ function attach(win, ctx) {
             '<html><head><meta charset="utf-8"></head><body style="background:#0f0f14;color:#fff;display:flex;' +
               'align-items:center;justify-content:center;height:100vh;font-family:system-ui,sans-serif;flex-direction:column">' +
               '<div style="font-size:48px;margin-bottom:16px">⚠️</div>' +
-              '<h2 style="color:#DC2626">Falha na conexão</h2>' +
-              '<p style="color:#8a8a96;margin:10px 0;font-size:13px">Erro: ' +
+              '<h2 style="color:#DC2626">Connection failure</h2>' +
+              '<p style="color:#8a8a96;margin:10px 0;font-size:13px">Error: ' +
               safeDesc +
               ' (' +
               safeCode +
               ')</p>' +
-              '<p style="color:#5a5a68;font-size:11px;margin-bottom:20px">Perfil: ' +
+              '<p style="color:#5a5a68;font-size:11px;margin-bottom:20px">Profile: ' +
               profile.name +
               '</p>' +
               '<button onclick="location.href=\'' +
@@ -482,7 +490,7 @@ function attach(win, ctx) {
               '\'" ' +
               'style="padding:10px 24px;background:linear-gradient(135deg,#DC2626,#7a1414);color:#fff;' +
               'border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">' +
-              '🔄 Tentar Novamente</button>' +
+              '🔄 Try Again</button>' +
               '</body></html>'
           )
       );
@@ -493,19 +501,19 @@ function attach(win, ctx) {
   let _isForceClosing = false;
   let _renewTimer = null;
   win.on('close', function (e) {
-    // Se o app está fechando (before-quit), pula graceful cleanup —
-    // Electron destrói as janelas sozinho. Com N janelas abertas,
-    // o delay de 500ms por janela atrasa o shutdown desnecessariamente.
+    // If app is quitting (before-quit), skip graceful cleanup —
+    // Electron destroys windows on its own. With N windows open,
+    // the 500ms delay per window unnecessarily delays shutdown.
     try {
       if (require('../main').isQuitting()) return;
     } catch (_) {
-      // main não disponível (testes) — prossegue com graceful
+      // main not available (tests) — proceeds with graceful
     }
     e.preventDefault();
     if (_isForceClosing) return;
     _isForceClosing = true;
 
-    logger.info('Kill switch: fechando ' + profile.name + ' (graceful + fallback destroy)');
+    logger.info('Kill switch: closing ' + profile.name + ' (graceful + fallback destroy)');
 
     if (entry) {
       _clearEntryTimers(entry);
@@ -519,7 +527,7 @@ function attach(win, ctx) {
       }
       _stallDetector = null;
     }
-    // JWT auto-renewal timer cleanup (setTimeout recursivo)
+    // JWT auto-renewal timer cleanup (recursive setTimeout)
     if (_renewTimer) {
       clearTimeout(_renewTimer);
       _renewTimer = null;
@@ -540,7 +548,7 @@ function attach(win, ctx) {
       /* ignore */
     }
 
-    setTimeout(function () {
+    const t = setTimeout(function () {
       try {
         if (win && !win.isDestroyed()) {
           win.destroy();
@@ -549,6 +557,7 @@ function attach(win, ctx) {
         /* ignore */
       }
     }, 500);
+    if (typeof t.unref === 'function') t.unref();
   });
 
   // ── Closed → cleanup final ──
@@ -557,9 +566,9 @@ function attach(win, ctx) {
     // Clean up reload race guard for this window
     _reloadingWindows.delete(win.id);
     _windowStallDetectors.delete(win);
-    // gameWindows.delete é responsabilidade do Launcher (que possui o Map)
+    // gameWindows.delete is the responsibility of Launcher (which owns the Map)
     _sendWindowStatus(profileId, false);
-    logger.info('Perfil fechado: ' + profile.name);
+    logger.info('Profile closed: ' + profile.name);
     if (onClosed) onClosed();
   });
 
@@ -567,25 +576,28 @@ function attach(win, ctx) {
   win.once('ready-to-show', function () {
     win.show();
     _sendWindowStatus(profileId, true);
+    if (auditor) {
+      try { auditor.sessionStart(); } catch (e) { logger.debug('auditor.sessionStart failed: ' + e.message); }
+    }
     if (onOpened) onOpened();
     setImmediate(function () {
       _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl);
     });
   });
 
-  // ── JWT auto-renewal (pendência herdada, Fase 3g) ──
-  // A cada 30 min, se o perfil tem credenciais no vault, checa se o JWT está
-  // próximo de expirar (threshold 5 min) e renova via api-login. O JWT do
-  // Naruto Online expira em 2h; sem renovação, a sessão cai e o auto-login
-  // via form injection reassume — mas renovar evita essa interrupção.
+  // ── JWT auto-renewal (inherited task, Phase 3g) ──
+  // Every 30 min, if the profile has credentials in the vault, checks if the JWT is
+  // about to expire (threshold 5 min) and renews via api-login. The Naruto Online
+  // JWT expires in 2h; without renewal, the session drops and auto-login
+  // via form injection takes over — but renewing avoids this interruption.
   //
-  // Usa setTimeout recursivo (não setInterval) para aplicar backoff exponencial
-  // REAL: se a renovação falha N vezes consecutivas, o próximo delay dobra
-  // (30min → 1h → 2h → 2h cap). Reseta no próximo sucesso.
+  // Uses recursive setTimeout (not setInterval) to apply exponential backoff
+  // REAL: if renewal fails N consecutive times, the next delay doubles
+  // (30min → 1h → 2h → 2h cap). Resets on next success.
   //
-  // v5.9.15: Adicionado backoff exponencial.
-  // v5.9.32: Fix — backoff agora é APLICADO no agendamento (antes era calculado
-  // apenas no log, setInterval mantinha 30min fixo).
+  // Added exponential backoff.
+  // Fix — backoff is now APPLIED to scheduling (previously was only
+  // calculated in the log, setInterval kept 30min fixed).
   var _renewConsecutiveFailures = 0;
   var _renewBaseIntervalMs = 30 * 60 * 1000; // 30 min base
 
@@ -610,14 +622,14 @@ function attach(win, ctx) {
             if (r.renewed) {
               _renewConsecutiveFailures = 0;
               logger.info(
-                'JWT auto-renovado para "' +
+                'JWT auto-renewed for "' +
                   profile.name +
-                  '" (novo expira em ' +
+                  '" (new expires in ' +
                   Math.round(r.expiresAt / 1000 - Date.now() / 1000) +
                   's)'
               );
             }
-            // Sucesso ou não-renovado (JWT ainda válido) → reseta delay
+            // Success or not-renewed (JWT still valid) → resets delay
             _scheduleJwtRenewal(_renewBaseIntervalMs);
           })
           .catch(function (e) {
@@ -628,23 +640,23 @@ function attach(win, ctx) {
             );
             if (_renewConsecutiveFailures <= 2) {
               logger.debug(
-                'JWT auto-renewal falhou (' +
+                'JWT auto-renewal failed (' +
                   _renewConsecutiveFailures +
-                  'x, próximo em ' +
+                  'x, next in ' +
                   Math.round(backoffMs / 60000) +
                   'min): ' +
                   e.message
               );
             } else {
               logger.warn(
-                'JWT auto-renewal falhou ' +
+                'JWT auto-renewal failed ' +
                   _renewConsecutiveFailures +
-                  'x consecutivas — backoff ' +
+                  'x consecutively — backoff ' +
                   Math.round(backoffMs / 60000) +
-                  'min (servidor pode estar fora do ar)'
+                  'min (server may be down)'
               );
             }
-            // Aplica backoff REAL no agendamento
+            // Apply REAL backoff to scheduling
             _scheduleJwtRenewal(backoffMs);
           });
       } catch (e) {
@@ -658,20 +670,20 @@ function attach(win, ctx) {
 }
 
 /**
- * Recarrega a página do jogo com pré-autenticação (igual ao fluxo do Play).
+ * Reloads the game page with pre-authentication (same flow as Play).
  *
- * Diferente de um reload cru, este método:
- *   1. Limpa cookies + localStorage + sessionStorage + cache da partition
- *   2. Pré-autentica via apiLogin.loginAndInject() ANTES de recarregar
- *      → o cookie oas_user já vem setado → servidor redireciona direto pro jogo,
- *        sem mostrar a tela de login do Naruto Online (email ficaria visível).
+ * Unlike a raw reload, this method:
+ *   1. Clears cookies + localStorage + sessionStorage + cache from the partition
+ *   2. Pre-authenticates via apiLogin.loginAndInject() BEFORE reloading
+ *      → the oas_user cookie comes already set → server redirects straight to the game,
+ *        without showing the Naruto Online login screen (email would be visible).
  *
- * Se o perfil NÃO tem credenciais no vault, faz só o reload direto (não há como
- * pré-autenticar). Se o apiLogin falha, faz fallback pro loadURL simples (o
- * form-injection auto-login via did-finish-load cuida do login depois).
+ * If the profile does NOT have credentials in the vault, does just a direct reload (no way to
+ * pre-authenticate). If apiLogin fails, falls back to simple loadURL (the
+ * form-injection auto-login via did-finish-load handles the login after that).
  *
- * ANTI-RACE: se já existe um reload em andamento para esta janela, ignora.
- * Evita que F5 múltiplo rápido cause clearStorageData concorrente + loadURL duplo.
+ * ANTI-RACE: if a reload is already in progress for this window, ignores.
+ * Prevents rapid multiple F5 from causing concurrent clearStorageData + double loadURL.
  *
  * @param {string} profileId
  * @param {Object} profile
@@ -682,33 +694,33 @@ function attach(win, ctx) {
  */
 var _reloadingWindows = new Set();
 // Module-level WeakMap: BrowserWindow -> StallDetector instance.
-// Permite reloadWithPreAuth (module-level) desanexar o detector antes do reload,
-// sem precisar que _stallDetector esteja no escopo (ele vive dentro attach()).
+// Allows reloadWithPreAuth (module-level) to detach the detector before reload,
+// without needing _stallDetector to be in scope (it lives inside attach()).
 var _windowStallDetectors = new WeakMap();
 
 function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
   if (!win || win.isDestroyed()) return Promise.resolve();
   if (win.webContents.isDestroyed()) return Promise.resolve();
   if (!ses) {
-    // Sem session: não há o que limpar, só recarrega.
+    // No session: nothing to clear, just reloads.
     if (!win.webContents.isDestroyed()) {
       win.webContents.reload();
     }
     return Promise.resolve();
   }
 
-  // Anti-race: se já tem um reload em andamento pra esta janela, skip.
+  // Anti-race: if a reload is already in progress for this window, skip.
   var winId = win.id;
   if (_reloadingWindows.has(winId)) {
-    logger.debug('F5 reloadWithPreAuth: já existe reload em andamento (win ' + winId + ') — skip');
+    logger.debug('F5 reloadWithPreAuth: reload already in progress (win ' + winId + ') — skip');
     return Promise.resolve();
   }
   _reloadingWindows.add(winId);
 
-  // P2 FIX: desanexa StallDetector ANTES do reload. O antigo guard liberava
-  // após 3s fixo, mas did-finish-load (que cria um novo StallDetector) pode
-  // demorar mais que 3s em conexões lentas. Resultado: o StallDetector antigo
-  // detectava "inatividade" durante o reload e disparava um segundo reload
+  // P2 FIX: detaches StallDetector BEFORE reload. The old guard released
+  // after a fixed 3s, but did-finish-load (which creates a new StallDetector) can
+  // take longer than 3s on slow connections. Result: the old StallDetector
+  // detected "inactivity" during reload and triggered a second reload
   // concorrente → loop de reloads.
   var sd = _windowStallDetectors.get(win);
   if (sd) {
@@ -720,9 +732,9 @@ function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
     _windowStallDetectors.delete(win);
   }
 
-  logger.info('F5 reloadWithPreAuth: limpando login + pré-autenticando "' + profile.name + '"');
+  logger.info('F5 reloadWithPreAuth: clearing login + pre-authenticating "' + profile.name + '"');
 
-  // Limpa onbeforeunload/onunload antes (igual ao reload antigo fazia).
+  // Clears onbeforeunload/onunload beforehand (same as the old reload did).
   var clearJs = win.webContents
     .executeJavaScript('window.onbeforeunload = null; window.onunload = null;')
     .catch(function () {});
@@ -738,30 +750,27 @@ function reloadWithPreAuth(profileId, profile, win, ses, getGameUrl) {
         _reloadingWindows.delete(winId);
         return;
       }
-      logger.info('F5 reloadWithPreAuth: login limpo, pré-autenticando — ' + profile.name);
-      // Reutiliza o MESMO fluxo do Play (apiLogin.loginAndInject antes de loadURL).
+      logger.info('F5 reloadWithPreAuth: login cleared, pre-authenticating — ' + profile.name);
+      // Reuses the SAME Play flow (apiLogin.loginAndInject before loadURL).
       _loadGameWithPreAuth(profileId, profile, win, ses, getGameUrl);
-      // O guard _reloadingWindows é liberado em did-finish-load (após o novo
-      // StallDetector ser anexado). Timeout de segurança de 30s como fallback
-      // caso did-finish-load nunca dispare (janela destruída, etc).
-      setTimeout(function () {
+      // The _reloadingWindows guard is released in did-finish-load (after the new
+      // StallDetector is attached). 30s safety timeout as fallback
+      // in case did-finish-load never fires (window destroyed, etc).
+      const t = setTimeout(function () {
         _reloadingWindows.delete(winId);
       }, 30000);
+      if (typeof t.unref === 'function') t.unref();
     })
     .catch(function (e) {
       _reloadingWindows.delete(winId);
       if (win.isDestroyed()) return;
-      logger.warn('F5 reloadWithPreAuth: erro ao limpar — fallback reload direto: ' + e.message);
-      // Reset do entry formInjectAttempts não é necessário aqui (did-finish-load cuida).
+      logger.warn('F5 reloadWithPreAuth: failed to clear — fallback direct reload: ' + e.message);
+      // Reset of entry formInjectAttempts is not needed here (did-finish-load handles it).
       win.webContents.reload();
     });
 }
 
 module.exports = {
   attach: attach,
-  reloadWithPreAuth: reloadWithPreAuth,
-  // expostos p/ testes
-  _sendWindowStatus: _sendWindowStatus,
-  _sendAutoLoginResult: _sendAutoLoginResult,
-  _loadGameWithPreAuth: _loadGameWithPreAuth
+  reloadWithPreAuth: reloadWithPreAuth
 };

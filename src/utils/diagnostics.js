@@ -1,26 +1,25 @@
 /**
- * Diagnostics Exporter — gera pacote .zip para diagnóstico (opt-in explícito)
- * v1.0.0 — v4.9.2
+ * Diagnostics Exporter — generates .zip diagnostic package (explicit opt-in)
  *
- * SUBSTITUI o antigo crash-reporter (local-only, removido em v4.9.2).
- * Filosofia: zero tracking, zero auto-envio. O usuário clica em
- * "Exportar diagnóstico" e recebe um .zip pra anexar num GitHub Issue
- * — se quiser. Nada é enviado automaticamente.
+ * REPLACES the old crash-reporter (local-only, removed previously).
+ * Philosophy: zero tracking, zero auto-send. The user clicks
+ * "Export diagnostics" and gets a .zip to attach to a GitHub Issue
+ * — if desired. Nothing is sent automatically.
  *
- * CONTEÚDO DO .zip:
- *   - system-info.json   → versão, Electron, Node, SO, RAM, CPU (sanitizado)
+ * ZIP CONTENTS:
+ *   - system-info.json   → version, Electron, Node, OS, RAM, CPU (sanitized)
  *   - config.json        → config do launcher (sanitizada: sem senhas, sem paths)
- *   - profiles.json      → perfis (sanitizado: nome + região + servidor, sem creds)
- *   - logs/main.log      → log principal do electron-log (últimas 500 linhas)
+ *   - profiles.json      → profiles (sanitized: name + region + server, no creds)
+ *   - logs/main.log      → main electron-log (last 500 lines)
  *   - logs/old-*.log     → logs rotacionados (se existirem)
- *   - crash-reports.json → se existir do v4.7 (legacy, pode estar vazio)
+ *   - crash-reports.json → legacy crash reports (if any, may be empty)
  *
- * SANITIZAÇÃO:
+ * SANITIZATION:
  *   - Remove paths absolutos (/home/user, C:\Users\user)
  *   - Remove tokens (40+ hex chars)
  *   - Remove emails
- *   - Não inclui credenciais do vault (jamais)
- *   - Não inclui cookies do jogo (jamais)
+ *   - Does not include vault credentials (never)
+ *   - Does not include game cookies (never)
  *
  * USO:
  *   const diag = require('./utils/diagnostics');
@@ -36,11 +35,14 @@ const os = require('os');
 const { app, dialog } = require('electron');
 const logger = require('./logger');
 
-// ── Sanitização ──────────────────────────────────────────────────────────
+const MAX_SANITIZE_DEPTH = 6; // Maximum recursion depth for _sanitizeObj (prevents stack overflow on circular refs)
+const MAX_LOG_FILE_BYTES = 2 * 1024 * 1024; // 2MB — skip oversized log files
+
+// ── Sanitization ──────────────────────────────────────────────────────────
 
 function _sanitize(str) {
   if (typeof str !== 'string') return String(str || '');
-  // Paths absolutos de usuário
+  // Absolute user paths
   str = str.replace(/\/(?:home|Users)\/[^/\s]+/g, '/home/[user]');
   str = str.replace(/[A-Z]:\\Users\\[^\\\s]+/g, 'C:\\Users\\[user]');
   // Tokens (40+ hex chars — JWT, etc)
@@ -52,7 +54,7 @@ function _sanitize(str) {
 
 function _sanitizeObj(obj, depth) {
   depth = depth || 0;
-  if (depth > 6) return '[max-depth]';
+  if (depth > MAX_SANITIZE_DEPTH) return '[max-depth]';
   if (obj === null || obj === undefined) return obj;
   if (typeof obj === 'string') return _sanitize(obj);
   if (typeof obj === 'number' || typeof obj === 'boolean') return obj;
@@ -64,7 +66,7 @@ function _sanitizeObj(obj, depth) {
     const out = {};
     for (const k in obj) {
       if (!Object.prototype.hasOwnProperty.call(obj, k)) continue;
-      // Nunca incluir campos sensíveis por nome
+      // Never include sensitive fields by name
       const lk = k.toLowerCase();
       if (
         lk === 'pass' ||
@@ -89,7 +91,7 @@ function _sanitizeObj(obj, depth) {
   return String(obj);
 }
 
-// ── Coleta de informações ────────────────────────────────────────────────
+// ── Information collection ────────────────────────────────────────────────
 
 function _collectSystemInfo() {
   const pkg = require('../../package.json');
@@ -135,7 +137,7 @@ function _collectProfiles() {
   try {
     const store = require('../profiles/store');
     const profiles = store.getAll();
-    // Só nome + região + servidor + stats — JAMAIS creds
+    // Only name + region + server + stats — NEVER creds
     return profiles.map(function (p) {
       return {
         id: p.id,
@@ -159,7 +161,7 @@ function _collectProfiles() {
 function _readLogs() {
   const out = {};
   try {
-    // electron-log salva em app.getPath('logs') ou app.getPath('userData')/logs
+    // electron-log saves to app.getPath('logs') or app.getPath('userData')/logs
     let logsDir = null;
     try {
       logsDir = app.getPath('logs');
@@ -179,8 +181,8 @@ function _readLogs() {
       const full = path.join(logsDir, f);
       try {
         const stat = fs.statSync(full);
-        if (stat.size > 2 * 1024 * 1024) {
-          // >2MB: lê só últimas 500 linhas
+        if (stat.size > MAX_LOG_FILE_BYTES) {
+          // >2MB: reads only last 500 lines
           const buf = fs.readFileSync(full, 'utf8');
           const lines = buf.split('\n');
           out[f] = lines.slice(-500).join('\n');
@@ -211,9 +213,9 @@ function _readLegacyCrashReports() {
   return null;
 }
 
-// ── ZIP writer minimalista (sem dependências) ────────────────────────────
-// Formato ZIP: estrutura simples, deflate. Implementação inline pra não
-// adicionar dependência (adm-zip/jszip) ao launcher.
+// ── Minimalist ZIP writer (no dependencies) ────────────────────────────
+// ZIP format: simple structure, deflate. Inline implementation to
+// add dependency (adm-zip/jszip) to the launcher.
 
 function _crc32(buf) {
   let crc = 0xffffffff;
@@ -237,7 +239,7 @@ function _makeZipFile(entries) {
     const data = entries[i].data;
     const nameBuf = Buffer.from(name, 'utf8');
     const crc = _crc32(data);
-    // Store (sem compressão) — simplicidade + logs já são texto
+    // Store (no compression) — simplicity + logs are already text
     const local = Buffer.alloc(30 + nameBuf.length);
     local.writeUInt32LE(0x04034b50, 0); // signature
     local.writeUInt16LE(20, 4); // version needed
@@ -294,16 +296,16 @@ function _makeZipFile(entries) {
   return Buffer.concat([Buffer.concat(localParts), centralBuf, end]);
 }
 
-// ── API pública ──────────────────────────────────────────────────────────
+// ── Public API ──────────────────────────────────────────────────────────
 
 /**
- * Gera o pacote .zip de diagnóstico e abre diálogo de salvamento.
- * @param {Object} [parentWindow] — janela pai pra modal (opcional)
+ * Generates the diagnostic .zip package and opens save dialog.
+ * @param {Object} [parentWindow] — parent window for modal (optional)
  * @returns {Promise<{ok:boolean, path?:string, error?:string, size?:number}>}
  */
 async function exportZip(parentWindow) {
   try {
-    logger.info('Diagnostics: coletando informações...');
+    logger.info('Diagnostics: collecting information...');
 
     const sysInfo = _collectSystemInfo();
     const config = _collectConfig();
@@ -311,7 +313,7 @@ async function exportZip(parentWindow) {
     const logs = _readLogs();
     const legacyCrash = _readLegacyCrashReports();
 
-    // Monta entradas do zip
+    // Build zip entries
     const entries = [];
     entries.push({
       name: 'system-info.json',
@@ -328,28 +330,28 @@ async function exportZip(parentWindow) {
     if (legacyCrash) {
       entries.push({ name: 'crash-reports-legacy.json', data: Buffer.from(legacyCrash, 'utf8') });
     }
-    // Logs em subpasta
+    // Logs in subfolder
     Object.keys(logs).forEach(function (fname) {
       entries.push({ name: 'logs/' + fname, data: Buffer.from(logs[fname], 'utf8') });
     });
-    // README explicativo
+    // Explanatory README
     const readme = [
-      '# Diagnóstico Shinobi Launcher v' + sysInfo.app.version,
+      '# Shinobi Launcher Diagnostics v' + sysInfo.app.version,
       '',
-      'Gerado em: ' + sysInfo.timestamp,
+      'Generated on: ' + sysInfo.timestamp,
       '',
-      '## Conteúdo',
-      '- system-info.json: versões, SO, hardware (sanitizado)',
-      '- config.json: configuração do launcher (sem credenciais)',
-      '- profiles.json: perfis (nome + região + stats, sem senhas)',
-      '- logs/main.log: log principal (últimas 500 linhas)',
-      '- crash-reports-legacy.json: reports antigos do v4.7 (se existirem)',
+      '## Contents',
+      '- system-info.json: versions, OS, hardware (sanitized)',
+      '- config.json: launcher configuration (no credentials)',
+      '- profiles.json: profiles (name + region + stats, no passwords)',
+      '- logs/main.log: main log (last 500 lines)',
+      '- crash-reports-legacy.json: legacy crash reports (if any)',
       '',
-      '## Sanitização',
-      'Paths de usuário, tokens, emails e credenciais foram removidos.',
-      'Nada é enviado automaticamente — este .zip é seu, você decide o que fazer.',
+      '## Sanitization',
+      'User paths, tokens, emails and credentials have been removed.',
+      'Nothing is sent automatically — this .zip is yours, you decide what to do.',
       '',
-      '## Como usar',
+      '## How to use',
       'Anexe este .zip num GitHub Issue em:',
       'https://github.com/Chrispsz/naruto-online-launcher/issues'
     ].join('\n');
@@ -357,12 +359,12 @@ async function exportZip(parentWindow) {
 
     const zipBuf = _makeZipFile(entries);
 
-    // Diálogo de salvamento
+    // Save dialog
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const defaultName = 'shinobi-diag-' + stamp + '.zip';
 
     const result = await dialog.showSaveDialog(parentWindow, {
-      title: 'Exportar diagnóstico',
+      title: 'Export diagnostics',
       defaultPath: defaultName,
       filters: [{ name: 'ZIP', extensions: ['zip'] }]
     });
@@ -374,25 +376,21 @@ async function exportZip(parentWindow) {
     fs.writeFileSync(result.filePath, zipBuf);
     const sizeKB = Math.round(zipBuf.length / 1024);
     logger.info(
-      'Diagnostics: .zip salvo em ' +
+      'Diagnostics: .zip saved at ' +
         result.filePath +
         ' (' +
         sizeKB +
         'KB, ' +
         entries.length +
-        ' arquivos)'
+        ' files)'
     );
     return { ok: true, path: result.filePath, size: zipBuf.length, entries: entries.length };
   } catch (e) {
-    logger.error('Diagnostics: falha ao exportar — ' + e.message);
+    logger.error('Diagnostics: export failed — ' + e.message);
     return { ok: false, error: e.message };
   }
 }
 
 module.exports = {
-  exportZip: exportZip,
-  // expostos pra testes
-  _sanitize: _sanitize,
-  _sanitizeObj: _sanitizeObj,
-  _collectSystemInfo: _collectSystemInfo
+  exportZip: exportZip
 };

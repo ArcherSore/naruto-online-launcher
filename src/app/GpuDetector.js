@@ -1,17 +1,17 @@
 /**
- * app/GpuDetector.js — Detecção real de GPU por marca (v1.0.0)
+ * app/GpuDetector.js — Real GPU detection by brand
  *
- * Responsabilidade ÚNICA: identificar a GPU ativa do sistema (vendor + modelo)
- * para que o flags.js possa aplicar otimizações específicas por marca.
+ * Single Responsibility: identify the active GPU (vendor + model)
+ * so flags.js can apply brand-specific optimizations.
  *
- * Plataformas suportadas:
- *   - Linux: lê /proc/driver/nvidia (NVIDIA), /sys/class/drm/cardN/device (AMD/Intel),
- *            fallback lspci (se disponível). Detecta PRIME (Optimus laptops).
- *   - Windows: lê registry HKLM\SYSTEM\CurrentControlSet\Enum\PCI (vendor ID + desc).
- *   - macOS: sysctl igpu (Intel) / não suportado (Mac não roda Flash PPAPI).
+ * Supported platforms:
+ *   - Linux: reads /proc/driver/nvidia (NVIDIA), /sys/class/drm/cardN/device (AMD/Intel),
+ *            fallback lspci (if available). Detects PRIME (Optimus laptops).
+ *   - Windows: reads registry HKLM\SYSTEM\CurrentControlSet\Enum\PCI (vendor ID + desc).
+ *   - macOS: sysctl igpu (Intel) / not supported (Mac doesn't run Flash PPAPI).
  *
- * Cacheia o resultado em memória (detecção é cara, ~50ms com lspci).
- * Em AppImage, lspci pode não estar disponível — fallback para /sys/.
+ * Caches result in memory (detection is expensive, ~50ms with lspci).
+ * In AppImage, lspci may not be available — fallback to /sys/.
  */
 
 'use strict';
@@ -21,12 +21,12 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const logger = require('../utils/logger');
 
-// PCI Vendor IDs padrão
+// Standard PCI Vendor IDs
 const VENDOR_NVIDIA = 0x10de;
 const VENDOR_AMD = 0x1002;
 const VENDOR_INTEL = 0x8086;
 
-// Mapa vendor ID → código interno
+// Vendor ID → internal code map
 const VENDOR_MAP = {
   [VENDOR_NVIDIA]: 'nvidia',
   [VENDOR_AMD]: 'amd',
@@ -36,9 +36,9 @@ const VENDOR_MAP = {
 let _cache = null;
 
 /**
- * Detecta se o sistema usa musl libc (Alpine Linux, Void Linux musl, etc).
- * musl NÃO usa arena-based malloc como glibc — MALLOC_ARENA_MAX é placebo lá.
- * Detecção: /lib/ld-musl-*.so.1 existe apenas em sistemas musl.
+ * Detects if the system uses musl libc (Alpine Linux, Void Linux musl, etc).
+ * musl does NOT use arena-based malloc like glibc — MALLOC_ARENA_MAX is placebo there.
+ * Detection: /lib/ld-musl-*.so.1 exists only on musl systems.
  * @returns {boolean}
  */
 function _isMusl() {
@@ -54,14 +54,14 @@ function _isMusl() {
 }
 
 /**
- * Detecta se o driver NVIDIA em uso é o proprietário (nvidia) ou o open-source (nouveau).
- * /proc/driver/nvidia só existe com o driver proprietário. nouveau expõe via
+ * Detects if the NVIDIA driver in use is proprietary (nvidia) or open-source (nouveau).
+ * /proc/driver/nvidia only exists with the proprietary driver. nouveau exposes via
  * /sys/class/drm/cardN/device/driver = 'nouveau'.
- * Env vars __GL_* só funcionam com o driver proprietário — são placebo com nouveau.
- * @returns {boolean} true se driver proprietário NVIDIA carregado
+ * Env vars __GL_* only work with the proprietary driver — they are placebo with nouveau.
+ * @returns {boolean} true if proprietary NVIDIA driver loaded
  */
 function _isNvidiaProprietary() {
-  if (process.platform !== 'linux') return process.platform === 'win32'; // Win sempre proprietário
+  if (process.platform !== 'linux') return process.platform === 'win32'; // Win always proprietary
   try {
     return fs.existsSync('/proc/driver/nvidia');
   } catch (_) {
@@ -70,17 +70,17 @@ function _isNvidiaProprietary() {
 }
 
 /**
- * Detecta PRIME (NVIDIA Optimus laptop com dGPU NVIDIA + iGPU Intel).
- * Em laptops Optimus, o X server roda na Intel e a NVIDIA é offload.
+ * Detects PRIME (NVIDIA Optimus laptop with NVIDIA dGPU + Intel iGPU).
+ * On Optimus laptops, the X server runs on Intel and NVIDIA is offload.
  * @returns {boolean}
  */
 function _detectNvidiaPrimeLinux() {
-  // Sinais de PRIME ativo
+  // Signs of active PRIME
   if (process.env.__NV_PRIME_RENDER_OFFLOAD === '1') return true;
   if (process.env.DRI_PRIME === '1') return true;
 
-  // /proc/driver/nvidia existe apenas quando o driver NVIDIA está carregado.
-  // Em laptop com Intel iGPU + NVIDIA dGPU, ambos estão presentes.
+  // /proc/driver/nvidia only exists when NVIDIA driver is loaded.
+  // On laptop with Intel iGPU + NVIDIA dGPU, both are present.
   try {
     const hasNvidia = fs.existsSync('/proc/driver/nvidia');
     const hasIntel =
@@ -93,8 +93,8 @@ function _detectNvidiaPrimeLinux() {
 }
 
 /**
- * Lista GPUs presentes no sistema Linux via /sys/class/drm.
- * Retorna array de { vendor: 'nvidia'|'amd'|'intel', vendorId, deviceId, description, cardN }.
+ * Lists GPUs present on Linux via /sys/class/drm.
+ * Returns array of { vendor: 'nvidia'|'amd'|'intel', vendorId, deviceId, description, cardN }.
  * @returns {Array<Object>}
  */
 function _listGpusLinuxSysfs() {
@@ -116,14 +116,14 @@ function _listGpusLinuxSysfs() {
         const vendorRaw = fs.readFileSync(vendorPath, 'utf8').trim();
         const vendorId = parseInt(vendorRaw, 16);
         const code = VENDOR_MAP[vendorId];
-        if (!code) continue; // desconhecido (provável não-GPU)
+        if (!code) continue; // unknown (likely not a GPU)
 
         const deviceRaw = fs.existsSync(devicePath)
           ? fs.readFileSync(devicePath, 'utf8').trim()
           : '0x0000';
         const deviceId = parseInt(deviceRaw, 16);
 
-        // Tenta pegar descrição amigável do uevent (DRM_DRIVER=amdgpu etc)
+        // Try to get friendly description from uevent (DRM_DRIVER=amdgpu etc)
         let driver = '';
         let description = code.toUpperCase() + ' GPU';
         if (fs.existsSync(ueventPath)) {
@@ -156,7 +156,7 @@ function _listGpusLinuxSysfs() {
 }
 
 /**
- * Fallback: lista GPUs via `lspci` (se disponível).
+ * Fallback: lists GPUs via `lspci` (if available).
  * @returns {Array<Object>}
  */
 function _listGpusLinuxLspci() {
@@ -169,9 +169,9 @@ function _listGpusLinuxLspci() {
     const gpus = [];
     const lines = out.split('\n');
     for (const line of lines) {
-      // Display controller ou VGA compatible controller
+      // Display controller or VGA compatible controller
       if (!/VGA compatible controller|Display controller|3D controller/i.test(line)) continue;
-      // Formato -nn -mm: "00:02.0 "VGA compatible controller" "Intel" "HD Graphics" [-device -vendor]"
+      // Format -nn -mm: "00:02.0 "VGA compatible controller" "Intel" "HD Graphics" [-device -vendor]"
       const m = line.match(/"([^"]+)"\s+"([^"]+)"\s+"([^"]*)"(?:\s+\[([0-9a-f]+):([0-9a-f]+)\])?/i);
       if (!m) continue;
       const vendorName = m[2].toLowerCase();
@@ -204,23 +204,23 @@ function _listGpusLinuxLspci() {
 }
 
 /**
- * Lista GPUs no Windows lendo o registry PCI.
+ * Lists GPUs on Windows by reading the PCI registry.
  * @returns {Array<Object>}
  */
 function _listGpusWindows() {
   if (process.platform !== 'win32') return [];
-  // wmic está removido no Windows 11 24H2+ e Windows Server 2025.
-  // Tenta wmic primeiro (rápido, ~1s), fallback PowerShell (mais lento ~3s).
+  // wmic was removed in Windows 11 24H2+ and Windows Server 2025.
+  // Tries wmic first (fast, ~1s), fallback PowerShell (slower ~3s).
   var gpus = _listGpusWindowsWmic();
   if (gpus.length > 0) return gpus;
   return _listGpusWindowsPowershell();
 }
 
 /**
- * Lista GPUs no Windows via wmic.
- * NOTA: wmic está DEPRECATED e foi REMOVIDO no Windows 11 24H2+.
- * Ainda funciona em Win10 e Win11 builds anteriores a 26100.
- * Se falhar, o fallback _listGpusWindowsPowershell() é usado.
+ * Lists GPUs on Windows via wmic.
+ * NOTE: wmic is DEPRECATED and was REMOVED in Windows 11 24H2+.
+ * Still works on Win10 and Win11 builds prior to 26100.
+ * If it fails, the fallback _listGpusWindowsPowershell() is used.
  * @returns {Array<Object>}
  */
 function _listGpusWindowsWmic() {
@@ -268,12 +268,12 @@ function _listGpusWindowsWmic() {
 }
 
 /**
- * Detecta a GPU ATIVA (a que está renderizando o Electron agora).
+ * Detects the ACTIVE GPU (the one rendering Electron now).
  *
- * Em desktop: a primeira GPU da lista.
- * Em laptop Optimus: detecta PRIME e marca a NVIDIA como ativa quando
- * __NV_PRIME_RENDER_OFFLOAD=1, senão a Intel é a ativa (mas a NVIDIA
- * está disponível para offload).
+ * On desktop: the first GPU in the list.
+ * On Optimus laptop: detects PRIME and marks NVIDIA as active when
+ * __NV_PRIME_RENDER_OFFLOAD=1, otherwise Intel is the active one (but NVIDIA
+ * is available for offload).
  *
  * @returns {Object} { vendor, vendorId, deviceId, description, isPrime, allGpus }
  */
@@ -282,21 +282,21 @@ function detect() {
 
   let gpus = [];
   if (process.platform === 'linux') {
-    // Detecta sandbox (Flatpak/Snap) — GPU detection via sysfs/lspci pode falhar
+    // Detect sandbox (Flatpak/Snap) — GPU detection via sysfs/lspci may fail
     var sandbox = detectLinuxSandbox();
     if (sandbox) {
       logger.info(
-        'GpuDetector: detectado sandbox ' + sandbox + ' — GPU detection pode ser limitada'
+        'GpuDetector: detected sandbox ' + sandbox + ' — GPU detection may be limited'
       );
     }
     gpus = _listGpusLinuxSysfs();
     if (gpus.length === 0) gpus = _listGpusLinuxLspci();
     if (gpus.length === 0 && sandbox) {
       logger.warn(
-        'GpuDetector: nenhuma GPU detectada em sandbox ' +
+        'GpuDetector: no GPU detected in sandbox ' +
           sandbox +
-          ' — o jogo usará renderização software (swiftshader). ' +
-          'Para GPU passthrough, use flatpak override ou snap interface gpu.'
+          ' — the game will use software rendering (swiftshader). ' +
+          'For GPU passthrough, use flatpak override or snap interface gpu.'
       );
     }
   } else if (process.platform === 'win32') {
@@ -305,10 +305,10 @@ function detect() {
 
   const isPrime = process.platform === 'linux' && _detectNvidiaPrimeLinux();
 
-  // Determina GPU ativa:
-  // - Em PRIME ativo (__NV_PRIME_RENDER_OFFLOAD=1), NVIDIA é a ativa.
-  // - Senão, em PRIME passivo (Intel iGPU + NVIDIA dGPU disponível), Intel é a ativa.
-  // - Senão, primeira GPU da lista.
+  // Determines active GPU:
+  // - With active PRIME (__NV_PRIME_RENDER_OFFLOAD=1), NVIDIA is the active one.
+  // - Otherwise, with passive PRIME (Intel iGPU + NVIDIA dGPU available), Intel is active.
+  // - Otherwise, first GPU in the list.
   let active = null;
   if (gpus.length > 0) {
     if (isPrime && process.env.__NV_PRIME_RENDER_OFFLOAD === '1') {
@@ -317,7 +317,7 @@ function detect() {
           return g.vendor === 'nvidia';
         }) || gpus[0];
     } else if (isPrime) {
-      // PRIME passivo: Intel iGPU está ativa (X server roda nela)
+      // Passive PRIME: Intel iGPU is active (X server runs on it)
       active =
         gpus.find(function (g) {
           return g.vendor === 'intel';
@@ -365,9 +365,9 @@ function detect() {
 }
 
 /**
- * Retorna as variáveis de ambiente específicas da GPU ativa.
- * Estas são aplicadas NO PROCESSO DO ELECTRON ANTES do Chromium iniciar o
- * GPU process — portanto devem ser setadas em main.js top-level ou flags.js.
+ * Returns GPU-specific environment variables.
+ * These are applied TO THE ELECTRON PROCESS BEFORE Chromium starts the
+ * GPU process — therefore must be set in main.js top-level or flags.js.
  *
  * @param {string} preset - 'performance'|'balanced'|'quality'
  * @returns {Object} env vars to set
@@ -376,60 +376,60 @@ function getEnvVars(preset) {
   const gpu = detect();
   const env = {};
 
-  // ── Comum a todas as GPUs ──
-  // Reduz fragmentação de memória do V8/Flash (glibc malloc).
-  // 2 arenas é o suficiente para single-threaded-heavy workload como Flash.
-  // PLACEBO em musl libc (Alpine, Void musl) — musl não usa arena-based malloc.
+  // ── Common to all GPUs ──
+  // Reduces V8/Flash memory fragmentation (glibc malloc).
+  // 2 arenas is sufficient for single-threaded-heavy workload like Flash.
+  // PLACEBO on musl libc (Alpine, Void musl) — musl doesn't use arena-based malloc.
   if (!_isMusl()) {
     env.MALLOC_ARENA_MAX = '2';
   } else {
-    logger.info('GpuDetector: musl libc detectado — MALLOC_ARENA_MAX skipado (placebo)');
+    logger.info('GpuDetector: musl libc detected — MALLOC_ARENA_MAX skipped (placebo)');
   }
 
   if (gpu.vendor === 'nvidia') {
-    // __GL_* vars só funcionam com driver NVIDIA proprietário. Com nouveau são placebo.
+    // __GL_* vars only work with proprietary NVIDIA driver. With nouveau they are placebo.
     if (!_isNvidiaProprietary()) {
-      logger.info('GpuDetector: nouveau detectado — __GL_* vars skipadas (placebo com nouveau)');
+      logger.info('GpuDetector: nouveau detected — __GL_* vars skipped (placebo with nouveau)');
     } else {
-      // Threaded optimizations: driver NVIDIA cria threads auxiliares para
-      // upload de texturas e command buffer building. OFF por default em alguns
-      // drivers. ON = ganho real de FPS em Flash (que é CPU-bound no renderer).
+      // Threaded optimizations: NVIDIA driver creates auxiliary threads for
+      // texture upload and command buffer building. OFF by default on some
+      // drivers. ON = real FPS gain in Flash (which is CPU-bound on the renderer).
       env.__GL_THREADED_OPTIMIZATIONS = '1';
 
-      // Vsync controlado pelo Chromium (não pelo driver). Performance preset
-      // desabilita vsync do driver pra reduzir input lag.
+      // Vsync controlled by Chromium (not by the driver). Performance preset
+      // disables driver vsync to reduce input lag.
       if (preset === 'performance') {
         env.__GL_SYNC_TO_VBLANK = '0';
       }
 
-      // PRIME offload: se a NVIDIA está disponível mas não ativa, força offload
-      // para renderizar na dGPU (ganho real em laptops Optimus).
+      // PRIME offload: if NVIDIA is available but not active, forces offload
+      // to render on the dGPU (real gain on Optimus laptops).
       if (gpu.isPrime && process.env.__NV_PRIME_RENDER_OFFLOAD !== '1') {
         env.__NV_PRIME_RENDER_OFFLOAD = '1';
         env.__GLX_VENDOR_LIBRARY_NAME = 'nvidia';
-        logger.info('GpuDetector: PRIME offload ativado (dGPU NVIDIA forçada)');
+        logger.info('GpuDetector: PRIME offload activated (dGPU NVIDIA forced)');
       }
     }
   } else if (gpu.vendor === 'amd') {
-    // Mesa radeonsi (AMD open-source). zerovram = zera VRAM em context destroy
-    // (evita leak de memória de texturas não-liberadas — Flash é ruim nisso).
-    // Documentação: https://docs.mesa3d.org/envvars.html
+    // Mesa radeonsi (AMD open-source). zerovram = clears VRAM on context destroy
+    // (prevents memory leak of unreleased textures — Flash is bad at this).
+    // Docs: https://docs.mesa3d.org/envvars.html
     env.RADEONSI_ZERO_VRAM = '1';
-    // RADEONSI_CLEAR_DB_SHADER_CACHE removido — não é uma env var reconhecida
-    // pelo Mesa radeonsi. Setá-la era placebo. O cache de DB shader é
-    // gerenciado automaticamente pelo driver (limpo em context destroy).
+    // RADEONSI_CLEAR_DB_SHADER_CACHE removed — is not a recognized env var
+    // by Mesa radeonsi. Setting it was placebo. The DB shader cache is
+    // managed automatically by the driver (cleared on context destroy).
 
-    // MESA_SHADER_CACHE: mantém cache habilitado em todos os presets (default).
-    // Desabilitar (MESA_SHADER_CACHE_DISABLE=1) só ajuda em benchmarks sintéticos
-    // — no uso real, o cache economiza 1-3s no warm-up de shaders. Removido.
+    // MESA_SHADER_CACHE: keeps cache enabled in all presets (default).
+    // Disabling (MESA_SHADER_CACHE_DISABLE=1) only helps in synthetic benchmarks
+    // — in real usage, the cache saves 1-3s on shader warm-up. Removed.
   } else if (gpu.vendor === 'intel') {
-    // NOTE: LIBVA_DRIVER_NAME removido — VAAPI é para HTML5 <video> hardware decode.
-    // Flash PPAPI faz decode de vídeo internamente; VAAPI não afeta Flash.
+    // NOTE: LIBVA_DRIVER_NAME removed — VAAPI is for HTML5 <video> hardware decode.
+    // Flash PPAPI does video decode internally; VAAPI doesn't affect Flash.
 
     if (preset === 'performance') {
-      // norbc = NO Render Buffer Compression. É um flag de DEBUG de estabilidade
-      // (desabilita CCS que pode causar artefatos em Flash), NÃO de performance.
-      // Mantém por estabilidade em drivers Intel problemáticos.
+      // norbc = NO Render Buffer Compression. It is a DEBUG flag for stability
+      // (disables CCS which can cause artifacts in Flash), NOT for performance.
+      // Kept for stability on problematic Intel drivers.
       env.INTEL_DEBUG = 'norbc';
     }
   }
@@ -446,22 +446,15 @@ function getEnvVars(preset) {
 }
 
 /**
- * Reseta o cache (para testes).
- */
-function _resetCache() {
-  _cache = null;
-}
-
-/**
- * Fallback: lista GPUs no Windows via PowerShell Get-CimInstance.
- * Funciona em Win11 24H2+ (onde wmic foi removido) e Windows Server.
- * Tenta powershell.exe (v5.1) primeiro, fallback pwsh.exe (PowerShell 7+).
- * Get-CimInstance é o substituto moderno do wmic.
+ * Fallback: lists GPUs on Windows via PowerShell Get-CimInstance.
+ * Works on Win11 24H2+ (where wmic was removed) and Windows Server.
+ * Tries powershell.exe (v5.1) first, fallback pwsh.exe (PowerShell 7+).
+ * Get-CimInstance is the modern replacement for wmic.
  * @returns {Array<Object>}
  */
 function _listGpusWindowsPowershell() {
   try {
-    // Tenta powershell.exe primeiro, fallback pwsh.exe
+    // Try powershell.exe first, fallback pwsh.exe
     var out = _tryPowershellGpu('powershell');
     if (!out) out = _tryPowershellGpu('pwsh');
     if (!out) return [];
@@ -472,9 +465,9 @@ function _listGpusWindowsPowershell() {
 }
 
 /**
- * Executa Get-CimInstance via um binário PowerShell específico.
- * @param {string} bin - 'powershell' ou 'pwsh'
- * @returns {string|null} stdout ou null se falhou
+ * Executes Get-CimInstance via a specific PowerShell binary.
+ * @param {string} bin - 'powershell' or 'pwsh'
+ * @returns {string|null} stdout or null if failed
  */
 function _tryPowershellGpu(bin) {
   try {
@@ -549,35 +542,21 @@ function _parsePowershellGpuCsv(out) {
 }
 
 /**
- * Detecta se o launcher está rodando dentro de um sandbox Linux (Flatpak, Snap).
- * Nestes ambientes, /sys/class/drm e /proc/driver/nvidia podem não estar acessíveis.
- * A detecção de GPU via sysfs/lspci falha silenciosamente — logamos um aviso.
+ * Detects if launcher is running inside a Linux sandbox (Flatpak, Snap).
+ * In these environments, /sys/class/drm and /proc/driver/nvidia may not be accessible.
+ * GPU detection via sysfs/lspci fails silently — we log a warning.
  * @returns {string|null} 'flatpak'|'snap'|null
  */
 function detectLinuxSandbox() {
   if (process.platform !== 'linux') return null;
-  // Flatpak: FLATPAK_ID é setado pelo runtime
+  // Flatpak: FLATPAK_ID is set by the runtime
   if (process.env.FLATPAK_ID) return 'flatpak';
-  // Snap: SNAP_NAME é setado pelo snapd
+  // Snap: SNAP_NAME is set by snapd
   if (process.env.SNAP_NAME) return 'snap';
   return null;
 }
 
 module.exports = {
   detect: detect,
-  getEnvVars: getEnvVars,
-  // expostos p/ testes
-  _resetCache: _resetCache,
-  _listGpusLinuxSysfs: _listGpusLinuxSysfs,
-  _listGpusLinuxLspci: _listGpusLinuxLspci,
-  _listGpusWindowsWmic: _listGpusWindowsWmic,
-  _listGpusWindowsPowershell: _listGpusWindowsPowershell,
-  _detectNvidiaPrimeLinux: _detectNvidiaPrimeLinux,
-  _isMusl: _isMusl,
-  _isNvidiaProprietary: _isNvidiaProprietary,
-  detectLinuxSandbox: detectLinuxSandbox,
-  VENDOR_NVIDIA: VENDOR_NVIDIA,
-  VENDOR_AMD: VENDOR_AMD,
-  VENDOR_INTEL: VENDOR_INTEL,
-  VENDOR_MAP: VENDOR_MAP
+  getEnvVars: getEnvVars
 };

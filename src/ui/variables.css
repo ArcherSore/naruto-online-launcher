@@ -1,48 +1,51 @@
 /* ═══════════════════════════════════════════════════════════════════════════
  * variables.css — Shinobi Launcher Design Tokens
- * v1.0.0 — v3.6.1
+ * Rebrand shinobi: gold + AMOLED black
  *
- * Single source of truth para cores, espaçamento, tipografia e componentes.
- * TODAS as UIs (index.html, setup.html) devem importar este arquivo
- * e usar apenas tokens — NUNCA hex/px hardcoded.
+ * Philosophy: pure AMOLED black (#000) with golden shinobi accent. Hierarchy
+ * by typography and spacing. All decorative icons use the same golden tone —
+ * absolute visual consistency. Semantic colors (ok/warn/danger) reserved for
+ * status indicators only, not for decorative icons.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Colors: Base (v5.9.3 — paleta dourada unificada com o site) ── */
-  --bg: #070709;
-  --bg-elev: #0d0d12;
-  --bg-elev-2: #1a1a24;
-  --surface: #11111a;
-  --surface-hover: #1a1a24;
+  /* ── Colors: Base (pure AMOLED black) ── */
+  --bg: #000000;
+  --bg-elev: #0a0a0a;
+  --bg-elev-2: #121212;
+  --surface: #070707;
+  --surface-hover: #161616;
 
-  /* ── Colors: Border ── */
-  --border: #13131a;
-  --border-hover: #5c5c6f;
-  --border-focus: #c8a23d;
+  /* ── Colors: Border (visible on pure black) ── */
+  --border: #1c1c1c;
+  --border-hover: #383838;
+  --border-focus: #d4a543;
 
-  /* ── Colors: Text ── */
-  --text: #f0ede6;
-  --text-dim: #9a9aab;
-  --text-faint: #5c5c6f;
+  /* ── Colors: Text (scale on AMOLED black) ── */
+  --text: #f2f2f2;
+  --text-dim: #a8a8a8;
+  --text-faint: #5e5e5e;
 
-  /* ── Colors: Accent (Shinobi/Akatsuki — gold #c8a23d) ── */
-  --accent: #c8a23d;
-  --accent-hover: #e2c66d;
-  --accent-2: #8b7230;
-  --accent-2-hover: #c8a23d;
-  --accent-glow: rgba(200, 162, 61, 0.15);
+  /* ── Colors: Accent (shinobi gold — golden palette) ── */
+  --accent: #d4a543;
+  --accent-hover: #e6b85a;
+  --accent-2: #8a6d28;
+  --accent-2-hover: #b8902f;
+  --accent-glow: rgba(212, 165, 67, 0.12);
+  --accent-soft: rgba(212, 165, 67, 0.08);
+  --accent-contrast: #000000;
 
-  /* ── Colors: Semantic ── */
-  --ok: #10b981;
-  --warn: #f59e0b;
-  --danger: #dc2626;
+  /* ── Colors: Semantic (use sparingly — status, not decoration) ── */
+  --ok: #5cb85c;
+  --warn: #d4a543;
+  --danger: #d4574a;
 
-  /* ── Shadows ── */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  /* ── Shadows (soft on AMOLED) ── */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.6);
+  --shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.8);
 
-  /* ── Spacing (4px base scale) ── */
+  /* ── Spacing (4px base scale — kept) ── */
   --space-1: 0.25rem; /* 4px */
   --space-2: 0.5rem; /* 8px */
   --space-3: 0.75rem; /* 12px */
@@ -50,9 +53,9 @@
   --space-5: 1.5rem; /* 24px */
   --space-6: 2rem; /* 32px */
 
-  /* ── Typography ── */
-  --font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'SF Mono', 'Cascadia Code', monospace;
+  /* ── Typography (refined system with Inter fallback) ── */
+  --font-family: -apple-system, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', monospace;
   --font-xs: 0.6875rem; /* 11px */
   --font-sm: 0.75rem; /* 12px */
   --font-base: 0.8125rem; /* 13px */
@@ -69,18 +72,19 @@
   --line-height-base: 1.5;
   --line-height-tight: 1.25;
 
-  /* ── Border Radius ── */
+  /* ── Border Radius (contained corners) ── */
   --radius-sm: 0.25rem; /* 4px */
-  --radius: 0.5rem; /* 8px */
-  --radius-lg: 0.625rem; /* 10px */
+  --radius: 0.375rem; /* 6px */
+  --radius-md: 0.5rem; /* 8px */
+  --radius-lg: 0.5rem; /* 8px */
   --radius-full: 9999px;
 
-  /* ── Transitions ── */
-  --transition: 150ms ease;
-  --transition-fast: 100ms ease;
-  --transition-slow: 300ms ease;
+  /* ── Transitions (fast, precise) ── */
+  --transition: 120ms ease;
+  --transition-fast: 80ms ease;
+  --transition-slow: 220ms ease;
 
-  /* ── Focus Ring ── */
+  /* ── Focus Ring (gold) ── */
   --focus-ring: 0 0 0 2px var(--accent);
 
   /* ── Z-index scale ── */
