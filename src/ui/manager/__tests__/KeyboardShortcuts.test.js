@@ -1,6 +1,6 @@
 /**
  * Testes para src/ui/manager/KeyboardShortcuts.js (Fase 3d split)
- * Verifica F5 clear login (callback + fallback), F12 DevTools, Alt+F4 close, e bloqueios.
+ * Verifica F5 safe role reload, F12 DevTools, Alt+F4 close, e bloqueios.
  */
 
 const KeyboardShortcuts = require('../KeyboardShortcuts');
@@ -47,58 +47,50 @@ describe('KeyboardShortcuts.js', () => {
     expect(() => KeyboardShortcuts.attach(null, 'x')).not.toThrow();
   });
 
-  describe('F5 → clear login', () => {
-    test('F5 com onClearLogin callback delega pro callback (não faz reload direto)', () => {
-      // v5.9.7: quando o Launcher passa um callback, F5 delega pra ele
-      // (Launcher faz clear + pré-auth via API antes de recarregar — igual ao Play).
+  describe('F5 → safe current-role reload', () => {
+    test('F5 delega para o reload seguro do papel atual sem limpar a Session', () => {
       const { win, wc, getHandler } = makeMockWin();
       const ses = makeMockSession();
-      const onClearLogin = jest.fn();
-      KeyboardShortcuts.attach(win, 'TestProfile', ses, onClearLogin);
+      const reloadCurrentRole = jest.fn();
+      KeyboardShortcuts.attach(win, 'TestProfile', reloadCurrentRole);
 
       const ev = fire(getHandler(), { key: 'F5', control: false, alt: false, shift: false });
       expect(ev.preventDefault).toHaveBeenCalled();
-      expect(onClearLogin).toHaveBeenCalledTimes(1);
-      // Não deve chamar o clear/reload manual — responsabilidade do callback agora.
+      expect(reloadCurrentRole).toHaveBeenCalledTimes(1);
       expect(ses.clearStorageData).not.toHaveBeenCalled();
       expect(ses.clearCache).not.toHaveBeenCalled();
       expect(wc.reload).not.toHaveBeenCalled();
     });
 
-    test('F5 com callback que lança faz fallback pra reload direto', () => {
-      // Se o callback quebra, F5 ainda recarrega (não deixa o usuário sem ação).
+    test('F5 com callback que lança não contorna a classificação com reload direto', () => {
       const { win, wc, getHandler } = makeMockWin();
-      const ses = makeMockSession();
-      const onClearLogin = jest.fn(() => {
+      const reloadCurrentRole = jest.fn(() => {
         throw new Error('mock fail');
       });
-      KeyboardShortcuts.attach(win, 'TestProfile', ses, onClearLogin);
+      KeyboardShortcuts.attach(win, 'TestProfile', reloadCurrentRole);
 
       const ev = fire(getHandler(), { key: 'F5', control: false, alt: false, shift: false });
       expect(ev.preventDefault).toHaveBeenCalled();
-      expect(onClearLogin).toHaveBeenCalledTimes(1);
-      expect(wc.reload).toHaveBeenCalledTimes(1);
+      expect(reloadCurrentRole).toHaveBeenCalledTimes(1);
+      expect(wc.reload).not.toHaveBeenCalled();
     });
 
-    test('F5 sem callback (fallback) limpa storage da session e recarrega', async () => {
-      // Comportamento pré-v5.9.7: clear + reload direto (sem pré-auth).
+    test('F5 sem callback faz reload direto sem clearStorageData, API login ou senha', async () => {
       const { win, wc, getHandler } = makeMockWin();
       const ses = makeMockSession();
-      KeyboardShortcuts.attach(win, 'TestProfile', ses);
+      ses.apiLogin = jest.fn();
+      ses.passwordPreAuth = jest.fn();
+      KeyboardShortcuts.attach(win, 'TestProfile');
       const ev = fire(getHandler(), { key: 'F5', control: false, alt: false, shift: false });
       expect(ev.preventDefault).toHaveBeenCalled();
-      expect(ses.clearStorageData).toHaveBeenCalledWith({
-        storages: ['cookies', 'localstorage', 'sessionstorage']
-      });
-      expect(ses.clearCache).toHaveBeenCalled();
-      // reload é chamado após as promises resolversem
+      expect(ses.clearStorageData).not.toHaveBeenCalled();
+      expect(ses.clearCache).not.toHaveBeenCalled();
+      expect(ses.apiLogin).not.toHaveBeenCalled();
+      expect(ses.passwordPreAuth).not.toHaveBeenCalled();
       await new Promise(function (r) {
         setTimeout(r, 10);
       });
-      // F5 agora limpa onbeforeunload antes de recarregar
-      expect(wc.executeJavaScript).toHaveBeenCalledWith(
-        'window.onbeforeunload = null; window.onunload = null;'
-      );
+      expect(wc.executeJavaScript).not.toHaveBeenCalled();
       expect(wc.reload).toHaveBeenCalled();
     });
 
@@ -112,13 +104,12 @@ describe('KeyboardShortcuts.js', () => {
 
     test('Ctrl+F5 NÃO recarrega (deixa o Chromium tratar)', () => {
       const { win, wc, getHandler } = makeMockWin();
-      const ses = makeMockSession();
-      const onClearLogin = jest.fn();
-      KeyboardShortcuts.attach(win, 'TestProfile', ses, onClearLogin);
+      const reloadCurrentRole = jest.fn();
+      KeyboardShortcuts.attach(win, 'TestProfile', reloadCurrentRole);
       const ev = fire(getHandler(), { key: 'F5', control: true, alt: false, shift: false });
       expect(ev.preventDefault).not.toHaveBeenCalled();
       expect(wc.reload).not.toHaveBeenCalled();
-      expect(onClearLogin).not.toHaveBeenCalled();
+      expect(reloadCurrentRole).not.toHaveBeenCalled();
     });
   });
 

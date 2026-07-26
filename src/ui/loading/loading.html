@@ -346,6 +346,29 @@
       .retry-btn:active {
         transform: scale(0.97);
       }
+      .recovery-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        max-width: 420px;
+        margin-top: 16px;
+      }
+      .recovery-actions button {
+        padding: 8px 14px;
+        border: 1px solid rgba(200, 162, 61, 0.42);
+        border-radius: 6px;
+        color: #e7d18c;
+        background: rgba(200, 162, 61, 0.08);
+        cursor: pointer;
+      }
+      .recovery-actions button:hover {
+        background: rgba(200, 162, 61, 0.16);
+      }
+      .recovery-actions button:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
 
       /* ── Keyframes ── */
       @keyframes shurikenSpin {
@@ -554,6 +577,7 @@
 
       <!-- Retry button (error state only) -->
       <button class="retry-btn hidden" id="retryBtn">Tentar novamente</button>
+      <div class="recovery-actions hidden" id="recoveryActions" aria-live="polite"></div>
     </div>
 
     <script>
@@ -566,6 +590,7 @@
       var subEl = document.getElementById('sub');
       var shuriken = document.getElementById('shurikenIcon');
       var retryBtn = document.getElementById('retryBtn');
+      var recoveryActions = document.getElementById('recoveryActions');
       var phaseIcons = {
         download: document.getElementById('phaseIconDownload'),
         extract: document.getElementById('phaseIconExtract'),
@@ -574,6 +599,21 @@
       };
 
       var currentPhase = '';
+      var RECOVERY_LABELS = Object.freeze({
+        RELOAD_SELECTOR: '重新加载选服页',
+        REOPEN_AUTH: '重新打开扫码登录',
+        RETRY_GAME_NAVIGATION: '重新进入游戏',
+        RELOAD_GAME: '重新加载游戏',
+        RETURN_TO_SELECTOR: '返回选服页'
+      });
+      var FAILURE_TITLES = Object.freeze({
+        SELECTOR_FAILED: '选服页加载失败',
+        AUTH_FAILED: '扫码登录加载失败',
+        NAVIGATION_FAILED: '进入游戏失败',
+        GAME_FAILED: '游戏内容加载失败',
+        SESSION_REJECTED: '登录状态已失效',
+        BLOCKED_NAVIGATION: '已阻止未知跳转'
+      });
 
       // ── Helper: fade text change ──
       function fadeText(el, text) {
@@ -635,6 +675,74 @@
         window.setProgress(0, 'download', '');
       });
 
+      function renderRecoveryActions(actions) {
+        recoveryActions.textContent = '';
+        var safeActions = Array.isArray(actions) ? actions : [];
+        safeActions.forEach(function (action) {
+          if (!Object.prototype.hasOwnProperty.call(RECOVERY_LABELS, action)) return;
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = RECOVERY_LABELS[action];
+          button.addEventListener('click', function () {
+            if (
+              !window.narutoLauncher ||
+              typeof window.narutoLauncher.requestRecovery !== 'function'
+            ) {
+              return;
+            }
+            button.disabled = true;
+            Promise.resolve(window.narutoLauncher.requestRecovery(action)).then(function (result) {
+              button.disabled = false;
+              if (!result || result.ok !== true) {
+                detail.textContent = '恢复请求被拒绝，请确认当前窗口和阶段';
+              }
+            });
+          });
+          recoveryActions.appendChild(button);
+        });
+        recoveryActions.classList.toggle('hidden', recoveryActions.children.length === 0);
+      }
+
+      window.setLaunchFlowState = function (snapshot) {
+        if (!snapshot || typeof snapshot !== 'object') return;
+        if (snapshot.status !== 'waiting_user') {
+          recoveryActions.classList.add('hidden');
+          recoveryActions.textContent = '';
+          return;
+        }
+
+        var title = Object.prototype.hasOwnProperty.call(FAILURE_TITLES, snapshot.stage)
+          ? FAILURE_TITLES[snapshot.stage]
+          : '启动流程需要处理';
+        var error = snapshot.error && typeof snapshot.error === 'object' ? snapshot.error : null;
+        var message =
+          error && typeof error.safeMessage === 'string' && error.safeMessage
+            ? error.safeMessage
+            : '请选择安全恢复动作';
+        var errorCode =
+          error && (typeof error.code === 'string' || typeof error.code === 'number')
+            ? '（错误码：' + String(error.code) + '）'
+            : '';
+
+        shuriken.classList.add('error-state');
+        titleEl.textContent = title;
+        subEl.textContent = message;
+        pct.textContent = errorCode;
+        detail.textContent = '';
+        bar.style.display = 'none';
+        retryBtn.classList.add('hidden');
+        setSteps(0);
+        showPhaseIcon('error');
+        renderRecoveryActions(snapshot.availableActions);
+      };
+
+      if (
+        window.narutoLauncher &&
+        typeof window.narutoLauncher.onLaunchFlowState === 'function'
+      ) {
+        window.narutoLauncher.onLaunchFlowState(window.setLaunchFlowState);
+      }
+
       // ── Main API: Called from main process via webContents.executeJavaScript ──
       // phase: 'download' | 'extract' | 'done' | 'error'
       window.setProgress = function (percent, phase, detailStr) {
@@ -659,8 +767,8 @@
           shuriken.classList.add('error-state');
           fadeText(titleEl, 'Erro no download');
           fadeText(subEl, '');
-          pct.innerHTML =
-            '<span class="err">' + (detailStr || 'Falha ao baixar Flash PPAPI') + '</span>';
+          pct.textContent = detailStr || 'Falha ao baixar Flash PPAPI';
+          pct.classList.add('err');
           detail.textContent = '';
           bar.style.display = 'none';
           bar.classList.remove('active-download', 'done');
@@ -672,6 +780,7 @@
 
         // Hide retry for non-error phases
         retryBtn.classList.add('hidden');
+        pct.classList.remove('err');
         bar.style.display = '';
 
         // ── Download phase ──

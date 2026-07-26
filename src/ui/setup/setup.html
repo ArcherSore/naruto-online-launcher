@@ -157,49 +157,6 @@
         font-size: 0.9rem;
       }
 
-      /* Region selector — 2x4 grid */
-      .region-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.35rem;
-      }
-      .region-btn {
-        padding: 0.5rem 0.5rem;
-        background: var(--bg3);
-        border: 1px solid var(--border2);
-        border-radius: 0.35rem;
-        color: var(--fg);
-        font-size: 0.78rem;
-        cursor: pointer;
-        transition: 0.15s;
-        font-family: inherit;
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-      }
-      .region-btn:hover {
-        border-color: var(--accent);
-        background: rgba(255, 140, 0, 0.04);
-      }
-      .region-btn.active {
-        background: linear-gradient(135deg, var(--accent), var(--accent2));
-        border-color: transparent;
-        color: #fff;
-        font-weight: 600;
-        box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
-      }
-      .region-btn .flag {
-        font-size: 0.9rem;
-      }
-      .region-btn .region-name {
-        flex: 1;
-      }
-      .region-btn .region-code {
-        font-size: 0.6rem;
-        opacity: 0.6;
-        text-transform: uppercase;
-      }
-
       /* Telemetry */
       .tel-body {
         font-size: 0.75rem;
@@ -364,43 +321,6 @@
         </div>
       </div>
 
-      <!-- Region Selector (8 regions) — v4.1 Sprint 6 -->
-      <div class="section">
-        <h2 data-i18n="setup.region.label">Região do Servidor</h2>
-        <div class="region-grid">
-          <button class="region-btn active" data-region="br">
-            <span class="flag">🇧🇷</span
-            ><span class="region-name" data-i18n="setup.region.br">Brasil</span
-            ><span class="region-code">BR</span>
-          </button>
-          <button class="region-btn" data-region="na">
-            <span class="flag">🇺🇸</span
-            ><span class="region-name" data-i18n="setup.region.na">América do Norte</span
-            ><span class="region-code">NA</span>
-          </button>
-          <button class="region-btn" data-region="de">
-            <span class="flag">🇩🇪</span
-            ><span class="region-name" data-i18n="setup.region.de">Alemanha</span
-            ><span class="region-code">DE</span>
-          </button>
-          <button class="region-btn" data-region="es">
-            <span class="flag">🇪🇸</span
-            ><span class="region-name" data-i18n="setup.region.es">Espanha</span
-            ><span class="region-code">ES</span>
-          </button>
-          <button class="region-btn" data-region="pl">
-            <span class="flag">🇵🇱</span
-            ><span class="region-name" data-i18n="setup.region.pl">Polônia</span
-            ><span class="region-code">PL</span>
-          </button>
-          <button class="region-btn" data-region="fr">
-            <span class="flag">🇫🇷</span
-            ><span class="region-name" data-i18n="setup.region.fr">França</span
-            ><span class="region-code">FR</span>
-          </button>
-        </div>
-      </div>
-
       <!-- Performance Mode -->
       <div class="section">
         <h2 data-i18n="setup.mode.title">Modo de Desempenho</h2>
@@ -436,13 +356,6 @@
             'setup.title': 'Bem-vindo ao Shinobi Launcher',
             'setup.subtitle': 'Configure sua experiência em 30 segundos',
             'setup.language.label': 'Idioma',
-            'setup.region.label': 'Região do Servidor',
-            'setup.region.br': 'Brasil',
-            'setup.region.na': 'América do Norte',
-            'setup.region.de': 'Alemanha',
-            'setup.region.es': 'Espanha',
-            'setup.region.pl': 'Polônia',
-            'setup.region.fr': 'França',
             'setup.mode.title': 'Modo de Desempenho',
             'setup.mode.default.body':
               'Recomendado — máxima otimização segura (GPU, GC inteligente, anti-lag).',
@@ -458,13 +371,6 @@
             'setup.title': 'Welcome to Shinobi Launcher',
             'setup.subtitle': 'Set up your experience in 30 seconds',
             'setup.language.label': 'Language',
-            'setup.region.label': 'Server Region',
-            'setup.region.br': 'Brazil',
-            'setup.region.na': 'North America',
-            'setup.region.de': 'Germany',
-            'setup.region.es': 'Spain',
-            'setup.region.pl': 'Poland',
-            'setup.region.fr': 'France',
             'setup.mode.title': 'Performance Mode',
             'setup.mode.default.body':
               'Recommended — maximum safe optimization (GPU, smart GC, anti-lag).',
@@ -480,13 +386,6 @@
             'setup.title': 'Willkommen beim Shinobi Launcher',
             'setup.subtitle': 'Richten Sie Ihre Erfahrung in 30 Sekunden ein',
             'setup.language.label': 'Sprache',
-            'setup.region.label': 'Serverregion',
-            'setup.region.br': 'Brasilien',
-            'setup.region.na': 'Nordamerika',
-            'setup.region.de': 'Deutschland',
-            'setup.region.es': 'Spanien',
-            'setup.region.pl': 'Polen',
-            'setup.region.fr': 'Frankreich',
             'setup.mode.title': 'Leistungsmodus',
             'setup.mode.default.body': 'Empfohlen — maximale sichere Optimierung.',
             'setup.mode.lowpc.body':
@@ -501,13 +400,6 @@
             'setup.title': 'Bienvenido al Shinobi Launcher',
             'setup.subtitle': 'Configura tu experiencia en 30 segundos',
             'setup.language.label': 'Idioma',
-            'setup.region.label': 'Región del servidor',
-            'setup.region.br': 'Brasil',
-            'setup.region.na': 'Norteamérica',
-            'setup.region.de': 'Alemania',
-            'setup.region.es': 'España',
-            'setup.region.pl': 'Polonia',
-            'setup.region.fr': 'Francia',
             'setup.mode.title': 'Modo de rendimiento',
             'setup.mode.default.body': 'Recomendado — máxima optimización segura.',
             'setup.mode.lowpc.body':
@@ -522,13 +414,6 @@
             'setup.title': 'Witaj w Shinobi Launcher',
             'setup.subtitle': 'Skonfiguruj w 30 sekund',
             'setup.language.label': 'Język',
-            'setup.region.label': 'Region serwera',
-            'setup.region.br': 'Brazylia',
-            'setup.region.na': 'Ameryka Północna',
-            'setup.region.de': 'Niemcy',
-            'setup.region.es': 'Hiszpania',
-            'setup.region.pl': 'Polska',
-            'setup.region.fr': 'Francja',
             'setup.mode.title': 'Tryb wydajności',
             'setup.mode.default.body': 'Zalecany — maksymalna bezpieczna optymalizacja.',
             'setup.mode.lowpc.body':
@@ -543,13 +428,6 @@
             'setup.title': 'Bienvenue dans Shinobi Launcher',
             'setup.subtitle': 'Configurez en 30 secondes',
             'setup.language.label': 'Langue',
-            'setup.region.label': 'Région du serveur',
-            'setup.region.br': 'Brésil',
-            'setup.region.na': 'Amérique du Nord',
-            'setup.region.de': 'Allemagne',
-            'setup.region.es': 'Espagne',
-            'setup.region.pl': 'Pologne',
-            'setup.region.fr': 'France',
             'setup.mode.title': 'Mode de performance',
             'setup.mode.default.body': 'Recommandé — optimisation sûre maximale.',
             'setup.mode.lowpc.body':
@@ -564,7 +442,6 @@
 
         var currentLang = 'pt';
         var selectedMode = 'default';
-        var selectedRegion = 'br';
 
         // Detect initial language via query string (?lang=en)
         try {
@@ -596,17 +473,6 @@
           });
         });
 
-        // Region buttons
-        document.querySelectorAll('.region-btn').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            document.querySelectorAll('.region-btn').forEach(function (b) {
-              b.classList.remove('active');
-            });
-            btn.classList.add('active');
-            selectedRegion = btn.getAttribute('data-region');
-          });
-        });
-
         // Telemetry radio
         document.querySelectorAll('.tel-choice label').forEach(function (label) {
           label.addEventListener('click', function () {
@@ -635,7 +501,6 @@
           var advancedMode = selectedMode === 'lowpc';
           window.__setupResult = {
             language: currentLang,
-            region: selectedRegion,
             advancedMode: advancedMode
           };
           document.title = '__SETUP_DONE__' + JSON.stringify(window.__setupResult);

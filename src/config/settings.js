@@ -37,7 +37,6 @@ function validateConfig(rawConfig) {
     region: isValidRegion(region) ? region : getDefaultRegion(),
     hardwareProfile: isValidProfile(hardwareProfile) ? hardwareProfile : getDefaultProfile(),
     forceBatata: forceBatata === true ? true : forceBatata === false ? false : undefined,
-    mutedEvents: rawConfig && rawConfig.mutedEvents === true,
     windowBounds: (rawConfig && rawConfig.windowBounds) || null,
     // v3.5: onboarding + i18n + Modo Leve Avançado
     firstBoot: rawConfig && rawConfig.firstBoot === false ? false : true, // default true até concluir setup
@@ -116,7 +115,6 @@ function saveConfig(config) {
         region: config.region,
         hardwareProfile: config.hardwareProfile,
         forceBatata: config.forceBatata,
-        mutedEvents: config.mutedEvents,
         windowBounds: config.windowBounds || null,
         // v3.5
         firstBoot: config.firstBoot === false ? false : true,

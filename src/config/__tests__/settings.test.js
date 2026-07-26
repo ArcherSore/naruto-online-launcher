@@ -137,20 +137,6 @@ describe('settings.js - validateConfig', () => {
     expect(validateConfig({ forceBatata: 1 }).forceBatata).toBeUndefined();
   });
 
-  // ── mutedEvents ──
-
-  test('mutedEvents true é preservado', () => {
-    expect(validateConfig({ mutedEvents: true }).mutedEvents).toBe(true);
-  });
-
-  test('mutedEvents false (explícito) é false', () => {
-    expect(validateConfig({ mutedEvents: false }).mutedEvents).toBe(false);
-  });
-
-  test('mutedEvents undefined é false', () => {
-    expect(validateConfig({}).mutedEvents).toBe(false);
-  });
-
   // ── windowBounds ──
 
   test('windowBounds é preservado', () => {

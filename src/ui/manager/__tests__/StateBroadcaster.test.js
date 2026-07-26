@@ -1,7 +1,7 @@
 /**
  * Tests for src/ui/manager/StateBroadcaster.js (Fase 3c split)
  *
- * Verifies: exports, pushProfiles/pushMemory/pushEvents/pushAll,
+ * Verifies: exports, pushProfiles/pushMemory/pushAll,
  * startAutoRefresh/stopAutoRefresh, listener registration.
  *
  * NOTE: StateBroadcaster uses module-level state (_started, _memCb, etc.)
@@ -23,20 +23,6 @@ jest.mock('../../../memory/guard', () => ({
   onGC: jest.fn()
 }));
 
-jest.mock('../../../utils/EventTimers', () => ({
-  getUpcoming: jest.fn(() => []),
-  getUserOffsetHours: jest.fn(() => -3),
-  onRemind: jest.fn()
-}));
-
-jest.mock('../../../profiles/vault', () => ({
-  hasCredentials: jest.fn(() => false)
-}));
-
-jest.mock('../../../profiles/partition', () => ({
-  shouldUseShadow: jest.fn(() => false)
-}));
-
 jest.mock('../ManagerWindow', () => ({
   send: jest.fn()
 }));
@@ -44,9 +30,6 @@ jest.mock('../ManagerWindow', () => ({
 const StateBroadcaster = require('../StateBroadcaster');
 const store = require('../../../profiles/store');
 const mg = require('../../../memory/guard');
-const et = require('../../../utils/EventTimers');
-const vault = require('../../../profiles/vault');
-const partition = require('../../../profiles/partition');
 const ManagerWindow = require('../ManagerWindow');
 
 describe('StateBroadcaster.js', () => {
@@ -63,8 +46,8 @@ describe('StateBroadcaster.js', () => {
       expect(typeof StateBroadcaster.pushMemory).toBe('function');
     });
 
-    test('exports pushEvents as function', () => {
-      expect(typeof StateBroadcaster.pushEvents).toBe('function');
+    test('exports pushFlowState as function', () => {
+      expect(typeof StateBroadcaster.pushFlowState).toBe('function');
     });
 
     test('exports pushAll as function', () => {
@@ -83,32 +66,10 @@ describe('StateBroadcaster.js', () => {
   describe('pushProfiles', () => {
     test('sends profiles:updated via ManagerWindow.send', () => {
       store.getAll.mockReturnValue([{ id: 'p_abc123', name: 'Test', region: 'br', server: 's1' }]);
-      vault.hasCredentials.mockReturnValue(true);
-      partition.shouldUseShadow.mockReturnValue(false);
 
       StateBroadcaster.pushProfiles();
 
       expect(ManagerWindow.send).toHaveBeenCalledWith('profiles:updated', expect.any(Array));
-    });
-
-    test('enriches profiles with hasVault from vault.hasCredentials', () => {
-      store.getAll.mockReturnValue([{ id: 'p_abc123', name: 'Test', region: 'br', server: 's1' }]);
-      vault.hasCredentials.mockReturnValue(true);
-
-      StateBroadcaster.pushProfiles();
-
-      const sent = ManagerWindow.send.mock.calls[0][1];
-      expect(sent[0].hasVault).toBe(true);
-    });
-
-    test('enriches profiles with shadow from partition.shouldUseShadow', () => {
-      store.getAll.mockReturnValue([{ id: 'p_abc123', name: 'Test', region: 'br', server: 's1' }]);
-      partition.shouldUseShadow.mockReturnValue(true);
-
-      StateBroadcaster.pushProfiles();
-
-      const sent = ManagerWindow.send.mock.calls[0][1];
-      expect(sent[0].shadow).toBe(true);
     });
 
     test('clones profile objects (does not mutate original)', () => {
@@ -130,20 +91,189 @@ describe('StateBroadcaster.js', () => {
       expect(ManagerWindow.send).toHaveBeenCalledWith('profiles:updated', []);
     });
 
-    test('enriches multiple profiles independently', () => {
+    test('filters multiple profiles independently', () => {
       store.getAll.mockReturnValue([
         { id: 'p_001', name: 'A', region: 'br', server: 's1' },
         { id: 'p_002', name: 'B', region: 'na', server: 's2' }
       ]);
-      vault.hasCredentials.mockImplementation(function (id) {
-        return id === 'p_001';
-      });
 
       StateBroadcaster.pushProfiles();
 
       const sent = ManagerWindow.send.mock.calls[0][1];
-      expect(sent[0].hasVault).toBe(true);
-      expect(sent[1].hasVault).toBe(false);
+      expect(sent).toEqual([
+        { id: 'p_001', name: 'A' },
+        { id: 'p_002', name: 'B' }
+      ]);
+    });
+
+    test('广播只含通用 Profile/安全流程字段，不含区服、凭据、JWT 或未知字段', () => {
+      store.getAll.mockReturnValue([
+        {
+          id: 'p_001',
+          name: 'Safe Profile',
+          color: '#ff8c00',
+          notes: 'safe note',
+          tags: ['daily'],
+          favorite: true,
+          notificationsEnabled: false,
+          createdAt: 100,
+          lastUsed: 200,
+          launchCount: 3,
+          totalPlayMs: 4000,
+          flow: {
+            stage: 'SELECTOR_READY',
+            status: 'ready',
+            availableActions: []
+          },
+          region: 'br',
+          server: 's799',
+          language: 'pt',
+          hasVault: true,
+          username: 'fixture-user',
+          password: 'fixture-secret',
+          jwt: 'fixture-jwt',
+          cookieValue: 'fixture-cookie',
+          unknownIdentity: 'fixture-id'
+        }
+      ]);
+
+      StateBroadcaster.pushProfiles();
+
+      expect(ManagerWindow.send).toHaveBeenCalledWith('profiles:updated', [
+        {
+          id: 'p_001',
+          name: 'Safe Profile',
+          color: '#ff8c00',
+          notes: 'safe note',
+          tags: ['daily'],
+          favorite: true,
+          notificationsEnabled: false,
+          createdAt: 100,
+          lastUsed: 200,
+          launchCount: 3,
+          totalPlayMs: 4000,
+          flow: {
+            stage: 'SELECTOR_READY',
+            status: 'ready',
+            availableActions: []
+          }
+        }
+      ]);
+    });
+  });
+
+  describe('pushFlowState', () => {
+    test('只广播安全流程字段并递归拒绝 URL、凭据和未知字段', () => {
+      StateBroadcaster.pushFlowState({
+        profileId: 'p_001',
+        stage: 'BLOCKED_NAVIGATION',
+        status: 'waiting_user',
+        attempts: { selector: 1, auth: 0, injected: 99 },
+        lastSafeLocation: {
+          role: 'UNKNOWN',
+          origin: 'https://unknown.test',
+          pathname: '/blocked',
+          url: 'https://unknown.test/blocked?ticket=fixture'
+        },
+        error: {
+          stage: 'BLOCKED_NAVIGATION',
+          code: 'UNKNOWN_TOP_LEVEL_NAVIGATION',
+          safeMessage: 'blocked',
+          jwt: 'fixture-jwt'
+        },
+        availableActions: ['RETURN_TO_SELECTOR'],
+        cookieValue: 'fixture-cookie',
+        pageSource: '<html>fixture</html>'
+      });
+
+      expect(ManagerWindow.send).toHaveBeenCalledWith('launch-flow:status', {
+        profileId: 'p_001',
+        stage: 'BLOCKED_NAVIGATION',
+        status: 'waiting_user',
+        attempts: { selector: 1, auth: 0 },
+        lastSafeLocation: {
+          role: 'UNKNOWN',
+          origin: 'https://unknown.test',
+          pathname: '/blocked'
+        },
+        error: {
+          stage: 'BLOCKED_NAVIGATION',
+          code: 'UNKNOWN_TOP_LEVEL_NAVIGATION',
+          safeMessage: 'blocked'
+        },
+        availableActions: ['RETURN_TO_SELECTOR']
+      });
+      expect(JSON.stringify(ManagerWindow.send.mock.calls)).not.toMatch(
+        /ticket|fixture-jwt|fixture-cookie|pageSource/
+      );
+    });
+
+    test('拒绝没有 profileId 的流程快照', () => {
+      StateBroadcaster.pushFlowState({ stage: 'SELECTOR_READY' });
+      expect(ManagerWindow.send).not.toHaveBeenCalled();
+    });
+
+    test('SESSION_REJECTED 只广播固定重新扫码提示，不携带账号身份', () => {
+      StateBroadcaster.pushFlowState({
+        profileId: 'p_rejected',
+        stage: 'SESSION_REJECTED',
+        status: 'waiting_user',
+        availableActions: ['REOPEN_AUTH', 'RETURN_TO_SELECTOR'],
+        accountName: 'fixture-account',
+        qqNumber: '100000001',
+        server: 'fixture-server',
+        userMessage: 'untrusted identity message'
+      });
+
+      expect(ManagerWindow.send).toHaveBeenCalledWith('launch-flow:status', {
+        profileId: 'p_rejected',
+        stage: 'SESSION_REJECTED',
+        status: 'waiting_user',
+        availableActions: ['REOPEN_AUTH', 'RETURN_TO_SELECTOR'],
+        userMessage: '会话被腾讯官方拒绝，请重新扫码'
+      });
+      expect(JSON.stringify(ManagerWindow.send.mock.calls)).not.toMatch(
+        /fixture-account|100000001|fixture-server|untrusted identity message/
+      );
+    });
+
+    test('availableActions 只广播五个固定恢复动作并去重', () => {
+      StateBroadcaster.pushFlowState({
+        profileId: 'p_001',
+        stage: 'SELECTOR_FAILED',
+        status: 'waiting_user',
+        availableActions: [
+          'RELOAD_SELECTOR',
+          'OPEN_ARBITRARY_URL',
+          'RELOAD_SELECTOR',
+          'CLEAR_SESSION',
+          { action: 'RETURN_TO_SELECTOR' }
+        ]
+      });
+
+      expect(ManagerWindow.send).toHaveBeenCalledWith('launch-flow:status', {
+        profileId: 'p_001',
+        stage: 'SELECTOR_FAILED',
+        status: 'waiting_user',
+        availableActions: ['RELOAD_SELECTOR']
+      });
+    });
+
+    test('拒绝未知 stage，错误码只允许 string/number/null 标量', () => {
+      StateBroadcaster.pushFlowState({
+        profileId: 'p_001',
+        stage: 'https://unknown.test/?ticket=fixture',
+        status: 'waiting_user',
+        error: {
+          stage: 'SELECTOR_FAILED',
+          code: { ticket: 'fixture-secret' },
+          safeMessage: 'blocked'
+        },
+        availableActions: ['RETURN_TO_SELECTOR']
+      });
+
+      expect(ManagerWindow.send).not.toHaveBeenCalled();
+      expect(JSON.stringify(ManagerWindow.send.mock.calls)).not.toMatch(/ticket|fixture-secret/);
     });
   });
 
@@ -175,93 +305,24 @@ describe('StateBroadcaster.js', () => {
     });
   });
 
-  describe('pushEvents', () => {
-    test('sends events:update with byRegion and userOffset for specific region', () => {
-      et.getUpcoming.mockReturnValue([{ id: 'br-boss', name: 'Boss' }]);
-      et.getUserOffsetHours.mockReturnValue(-3);
-
-      StateBroadcaster.pushEvents('br');
-
-      expect(ManagerWindow.send).toHaveBeenCalledWith('events:update', {
-        byRegion: { br: [{ id: 'br-boss', name: 'Boss' }] },
-        userOffset: -3
-      });
-    });
-
-    test('when called without region, uses _activeRegions from store profiles', () => {
-      store.getAll.mockReturnValue([
-        { id: 'p_1', name: 'A', region: 'na' },
-        { id: 'p_2', name: 'B', region: 'eu' }
-      ]);
-      et.getUpcoming.mockReturnValue([]);
-
-      StateBroadcaster.pushEvents();
-
-      expect(et.getUpcoming).toHaveBeenCalledWith('na');
-      expect(et.getUpcoming).toHaveBeenCalledWith('eu');
-    });
-
-    test('defaults to ["br"] when no profiles have region', () => {
-      store.getAll.mockReturnValue([{ id: 'p_1', name: 'A' }]);
-      et.getUpcoming.mockReturnValue([]);
-
-      StateBroadcaster.pushEvents();
-
-      expect(et.getUpcoming).toHaveBeenCalledWith('br');
-    });
-
-    test('deduplicates regions from multiple profiles', () => {
-      store.getAll.mockReturnValue([
-        { id: 'p_1', name: 'A', region: 'br' },
-        { id: 'p_2', name: 'B', region: 'br' },
-        { id: 'p_3', name: 'C', region: 'na' }
-      ]);
-      et.getUpcoming.mockReturnValue([]);
-
-      StateBroadcaster.pushEvents();
-
-      const regions = et.getUpcoming.mock.calls.map(function (c) {
-        return c[0];
-      });
-      expect(regions).toEqual(expect.arrayContaining(['br', 'na']));
-      const brCallCount = regions.filter(function (r) {
-        return r === 'br';
-      }).length;
-      expect(brCallCount).toBe(1);
-    });
-
-    test('includes userOffset from EventTimers', () => {
-      et.getUserOffsetHours.mockReturnValue(-5);
-      et.getUpcoming.mockReturnValue([]);
-
-      StateBroadcaster.pushEvents('na');
-
-      const sent = ManagerWindow.send.mock.calls[0][1];
-      expect(sent.userOffset).toBe(-5);
-    });
-  });
-
   describe('pushAll', () => {
-    test('calls pushProfiles, pushMemory, and pushEvents (3 ManagerWindow.send calls)', () => {
+    test('calls pushProfiles and pushMemory', () => {
       store.getAll.mockReturnValue([]);
       mg.getStats.mockReturnValue({ totalMB: 100 });
-      et.getUpcoming.mockReturnValue([]);
 
       StateBroadcaster.pushAll();
 
       expect(ManagerWindow.send).toHaveBeenCalledWith('profiles:updated', expect.any(Array));
       expect(ManagerWindow.send).toHaveBeenCalledWith('memory:update', expect.any(Object));
-      expect(ManagerWindow.send).toHaveBeenCalledWith('events:update', expect.any(Object));
     });
 
-    test('sends exactly 3 IPC messages', () => {
+    test('sends exactly 2 IPC messages', () => {
       store.getAll.mockReturnValue([]);
       mg.getStats.mockReturnValue({});
-      et.getUpcoming.mockReturnValue([]);
 
       StateBroadcaster.pushAll();
 
-      expect(ManagerWindow.send).toHaveBeenCalledTimes(3);
+      expect(ManagerWindow.send).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -326,23 +387,6 @@ describe('StateBroadcaster.js', () => {
         jest.clearAllMocks();
         latestCb();
         expect(ManagerWindow.send).toHaveBeenCalledWith('memory:update', expect.any(Object));
-      }
-    });
-
-    test('remind callback triggers pushEvents', () => {
-      StateBroadcaster.stopAutoRefresh();
-      StateBroadcaster.startAutoRefresh();
-
-      const remindCallbacks = et.onRemind.mock.calls.map(function (c) {
-        return c[0];
-      });
-      if (remindCallbacks.length > 0) {
-        const latestCb = remindCallbacks[remindCallbacks.length - 1];
-        jest.clearAllMocks();
-        store.getAll.mockReturnValue([]);
-        et.getUpcoming.mockReturnValue([]);
-        latestCb();
-        expect(ManagerWindow.send).toHaveBeenCalledWith('events:update', expect.any(Object));
       }
     });
 

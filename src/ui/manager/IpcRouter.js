@@ -2,8 +2,8 @@
  * ui/manager/IpcRouter.js — Registro dos handlers IPC (Fase 3c split)
  *
  * Responsabilidade ÚNICA (SRP): registrar os handlers ipcMain.on/handle que
- * conectam o renderer (index.html) aos subsistemas (store, vault, memory,
- * events, tempmail, inspector, etc.). Um método por domínio.
+ * conectam o renderer (index.html) aos subsistemas通用 Profile、memory
+ * 与安全元数据 inspector。一个 domain 一个明确边界。
  *
  * Histórico: era parte do God Object controller.js (648 linhas). Split: este
  * módulo cuida só do roteamento IPC; ManagerWindow cuida da janela;
@@ -15,11 +15,8 @@
 const { ipcMain, dialog, session } = require('electron');
 const fs = require('fs');
 const logger = require('../../utils/logger');
-const { isValidRegion } = require('../../config/regions');
 const store = require('../../profiles/store');
 const mg = require('../../memory/guard');
-const et = require('../../utils/EventTimers');
-const vault = require('../../profiles/vault');
 const partition = require('../../profiles/partition');
 const ManagerWindow = require('./ManagerWindow');
 const StateBroadcaster = require('./StateBroadcaster');
@@ -30,6 +27,53 @@ let _inspectors = new Map(); // profileId -> inspector instance
 const _launchTimes = new Map();
 let _registered = false;
 
+const PROFILE_INPUT_FIELDS = Object.freeze([
+  'name',
+  'color',
+  'notes',
+  'tags',
+  'favorite',
+  'notificationsEnabled',
+  'hardwareProfile'
+]);
+const PROFILE_OUTPUT_FIELDS = Object.freeze([
+  'id',
+  'name',
+  'color',
+  'notes',
+  'tags',
+  'favorite',
+  'notificationsEnabled',
+  'hardwareProfile',
+  'createdAt',
+  'lastUsed',
+  'launchCount',
+  'totalPlayMs'
+]);
+const RECOVERY_ACTIONS = Object.freeze([
+  'RELOAD_SELECTOR',
+  'REOPEN_AUTH',
+  'RETRY_GAME_NAVIGATION',
+  'RELOAD_GAME',
+  'RETURN_TO_SELECTOR'
+]);
+
+function sanitizeProfileInput(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  return PROFILE_INPUT_FIELDS.reduce(function (safe, field) {
+    if (Object.prototype.hasOwnProperty.call(source, field)) safe[field] = source[field];
+    return safe;
+  }, {});
+}
+
+function sanitizeProfileOutput(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  return PROFILE_OUTPUT_FIELDS.reduce(function (safe, field) {
+    if (Object.prototype.hasOwnProperty.call(source, field)) safe[field] = source[field];
+    return safe;
+  }, {});
+}
+
 /** @param {string} channel @param {*} payload */
 function _send(channel, payload) {
   ManagerWindow.send(channel, payload);
@@ -37,10 +81,6 @@ function _send(channel, payload) {
 /** Push current profiles to renderer. */
 function _pushProfiles() {
   StateBroadcaster.pushProfiles();
-}
-/** Push current events to renderer. */
-function _pushEvents() {
-  StateBroadcaster.pushEvents();
 }
 /**
  * Get the manager BrowserWindow if available and not destroyed.
@@ -106,10 +146,9 @@ function registerIpcHandlers(handlers) {
   // ── Profile CRUD ──
   ipcMain.on('profile:create', function (_e, opts) {
     if (typeof opts !== 'object' || opts === null) return;
-    const p = store.create(opts);
+    const p = store.create(sanitizeProfileInput(opts));
     if (p) {
       _pushProfiles();
-      _pushEvents();
     } else {
       _send('profile:toast', {
         type: 'error',
@@ -120,32 +159,21 @@ function registerIpcHandlers(handlers) {
 
   ipcMain.handle('profile:get', function (_e, id) {
     if (typeof id !== 'string') return null;
-    return store.get(id);
+    const profile = store.get(id);
+    return profile ? sanitizeProfileOutput(profile) : null;
   });
 
   ipcMain.on('profile:update', function (_e, data) {
     if (typeof data !== 'object' || data === null || typeof data.id !== 'string') return;
     // v5.9.15: Whitelist updatable fields to prevent renderer from overwriting
     // internal fields (id, createdAt, stats, launchCount, lastPlayed, etc.)
-    const ALLOWED = [
-      'name',
-      'server',
-      'region',
-      'language',
-      'color',
-      'notes',
-      'tags',
-      'favorite',
-      'notificationsEnabled',
-      'hardwareProfile'
-    ];
+    const ALLOWED = PROFILE_INPUT_FIELDS;
     var safe = { id: data.id };
     for (var i = 0; i < ALLOWED.length; i++) {
       if (data[ALLOWED[i]] !== undefined) safe[ALLOWED[i]] = data[ALLOWED[i]];
     }
     store.update(safe.id, safe);
     _pushProfiles();
-    _pushEvents();
   });
 
   ipcMain.on('profile:delete', function (_e, id) {
@@ -177,11 +205,9 @@ function registerIpcHandlers(handlers) {
       }
       _inspectors.delete(id);
     }
-    vault.removeCredentials(id);
-    partition.removeSnapshot(id);
     store.remove(id);
     _pushProfiles();
-    _send('profile:toast', { type: 'info', msg: 'Conta removida (dados + cookies apagados)' });
+    _send('profile:toast', { type: 'info', msg: 'Profile removido' });
   });
 
   ipcMain.on('profile:reorder', function (_e, order) {
@@ -196,6 +222,11 @@ function registerIpcHandlers(handlers) {
       return;
     }
     if (_handlers.launchProfile) _handlers.launchProfile(id);
+  });
+
+  ipcMain.on('profile:refresh', function (_e, id) {
+    if (typeof id !== 'string' || !store.get(id)) return;
+    if (typeof _handlers.refreshProfile === 'function') _handlers.refreshProfile(id);
   });
 
   ipcMain.handle('profile:get-stats', function (_e, id) {
@@ -235,11 +266,12 @@ function registerIpcHandlers(handlers) {
     if (!src) return { ok: false, error: 'Profile not found' };
     const copy = store.create({
       name: String(src.name) + ' (cópia)',
-      server: src.server,
-      region: src.region,
-      language: src.language,
+      color: src.color,
       notes: src.notes || '',
-      tags: src.tags || [] // v5.3: copy tags
+      tags: src.tags || [],
+      favorite: src.favorite === true,
+      notificationsEnabled: src.notificationsEnabled !== false,
+      hardwareProfile: src.hardwareProfile
     });
     if (!copy) return { ok: false, error: 'Max profiles reached' };
     logger.info('Profile duplicated: ' + src.name + ' → ' + copy.name);
@@ -264,33 +296,39 @@ function registerIpcHandlers(handlers) {
     if (_handlers.closeProfile) _handlers.closeProfile(id);
   });
 
-  ipcMain.on('auto-login:status', function (_e, data) {
-    if (!data || typeof data.profileId !== 'string') return;
-    _send('auto-login:status', data);
-  });
-
   ipcMain.on('game-window:status', function (_e, data) {
     if (!data || typeof data.profileId !== 'string') return;
-    _send('game-window:status', data);
+    _send('game-window:status', {
+      profileId: data.profileId,
+      open: data.open === true
+    });
   });
 
-  // ── Vault (credenciais) ──
-  ipcMain.handle('vault:get', function (_e, id) {
-    if (typeof id !== 'string') return null;
-    return vault.getCredentials(id);
-  });
-  ipcMain.handle('vault:set', function (_e, id, user, pass) {
-    if (typeof id !== 'string' || typeof user !== 'string' || typeof pass !== 'string')
-      return false;
-    return vault.setCredentials(id, user, pass);
-  });
-  ipcMain.handle('vault:remove', function (_e, id) {
-    if (typeof id !== 'string') return false;
-    return vault.removeCredentials(id);
-  });
-  ipcMain.handle('vault:has', function (_e, id) {
-    if (typeof id !== 'string') return false;
-    return vault.hasCredentials(id);
+  ipcMain.handle('launch-flow:recover', function (event, action) {
+    if (typeof action !== 'string' || RECOVERY_ACTIONS.indexOf(action) === -1) {
+      return { ok: false, error: 'invalid-action' };
+    }
+    if (
+      !event ||
+      !event.sender ||
+      typeof _handlers.requestRecoveryForSender !== 'function'
+    ) {
+      return { ok: false, error: 'recovery-unavailable' };
+    }
+    try {
+      return Promise.resolve(_handlers.requestRecoveryForSender(event.sender, action)).then(
+        function (result) {
+          return result && typeof result === 'object'
+            ? result
+            : { ok: result === true, error: result === true ? undefined : 'recovery-rejected' };
+        },
+        function () {
+          return { ok: false, error: 'recovery-failed' };
+        }
+      );
+    } catch (_) {
+      return { ok: false, error: 'recovery-failed' };
+    }
   });
 
   // ── Memory ──
@@ -340,103 +378,8 @@ function registerIpcHandlers(handlers) {
     }
   });
 
-  // ── Tempmail + API Login + Inspector ──
-  const tempmail = require('../../network/tempmail');
-  const apiLogin = require('../../network/api-login');
+  // ── 安全网络元数据 Inspector ──
   const inspector = require('../../network/inspector');
-
-  ipcMain.handle('tempmail:create', async function (_e, opts) {
-    try {
-      opts = opts || {};
-      const result = await tempmail.createNarutoAccount(opts);
-
-      // Fase 3g (pendência herdada): auto-criar Profile + guardar creds no vault.
-      // Antes o tempmail criava o JWT mas não o Profile — o usuário tinha que
-      // criar o perfil manualmente e colar as credenciais. Agora é automático.
-      const profile = store.create({
-        name: opts.name || 'Player ' + result.game.nickname,
-        server: opts.server || '',
-        region: isValidRegion(opts.region) ? opts.region : 'br',
-        language: opts.language || 'pt',
-        notificationsEnabled: opts.notificationsEnabled !== false
-      });
-      let vaultStored = false;
-      if (profile) {
-        vaultStored = vault.setCredentials(
-          profile.id,
-          result.tempmail.address,
-          result.tempmail.password
-        );
-        _pushProfiles();
-      }
-
-      _send('profile:toast', {
-        type: 'success',
-        msg:
-          'Conta criada: ' +
-          result.tempmail.address +
-          ' (player ' +
-          result.game.nickname +
-          (profile ? ' + perfil auto-criado' : '') +
-          ')'
-      });
-      return { ok: true, data: result, profile: profile, vaultStored: vaultStored };
-    } catch (e) {
-      _send('profile:toast', { type: 'error', msg: 'Tempmail falhou: ' + e.message });
-      return { ok: false, error: e.message };
-    }
-  });
-
-  ipcMain.handle('tempmail:login', async function (_e, profileId, email, password) {
-    if (typeof email !== 'string' || typeof password !== 'string') {
-      return { ok: false, error: 'Invalid params' };
-    }
-    try {
-      const profile = store.get(profileId);
-      if (!profile) return { ok: false, error: 'Perfil não encontrado' };
-      const partName = partition.getPartitionName(profile);
-      const ses = session.fromPartition(partName);
-      const result = await apiLogin.loginAndInject(ses, email, password);
-      _send('profile:toast', {
-        type: 'success',
-        msg:
-          'Login API OK — ' +
-          result.nickname +
-          ' (expira em ' +
-          Math.round(result.expiresAt / 1000 - Date.now() / 1000) +
-          's)'
-      });
-      return { ok: true, data: result };
-    } catch (e) {
-      _send('profile:toast', { type: 'error', msg: 'Login API falhou: ' + e.message });
-      return { ok: false, error: e.message };
-    }
-  });
-
-  ipcMain.handle('tempmail:servers', async function (_e, playerId, gamecode) {
-    if (typeof playerId !== 'string' || typeof gamecode !== 'string') {
-      return { ok: false, error: 'Invalid params' };
-    }
-    try {
-      const servers = await tempmail.getRecommendedServers(playerId, gamecode);
-      return { ok: true, data: servers };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  });
-
-  ipcMain.handle('session:check', async function (_e, profileId) {
-    try {
-      const profile = store.get(profileId);
-      if (!profile) return { ok: false, error: 'Perfil não encontrado' };
-      const partName = partition.getPartitionName(profile);
-      const ses = session.fromPartition(partName);
-      const status = await apiLogin.checkSession(ses);
-      return { ok: true, data: status };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  });
 
   ipcMain.handle('inspector:enable', function (_e, profileId) {
     if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
@@ -462,7 +405,7 @@ function registerIpcHandlers(handlers) {
     const insp = _inspectors.get(profileId);
     if (insp) {
       insp.disable();
-      _inspectors.delete(profileId); // libera memória (entries[], JWTs, cookies)
+      _inspectors.delete(profileId); // 释放安全元数据 entries
     }
     return { ok: true };
   });
@@ -478,7 +421,10 @@ function registerIpcHandlers(handlers) {
     }
     const insp = _inspectors.get(profileId);
     if (!insp) return { ok: true, data: { entries: [], stats: null } };
-    return { ok: true, data: { entries: insp.getEntries(filter), stats: insp.getStats() } };
+    const safeEntries = insp.getEntries(filter).map(function (entry) {
+      return diagnostics._sanitizeEvent(entry);
+    });
+    return { ok: true, data: { entries: safeEntries, stats: null } };
   });
 
   ipcMain.handle('inspector:clear', function (_e, profileId) {
@@ -488,59 +434,8 @@ function registerIpcHandlers(handlers) {
     return { ok: true };
   });
 
-  // ── Server Selector ──
-  const serverSelector = require('../server-selector');
-  ipcMain.handle('servers:fetch', function (_e, region) {
-    return serverSelector.fetchServers(region || 'br');
-  });
-  ipcMain.handle('servers:clear-cache', function (_e, region) {
-    serverSelector.clearCache(region);
-    return { ok: true };
-  });
-
   // ── DevTools helpers (v4.9.1) ──
   const gameLauncher = require('../game-launcher');
-  ipcMain.handle('dev:get-page-source', async function (_e, profileId) {
-    if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
-    try {
-      const wc = gameLauncher.getWebContents(profileId);
-      if (!wc || wc.isDestroyed()) return { ok: false, error: 'janela não está aberta' };
-      const source = await wc.executeJavaScript('document.documentElement.outerHTML');
-      const url = wc.getURL();
-      const title = await wc.executeJavaScript('document.title').catch(function () {
-        return '';
-      });
-      return { ok: true, data: { url: url, title: title, source: source, size: source.length } };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  });
-
-  ipcMain.handle('dev:get-cookies', async function (_e, profileId) {
-    try {
-      const profile = store.get(profileId);
-      if (!profile) return { ok: false, error: 'Perfil não encontrado' };
-      const partName = partition.getPartitionName(profile);
-      const ses = session.fromPartition(partName);
-      const cookies = await ses.cookies.get({});
-      return {
-        ok: true,
-        data: cookies.map(function (c) {
-          return {
-            name: c.name,
-            value: (c.value || '').slice(0, 80),
-            domain: c.domain,
-            path: c.path,
-            secure: c.secure,
-            httpOnly: c.httpOnly
-          };
-        })
-      };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  });
-
   ipcMain.handle('dev:reload-game', function (_e, profileId) {
     if (typeof profileId !== 'string') return { ok: false, error: 'Invalid profileId' };
     try {
@@ -584,20 +479,6 @@ function registerIpcHandlers(handlers) {
     return i18n.t(key);
   });
 
-  // ── Events ──
-  ipcMain.handle('events:get', function (_e, region) {
-    if (region && typeof region !== 'string') region = 'br';
-    return et.getUpcoming(region || 'br');
-  });
-  ipcMain.on('events:set-muted', function (_e, m) {
-    if (typeof m !== 'boolean') return;
-    if (_handlers.setMuted) {
-      _handlers.setMuted(m);
-    } else {
-      et.setMuted(m);
-    }
-  });
-
   // ── Export / Import ──
   ipcMain.handle('profiles:export', function () {
     return store.exportJSON();
@@ -609,97 +490,7 @@ function registerIpcHandlers(handlers) {
     }
     const res = store.importJSON(jsonStr);
     _pushProfiles();
-    _pushEvents();
     return res;
-  });
-
-  ipcMain.handle('profiles:export-encrypted', async function (_e, password) {
-    if (typeof password !== 'string' || password.length < 8) {
-      return { ok: false, error: 'Senha deve ter pelo menos 8 caracteres' };
-    }
-    const win = _getWin();
-    if (!win) return { ok: false, error: 'Manager window closed' };
-    try {
-      const profiles = store.getAll();
-      const credentialsMap = {};
-      profiles.forEach(function (p) {
-        if (vault.hasCredentials(p.id)) {
-          credentialsMap[p.id] = vault.getCredentials(p.id);
-        }
-      });
-      const encrypted = vault.exportEncryptedBackup(profiles, credentialsMap, password);
-
-      const result = await dialog.showSaveDialog(win, {
-        title: 'Exportar backup criptografado',
-        defaultPath: 'shinobi-backup-' + new Date().toISOString().slice(0, 10) + '.enc',
-        filters: [{ name: 'Shinobi Backup', extensions: ['enc'] }]
-      });
-      if (result.canceled || !result.filePath) return { ok: false, canceled: true };
-
-      fs.writeFileSync(result.filePath, encrypted, 'utf8');
-      logger.info(
-        'Backup criptografado salvo: ' + result.filePath + ' (' + profiles.length + ' perfis)'
-      );
-      return { ok: true, path: result.filePath, count: profiles.length };
-    } catch (e) {
-      logger.error('Export backup falhou: ' + e.message);
-      return { ok: false, error: e.message };
-    }
-  });
-
-  ipcMain.handle('profiles:import-encrypted', async function (_e, password) {
-    if (typeof password !== 'string') {
-      return { ok: false, error: 'Senha obrigatória' };
-    }
-    const win = _getWin();
-    if (!win) return { ok: false, error: 'Manager window closed' };
-    try {
-      const result = await dialog.showOpenDialog(win, {
-        title: 'Importar backup criptografado',
-        filters: [{ name: 'Shinobi Backup', extensions: ['enc'] }],
-        properties: ['openFile']
-      });
-      if (result.canceled || result.filePaths.length === 0) return { ok: false, canceled: true };
-
-      const filePath = result.filePaths[0];
-      const stat = fs.statSync(filePath);
-      if (stat.size > 10 * 1024 * 1024) return { ok: false, error: 'File too large (max 10MB)' };
-      const encrypted = fs.readFileSync(filePath, 'utf8');
-      const payload = vault.importEncryptedBackup(encrypted, password);
-
-      let imported = 0,
-        skipped = 0;
-      payload.profiles.forEach(function (p) {
-        if (!store.get(p.id)) {
-          const newProfile = store.create({
-            name: p.name,
-            server: p.server,
-            region: p.region,
-            language: p.language,
-            notificationsEnabled: p.notificationsEnabled
-          });
-          if (newProfile) {
-            imported++;
-            if (payload.credentials && payload.credentials[p.id]) {
-              const creds = payload.credentials[p.id];
-              if (creds.user && creds.pass) {
-                vault.setCredentials(newProfile.id, creds.user, creds.pass);
-              }
-            }
-          }
-        } else {
-          skipped++;
-        }
-      });
-
-      _pushProfiles();
-      _pushEvents();
-      logger.info('Backup importado: ' + imported + ' perfis, ' + skipped + ' ignorados');
-      return { ok: true, imported: imported, skipped: skipped };
-    } catch (e) {
-      logger.error('Import backup falhou: ' + e.message);
-      return { ok: false, error: e.message };
-    }
   });
 
   ipcMain.handle('profiles:export-file', async function () {
@@ -737,7 +528,6 @@ function registerIpcHandlers(handlers) {
       const raw = fs.readFileSync(filePath, 'utf8');
       const res = store.importJSON(raw);
       _pushProfiles();
-      _pushEvents();
       return { ok: true, imported: res.imported, skipped: res.skipped };
     } catch (e) {
       return { ok: false, error: e.message, imported: 0 };

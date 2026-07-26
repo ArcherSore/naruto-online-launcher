@@ -1,768 +1,112 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';"
+      content="default-src 'self' data:; style-src 'self'; script-src 'self'; img-src 'self' data:;"
     />
-    <title>Shinobi Launcher</title>
+    <title>火影忍者 OL 国服启动器</title>
     <link rel="stylesheet" href="variables.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="app">
-      <!-- ═══ SIDEBAR NAV ═══ -->
-      <nav class="sidebar">
-        <div class="sidebar-logo">
-          <div class="mark"><img src="logo.png" alt="Shinobi Launcher" /></div>
-          <div class="brand">
-            <h1>Shinobi</h1>
-            <span id="version">v5.12.0</span>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <img src="logo.png" alt="火影忍者 OL" />
+          <div>
+            <h1>火影忍者 OL 国服启动器</h1>
+            <p>腾讯官方扫码登录 · 手动选服 · 独立 Profile 会话</p>
           </div>
         </div>
-
-        <div class="nav">
-          <div class="nav-item active" data-view="accounts">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            Contas
-          </div>
-          <div class="nav-item" data-view="events">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            Eventos
-            <span class="nav-badge" id="eventBadge"></span>
-          </div>
-          <div class="nav-item" data-view="settings">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-              />
-            </svg>
-            Configurações
-          </div>
+        <div class="window-actions" aria-label="窗口控制">
+          <button class="icon-button" id="alwaysOnTopBtn" title="窗口置顶">置顶</button>
+          <button class="icon-button" id="minimizeBtn" title="最小化">—</button>
+          <button class="icon-button" id="maximizeBtn" title="最大化">□</button>
         </div>
+      </header>
 
-        <div class="flash-indicator">
-          <span class="flash-dot"></span>
-          <span>Flash PPAPI ✓</span>
-        </div>
-      </nav>
-
-      <!-- ═══ MAIN ═══ -->
-      <div class="main">
-        <div class="topbar">
-          <h2 id="viewTitle">Contas</h2>
-          <div class="actions">
-            <!-- v5.8: Window Controls (always-on-top + minimize + maximize) -->
-            <div class="window-controls">
-              <button
-                class="wc-btn"
-                id="wcAlwaysOnTop"
-                aria-label="Sempre visível"
-                data-tip="Sempre visível"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 2v20M2 12h20" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </button>
-              <button class="wc-btn" id="wcMinimize" aria-label="Minimizar" data-tip="Minimizar">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
-              <button
-                class="wc-btn"
-                id="wcMaximize"
-                aria-label="Maximizar / Restaurar"
-                data-tip="Maximizar"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="4" y="4" width="16" height="16" rx="1" />
-                </svg>
-              </button>
-            </div>
-            <button class="btn primary" id="newBtn">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-              >
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Nova conta
-            </button>
+      <main>
+        <section class="hero">
+          <div>
+            <span class="eyebrow">官方登录链路</span>
+            <h2>在应用内完成扫码和选服</h2>
+            <p>
+              启动 Profile 后，游戏窗口会打开腾讯官方页面。二维码、账号确认和选服均由官方页面处理；启动器不会要求或保存 QQ 密码。
+            </p>
           </div>
-        </div>
+          <div class="hero-badge">Flash PPAPI 已启用</div>
+        </section>
 
-        <div class="content">
-          <!-- ── View: Accounts ── -->
-          <div class="view active" id="view-accounts">
-            <div class="account-toolbar">
-              <div class="search-wrap">
-                <svg
-                  class="search-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  type="text"
-                  id="searchInput"
-                  placeholder="Buscar conta por nome, servidor ou região..."
-                />
-                <button class="search-clear" id="searchClear" aria-label="Limpar busca">
-                  &times;
-                </button>
-              </div>
-              <div class="toolbar-right">
-                <span class="account-count" id="accountCount"></span>
-                <!-- v4.6: Sort dropdown -->
-                <div class="sort-wrap" data-tip="Ordenar contas" data-tip-pos="right">
-                  <svg
-                    class="sort-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M3 6h18M6 12h12M10 18h4" />
-                  </svg>
-                  <select id="sortSelect">
-                    <option value="favorite">Favoritos primeiro</option>
-                    <option value="name">Nome (A-Z)</option>
-                    <option value="lastUsed">Último uso</option>
-                    <option value="launchCount">Mais usado</option>
-                    <option value="totalPlayMs">Tempo de jogo</option>
-                    <option value="region">Região</option>
-                    <option value="createdAt">Criação</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div class="grid" id="profileGrid"></div>
-          </div>
+        <section class="toolbar" aria-label="Profile 工具栏">
+          <label class="search-field">
+            <span>搜索</span>
+            <input id="searchInput" type="search" placeholder="按 Profile 名称搜索" />
+          </label>
+          <button class="primary-button" id="createProfileBtn">新建 Profile</button>
+        </section>
 
-          <!-- ── View: Events ── -->
-          <div class="view" id="view-events">
-            <div class="tabs" id="regionTabs"></div>
-            <div id="eventList"></div>
-          </div>
-
-          <!-- ── View: Settings ── -->
-          <div class="view" id="view-settings">
-            <div class="settings-section">
-              <div class="settings-header">Geral</div>
-              <div class="settings-row with-icon">
-                <div class="settings-row-icon orange">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path
-                      d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
-                    />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">Idioma</div>
-                  <div class="desc">Idioma da interface do launcher</div>
-                </div>
-                <select id="setLang" class="settings-select">
-                  <option value="pt">Português</option>
-                  <option value="en">English</option>
-                  <option value="de">Deutsch</option>
-                  <option value="es">Español</option>
-                  <option value="pl">Polski</option>
-                  <option value="fr">Français</option>
-                </select>
-              </div>
-              <div class="settings-row with-icon">
-                <div class="settings-row-icon purple">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">Modo de desempenho</div>
-                  <div class="desc" id="modeDesc">Padrão: máxima otimização segura</div>
-                </div>
-                <select id="setMode" class="settings-select">
-                  <option value="default">Padrão Otimizado</option>
-                  <option value="lowpc">PC Fraco</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- ═══ v5.0.0: Optimization Section ═══ -->
-            <div class="settings-section" id="optimizationSection">
-              <div class="settings-header">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px"
-                >
-                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                </svg>
-                Otimização
-                <span
-                  style="
-                    font-size: var(--font-xs);
-                    color: var(--text-faint);
-                    font-weight: var(--weight-regular);
-                    margin-left: 0.4rem;
-                  "
-                  >GPU + CPU + Vulkan • v5.0</span
-                >
-              </div>
-
-              <!-- GPU detectada -->
-              <div class="settings-row with-icon">
-                <div class="settings-row-icon purple" id="gpuIconBox">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="6" width="20" height="12" rx="2" />
-                    <circle cx="8" cy="12" r="2" />
-                    <circle cx="16" cy="12" r="2" />
-                    <path d="M2 20h20" />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">GPU detectada</div>
-                  <div class="desc" id="gpuDesc">Detectando…</div>
-                </div>
-                <div class="gpu-badge" id="gpuBadge">—</div>
-              </div>
-
-              <!-- CPU topology -->
-              <div class="settings-row with-icon">
-                <div class="settings-row-icon blue">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="4" y="4" width="16" height="16" rx="2" />
-                    <rect x="9" y="9" width="6" height="6" />
-                    <line x1="9" y1="1" x2="9" y2="4" />
-                    <line x1="15" y1="1" x2="15" y2="4" />
-                    <line x1="9" y1="20" x2="9" y2="23" />
-                    <line x1="15" y1="20" x2="15" y2="23" />
-                    <line x1="20" y1="9" x2="23" y2="9" />
-                    <line x1="20" y1="14" x2="23" y2="14" />
-                    <line x1="1" y1="9" x2="4" y2="9" />
-                    <line x1="1" y1="14" x2="4" y2="14" />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">Topologia de CPU</div>
-                  <div class="desc" id="cpuDesc">Detectando núcleos…</div>
-                </div>
-              </div>
-
-              <!-- Preset selector -->
-              <div class="settings-row with-icon">
-                <div class="settings-row-icon red">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                    <path d="M2 17l10 5 10-5" />
-                    <path d="M2 12l10 5 10-5" />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">Preset de Otimização</div>
-                  <div class="desc" id="presetDesc">Carregando presets…</div>
-                </div>
-              </div>
-
-              <!-- Preset cards -->
-              <div class="preset-cards" id="presetCards">
-                <button class="preset-card" data-preset="performance" type="button">
-                  <div class="preset-card-header">
-                    <span class="preset-icon">🚀</span>
-                    <span class="preset-name">Performance</span>
-                  </div>
-                  <div class="preset-card-desc">Máximo FPS • Sem vsync • CPU em P-cores • Prioridade alta</div>
-                  <div class="preset-card-flags" data-preset-flags="performance"></div>
-                </button>
-                <button class="preset-card" data-preset="balanced" type="button">
-                  <div class="preset-card-header">
-                    <span class="preset-icon">⚖️</span>
-                    <span class="preset-name">Balanceado</span>
-                  </div>
-                  <div class="preset-card-desc">Padrão • Vsync 60fps • CPU em P-cores • Estável</div>
-                  <div class="preset-card-flags" data-preset-flags="balanced"></div>
-                </button>
-                <button class="preset-card" data-preset="quality" type="button">
-                  <div class="preset-card-header">
-                    <span class="preset-icon">🌿</span>
-                    <span class="preset-name">Qualidade</span>
-                  </div>
-                  <div class="preset-card-desc">Compatibilidade • Cede prioridade • Sem affinity • Multitarefa</div>
-                  <div class="preset-card-flags" data-preset-flags="quality"></div>
-                </button>
-              </div>
-
-              <!-- Restart hint -->
-              <div class="settings-row with-icon" id="presetRestartHint" style="display: none">
-                <div class="settings-row-icon amber">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                    <line x1="12" y1="9" x2="12" y2="13" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">Reinício necessário</div>
-                  <div class="desc">As flags Chromium só são aplicadas no boot. Reinicie o launcher para ativar o novo preset.</div>
-                </div>
-                <button class="btn sm" id="btnRestartForPreset">Reiniciar agora</button>
-              </div>
-            </div>
-
-            <div class="settings-section">
-              <div class="settings-header">Preferências</div>
-              <div class="settings-row with-icon">
-                <div class="settings-row-icon amber">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">Notificações</div>
-                  <div class="desc">Alertas de eventos do jogo — mesmo toggle do sino no topo</div>
-                </div>
-                <div class="toggle on" id="setNotifications"></div>
-              </div>
-            </div>
-            <div class="settings-section">
-              <div class="settings-header">Avançado</div>
-              <div class="settings-row with-icon">
-                <div class="settings-row-icon green">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">Backup criptografado</div>
-                  <div class="desc">
-                    Exporta perfis + credenciais com AES-256-GCM (senha mestra)
-                  </div>
-                </div>
-                <div style="display: flex; gap: 0.4rem">
-                  <button class="btn sm" id="advBackupExport">Exportar</button>
-                  <button class="btn sm" id="advBackupImport">Importar</button>
-                </div>
-              </div>
-              <div class="settings-row with-icon">
-                <div class="settings-row-icon red">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">Exportar diagnóstico</div>
-                  <div class="desc">
-                    Gera um .zip com logs, config e infos do sistema (sanitizado, sem senhas). Pra
-                    anexar em GitHub Issues.
-                  </div>
-                </div>
-                <button class="btn sm" id="advExportDiag">Exportar .zip</button>
-              </div>
-              <div class="settings-row with-icon">
-                <div class="settings-row-icon blue">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="16" x2="12" y2="12" />
-                    <line x1="12" y1="8" x2="12.01" y2="8" />
-                  </svg>
-                </div>
-                <div style="flex: 1">
-                  <div class="label">Sobre o launcher</div>
-                  <div class="desc">Shinobi Launcher v5.12.0 • Electron 11 • Flash PPAPI 34</div>
-                </div>
-                <a class="btn sm" id="advAboutRepo" href="#" title="Abrir repositório no GitHub"
-                  >GitHub</a
-                >
-              </div>
-            </div>
-
-            <div class="settings-section" id="devToolsSection" style="display: none">
-              <div class="settings-header">
-                Dev Tools (v5.0)
-                <span
-                  style="
-                    font-size: var(--font-xs);
-                    color: var(--text-faint);
-                    font-weight: var(--weight-regular);
-                    margin-left: 0.4rem;
-                  "
-                  >SHINOBI_DEBUG · tempmail + API login + inspector + JWT</span
-                >
-              </div>
-              <!-- Tempmail -->
-              <div class="dev-subsection">
-                <div class="dev-subsection-header" data-dev-toggle>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                  <span>Criar conta tempmail</span>
-                  <span class="dev-subsection-hint">mail.tm + Naruto API</span>
-                </div>
-                <div class="dev-subsection-body">
-                  <div
-                    class="settings-row"
-                    style="
-                      flex-direction: column;
-                      align-items: stretch;
-                      gap: 0.5rem;
-                      padding: 0;
-                      border: 0;
-                    "
-                  >
-                    <div class="desc">
-                      Cria email temporário (mail.tm) + registra no Naruto Online via API. Retorna
-                      JWT de 2h — sem Flash, sem CAPTCHA, sem verificação de email.
-                    </div>
-                    <button class="btn sm" id="devTempmailCreate" style="align-self: flex-start">
-                      Criar conta tempmail
-                    </button>
-                    <div id="devTempmailResult" class="dev-result-box" style="display: none"></div>
-                  </div>
-                </div>
-              </div>
-              <!-- API Login -->
-              <div class="dev-subsection">
-                <div class="dev-subsection-header" data-dev-toggle>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                  <span>Login via API</span>
-                  <span class="dev-subsection-hint">passport.oasgames.com</span>
-                </div>
-                <div class="dev-subsection-body">
-                  <div
-                    class="settings-row"
-                    style="
-                      flex-direction: column;
-                      align-items: stretch;
-                      gap: 0.5rem;
-                      padding: 0;
-                      border: 0;
-                    "
-                  >
-                    <div class="desc">
-                      Autentica via passport.oasgames.com e injeta cookie oas_user na session do
-                      perfil selecionado.
-                    </div>
-                    <div class="dev-btn-group">
-                      <select
-                        id="devApiLoginProfile"
-                        class="settings-select"
-                        style="min-width: 160px"
-                      ></select>
-                      <input
-                        id="devApiLoginEmail"
-                        type="email"
-                        placeholder="email"
-                        style="
-                          flex: 1;
-                          min-width: 140px;
-                          background: var(--bg);
-                          border: 1px solid var(--border);
-                          border-radius: var(--radius);
-                          padding: 0.4rem 0.6rem;
-                          color: var(--text);
-                          font-size: var(--font-sm);
-                        "
-                      />
-                      <input
-                        id="devApiLoginPass"
-                        type="password"
-                        placeholder="senha"
-                        style="
-                          flex: 1;
-                          min-width: 100px;
-                          background: var(--bg);
-                          border: 1px solid var(--border);
-                          border-radius: var(--radius);
-                          padding: 0.4rem 0.6rem;
-                          color: var(--text);
-                          font-size: var(--font-sm);
-                        "
-                      />
-                      <button class="btn sm" id="devApiLoginBtn">Login API</button>
-                    </div>
-                    <div class="dev-btn-group">
-                      <button class="btn sm" id="devSessionCheck">Verificar sessão JWT</button>
-                    </div>
-                    <div id="devApiLoginResult" class="dev-result-box" style="display: none"></div>
-                  </div>
-                </div>
-              </div>
-              <!-- JWT Decoder -->
-              <div class="dev-subsection">
-                <div class="dev-subsection-header" data-dev-toggle>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                  <span>Decodificador JWT</span>
-                  <span class="dev-subsection-hint">header + payload</span>
-                </div>
-                <div class="dev-subsection-body">
-                  <div
-                    class="settings-row"
-                    style="
-                      flex-direction: column;
-                      align-items: stretch;
-                      gap: 0.5rem;
-                      padding: 0;
-                      border: 0;
-                    "
-                  >
-                    <div class="desc">
-                      Cole um token JWT para visualizar o header e payload decodificados com syntax
-                      highlighting.
-                    </div>
-                    <div class="jwt-decoder">
-                      <div class="jwt-input-wrap">
-                        <textarea
-                          id="jwtInput"
-                          placeholder="Cole o token JWT aqui (eyJhbGciOiJIUzI1NiIs...)"
-                          rows="2"
-                        ></textarea>
-                        <button
-                          class="btn sm primary"
-                          id="jwtDecodeBtn"
-                          style="align-self: flex-end"
-                        >
-                          Decodificar
-                        </button>
-                      </div>
-                      <div class="jwt-output" id="jwtOutput"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <!-- Inspector -->
-              <div class="dev-subsection">
-                <div class="dev-subsection-header" data-dev-toggle>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                  <span>Inspector de Rede</span>
-                  <span class="dev-subsection-hint">webRequest capture</span>
-                </div>
-                <div class="dev-subsection-body">
-                  <div
-                    class="settings-row"
-                    style="
-                      flex-direction: column;
-                      align-items: stretch;
-                      gap: 0.5rem;
-                      padding: 0;
-                      border: 0;
-                    "
-                  >
-                    <div class="desc">
-                      Captura requisições HTTP do jogo via webRequest. Mostra URLs, cookies oas_user
-                      capturados (JWT decodificado) e estatísticas.
-                    </div>
-                    <div class="dev-btn-group">
-                      <select
-                        id="devInspectorProfile"
-                        class="settings-select"
-                        style="min-width: 160px"
-                      ></select>
-                      <button class="btn sm" id="devInspectorEnable">Ativar captura</button>
-                      <button class="btn sm" id="devInspectorDisable" disabled>Desativar</button>
-                      <button class="btn sm" id="devInspectorRefresh">Atualizar</button>
-                      <button class="btn sm" id="devInspectorClear">Limpar</button>
-                    </div>
-                    <div
-                      id="devInspectorStats"
-                      class="dev-result-box"
-                      style="display: none; margin-bottom: 0.3rem"
-                    ></div>
-                    <div
-                      id="devInspectorEntries"
-                      class="dev-result-box"
-                      style="display: none; max-height: 280px"
-                    ></div>
-                  </div>
-                </div>
-              </div>
-              <!-- Source Extractor -->
-              <div class="dev-subsection">
-                <div class="dev-subsection-header" data-dev-toggle>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                  <span>Source Extractor + DevTools</span>
-                  <span class="dev-subsection-hint">HTML + cookies + F5 + F12</span>
-                </div>
-                <div class="dev-subsection-body">
-                  <div
-                    class="settings-row"
-                    style="
-                      flex-direction: column;
-                      align-items: stretch;
-                      gap: 0.5rem;
-                      padding: 0;
-                      border: 0;
-                    "
-                  >
-                    <div class="desc">
-                      Extrai o HTML da página Flash, lista cookies, recarrega a sessão (F5) e abre
-                      DevTools (F12).
-                    </div>
-                    <div class="dev-btn-group">
-                      <select
-                        id="devSourceProfile"
-                        class="settings-select"
-                        style="min-width: 160px"
-                      ></select>
-                      <button class="btn sm" id="devExtractSource">Extrair fonte</button>
-                      <button class="btn sm" id="devListCookies">Listar cookies</button>
-                      <button class="btn sm" id="devReloadGame">Limpar login (F5)</button>
-                      <button class="btn sm" id="devToggleDt">DevTools (F12)</button>
-                    </div>
-                    <div
-                      id="devSourceResult"
-                      class="dev-result-box"
-                      style="display: none; max-height: 320px"
-                    ></div>
-                  </div>
-                </div>
-              </div>
+        <section>
+          <div class="section-heading">
+            <div>
+              <h2>Profiles</h2>
+              <p id="profileCount">0 个 Profile</p>
             </div>
           </div>
-        </div>
-      </div>
+          <div class="profile-grid" id="profileGrid" aria-live="polite"></div>
+          <div class="empty-state" id="emptyState">
+            <h3>还没有 Profile</h3>
+            <p>创建一个 Profile，即可使用隔离的持久会话打开腾讯官方扫码页面。</p>
+          </div>
+        </section>
+
+        <section class="utility-panel">
+          <div>
+            <h2>运行状态</h2>
+            <p id="memorySummary">正在读取内存状态…</p>
+          </div>
+          <div class="utility-actions">
+            <button class="secondary-button" id="refreshBtn">刷新</button>
+            <button class="secondary-button" id="diagnosticsBtn">导出脱敏诊断</button>
+          </div>
+        </section>
+      </main>
     </div>
 
-    <!-- ═══ MODAL: Create/Edit Profile ═══ -->
-    <div class="overlay" id="profileModal">
-      <div class="modal">
-        <h3 id="modalTitle">Nova conta</h3>
-        <div class="field">
-          <label>Nome</label>
-          <input id="fName" placeholder="Identificação da conta" maxlength="40" />
-        </div>
-        <div class="field">
-          <label>Região</label>
-          <select id="fRegion">
-            <option value="br">Brasil (PT)</option>
-            <option value="na">América do Norte (EN)</option>
-            <option value="eu">Europa (EN)</option>
-            <option value="de">Deutschland (DE)</option>
-            <option value="es">España (ES)</option>
-            <option value="pl">Polska (PL)</option>
-            <option value="fr">France (FR)</option>
-            <option value="hk">Hong Kong (ZH)</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Servidor</label>
-          <div style="display: flex; gap: 0.5rem; align-items: center">
-            <input id="fServer" placeholder="S799" maxlength="20" style="flex: 1" />
-            <button class="btn" id="btnPickServer" style="white-space: nowrap">Buscar</button>
+    <div class="modal-backdrop" id="profileModal" aria-hidden="true">
+      <form class="modal" id="profileForm">
+        <div class="modal-heading">
+          <div>
+            <span class="eyebrow">通用元数据</span>
+            <h2 id="profileModalTitle">新建 Profile</h2>
           </div>
-          <div class="hint" id="serverHint">Digite o número do servidor ou clique em Buscar.</div>
+          <button class="icon-button" id="closeProfileModalBtn" type="button" aria-label="关闭">×</button>
         </div>
-        <div class="field">
-          <label
-            >Notas
-            <span
-              style="
-                color: var(--text-faint);
-                font-weight: var(--weight-regular);
-                text-transform: none;
-              "
-              >(opcional)</span
-            ></label
-          >
-          <textarea
-            id="fNotes"
-            placeholder="Ex: conta principal, alt para eventos, build, etc."
-            maxlength="200"
-            rows="2"
-          ></textarea>
-          <div class="char-counter" id="notesCounter">0 / 200</div>
-        </div>
+        <label>
+          <span>名称</span>
+          <input id="profileName" maxlength="40" required placeholder="例如：主账号" />
+        </label>
+        <label>
+          <span>备注</span>
+          <textarea id="profileNotes" maxlength="200" rows="4" placeholder="可选，不参与登录或启动地址"></textarea>
+        </label>
+        <label>
+          <span>标识颜色</span>
+          <input id="profileColor" type="color" value="#ff8c00" />
+        </label>
+        <label class="check-row">
+          <input id="profileNotifications" type="checkbox" checked />
+          <span>启用本地通知</span>
+        </label>
         <div class="modal-actions">
-          <button
-            class="btn"
-            id="autoCreateBtn"
-            title="Cria conta com email temporário e auto-login"
-          >
-            Criar automaticamente
-          </button>
-          <div style="flex: 1"></div>
-          <button class="btn" id="cancelProfile">Cancelar</button>
-          <button class="btn primary" id="saveProfile">Salvar</button>
+          <button class="secondary-button" id="cancelProfileBtn" type="button">取消</button>
+          <button class="primary-button" type="submit">保存</button>
         </div>
-      </div>
+      </form>
     </div>
 
-    <!-- ═══ MODAL: Vault Credentials ═══ -->
-    <div class="overlay" id="vaultModal">
-      <div class="modal">
-        <h3>Credenciais — <span id="vaultProfileName"></span></h3>
-        <div class="field">
-          <label>Usuário</label>
-          <input id="fVaultUser" placeholder="Login da conta" autocomplete="off" />
-        </div>
-        <div class="field">
-          <label>Senha</label>
-          <div class="field-with-toggle">
-            <input id="fVaultPass" type="password" placeholder="Senha" autocomplete="off" />
-            <button class="toggle-pass" id="togglePass" tabindex="-1" title="Mostrar senha">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                id="eyeIcon"
-              >
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="hint">
-          Criptografado com AES-256-GCM. Auto-login injeta no formulário quando os cookies expiram.
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-danger" id="removeVault">Remover</button>
-          <div style="flex: 1"></div>
-          <button class="btn" id="cancelVault">Cancelar</button>
-          <button class="btn primary" id="saveVault">Salvar</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="toast" id="toast"></div>
-
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="app.js"></script>
   </body>
 </html>
