@@ -22,7 +22,7 @@ let _batataMode = false;
 function setBatataMode(batata) {
   _batataMode = !!batata;
   logger.info(
-    'partition: Modo Batata = ' + _batataMode + ' → shadow default = ' + shouldUseShadow(null)
+    'partition: lightweightMode=' + _batataMode + ' shadowDefault=' + shouldUseShadow(null)
   );
 }
 
@@ -87,11 +87,11 @@ function ensurePartitionDir(profile) {
     const dir = path.join(app.getPath('userData'), 'Partitions', 'profile-' + id);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
-      logger.info('partition: dir criado eageramente — ' + dir);
+      logger.info('partition: directory created eagerly path=' + dir);
     }
     return true;
   } catch (e) {
-    logger.warn('partition: ensurePartitionDir falhou: ' + e.message);
+    logger.warn('partition: ensurePartitionDir failed: ' + e.message);
     return false;
   }
 }

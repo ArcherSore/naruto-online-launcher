@@ -61,10 +61,10 @@ function optimizeRenderer(win) {
         preset: cfg.optimizationPreset || 'balanced'
       })
     ).catch(function (error) {
-      logger.debug('CpuOptimizer: falhou (não-fatal) — ' + error.message);
+      logger.debug('CpuOptimizer: failed (non-fatal) - ' + error.message);
     });
   } catch (error) {
-    logger.debug('CpuOptimizer: skip — ' + error.message);
+    logger.debug('CpuOptimizer: skipped - ' + error.message);
   }
 }
 
@@ -95,7 +95,7 @@ function attach(win, ctx) {
   on(win.webContents, 'render-process-gone', function (_event, details) {
     const reason = details && details.reason;
     const errorCode = details && details.exitCode;
-    logger.error('SessionLifecycle: renderer encerrado', {
+    logger.error('SessionLifecycle: renderer terminated', {
       profileId: profileId,
       profileLabel: label,
       event: 'render-process-gone',
@@ -105,18 +105,18 @@ function attach(win, ctx) {
     try {
       require('../profiles/manager').reportCrash(profileId);
     } catch (error) {
-      logger.debug('render-process-gone: reportCrash(profile) falhou: ' + error.message);
+      logger.debug('render-process-gone: reportCrash(profile) failed: ' + error.message);
     }
     try {
       require('../memory/guard').reportCrash();
     } catch (error) {
-      logger.debug('render-process-gone: reportCrash(memory) falhou: ' + error.message);
+      logger.debug('render-process-gone: reportCrash(memory) failed: ' + error.message);
     }
     if (auditor) {
       try {
         auditor.recordCrash(reason || 'unknown');
       } catch (error) {
-        logger.debug('Auditor: recordCrash failed — ' + error.message);
+        logger.debug('Auditor: recordCrash failed - ' + error.message);
       }
     }
 
@@ -140,7 +140,7 @@ function attach(win, ctx) {
         try {
           auditor.recordReload();
         } catch (error) {
-          logger.debug('Auditor: recordReload failed — ' + error.message);
+          logger.debug('Auditor: recordReload failed - ' + error.message);
         }
       }
     }
@@ -158,7 +158,7 @@ function attach(win, ctx) {
   });
 
   on(win, 'unresponsive', function () {
-    logger.warn('SessionLifecycle: janela sem resposta', {
+    logger.warn('SessionLifecycle: window unresponsive', {
       profileId: profileId,
       profileLabel: label,
       event: 'unresponsive'
@@ -167,7 +167,7 @@ function attach(win, ctx) {
   });
 
   on(win, 'responsive', function () {
-    logger.info('SessionLifecycle: janela voltou a responder', {
+    logger.info('SessionLifecycle: window responsive', {
       profileId: profileId,
       profileLabel: label,
       event: 'responsive'
@@ -183,7 +183,7 @@ function attach(win, ctx) {
 
   on(win.webContents, 'did-fail-load', function (_event, code, _description, value, isMainFrame) {
     if (code === -3 || isMainFrame === false || String(value || '').indexOf('data:') === 0) return;
-    logger.warn('SessionLifecycle: falha de carregamento', {
+    logger.warn('SessionLifecycle: load failed', {
       profileId: profileId,
       profileLabel: label,
       event: 'did-fail-load',
@@ -203,7 +203,7 @@ function attach(win, ctx) {
       try {
         auditor.sessionStart();
       } catch (error) {
-        logger.debug('Auditor: sessionStart failed — ' + error.message);
+        logger.debug('Auditor: sessionStart failed - ' + error.message);
       }
     }
     if (typeof options.onOpened === 'function') options.onOpened();
@@ -241,7 +241,7 @@ function attach(win, ctx) {
       try {
         auditor.sessionEnd();
       } catch (error) {
-        logger.debug('Auditor: sessionEnd failed — ' + error.message);
+        logger.debug('Auditor: sessionEnd failed - ' + error.message);
       }
     }
     if (typeof options.onClosed === 'function') options.onClosed();

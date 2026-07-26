@@ -285,7 +285,7 @@ function detect() {
     // Detect sandbox (Flatpak/Snap) — GPU detection via sysfs/lspci may fail
     var sandbox = detectLinuxSandbox();
     if (sandbox) {
-      logger.info('GpuDetector: detected sandbox ' + sandbox + ' — GPU detection may be limited');
+      logger.info('GpuDetector: sandbox detected type=' + sandbox + ' - GPU detection may be limited');
     }
     gpus = _listGpusLinuxSysfs();
     if (gpus.length === 0) gpus = _listGpusLinuxLspci();
@@ -293,7 +293,7 @@ function detect() {
       logger.warn(
         'GpuDetector: no GPU detected in sandbox ' +
           sandbox +
-          ' — the game will use software rendering (swiftshader). ' +
+          ' - the game will use software rendering (swiftshader). ' +
           'For GPU passthrough, use flatpak override or snap interface gpu.'
       );
     }
@@ -381,13 +381,13 @@ function getEnvVars(preset) {
   if (!_isMusl()) {
     env.MALLOC_ARENA_MAX = '2';
   } else {
-    logger.info('GpuDetector: musl libc detected — MALLOC_ARENA_MAX skipped (placebo)');
+    logger.info('GpuDetector: musl libc detected - MALLOC_ARENA_MAX skipped (placebo)');
   }
 
   if (gpu.vendor === 'nvidia') {
     // __GL_* vars only work with proprietary NVIDIA driver. With nouveau they are placebo.
     if (!_isNvidiaProprietary()) {
-      logger.info('GpuDetector: nouveau detected — __GL_* vars skipped (placebo with nouveau)');
+      logger.info('GpuDetector: nouveau detected - __GL_* vars skipped (placebo with nouveau)');
     } else {
       // Threaded optimizations: NVIDIA driver creates auxiliary threads for
       // texture upload and command buffer building. OFF by default on some

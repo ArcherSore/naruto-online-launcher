@@ -147,9 +147,9 @@ function attach(win, ses, ctx) {
     if (now - startedAt > opts.readyAfterMs && now - lastActivityAt < opts.stallThresholdMs) {
       ready = true;
       logger.info(
-        'StallDetector: jogo pronto após ' +
+        'StallDetector: game ready after ' +
           Math.round((now - startedAt) / 1000) +
-          's — monitoramento encerrado — ' +
+          's - monitoring stopped profile=' +
           profileName
       );
       detach();
@@ -159,13 +159,13 @@ function attach(win, ses, ctx) {
     // ── Check: limite de retries atingido? ──
     if (retries.length >= opts.maxRetries) {
       logger.error(
-        'StallDetector: limite de auto-reload atingido (' +
+        'StallDetector: auto-reload limit reached (' +
           opts.maxRetries +
-          ' em ' +
+          ' in ' +
           Math.round(opts.retryWindowMs / 60000) +
-          'min) — ' +
+          'min) profile=' +
           profileName +
-          ' — DESISTINDO (servidor pode estar fora do ar)'
+          ' - giving up (server may be unavailable)'
       );
       if (onExhausted) {
         try {
@@ -187,9 +187,9 @@ function attach(win, ses, ctx) {
     // ── Check: burst de falhas de SWF? ──
     if (swfErrors.length >= opts.swfErrorThreshold) {
       triggerStall(
-        'burst de falhas SWF (' +
+        'SWF failure burst (' +
           swfErrors.length +
-          ' em ' +
+          ' in ' +
           Math.round(opts.swfErrorWindowMs / 1000) +
           's)'
       );
@@ -199,7 +199,7 @@ function attach(win, ses, ctx) {
     // ── Check: inatividade de rede? ──
     var inactiveFor = now - lastActivityAt;
     if (inactiveFor > opts.stallThresholdMs) {
-      triggerStall('sem atividade de rede por ' + Math.round(inactiveFor / 1000) + 's');
+      triggerStall('no network activity for ' + Math.round(inactiveFor / 1000) + 's');
       return;
     }
   }
@@ -211,11 +211,11 @@ function attach(win, ses, ctx) {
     if (stopped || ready) return;
     var attemptNum = retries.length + 1;
     logger.warn(
-      'StallDetector: STALL detectado — ' +
+      'StallDetector: stall detected reason=' +
         reason +
-        ' — ' +
+        ' profile=' +
         profileName +
-        ' — auto-reload #' +
+        ' autoReload=' +
         attemptNum +
         '/' +
         opts.maxRetries
@@ -232,7 +232,7 @@ function attach(win, ses, ctx) {
         exhausted: false
       });
     } catch (e) {
-      logger.error('StallDetector: onStall callback lançou erro: ' + e.message);
+      logger.error('StallDetector: onStall callback failed: ' + e.message);
     }
   }
 
@@ -278,13 +278,13 @@ function attach(win, ses, ctx) {
   if (pollInterval.unref) pollInterval.unref();
 
   logger.info(
-    'StallDetector: monitorando — ' +
+    'StallDetector: monitoring profile=' +
       profileName +
       ' (stall=' +
       opts.stallThresholdMs / 1000 +
       's, swfBurst=' +
       opts.swfErrorThreshold +
-      ' em ' +
+      ' in ' +
       opts.swfErrorWindowMs / 1000 +
       's, maxRetry=' +
       opts.maxRetries +

@@ -54,7 +54,7 @@ let _listeners = [];
  */
 function setMemoryGuard(mg) {
   _memoryGuard = mg;
-  logger.info('ProfileManager: MemoryGuard vinculado');
+  logger.info('ProfileManager: MemoryGuard attached');
 }
 
 /**
@@ -87,7 +87,7 @@ function create(opts) {
   try {
     partition.ensurePartitionDir(p);
   } catch (e) {
-    logger.debug('ProfileManager: ensurePartitionDir falhou (ok em shadow): ' + e.message);
+    logger.debug('ProfileManager: ensurePartitionDir failed (allowed in shadow mode): ' + e.message);
   }
   _notify();
   return p;
@@ -143,7 +143,7 @@ function remove(id) {
 function launch(profileId, onOpened, onClosed) {
   const profile = store.get(profileId);
   if (!profile) {
-    logger.error('ProfileManager: perfil não encontrado — ' + profileId);
+    logger.error('ProfileManager: profile not found profileId=' + profileId);
     return false;
   }
 
@@ -167,7 +167,7 @@ function launch(profileId, onOpened, onClosed) {
             const wc = gameLauncher.getWebContents(profileId);
             if (wc) _memoryGuard.registerGameWebContents(profileId, wc);
           } catch (e) {
-            logger.debug('ProfileManager: registerGameWebContents falhou: ' + e.message);
+            logger.debug('ProfileManager: registerGameWebContents failed: ' + e.message);
           }
         }
         if (onOpened) onOpened();
@@ -183,7 +183,7 @@ function launch(profileId, onOpened, onClosed) {
     );
     return true;
   } catch (e) {
-    logger.error('ProfileManager: launch falhou — ' + e.message);
+    logger.error('ProfileManager: launch failed: ' + e.message);
     return false;
   }
 }
@@ -208,7 +208,7 @@ function reportCrash(profileId) {
     rt.crashCount = (rt.crashCount || 0) + 1;
     rt.lastCrashAt = Date.now();
     logger.warn(
-      'ProfileManager: crash reportado em ' + profileId + ' (total: ' + rt.crashCount + ')'
+      'ProfileManager: crash reported profileId=' + profileId + ' total=' + rt.crashCount
     );
   }
 }

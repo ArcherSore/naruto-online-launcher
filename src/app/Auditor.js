@@ -111,7 +111,7 @@ function create(profileId, opts) {
       merged.profileId = profileId; // ensures correct identity after Object.assign merge
       return merged;
     } catch (e) {
-      logger.warn('Auditor: failed to load ' + fp + ' — ' + e.message + ' (using default)');
+      logger.warn('Auditor: load failed path=' + fp + ' - ' + e.message + ' (using default)');
       return defaultState;
     }
   }
@@ -130,7 +130,7 @@ function create(profileId, opts) {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       return true;
     } catch (e) {
-      logger.error('Auditor: failed to create dir ' + dir + ' — ' + e.message);
+      logger.error('Auditor: create directory failed path=' + dir + ' - ' + e.message);
       return false;
     }
   }
@@ -159,7 +159,7 @@ function create(profileId, opts) {
       _dirty = false;
       return true;
     } catch (e) {
-      logger.error('Auditor: persist failed (' + profileId + ') — ' + e.message);
+      logger.error('Auditor: persist failed profileId=' + profileId + ' - ' + e.message);
       try {
         if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
       } catch (_) {
@@ -196,7 +196,7 @@ function create(profileId, opts) {
     _state.sessionCount++;
     _sessionStartTs = _now();
     _markDirty();
-    logger.debug('Auditor: sessionStart — ' + profileId + ' (#' + _state.sessionCount + ')');
+    logger.debug('Auditor: session started profileId=' + profileId + ' count=' + _state.sessionCount);
   }
 
   /**
@@ -208,7 +208,7 @@ function create(profileId, opts) {
       _state.playtimeMs += duration;
       _sessionStartTs = null;
       _markDirty();
-      logger.debug('Auditor: sessionEnd — ' + profileId + ' (+ ' + duration + 'ms)');
+      logger.debug('Auditor: session ended profileId=' + profileId + ' durationMs=' + duration);
     }
   }
 
@@ -326,7 +326,7 @@ function create(profileId, opts) {
     sessionEnd(); // accumulates final playtime
     stopPersistTimer();
     persist();
-    logger.debug('Auditor: destroyed — ' + profileId);
+    logger.debug('Auditor: destroyed profileId=' + profileId);
   }
 
   // ── Initialization ──

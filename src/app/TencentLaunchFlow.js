@@ -564,7 +564,7 @@ class TencentLaunchFlowController {
             );
             this.auditor.recordReload();
           } catch (error) {
-            logger.debug('Auditor: recordStall failed — ' + error.message);
+            logger.debug('Auditor: recordStall failed - ' + error.message);
           }
         }
         return this.handleStall(details);

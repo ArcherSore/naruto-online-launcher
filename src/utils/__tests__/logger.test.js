@@ -1,9 +1,8 @@
 /**
- * Testes para src/utils/logger.js
- * Testa o wrapper do logger que formata e delega para electron-log
+ * Tests the safe logger wrapper, formatting, and electron-log delegation.
  */
 
-// Requer electron-log mock do setup file
+// Uses the electron-log mock from the Jest setup file.
 const electronLog = require('electron-log');
 const logger = require('../logger');
 
@@ -22,22 +21,22 @@ describe('logger.js', () => {
   });
 
   describe('info', () => {
-    test('delega para electron-log.info', () => {
+    test('delegates to electron-log.info', () => {
       logger.info('test message');
       expect(electronLog.info).toHaveBeenCalledTimes(1);
     });
 
-    test('inclui prefixo [Launcher] na mensagem', () => {
+    test('uses the ASCII info prefix', () => {
       logger.info('test message');
-      expect(electronLog.info).toHaveBeenCalledWith(expect.stringContaining('[Launcher]'));
+      expect(electronLog.info).toHaveBeenCalledWith('[INFO] [Launcher] test message');
     });
 
-    test('inclui a mensagem original', () => {
+    test('includes the original message', () => {
       logger.info('test message');
       expect(electronLog.info).toHaveBeenCalledWith(expect.stringContaining('test message'));
     });
 
-    test('aceita dados adicionais', () => {
+    test('accepts additional safe data', () => {
       logger.info('test message', { profileId: 'profile-a' });
       expect(electronLog.info).toHaveBeenCalledWith(expect.stringContaining('test message'), {
         profileId: 'profile-a'
@@ -46,17 +45,17 @@ describe('logger.js', () => {
   });
 
   describe('warn', () => {
-    test('delega para electron-log.warn', () => {
+    test('delegates to electron-log.warn', () => {
       logger.warn('warning message');
       expect(electronLog.warn).toHaveBeenCalledTimes(1);
     });
 
-    test('inclui ícone de aviso', () => {
+    test('uses the ASCII warn prefix', () => {
       logger.warn('warning message');
-      expect(electronLog.warn).toHaveBeenCalledWith(expect.stringContaining('[Launcher]'));
+      expect(electronLog.warn).toHaveBeenCalledWith('[WARN] [Launcher] warning message');
     });
 
-    test('aceita dados adicionais', () => {
+    test('accepts additional safe data', () => {
       logger.warn('warning message', { errorCode: 'SAFE_WARNING' });
       expect(electronLog.warn).toHaveBeenCalledWith(expect.stringContaining('warning message'), {
         errorCode: 'SAFE_WARNING'
@@ -65,37 +64,37 @@ describe('logger.js', () => {
   });
 
   describe('error', () => {
-    test('delega para electron-log.error', () => {
+    test('delegates to electron-log.error', () => {
       logger.error('error message');
       expect(electronLog.error).toHaveBeenCalledTimes(1);
     });
 
-    test('aceita dados adicionais', () => {
+    test('uses the ASCII error prefix and accepts additional data', () => {
       logger.error('error message', 'extra data');
       expect(electronLog.error).toHaveBeenCalledWith(
-        expect.stringContaining('error message'),
+        '[ERROR] [Launcher] error message',
         'extra data'
       );
     });
   });
 
   describe('debug', () => {
-    test('delega para electron-log.debug', () => {
+    test('delegates to electron-log.debug', () => {
       logger.debug('debug message');
       expect(electronLog.debug).toHaveBeenCalledTimes(1);
     });
 
-    test('aceita dados adicionais', () => {
+    test('uses the ASCII debug prefix and accepts additional safe data', () => {
       logger.debug('debug message', { stage: 'SELECTOR_LOADING' });
-      expect(electronLog.debug).toHaveBeenCalledWith(expect.stringContaining('debug message'), {
+      expect(electronLog.debug).toHaveBeenCalledWith('[DEBUG] [Launcher] debug message', {
         stage: 'SELECTOR_LOADING'
       });
     });
   });
 
-  describe('腾讯流程安全边界', () => {
+  describe('Tencent flow safety boundary', () => {
     test.each(['debug', 'info', 'warn', 'error'])(
-      '%s 从消息中的完整 URL 只保留 origin + pathname',
+      '%s keeps only origin and pathname from a full URL',
       level => {
         logger[level](
           'navigate https://huoying.qq.com/server/website/?openid=identity-value#access_token=token-value'
@@ -110,7 +109,7 @@ describe('logger.js', () => {
       }
     );
 
-    test('Cookie 与 Authorization 内容在进入 electron-log 前被脱敏', () => {
+    test('redacts Cookie and Authorization before electron-log', () => {
       logger.info('request Cookie: skey=cookie-secret Authorization: Bearer authorization-secret');
 
       const output = serializedLastCall('info');
@@ -119,19 +118,19 @@ describe('logger.js', () => {
     });
 
     test.each(['openid=identity-secret', 'access_token=access-secret', 'ticket=ticket-secret'])(
-      '已知身份/票据参数默认脱敏：%s',
+      'redacts known identity and ticket parameter %s',
       fragment => {
         logger.warn('unsafe parameter ' + fragment);
         expect(serializedLastCall('warn')).not.toContain(fragment.split('=')[1]);
       }
     );
 
-    test('疑似 QQ 号不进入普通日志', () => {
+    test('redacts a likely QQ identity from normal logs', () => {
       logger.error('official account identity 1234567890');
       expect(serializedLastCall('error')).not.toContain('1234567890');
     });
 
-    test('结构化字段只保留 allowlist 并拒绝未知身份字段', () => {
+    test('keeps only allowlisted structured fields', () => {
       logger.info('navigation event', {
         profileId: 'profile-a',
         stage: 'SELECTOR_LOADING',
@@ -163,7 +162,7 @@ describe('logger.js', () => {
       expect(output).not.toContain('authorization-secret');
     });
 
-    test('origin/pathname 字段会被重新解析且不允许 query/fragment 绕过', () => {
+    test('reparses origin and pathname without query or fragment bypass', () => {
       logger.debug('safe location', {
         origin: 'https://game.huoying.qq.com?ticket=origin-secret',
         pathname: '/main.html?openid=path-secret#fragment'
@@ -177,7 +176,7 @@ describe('logger.js', () => {
       expect(serializedLastCall('debug')).not.toContain('path-secret');
     });
 
-    test('导出安全字段 allowlist，供诊断与 IPC 复用', () => {
+    test('exports the safe field allowlist for diagnostics and IPC', () => {
       expect(logger.SAFE_LOG_FIELDS).toEqual(
         expect.arrayContaining([
           'profileId',
@@ -194,5 +193,10 @@ describe('logger.js', () => {
       expect(logger.SAFE_LOG_FIELDS).not.toContain('url');
       expect(logger.SAFE_LOG_FIELDS).not.toContain('Cookie');
     });
+  });
+
+  test('preserves a non-ASCII dynamic message after sanitization', () => {
+    logger.info('玩家甲');
+    expect(electronLog.info).toHaveBeenCalledWith('[INFO] [Launcher] 玩家甲');
   });
 });

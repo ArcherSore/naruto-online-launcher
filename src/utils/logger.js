@@ -18,10 +18,10 @@ log.transports.file.maxSize = 5 * 1024 * 1024;
 log.transports.file.maxFiles = 3;
 
 const ICONS = Object.freeze({
-  debug: '\u{1F50D}',
-  info: '\u{2139}\u{FE0F}',
-  warn: '\u{26A0}\u{FE0F}',
-  error: '\u{274C}'
+  debug: '[DEBUG]',
+  info: '[INFO]',
+  warn: '[WARN]',
+  error: '[ERROR]'
 });
 
 const SAFE_LOG_FIELDS = Object.freeze([

@@ -85,15 +85,15 @@ function findFlashPlugin() {
     }
   }
 
-  logger.info('Searching for Flash PPAPI in:');
+  logger.info('Flash: searching for PPAPI plugin');
   for (let j = 0; j < uniquePaths.length; j++) {
-    logger.info('  → ' + uniquePaths[j]);
+    logger.info('Flash: candidate path=' + uniquePaths[j]);
     try {
       if (fs.existsSync(uniquePaths[j])) {
         const stats = fs.statSync(uniquePaths[j]);
         if (stats.size > MIN_FLASH_SIZE) {
           logger.info(
-            '✅ Flash found: ' +
+            'Flash: plugin found path=' +
               uniquePaths[j] +
               ' (' +
               (stats.size / 1024 / 1024).toFixed(1) +
@@ -109,8 +109,8 @@ function findFlashPlugin() {
     }
   }
 
-  logger.error('❌ Flash PPAPI NOT found!');
-  logger.error('Paths tested:\n  ' + uniquePaths.join('\n  '));
+  logger.error('Flash: PPAPI plugin not found');
+  logger.error('Flash: tested paths:\n  ' + uniquePaths.join('\n  '));
   return null;
 }
 

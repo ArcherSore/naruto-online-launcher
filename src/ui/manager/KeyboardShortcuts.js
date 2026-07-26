@@ -37,12 +37,12 @@ function attach(win, profileName, onReloadCurrentRole) {
     // sempre fornece o callback que classifica e recarrega apenas o papel atual.
     if (input.key === 'F5' && !input.control && !input.alt && !input.shift) {
       event.preventDefault();
-      logger.info('F5: reload seguro para ' + profileName);
+      logger.info('F5: safe reload profile=' + profileName);
       if (typeof onReloadCurrentRole === 'function') {
         try {
           onReloadCurrentRole();
         } catch (e) {
-          logger.warn('F5: reload seguro falhou: ' + e.message);
+          logger.warn('F5: safe reload failed: ' + e.message);
         }
         return;
       }

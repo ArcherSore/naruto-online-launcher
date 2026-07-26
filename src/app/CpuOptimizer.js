@@ -217,7 +217,7 @@ function _applyTaskset(pid, cores) {
         if (err) {
           // taskset unavailable (minimal AppImage) or no permission
           logger.debug(
-            'CpuOptimizer: taskset failed pid=' + pid + ' cores=' + coresArg + ' — ' + err.message
+            'CpuOptimizer: taskset failed pid=' + pid + ' cores=' + coresArg + ' - ' + err.message
           );
           return resolve({ ok: false, error: err.message });
         }
@@ -251,7 +251,7 @@ function _applyRenice(pid, priority) {
       function (err) {
         if (err) {
           logger.debug(
-            'CpuOptimizer: renice failed pid=' + pid + ' n=' + priority + ' — ' + err.message
+            'CpuOptimizer: renice failed pid=' + pid + ' n=' + priority + ' - ' + err.message
           );
           return resolve({ ok: false, error: err.message });
         }
@@ -278,7 +278,7 @@ function _applyOomScoreAdj(pid, score) {
     const path = '/proc/' + pid + '/oom_score_adj';
     fs.writeFile(path, String(score), function (err) {
       if (err) {
-        logger.debug('CpuOptimizer: oom_score_adj failed pid=' + pid + ' — ' + err.message);
+        logger.debug('CpuOptimizer: oom_score_adj failed pid=' + pid + ' - ' + err.message);
         return resolve({ ok: false, error: err.message });
       }
       logger.info('CpuOptimizer: oom_score_adj=' + score + ' applied pid=' + pid);
@@ -326,7 +326,7 @@ function _applyWindowsAffinity(pid, cores) {
         resolve({ ok: true, mask: mask });
       } else {
         logger.debug(
-          'CpuOptimizer: win affinity failed pid=' + pid + ' mask=' + mask + ' — ' + result.error
+          'CpuOptimizer: win affinity failed pid=' + pid + ' mask=' + mask + ' - ' + result.error
         );
         resolve({ ok: false, error: result.error });
       }
@@ -361,7 +361,7 @@ function _applyWindowsPriority(pid, niceTarget) {
       resolve({ ok: true, priority: prio });
     } catch (e) {
       // EPERM if pid belongs to another user, or EINVAL if pid no longer exists
-      logger.debug('CpuOptimizer: win priority failed pid=' + pid + ' — ' + e.message);
+      logger.debug('CpuOptimizer: win priority failed pid=' + pid + ' - ' + e.message);
       resolve({ ok: false, error: e.message });
     }
   });
@@ -478,11 +478,11 @@ async function optimizeRenderer(pid, opts) {
       ' preset=' +
       preset +
       ' affinity=' +
-      (affinity.ok ? '✓' : '✗') +
+      (affinity.ok ? 'ok' : 'failed') +
       ' nice=' +
-      (nice.ok ? (nice.priority !== undefined ? nice.priority : '✓') : '✗') +
+      (nice.ok ? (nice.priority !== undefined ? nice.priority : 'ok') : 'failed') +
       ' oom=' +
-      (oom.ok ? '✓' : '✗')
+      (oom.ok ? 'ok' : 'failed')
   );
 
   return { affinity: affinity, nice: nice, oom: oom, cores: cores };
