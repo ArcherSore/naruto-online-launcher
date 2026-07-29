@@ -44,6 +44,31 @@ jest.mock('../SessionLifecycle', () => ({
   attach: jest.fn()
 }));
 
+jest.mock('../AutomationDemo', () => ({
+  isEnabled: jest.fn(() => true),
+  capture: jest.fn(() =>
+    Promise.resolve({
+      filePath: 'C:\\userData\\automation-demo\\capture-p_001.png',
+      imageSize: { width: 1920, height: 1080 },
+      contentSize: { width: 1280, height: 720 }
+    })
+  ),
+  click: jest.fn(() =>
+    Promise.resolve({
+      backend: 'cdp',
+      protocolVersion: '1.3',
+      imagePoint: { x: 960, y: 540 },
+      inputPoint: { x: 640, y: 360 },
+      imageSize: { width: 1920, height: 1080 },
+      contentSize: { width: 1280, height: 720 },
+      evidence: {
+        backgroundFocusPreserved: true,
+        cursorPreserved: true
+      }
+    })
+  )
+}));
+
 jest.mock('../../ui/manager/KeyboardShortcuts', () => ({
   attach: jest.fn()
 }));
@@ -66,6 +91,7 @@ const store = require('../../profiles/store');
 const SessionLifecycle = require('../SessionLifecycle');
 const KeyboardShortcuts = require('../../ui/manager/KeyboardShortcuts');
 const TencentLaunchFlow = require('../TencentLaunchFlow');
+const AutomationDemo = require('../AutomationDemo');
 const urlConfig = require('../../config/urls');
 
 /**
@@ -182,6 +208,17 @@ describe('Launcher.js', () => {
     });
     test('exporta requestRecoveryForSender como função', () => {
       expect(typeof Launcher.requestRecoveryForSender).toBe('function');
+    });
+    test('exporta automation Demo por sender', () => {
+      expect(typeof Launcher.captureAutomationForSender).toBe('function');
+      expect(typeof Launcher.clickAutomationForSender).toBe('function');
+      expect(typeof Launcher.captureAutomationForProfile).toBe('function');
+      expect(typeof Launcher.clickAutomationForProfile).toBe('function');
+    });
+    test('exporta Flash Probe registry bridge', () => {
+      expect(typeof Launcher.registerFlashProbeConnection).toBe('function');
+      expect(typeof Launcher.unregisterFlashProbeConnection).toBe('function');
+      expect(typeof Launcher.snapshotFlashProbeForSender).toBe('function');
     });
   });
 
@@ -326,6 +363,93 @@ describe('Launcher.js', () => {
         profileId: 'p_001',
         source: 'user'
       });
+    });
+
+    test('自动化 Demo 只匹配调用它的 registry sender 并复用该 Profile 截图尺寸', async () => {
+      launchAndTrack('p_001');
+
+      const capture = await Launcher.captureAutomationForSender(bwMock.wc);
+      const click = await Launcher.clickAutomationForSender(bwMock.wc, 960, 540);
+
+      expect(capture).toEqual(
+        expect.objectContaining({
+          ok: true,
+          imageSize: { width: 1920, height: 1080 },
+          contentSize: { width: 1280, height: 720 }
+        })
+      );
+      expect(click).toEqual(
+        expect.objectContaining({
+          ok: true,
+          backend: 'cdp',
+          inputPoint: { x: 640, y: 360 }
+        })
+      );
+      expect(AutomationDemo.capture).toHaveBeenCalledWith(bwMock.win, 'p_001');
+      expect(AutomationDemo.click).toHaveBeenCalledWith(
+        bwMock.win,
+        { width: 1920, height: 1080 },
+        960,
+        540,
+        { profileId: 'p_001' }
+      );
+
+      await expect(Launcher.captureAutomationForProfile('p_001')).resolves.toEqual(
+        expect.objectContaining({ ok: true })
+      );
+      await expect(Launcher.clickAutomationForProfile('p_001', 960, 540)).resolves.toEqual(
+        expect.objectContaining({ ok: true, backend: 'cdp' })
+      );
+
+      expect(await Launcher.captureAutomationForSender({})).toEqual({
+        ok: false,
+        error: 'profile-mismatch'
+      });
+      await expect(Launcher.clickAutomationForSender({}, 10, 10)).resolves.toEqual({
+        ok: false,
+        error: 'profile-mismatch'
+      });
+      await expect(Launcher.captureAutomationForProfile('missing')).resolves.toEqual({
+        ok: false,
+        error: 'profile-mismatch'
+      });
+    });
+
+    test('Flash Probe 只绑定单个已打开 Profile，并按调用 sender 返回快照', async () => {
+      const originalDebug = process.env.SHINOBI_DEBUG;
+      process.env.SHINOBI_DEBUG = '1';
+      launchAndTrack('p_001');
+      const connection = {
+        closed: false,
+        close: jest.fn(),
+        requestSnapshot: jest.fn(() =>
+          Promise.resolve({ objects: [{ name: 'gameRoot' }], truncated: false })
+        )
+      };
+      const hello = { stageWidth: 1440, stageHeight: 830, rootClass: 'GameRoot' };
+
+      await expect(Launcher.snapshotFlashProbeForSender(bwMock.wc)).resolves.toEqual({
+        ok: false,
+        error: 'agent-not-connected'
+      });
+      expect(Launcher.registerFlashProbeConnection(connection, hello)).toEqual({
+        ok: true,
+        profileId: 'p_001'
+      });
+      await expect(Launcher.snapshotFlashProbeForSender(bwMock.wc)).resolves.toEqual({
+        ok: true,
+        profileId: 'p_001',
+        hello: hello,
+        objects: [{ name: 'gameRoot' }],
+        truncated: false
+      });
+      await expect(Launcher.snapshotFlashProbeForSender({})).resolves.toEqual({
+        ok: false,
+        error: 'profile-mismatch'
+      });
+
+      if (originalDebug === undefined) delete process.env.SHINOBI_DEBUG;
+      else process.env.SHINOBI_DEBUG = originalDebug;
     });
 
     test('carrega loading screen (data:text/html)', () => {

@@ -70,6 +70,14 @@ jest.mock('../../../app/Launcher', () => ({
   isProfileOpen: jest.fn(() => false)
 }));
 
+jest.mock('../../../app/AutomationDemo', () => ({
+  isEnabled: jest.fn(() => true)
+}));
+
+jest.mock('../../../flash/FlashProbeRuntime', () => ({
+  isEnabled: jest.fn(() => true)
+}));
+
 const mockGameLauncher = {
   launchProfile: jest.fn(),
   getWebContents: jest.fn(() => null)
@@ -103,6 +111,7 @@ electron.ipcMain.handle.mock.calls.forEach(function (call) {
 describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    ManagerWindow.getManagerWindow.mockReturnValue(null);
   });
 
   test('保留通用 Profile CRUD、窗口、诊断和安全 inspector 通道', () => {
@@ -113,10 +122,90 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
     expect(onHandlers['profile:launch']).toBeDefined();
     expect(onHandlers['profile:refresh']).toBeDefined();
     expect(handleHandlers['launch-flow:recover']).toBeDefined();
+    expect(handleHandlers['automation-demo:capture']).toBeDefined();
+    expect(handleHandlers['automation-demo:click']).toBeDefined();
+    expect(handleHandlers['automation-demo:manager-capture']).toBeDefined();
+    expect(handleHandlers['automation-demo:manager-click']).toBeDefined();
+    expect(handleHandlers['flash-probe:snapshot']).toBeDefined();
     expect(handleHandlers['diagnostics:export']).toBeDefined();
     expect(handleHandlers['inspector:entries']).toBeDefined();
     expect(handleHandlers['profiles:export']).toBeDefined();
     expect(handleHandlers['profiles:import']).toBeDefined();
+  });
+
+  test('automation Demo IPC 严格转发 event.sender 并拒绝错误坐标类型', async () => {
+    const sender = { id: 77 };
+    const captureAutomationForSender = jest.fn(() => Promise.resolve({ ok: true }));
+    const clickAutomationForSender = jest.fn(() => Promise.resolve({ ok: true }));
+    IpcRouter.registerIpcHandlers({
+      captureAutomationForSender: captureAutomationForSender,
+      clickAutomationForSender: clickAutomationForSender
+    });
+
+    expect(await handleHandlers['automation-demo:capture']({ sender: sender })).toEqual({
+      ok: true
+    });
+    await expect(
+      handleHandlers['automation-demo:click']({ sender: sender }, 10, 20)
+    ).resolves.toEqual({ ok: true });
+    expect(captureAutomationForSender).toHaveBeenCalledWith(sender);
+    expect(clickAutomationForSender).toHaveBeenCalledWith(sender, 10, 20);
+    expect(handleHandlers['automation-demo:click']({ sender: sender }, '10', 20)).toEqual({
+      ok: false,
+      error: 'invalid-coordinate-type'
+    });
+  });
+
+  test('管理窗口专用 CDP POC 通道按 profileId 转发并拒绝其他 sender', async () => {
+    const managerSender = { id: 100 };
+    const managerWindow = {
+      webContents: managerSender,
+      isDestroyed: jest.fn(() => false)
+    };
+    ManagerWindow.getManagerWindow.mockReturnValue(managerWindow);
+    store.get.mockImplementation(function (id) {
+      return id === 'p_001' ? { id: 'p_001', name: 'Safe' } : null;
+    });
+    const captureAutomationForProfile = jest.fn(() => Promise.resolve({ ok: true }));
+    const clickAutomationForProfile = jest.fn(() => Promise.resolve({ ok: true, backend: 'cdp' }));
+    IpcRouter.registerIpcHandlers({
+      captureAutomationForProfile: captureAutomationForProfile,
+      clickAutomationForProfile: clickAutomationForProfile
+    });
+
+    await expect(
+      handleHandlers['automation-demo:manager-capture']({ sender: managerSender }, 'p_001')
+    ).resolves.toEqual({ ok: true });
+    await expect(
+      handleHandlers['automation-demo:manager-click']({ sender: managerSender }, 'p_001', 10, 20)
+    ).resolves.toEqual({ ok: true, backend: 'cdp' });
+    expect(captureAutomationForProfile).toHaveBeenCalledWith('p_001');
+    expect(clickAutomationForProfile).toHaveBeenCalledWith('p_001', 10, 20);
+
+    expect(
+      handleHandlers['automation-demo:manager-capture']({ sender: { id: 101 } }, 'p_001')
+    ).toEqual({ ok: false, error: 'automation-unavailable' });
+    expect(
+      handleHandlers['automation-demo:manager-click']({ sender: managerSender }, 'missing', 10, 20)
+    ).toEqual({ ok: false, error: 'automation-unavailable' });
+  });
+
+  test('Flash Probe snapshot IPC 严格转发 event.sender', async () => {
+    const sender = { id: 88 };
+    const snapshotFlashProbeForSender = jest.fn(() => Promise.resolve({ ok: true, objects: [] }));
+    IpcRouter.registerIpcHandlers({
+      snapshotFlashProbeForSender: snapshotFlashProbeForSender
+    });
+
+    await expect(handleHandlers['flash-probe:snapshot']({ sender: sender })).resolves.toEqual({
+      ok: true,
+      objects: []
+    });
+    expect(snapshotFlashProbeForSender).toHaveBeenCalledWith(sender);
+    expect(handleHandlers['flash-probe:snapshot']({})).toEqual({
+      ok: false,
+      error: 'flash-probe-unavailable'
+    });
   });
 
   test('不注册 Vault、tempmail、server、JWT/session、凭据备份或敏感调试 IPC', () => {

@@ -704,6 +704,57 @@ textarea:focus-visible {
   border-top: 1px solid var(--border-subtle);
 }
 
+.automation-modal {
+  width: min(900px, 96vw);
+  max-height: 94vh;
+}
+
+.automation-subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+}
+
+.automation-status,
+.automation-evidence {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.automation-status.pending {
+  color: var(--accent-primary);
+}
+
+.automation-status.ready,
+.automation-status.ok {
+  color: var(--status-ok);
+}
+
+.automation-status.error {
+  color: var(--status-danger);
+}
+
+.automation-preview-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  max-height: 68vh;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: #08090d;
+}
+
+.automation-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 66vh;
+  cursor: crosshair;
+  user-select: none;
+}
+
 /* ── Toast Notification ── */
 .toast {
   position: fixed;

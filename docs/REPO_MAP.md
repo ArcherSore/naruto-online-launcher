@@ -4,15 +4,19 @@
 
 ## 顶层目录
 
-| 路径 | 职责 |
-| --- | --- |
-| `src/` | Electron 主进程、管理 UI、Profile、腾讯流程、Flash 与诊断 |
-| `flash/` | Windows/Linux PPAPI 二进制与版本清单 |
-| `assets/` | 应用图标 |
-| `linux/` | AppImage 安装、运行与卸载脚本 |
-| `.github/workflows/` | Node 16.20.2 下的 CI 与双平台构建 |
-| `specs/001-tencent-game-launch/` | 腾讯启动流程需求、设计、任务和历史验证记录 |
-| `tests/`、`src/**/__tests__/` | Jest 基础设施与保留的腾讯相关回归测试 |
+| 路径                             | 职责                                                      |
+| -------------------------------- | --------------------------------------------------------- |
+| `src/`                           | Electron 主进程、管理 UI、Profile、腾讯流程、Flash 与诊断 |
+| `flash/`                         | Windows/Linux PPAPI 二进制与版本清单                      |
+| `assets/`                        | 应用图标                                                  |
+| `linux/`                         | AppImage 安装、运行与卸载脚本                             |
+| `.github/workflows/`             | Node 16.20.2 下的 CI 与双平台构建                         |
+| `specs/001-tencent-game-launch/` | 腾讯启动流程需求、设计、任务和历史验证记录                |
+| `tests/`、`src/**/__tests__/`    | Jest 基础设施与保留的腾讯相关回归测试                     |
+
+研究文档：
+
+- `docs/CDP_PPAPI_BACKGROUND_AUTOMATION_POC.md`：CDP 向后台 PPAPI Flash 派发输入的成功验证、失败路线、证据、风险和 Spec-Kit 接续建议。
 
 ## 启动与 Flash
 
@@ -30,6 +34,7 @@ Flash 二进制随仓库和发行包提供。`src/app/FlashUpdater.js` 已按上
 - `src/app/TencentLaunchFlow.js`：腾讯官方选服、扫码认证子窗、游戏导航、页面探针与有界恢复状态机。
 - `src/app/SessionLifecycle.js`：通用 load/crash/responsive/close 生命周期。
 - `src/app/StallDetector.js`：关键 SWF stall 检测。
+- `src/app/AutomationDemo.js`：仅 Debug 使用的 CDP 后台截图/点击 POC，不是稳定生产接口。
 - `src/ui/manager/KeyboardShortcuts.js`：游戏窗口 F5、F11、F12、Alt+F4。
 - `src/config/urls.js`：腾讯官方 URL 与精确 URL 角色。
 
@@ -82,15 +87,15 @@ ProfileManager.launch(profileId)
 
 ## 常用命令
 
-| 目的 | 命令 |
-| --- | --- |
-| 安装 | `npm ci --no-audit --no-fund` |
-| 启动 | `npm start` |
-| Jest | `npm test -- --runInBand` |
-| lint | `npm run lint` |
-| Prettier 检查 | `npx prettier --check "src/**/*.{js,html,css,json}" "tests/**/*.js"` |
-| Windows portable | `npm run build:win` |
-| Linux AppImage | `npm run build:linux` |
+| 目的             | 命令                                                                 |
+| ---------------- | -------------------------------------------------------------------- |
+| 安装             | `npm ci --no-audit --no-fund`                                        |
+| 启动             | `npm start`                                                          |
+| Jest             | `npm test -- --runInBand`                                            |
+| lint             | `npm run lint`                                                       |
+| Prettier 检查    | `npx prettier --check "src/**/*.{js,html,css,json}" "tests/**/*.js"` |
+| Windows portable | `npm run build:win`                                                  |
+| Linux AppImage   | `npm run build:linux`                                                |
 
 项目固定 Node.js 16.20.2、npm 8.19.4、Electron 11.5.0。
 

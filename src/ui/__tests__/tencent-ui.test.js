@@ -93,4 +93,14 @@ describe('腾讯 Profile 管理界面边界', () => {
     expect(appSource).toMatch(/data-action=["']refresh["']>刷新<\/button>/);
     expect(appSource).toMatch(/ipcRenderer\.send\(["']profile:refresh["'],\s*profileId\)/);
   });
+
+  test('Debug 模式提供管理窗口 CDP POC，且不通过游戏窗口 DevTools 触发', () => {
+    expect(html).toMatch(/id=["']automationModal["']/);
+    expect(appSource).toMatch(/process\.env\.SHINOBI_DEBUG\s*===\s*["']1["']/);
+    expect(appSource).toMatch(/automation-demo:manager-capture/);
+    expect(appSource).toMatch(/automation-demo:manager-click/);
+    expect(appSource).not.toMatch(
+      /dev:toggle-devtools.*automation-demo|automation-demo.*toggleDevTools/s
+    );
+  });
 });

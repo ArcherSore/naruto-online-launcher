@@ -56,6 +56,7 @@ const logger = require('./utils/logger');
 
 const { loadConfig } = require('./config/settings');
 const { findFlashPlugin, getFlashVersion } = require('./flash/plugin');
+const FlashProbeRuntime = require('./flash/FlashProbeRuntime');
 const flags = require('./main/flags');
 
 // Config sync (app.getPath('userData') é válido antes de ready)
@@ -343,7 +344,26 @@ function _showFlashMissingError() {
 /**
  * Inicializa UI Manager + banner (separado para chamar após setup).
  */
-function _initManagerAndLaunch() {
+async function _initManagerAndLaunch() {
+  if (FlashProbeRuntime.isEnabled()) {
+    try {
+      await FlashProbeRuntime.start({
+        onHello: function (connection, hello) {
+          const Launcher = require('./app/Launcher');
+          const result = Launcher.registerFlashProbeConnection(connection, hello);
+          if (!result.ok) {
+            connection.close();
+          }
+        },
+        onDisconnect: function (connection) {
+          require('./app/Launcher').unregisterFlashProbeConnection(connection);
+        }
+      });
+    } catch (_) {
+      // Snapshot API will report agent-not-connected; normal launcher startup continues.
+    }
+  }
+
   // v3.5: Recria mms.cfg com Modo Leve Avançado se ativado no config
   try {
     const { createMmsCfg } = require('./flash/mms');
@@ -362,6 +382,21 @@ function _initManagerAndLaunch() {
     },
     requestRecoveryForSender: function (sender, action) {
       return require('./app/Launcher').requestRecoveryForSender(sender, action);
+    },
+    captureAutomationForSender: function (sender) {
+      return require('./app/Launcher').captureAutomationForSender(sender);
+    },
+    clickAutomationForSender: function (sender, imageX, imageY) {
+      return require('./app/Launcher').clickAutomationForSender(sender, imageX, imageY);
+    },
+    captureAutomationForProfile: function (profileId) {
+      return require('./app/Launcher').captureAutomationForProfile(profileId);
+    },
+    clickAutomationForProfile: function (profileId, imageX, imageY) {
+      return require('./app/Launcher').clickAutomationForProfile(profileId, imageX, imageY);
+    },
+    snapshotFlashProbeForSender: function (sender) {
+      return require('./app/Launcher').snapshotFlashProbeForSender(sender);
     },
     getMemoryStats: function () {
       return memoryGuard.getStats();
@@ -487,6 +522,7 @@ app.on('child-process-gone', function (event, details) {
 });
 
 app.on('will-quit', function () {
+  FlashProbeRuntime.stop();
   try {
     const { restoreMmsCfg } = require('./flash/mms');
     restoreMmsCfg();

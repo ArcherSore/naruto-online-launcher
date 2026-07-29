@@ -11,6 +11,7 @@ const store = require('../profiles/store');
 const partition = require('../profiles/partition');
 const SessionLifecycle = require('./SessionLifecycle');
 const TencentLaunchFlow = require('./TencentLaunchFlow');
+const AutomationDemo = require('./AutomationDemo');
 const Auditor = require('./Auditor');
 const KeyboardShortcuts = require('../ui/manager/KeyboardShortcuts');
 const StateBroadcaster = require('../ui/manager/StateBroadcaster');
@@ -135,7 +136,10 @@ function launchProfile(profileId, onOpened, onClosed) {
     auditor: auditor,
     lifecycle: null,
     failLoadTimer: null,
-    closeTimer: null
+    closeTimer: null,
+    automationDemoCaptureSize: null,
+    flashProbeConnection: null,
+    flashProbeHello: null
   };
   gameWindows.set(profileId, entry);
 
@@ -163,6 +167,11 @@ function launchProfile(profileId, onOpened, onClosed) {
     },
     onClosed: function () {
       launchFlow.close();
+      if (entry.flashProbeConnection) {
+        entry.flashProbeConnection.close();
+        entry.flashProbeConnection = null;
+        entry.flashProbeHello = null;
+      }
       try {
         auditor.destroy();
       } catch (error) {
@@ -224,6 +233,152 @@ function getWebContents(profileId) {
   return entry.window.webContents;
 }
 
+function findGameEntryForSender(sender) {
+  let match = null;
+  gameWindows.forEach(function (entry, profileId) {
+    if (
+      !match &&
+      entry &&
+      entry.window &&
+      !entry.window.isDestroyed() &&
+      entry.window.webContents === sender
+    ) {
+      match = { profileId: profileId, entry: entry };
+    }
+  });
+  return match;
+}
+
+function findGameEntryForProfile(profileId) {
+  if (typeof profileId !== 'string' || !gameWindows.has(profileId)) return null;
+  const entry = gameWindows.get(profileId);
+  if (!entry || !entry.window || entry.window.isDestroyed()) return null;
+  return { profileId: profileId, entry: entry };
+}
+
+async function captureAutomationForMatch(match) {
+  if (!AutomationDemo.isEnabled()) return { ok: false, error: 'debug-disabled' };
+  if (!match) return { ok: false, error: 'profile-mismatch' };
+
+  try {
+    const result = await AutomationDemo.capture(match.entry.window, match.profileId);
+    match.entry.automationDemoCaptureSize = result.imageSize;
+    return {
+      ok: true,
+      filePath: result.filePath,
+      imageSize: result.imageSize,
+      contentSize: result.contentSize
+    };
+  } catch (error) {
+    return { ok: false, error: error.code || 'capture-failed' };
+  }
+}
+
+async function clickAutomationForMatch(match, imageX, imageY) {
+  if (!AutomationDemo.isEnabled()) return { ok: false, error: 'debug-disabled' };
+  if (!match) return { ok: false, error: 'profile-mismatch' };
+  if (!match.entry.automationDemoCaptureSize) {
+    return { ok: false, error: 'capture-required' };
+  }
+
+  try {
+    const result = await AutomationDemo.click(
+      match.entry.window,
+      match.entry.automationDemoCaptureSize,
+      imageX,
+      imageY,
+      { profileId: match.profileId }
+    );
+    return {
+      ok: true,
+      backend: result.backend,
+      protocolVersion: result.protocolVersion,
+      imagePoint: result.imagePoint,
+      inputPoint: result.inputPoint,
+      imageSize: result.imageSize,
+      contentSize: result.contentSize,
+      evidence: result.evidence
+    };
+  } catch (error) {
+    return { ok: false, error: error.code || 'click-failed' };
+  }
+}
+
+function captureAutomationForSender(sender) {
+  return captureAutomationForMatch(findGameEntryForSender(sender));
+}
+
+function clickAutomationForSender(sender, imageX, imageY) {
+  return clickAutomationForMatch(findGameEntryForSender(sender), imageX, imageY);
+}
+
+function captureAutomationForProfile(profileId) {
+  return captureAutomationForMatch(findGameEntryForProfile(profileId));
+}
+
+function clickAutomationForProfile(profileId, imageX, imageY) {
+  return clickAutomationForMatch(findGameEntryForProfile(profileId), imageX, imageY);
+}
+
+function registerFlashProbeConnection(connection, hello) {
+  if (process.env.SHINOBI_DEBUG !== '1') return { ok: false, error: 'debug-disabled' };
+  if (!connection || typeof connection.requestSnapshot !== 'function') {
+    return { ok: false, error: 'invalid-probe-connection' };
+  }
+
+  const openEntries = [];
+  gameWindows.forEach(function (entry, profileId) {
+    if (entry && entry.window && !entry.window.isDestroyed()) {
+      openEntries.push({ profileId: profileId, entry: entry });
+    }
+  });
+  if (openEntries.length !== 1) {
+    return { ok: false, error: 'single-profile-required' };
+  }
+
+  const match = openEntries[0];
+  if (
+    match.entry.flashProbeConnection &&
+    match.entry.flashProbeConnection !== connection &&
+    typeof match.entry.flashProbeConnection.close === 'function'
+  ) {
+    match.entry.flashProbeConnection.close();
+  }
+  match.entry.flashProbeConnection = connection;
+  match.entry.flashProbeHello = hello;
+  return { ok: true, profileId: match.profileId };
+}
+
+function unregisterFlashProbeConnection(connection) {
+  gameWindows.forEach(function (entry) {
+    if (entry && entry.flashProbeConnection === connection) {
+      entry.flashProbeConnection = null;
+      entry.flashProbeHello = null;
+    }
+  });
+}
+
+async function snapshotFlashProbeForSender(sender) {
+  if (process.env.SHINOBI_DEBUG !== '1') return { ok: false, error: 'debug-disabled' };
+  const match = findGameEntryForSender(sender);
+  if (!match) return { ok: false, error: 'profile-mismatch' };
+  const connection = match.entry.flashProbeConnection;
+  if (!connection || connection.closed) return { ok: false, error: 'agent-not-connected' };
+
+  try {
+    const result = await connection.requestSnapshot();
+    return {
+      ok: true,
+      profileId: match.profileId,
+      hello: match.entry.flashProbeHello,
+      objects: result.objects,
+      truncated: result.truncated === true
+    };
+  } catch (error) {
+    return { ok: false, error: error.code || 'snapshot-failed' };
+  }
+}
+
 function requestRecoveryForSender(sender, action) {
   let matchedProfileId = null;
   let matchedEntry = null;
@@ -265,6 +420,13 @@ module.exports = {
   refreshProfile: refreshProfile,
   isProfileOpen: isProfileOpen,
   getWebContents: getWebContents,
+  captureAutomationForSender: captureAutomationForSender,
+  clickAutomationForSender: clickAutomationForSender,
+  captureAutomationForProfile: captureAutomationForProfile,
+  clickAutomationForProfile: clickAutomationForProfile,
+  registerFlashProbeConnection: registerFlashProbeConnection,
+  unregisterFlashProbeConnection: unregisterFlashProbeConnection,
+  snapshotFlashProbeForSender: snapshotFlashProbeForSender,
   requestRecoveryForSender: requestRecoveryForSender,
   hasOpenWindows: hasOpenWindows,
   getGameUrl: getGameUrl

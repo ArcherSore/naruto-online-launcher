@@ -20,6 +20,8 @@ const mg = require('../../memory/guard');
 const partition = require('../../profiles/partition');
 const ManagerWindow = require('./ManagerWindow');
 const StateBroadcaster = require('./StateBroadcaster');
+const AutomationDemo = require('../../app/AutomationDemo');
+const FlashProbeRuntime = require('../../flash/FlashProbeRuntime');
 
 let _handlers = {};
 let _inspectors = new Map(); // profileId -> inspector instance
@@ -89,6 +91,11 @@ function _pushProfiles() {
 function _getWin() {
   var w = ManagerWindow.getManagerWindow();
   return w && !w.isDestroyed() ? w : null;
+}
+
+function _isManagerSender(event) {
+  const win = _getWin();
+  return !!(win && event && event.sender && win.webContents === event.sender);
 }
 
 /**
@@ -326,6 +333,91 @@ function registerIpcHandlers(handlers) {
       return { ok: false, error: 'recovery-failed' };
     }
   });
+
+  if (AutomationDemo.isEnabled()) {
+    ipcMain.handle('automation-demo:capture', function (event) {
+      if (!event || !event.sender || typeof _handlers.captureAutomationForSender !== 'function') {
+        return { ok: false, error: 'automation-unavailable' };
+      }
+      return Promise.resolve(_handlers.captureAutomationForSender(event.sender)).catch(function () {
+        return { ok: false, error: 'capture-failed' };
+      });
+    });
+
+    ipcMain.handle('automation-demo:click', function (event, imageX, imageY) {
+      if (!event || !event.sender || typeof _handlers.clickAutomationForSender !== 'function') {
+        return { ok: false, error: 'automation-unavailable' };
+      }
+      if (
+        typeof imageX !== 'number' ||
+        !Number.isFinite(imageX) ||
+        typeof imageY !== 'number' ||
+        !Number.isFinite(imageY)
+      ) {
+        return { ok: false, error: 'invalid-coordinate-type' };
+      }
+      try {
+        return Promise.resolve(
+          _handlers.clickAutomationForSender(event.sender, imageX, imageY)
+        ).catch(function () {
+          return { ok: false, error: 'click-failed' };
+        });
+      } catch (_) {
+        return { ok: false, error: 'click-failed' };
+      }
+    });
+
+    ipcMain.handle('automation-demo:manager-capture', function (event, profileId) {
+      if (
+        !_isManagerSender(event) ||
+        typeof profileId !== 'string' ||
+        !store.get(profileId) ||
+        typeof _handlers.captureAutomationForProfile !== 'function'
+      ) {
+        return { ok: false, error: 'automation-unavailable' };
+      }
+      return Promise.resolve(_handlers.captureAutomationForProfile(profileId)).catch(function () {
+        return { ok: false, error: 'capture-failed' };
+      });
+    });
+
+    ipcMain.handle('automation-demo:manager-click', function (event, profileId, imageX, imageY) {
+      if (
+        !_isManagerSender(event) ||
+        typeof profileId !== 'string' ||
+        !store.get(profileId) ||
+        typeof _handlers.clickAutomationForProfile !== 'function'
+      ) {
+        return { ok: false, error: 'automation-unavailable' };
+      }
+      if (
+        typeof imageX !== 'number' ||
+        !Number.isFinite(imageX) ||
+        typeof imageY !== 'number' ||
+        !Number.isFinite(imageY)
+      ) {
+        return { ok: false, error: 'invalid-coordinate-type' };
+      }
+      return Promise.resolve(_handlers.clickAutomationForProfile(profileId, imageX, imageY)).catch(
+        function () {
+          return { ok: false, error: 'click-failed' };
+        }
+      );
+    });
+  }
+
+  if (FlashProbeRuntime.isEnabled()) {
+    ipcMain.handle('flash-probe:snapshot', function (event) {
+      if (!event || !event.sender || typeof _handlers.snapshotFlashProbeForSender !== 'function') {
+        return { ok: false, error: 'flash-probe-unavailable' };
+      }
+      return Promise.resolve(_handlers.snapshotFlashProbeForSender(event.sender)).catch(
+        function () {
+          return { ok: false, error: 'snapshot-failed' };
+        }
+      );
+    });
+  }
 
   // ── Memory ──
   ipcMain.handle('memory:stats', function () {

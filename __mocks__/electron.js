@@ -115,6 +115,22 @@ function createWebContents(owner, ses) {
   const target = createEventTarget();
   let currentURL = '';
   let destroyed = false;
+  let debuggerAttached = false;
+  const debuggerApi = {
+    isAttached: jest.fn(function () {
+      return debuggerAttached;
+    }),
+    attach: jest.fn(function () {
+      if (debuggerAttached) throw new Error('Debugger is already attached');
+      debuggerAttached = true;
+    }),
+    detach: jest.fn(function () {
+      debuggerAttached = false;
+    }),
+    sendCommand: jest.fn(function () {
+      return Promise.resolve({});
+    })
+  };
 
   Object.assign(target, {
     id: nextWebContentsId++,
@@ -129,6 +145,7 @@ function createWebContents(owner, ses) {
     send: jest.fn(),
     executeJavaScript: jest.fn(function () { return Promise.resolve(false); }),
     insertCSS: jest.fn(function () { return Promise.resolve('css-key'); }),
+    debugger: debuggerApi,
     openDevTools: jest.fn(),
     closeDevTools: jest.fn(),
     isDevToolsOpened: jest.fn(function () { return false; }),
@@ -185,6 +202,7 @@ function createBrowserWindow(options) {
   let minimized = false;
   let maximized = false;
   let alwaysOnTop = false;
+  let focused = false;
 
   Object.assign(target, {
     id: nextWindowId++,
@@ -194,7 +212,15 @@ function createBrowserWindow(options) {
     loadURL: jest.fn(function (url) { return target.webContents.loadURL(url); }),
     show: jest.fn(function () { visible = true; }),
     hide: jest.fn(function () { visible = false; }),
-    focus: jest.fn(),
+    focus: jest.fn(function () {
+      focused = true;
+    }),
+    blur: jest.fn(function () {
+      focused = false;
+    }),
+    isFocused: jest.fn(function () {
+      return focused;
+    }),
     close: jest.fn(function () { target.emit('close', { preventDefault: jest.fn() }); }),
     destroy: jest.fn(function () {
       destroyed = true;
@@ -277,6 +303,9 @@ const electronMock = {
   Menu: { buildFromTemplate: jest.fn(), setApplicationMenu: jest.fn() },
   shell: { openExternal: jest.fn(), openPath: jest.fn(), showItemInFolder: jest.fn() },
   screen: {
+    getCursorScreenPoint: jest.fn(function () {
+      return { x: 0, y: 0 };
+    }),
     getPrimaryDisplay: jest.fn(function () {
       return { workAreaSize: { width: 1920, height: 1080 } };
     }),

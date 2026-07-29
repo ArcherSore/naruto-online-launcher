@@ -1,11 +1,15 @@
 'use strict';
 
+const fs = require('fs');
 const { ipcRenderer } = require('electron');
 const { debounce } = require('../utils/throttle');
 
 let profiles = [];
 let editingProfileId = null;
+let automationProfileId = null;
+let automationBusy = false;
 const openWindows = Object.create(null);
+const debugEnabled = process.env.SHINOBI_DEBUG === '1';
 
 const elements = {
   grid: document.getElementById('profileGrid'),
@@ -24,7 +28,11 @@ const elements = {
   colorHexText: document.getElementById('colorHexText'),
   notifications: document.getElementById('profileNotifications'),
   memory: document.getElementById('memorySummary'),
-  toast: document.getElementById('toast')
+  toast: document.getElementById('toast'),
+  automationModal: document.getElementById('automationModal'),
+  automationPreview: document.getElementById('automationPreview'),
+  automationStatus: document.getElementById('automationStatus'),
+  automationEvidence: document.getElementById('automationEvidence')
 };
 
 function escapeHtml(value) {
@@ -115,7 +123,11 @@ function renderProfiles() {
         '<div class="card-actions">' +
         '<div class="card-primary-actions">' +
         (isOpen
-          ? '<button class="secondary-button compact" data-action="focus">显示窗口</button><button class="secondary-button compact" data-action="refresh">刷新</button><button class="danger-button compact" data-action="close">关闭</button>'
+          ? '<button class="secondary-button compact" data-action="focus">显示窗口</button><button class="secondary-button compact" data-action="refresh">刷新</button>' +
+            (debugEnabled
+              ? '<button class="secondary-button compact" data-action="cdp-poc">CDP POC</button>'
+              : '') +
+            '<button class="danger-button compact" data-action="close">关闭</button>'
           : '<button class="primary-button compact" data-action="launch">打开</button>') +
         '</div>' +
         '<div class="menu-container">' +
@@ -154,6 +166,109 @@ function closeProfileModal() {
   elements.modal.setAttribute('aria-hidden', 'true');
   editingProfileId = null;
   elements.form.reset();
+}
+
+function readPngDataUrl(filePath) {
+  if (typeof filePath !== 'string' || !filePath) return null;
+  try {
+    return 'data:image/png;base64,' + fs.readFileSync(filePath).toString('base64');
+  } catch (_) {
+    return null;
+  }
+}
+
+function setAutomationStatus(message, state) {
+  if (!elements.automationStatus) return;
+  elements.automationStatus.textContent = String(message || '');
+  elements.automationStatus.className = 'automation-status ' + (state || '');
+}
+
+function closeAutomationModal() {
+  if (!elements.automationModal || automationBusy) return;
+  elements.automationModal.classList.remove('show');
+  elements.automationModal.setAttribute('aria-hidden', 'true');
+  automationProfileId = null;
+  if (elements.automationPreview) {
+    elements.automationPreview.removeAttribute('src');
+    elements.automationPreview.hidden = true;
+  }
+  if (elements.automationEvidence) elements.automationEvidence.textContent = '';
+}
+
+async function openAutomationModal(profileId) {
+  if (!debugEnabled || !elements.automationModal || automationBusy) return;
+  automationProfileId = profileId;
+  automationBusy = true;
+  elements.automationModal.classList.add('show');
+  elements.automationModal.setAttribute('aria-hidden', 'false');
+  elements.automationPreview.hidden = true;
+  elements.automationEvidence.textContent = '';
+  setAutomationStatus('正在截取后台游戏画面…', 'pending');
+
+  const result = await ipcRenderer.invoke('automation-demo:manager-capture', profileId);
+  automationBusy = false;
+  if (!result || !result.ok) {
+    setAutomationStatus('截图失败：' + ((result && result.error) || 'unknown'), 'error');
+    return;
+  }
+
+  const dataUrl = readPngDataUrl(result.filePath);
+  if (!dataUrl) {
+    setAutomationStatus('截图文件读取失败', 'error');
+    return;
+  }
+  elements.automationPreview.src = dataUrl;
+  elements.automationPreview.hidden = false;
+  setAutomationStatus('点击截图中的目标位置；点击将通过 CDP 发往后台游戏窗口。', 'ready');
+}
+
+function formatAutomationEvidence(evidence) {
+  if (!evidence) return '未返回采证结果';
+  const focus = evidence.backgroundFocusPreserved ? '通过' : '未通过';
+  const cursor = evidence.cursorPreserved === true ? '通过' : '无法确认';
+  const visual = evidence.visualChange;
+  const visualText =
+    visual && visual.available
+      ? (visual.changedRatio * 100).toFixed(2) + '% 像素发生变化'
+      : '像素变化不可用';
+  return '后台焦点保持：' + focus + '；系统光标保持：' + cursor + '；画面证据：' + visualText;
+}
+
+if (elements.automationPreview) {
+  elements.automationPreview.addEventListener('click', async function (event) {
+    if (!automationProfileId || automationBusy || !this.naturalWidth || !this.naturalHeight) return;
+    const bounds = this.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    const imageX = ((event.clientX - bounds.left) * this.naturalWidth) / bounds.width;
+    const imageY = ((event.clientY - bounds.top) * this.naturalHeight) / bounds.height;
+
+    automationBusy = true;
+    setAutomationStatus('正在后台派发 CDP 点击并采集点击后画面…', 'pending');
+    const result = await ipcRenderer.invoke(
+      'automation-demo:manager-click',
+      automationProfileId,
+      imageX,
+      imageY
+    );
+    automationBusy = false;
+
+    if (!result || !result.ok) {
+      const error = (result && result.error) || 'unknown';
+      const hint = error === 'cdp-already-attached' ? '；请关闭游戏窗口的 DevTools 后重试' : '';
+      setAutomationStatus('CDP 点击失败：' + error + hint, 'error');
+      return;
+    }
+
+    const afterUrl = readPngDataUrl(result.evidence && result.evidence.afterFilePath);
+    if (afterUrl) this.src = afterUrl;
+    elements.automationEvidence.textContent = formatAutomationEvidence(result.evidence);
+    setAutomationStatus(
+      result.evidence && result.evidence.backgroundFocusPreserved
+        ? 'CDP 命令已完成，游戏窗口全程保持后台。'
+        : 'CDP 命令已完成，但焦点保持证据未通过。',
+      result.evidence && result.evidence.backgroundFocusPreserved ? 'ok' : 'error'
+    );
+  });
 }
 
 function profileById(profileId) {
@@ -223,6 +338,7 @@ elements.grid.addEventListener('click', function (event) {
   if (action === 'launch') ipcRenderer.send('profile:launch', profileId);
   if (action === 'focus') ipcRenderer.send('profile:launch', profileId);
   if (action === 'refresh') ipcRenderer.send('profile:refresh', profileId);
+  if (action === 'cdp-poc') openAutomationModal(profileId);
   if (action === 'close') ipcRenderer.send('profile:close', profileId);
   if (action === 'edit') openProfileModal(profileById(profileId));
   if (action === 'delete' && window.confirm('删除这个 Profile 及其本地独立会话数据？')) {
@@ -252,6 +368,16 @@ if (closeProfileModalBtn) {
 const cancelProfileBtn = document.getElementById('cancelProfileBtn');
 if (cancelProfileBtn) {
   cancelProfileBtn.addEventListener('click', closeProfileModal);
+}
+
+const closeAutomationModalBtn = document.getElementById('closeAutomationModalBtn');
+if (closeAutomationModalBtn) {
+  closeAutomationModalBtn.addEventListener('click', closeAutomationModal);
+}
+
+const closeAutomationBtn = document.getElementById('closeAutomationBtn');
+if (closeAutomationBtn) {
+  closeAutomationBtn.addEventListener('click', closeAutomationModal);
 }
 
 elements.search.addEventListener('input', debounce(renderProfiles, 120));
@@ -299,6 +425,9 @@ document.addEventListener('keydown', function (event) {
     closeAllDropdowns();
     if (elements.modal.classList.contains('show')) {
       closeProfileModal();
+    }
+    if (elements.automationModal && elements.automationModal.classList.contains('show')) {
+      closeAutomationModal();
     }
   }
 });

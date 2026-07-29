@@ -61,7 +61,8 @@
       "src/**/*.js",
       "src/**/*.html",
       "src/**/*.css",
-      "src/**/*.png"
+      "src/**/*.png",
+      "src/flash-probe/FlashProbe.swf"
     ],
     "extraResources": [
       {

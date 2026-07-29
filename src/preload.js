@@ -81,7 +81,7 @@ contextBridge.exposeInMainWorld('__SHINOBI_DEBUG__', {
   }
 });
 
-contextBridge.exposeInMainWorld('narutoLauncher', {
+const narutoLauncherApi = {
   /**
    * Get the launcher version from package.json
    * @returns {Promise<string>} version string (e.g. "4.1.0")
@@ -112,4 +112,30 @@ contextBridge.exposeInMainWorld('narutoLauncher', {
       ipcRenderer.removeListener('launch-flow:status', listener);
     };
   }
-});
+};
+
+if (DEBUG) {
+  narutoLauncherApi.automationDemo = {
+    capture: function () {
+      return ipcRenderer.invoke('automation-demo:capture');
+    },
+    click: function (imageX, imageY) {
+      if (
+        typeof imageX !== 'number' ||
+        !Number.isFinite(imageX) ||
+        typeof imageY !== 'number' ||
+        !Number.isFinite(imageY)
+      ) {
+        return Promise.resolve({ ok: false, error: 'invalid-coordinate-type' });
+      }
+      return ipcRenderer.invoke('automation-demo:click', imageX, imageY);
+    }
+  };
+  narutoLauncherApi.flashProbe = {
+    snapshot: function () {
+      return ipcRenderer.invoke('flash-probe:snapshot');
+    }
+  };
+}
+
+contextBridge.exposeInMainWorld('narutoLauncher', narutoLauncherApi);
