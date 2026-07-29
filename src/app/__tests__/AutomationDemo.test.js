@@ -165,6 +165,51 @@ describe('AutomationDemo', () => {
     ).toThrow(RangeError);
   });
 
+  test('截图坐标可归一化并按运行时内容尺寸还原，覆盖高 DPI 映射', () => {
+    const normalized = AutomationDemo.normalizeImagePoint(
+      150,
+      190,
+      { width: 614, height: 290 },
+      { width: 307, height: 145 }
+    );
+
+    expect(normalized).toEqual({
+      normalizedX: 75 / 307,
+      normalizedY: 95 / 145,
+      inputPoint: { x: 75, y: 95 }
+    });
+    expect(
+      AutomationDemo.mapNormalizedPoint(normalized.normalizedX, normalized.normalizedY, {
+        width: 307,
+        height: 145
+      })
+    ).toEqual({ x: 75, y: 95 });
+    expect(() => AutomationDemo.mapNormalizedPoint(1, 0.5, { width: 307, height: 145 })).toThrow(
+      RangeError
+    );
+  });
+
+  test('受限脚本可按内容坐标调用同一 CDP 点击实现', async () => {
+    const png = pngBuffer(614, 290);
+    const before = mockImage(png, Buffer.from([0, 0, 0, 255]));
+    const after = mockImage(png, Buffer.from([0, 255, 0, 255]));
+    const win = mockWindow(307, 145, [before, after]);
+
+    const result = await AutomationDemo.clickContent(win, 75, 95, {
+      profileId: 'p_001',
+      settleDelayMs: 0
+    });
+
+    expect(result.inputPoint).toEqual({ x: 75, y: 95 });
+    expect(result.imagePoint).toBeNull();
+    expect(result.imageSize).toBeNull();
+    expect(result.dispatchedAt).toEqual(expect.any(Number));
+    expect(win.webContents.debugger.sendCommand).toHaveBeenCalledWith(
+      'Input.dispatchMouseEvent',
+      expect.objectContaining({ type: 'mousePressed', x: 75, y: 95 })
+    );
+  });
+
   test('capture 保存 PNG 并返回 PNG 像素尺寸和内容尺寸', async () => {
     const png = pngBuffer(1920, 1080);
     const win = mockWindow(1280, 720, [mockImage(png)]);

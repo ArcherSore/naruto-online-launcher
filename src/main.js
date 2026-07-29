@@ -395,6 +395,21 @@ async function _initManagerAndLaunch() {
     clickAutomationForProfile: function (profileId, imageX, imageY) {
       return require('./app/Launcher').clickAutomationForProfile(profileId, imageX, imageY);
     },
+    beginAutomationRecordingForProfile: function (profileId) {
+      return require('./app/Launcher').beginAutomationRecordingForProfile(profileId);
+    },
+    recordAutomationPointForProfile: function (profileId, imageX, imageY) {
+      return require('./app/Launcher').recordAutomationPointForProfile(profileId, imageX, imageY);
+    },
+    getAutomationRecordingForProfile: function (profileId) {
+      return require('./app/Launcher').getAutomationRecordingForProfile(profileId);
+    },
+    clearAutomationRecordingForProfile: function (profileId) {
+      return require('./app/Launcher').clearAutomationRecordingForProfile(profileId);
+    },
+    runAutomationDemoForProfile: function (profileId) {
+      return require('./app/Launcher').runAutomationDemoForProfile(profileId);
+    },
     snapshotFlashProbeForSender: function (sender) {
       return require('./app/Launcher').snapshotFlashProbeForSender(sender);
     },

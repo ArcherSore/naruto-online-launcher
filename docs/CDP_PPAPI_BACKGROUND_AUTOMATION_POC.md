@@ -1,9 +1,13 @@
 # CDP + PPAPI Flash 后台自动化 POC 验证记录
 
-> 状态：技术可行性已确认，尚未产品化  
-> 验证日期：2026-07-29  
-> 验证分支：`demo/builtin-auto`  
-> 基线提交：`4967578`  
+> 状态：技术可行性和最小坐标回放闭环已确认，尚未产品化
+>
+> 验证日期：2026-07-29
+>
+> 验证分支：`demo/builtin-auto`
+>
+> 基线提交：`4967578`
+>
 > 运行环境：Windows、Node.js 16.20.2、npm 8.19.4、Electron 11.5.0、Chromium 87.0.4280.141、Pepper Flash 34.0.0.376
 
 ## 1. 结论摘要
@@ -35,17 +39,19 @@
 
 本次研究将最小验收标准定义为：
 
-| 编号 | 验收项                                | 结果               |
-| ---- | ------------------------------------- | ------------------ |
-| A1   | 能向普通 Chromium 页面派发后台点击    | 通过               |
-| A2   | 能向当前 PPAPI Flash 插件派发后台点击 | 通过               |
-| A3   | AS3 收到真实 `MouseEvent.CLICK`       | 通过               |
-| A4   | 点击过程中游戏窗口保持未聚焦          | 通过               |
-| A5   | 点击过程中系统鼠标位置不变            | 通过               |
-| A6   | `wmode=direct` 下有效                 | 通过               |
-| A7   | 高 DPI 下截图坐标能映射到内容坐标     | 通过               |
-| A8   | 腾讯国服真实游戏控件响应点击          | 通过，用户人工确认 |
-| A9   | 不依赖 Debug Player/PreloadSwf        | 通过               |
+| 编号 | 验收项                                          | 结果               |
+| ---- | ----------------------------------------------- | ------------------ |
+| A1   | 能向普通 Chromium 页面派发后台点击              | 通过               |
+| A2   | 能向当前 PPAPI Flash 插件派发后台点击           | 通过               |
+| A3   | AS3 收到真实 `MouseEvent.CLICK`                 | 通过               |
+| A4   | 点击过程中游戏窗口保持未聚焦                    | 通过               |
+| A5   | 点击过程中系统鼠标位置不变                      | 通过               |
+| A6   | `wmode=direct` 下有效                           | 通过               |
+| A7   | 高 DPI 下截图坐标能映射到内容坐标               | 通过               |
+| A8   | 腾讯国服真实游戏控件响应点击                    | 通过，用户人工确认 |
+| A9   | 不依赖 Debug Player/PreloadSwf                  | 通过               |
+| A10  | 截图记录坐标 → JSON → 独立脚本 → PPAPI 连续点击 | 通过，本地自动验证 |
+| A11  | 腾讯真实游戏按 JSON 顺序连续点击                | 通过，用户人工确认 |
 
 ## 3. 调研路线及最终判断
 
@@ -100,7 +106,7 @@ Input.dispatchMouseEvent(mouseReleased)
 
 但是：
 
-- 当前腾讯真实游戏只人工确认了 CDP 版本；
+- 腾讯真实游戏已经人工确认基础 CDP 点击和 JSON 坐标连续回放；
 - 最终 POC 实现使用 CDP；
 - CDP 对输入事件类型、协议返回和后续扩展的控制更完整。
 
@@ -299,6 +305,119 @@ POC 不会强制断开已有调试会话。
 6. 用户确认“确实成功了”。
 
 因此，技术链路已经跨过“本地模拟 Flash”与“腾讯实际游戏”两层验证。
+
+### 6.4 坐标记录与独立脚本回放
+
+在基础 CDP POC 上增加了一个刻意受限的最小闭环：
+
+```text
+获取截图
+  -> 用户只在截图上记录 1～2 个点
+  -> 转换为内容区域归一化坐标
+  -> 自动保存 Profile 专用 JSON
+  -> automation-scripts/demo-click/index.js 读取记录
+  -> 按每次运行时内容尺寸还原坐标
+  -> CDP 后台顺序点击
+```
+
+坐标文件位于：
+
+```text
+<Electron userData>/automation-demo/demo-click/<profileId>.json
+```
+
+结构示例：
+
+```json
+{
+  "schemaVersion": 1,
+  "scriptId": "demo-click",
+  "profileId": "runtime-ppapi",
+  "points": [
+    {
+      "order": 1,
+      "normalizedX": 0.24429967426710097,
+      "normalizedY": 0.6551724137931034
+    },
+    {
+      "order": 2,
+      "normalizedX": 0.7328990228013029,
+      "normalizedY": 0.6551724137931034
+    }
+  ]
+}
+```
+
+独立脚本只能获得以下五个受限能力：
+
+```text
+loadCoordinates()
+getContentSize()
+clickContent(x, y)
+sleep(ms)
+now()
+```
+
+它不能访问 `BrowserWindow`、`webContents` 或任意 CDP method。
+
+隐藏 PPAPI 双目标靶场的自动结果：
+
+```json
+{
+  "onePoint": {
+    "clickCount": 1,
+    "targetOrder": ["first"],
+    "inputPoints": [{ "x": 75, "y": 95 }]
+  },
+  "twoPoints": {
+    "clickCount": 2,
+    "targetOrder": ["first", "second"],
+    "inputPoints": [
+      { "x": 75, "y": 95 },
+      { "x": 225, "y": 95 }
+    ],
+    "dispatchIntervalMs": 1006,
+    "flashIntervalMs": 1008
+  },
+  "backgroundFocusPreserved": true,
+  "cursorPreserved": true,
+  "ok": true
+}
+```
+
+这证明了本地 PPAPI 环境中的完整数据链路。该结果仍不能替代真实游戏验证，因此继续使用相同 Debug 界面完成了人工确认。
+
+### 6.5 腾讯真实游戏坐标回放最终确认
+
+用户在腾讯国服真实游戏中按以下闭环验证：
+
+1. 启动器以 `SHINOBI_DEBUG=1` 启动；
+2. 对运行中的 Profile 点击 `CDP POC`；
+3. 点击“获取坐标”获得当前游戏截图；
+4. 在截图中依次记录 1～2 个位置，记录阶段不立即操作游戏；
+5. 手动把游戏恢复到适合执行动作的初始界面；
+6. 回到管理窗口点击 `Run`；
+7. 固定 `demo-click` 脚本从 JSON 读取坐标并后台顺序派发；
+8. 用户确认测试成功。
+
+本次人工结果确认：
+
+- 截图记录的坐标可以在腾讯真实游戏中回放；
+- 两个坐标按记录顺序触发；
+- 后续坐标使用约 1000ms 的固定调度间隔；
+- 运行过程不需要把游戏保持在前台；
+- 游戏窗口不会主动抢回焦点；
+- 系统鼠标不会被移动或占用。
+
+至此，以下三层验证均已完成：
+
+| 层级                  | 验证方式                       | 状态 |
+| --------------------- | ------------------------------ | ---- |
+| 普通 Chromium         | 隐藏窗口自动测试               | 通过 |
+| 本地 Pepper Flash/AS3 | 隐藏双目标自动测试             | 通过 |
+| 腾讯国服真实游戏      | 用户人工验证坐标记录与连续回放 | 通过 |
+
+真实游戏结果属于人工验收记录，不应描述为 CI 自动测试。未来游戏版本、页面尺寸或输入行为变化后，仍需重新执行最小人工验证。
 
 ## 7. 研究过程中遇到的关键问题
 
@@ -566,5 +685,7 @@ npm start
 答案是：可以。
 
 启动器的核心优势不是更容易修改 SWF，而是它本身拥有游戏 `BrowserWindow`、Profile registry、隔离 Session 和 `webContents` 控制权。利用这条控制链，可以在 Chromium/PPAPI 输入层完成后台操作，而无需先理解游戏内部类和公共函数。
+
+坐标记录、Profile 专用 JSON、独立受限脚本读取以及后台连续点击的最小端到端闭环也已经在本地 PPAPI 和腾讯真实游戏中分别完成自动与人工验证。
 
 因此后续 feature 应围绕“稳定、安全、可版本化的启动器自动化接口”展开，而不是继续把主要精力投入 Debug Player 和 PreloadSwf。

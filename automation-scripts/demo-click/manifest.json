@@ -1,0 +1,8 @@
+{
+  "id": "demo-click",
+  "name": "Demo Click",
+  "version": 1,
+  "entry": "index.js",
+  "maxPoints": 2,
+  "intervalMs": 1000
+}

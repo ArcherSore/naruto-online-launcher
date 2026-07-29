@@ -68,6 +68,42 @@ function mapImagePoint(imageX, imageY, imageSize, contentSize) {
   };
 }
 
+function normalizeImagePoint(imageX, imageY, imageSize, contentSize) {
+  const inputPoint = mapImagePoint(imageX, imageY, imageSize, contentSize);
+  return {
+    normalizedX: inputPoint.x / contentSize.width,
+    normalizedY: inputPoint.y / contentSize.height,
+    inputPoint: inputPoint
+  };
+}
+
+function mapNormalizedPoint(normalizedX, normalizedY, contentSize) {
+  if (
+    typeof normalizedX !== 'number' ||
+    !Number.isFinite(normalizedX) ||
+    typeof normalizedY !== 'number' ||
+    !Number.isFinite(normalizedY)
+  ) {
+    throw createError(
+      'invalid-normalized-coordinate-type',
+      'normalized coordinates must be finite numbers',
+      TypeError
+    );
+  }
+  validateSize(contentSize, 'content');
+  if (normalizedX < 0 || normalizedX >= 1 || normalizedY < 0 || normalizedY >= 1) {
+    throw createError(
+      'normalized-coordinate-out-of-range',
+      'normalized coordinates must be in the range [0, 1)',
+      RangeError
+    );
+  }
+  return {
+    x: Math.min(contentSize.width - 1, Math.floor(normalizedX * contentSize.width)),
+    y: Math.min(contentSize.height - 1, Math.floor(normalizedY * contentSize.height))
+  };
+}
+
 function readPngSize(png) {
   if (!Buffer.isBuffer(png) || png.length < 24 || png.toString('ascii', 12, 16) !== 'IHDR') {
     throw createError('invalid-capture', 'capturePage did not produce a valid PNG');
@@ -277,7 +313,34 @@ async function dispatchCdpClick(cdp, point) {
   });
 }
 
-async function click(win, imageSize, imageX, imageY, options) {
+function validateContentPoint(contentX, contentY, contentSize) {
+  if (
+    typeof contentX !== 'number' ||
+    !Number.isFinite(contentX) ||
+    typeof contentY !== 'number' ||
+    !Number.isFinite(contentY)
+  ) {
+    throw createError(
+      'invalid-content-coordinate-type',
+      'content coordinates must be finite numbers',
+      TypeError
+    );
+  }
+  if (
+    contentX < 0 ||
+    contentX >= contentSize.width ||
+    contentY < 0 ||
+    contentY >= contentSize.height
+  ) {
+    throw createError(
+      'content-coordinate-out-of-range',
+      'content coordinates are outside the game content',
+      RangeError
+    );
+  }
+}
+
+async function clickContent(win, contentX, contentY, options) {
   if (!isEnabled()) {
     throw createError('debug-disabled', 'automation demo requires SHINOBI_DEBUG=1');
   }
@@ -289,8 +352,10 @@ async function click(win, imageSize, imageX, imageY, options) {
     typeof opts.settleDelayMs === 'number' && opts.settleDelayMs >= 0
       ? opts.settleDelayMs
       : DEFAULT_SETTLE_DELAY_MS;
-  const contentSize = getContentSize(win);
-  const inputPoint = mapImagePoint(imageX, imageY, imageSize, contentSize);
+  const contentSize = opts.contentSize || getContentSize(win);
+  validateSize(contentSize, 'content');
+  validateContentPoint(contentX, contentY, contentSize);
+  const inputPoint = { x: Math.floor(contentX), y: Math.floor(contentY) };
   const beforeImage = await win.webContents.capturePage();
   const beforeCapture = await saveImage(beforeImage, profileId, 'cdp-before');
   const focusBefore = isWindowFocused(win);
@@ -307,6 +372,7 @@ async function click(win, imageSize, imageX, imageY, options) {
   }
 
   try {
+    var dispatchedAt = Date.now();
     await dispatchCdpClick(cdp, inputPoint);
   } catch (error) {
     throw createError(
@@ -333,9 +399,10 @@ async function click(win, imageSize, imageX, imageY, options) {
   return {
     backend: 'cdp',
     protocolVersion: CDP_PROTOCOL_VERSION,
-    imagePoint: { x: imageX, y: imageY },
+    dispatchedAt: dispatchedAt,
+    imagePoint: opts.imagePoint || null,
     inputPoint: inputPoint,
-    imageSize: { width: imageSize.width, height: imageSize.height },
+    imageSize: opts.imageSize || null,
     contentSize: contentSize,
     evidence: {
       beforeFilePath: beforeCapture.filePath,
@@ -351,10 +418,29 @@ async function click(win, imageSize, imageX, imageY, options) {
   };
 }
 
+async function click(win, imageSize, imageX, imageY, options) {
+  if (!isEnabled()) {
+    throw createError('debug-disabled', 'automation demo requires SHINOBI_DEBUG=1');
+  }
+  assertAvailableWindow(win);
+  const contentSize = getContentSize(win);
+  const inputPoint = mapImagePoint(imageX, imageY, imageSize, contentSize);
+  const opts = Object.assign({}, options || {}, {
+    contentSize: contentSize,
+    imagePoint: { x: imageX, y: imageY },
+    imageSize: { width: imageSize.width, height: imageSize.height }
+  });
+  return clickContent(win, inputPoint.x, inputPoint.y, opts);
+}
+
 module.exports = {
   isEnabled: isEnabled,
   mapImagePoint: mapImagePoint,
+  normalizeImagePoint: normalizeImagePoint,
+  mapNormalizedPoint: mapNormalizedPoint,
   compareImages: compareImages,
+  getContentSize: getContentSize,
   capture: capture,
+  clickContent: clickContent,
   click: click
 };

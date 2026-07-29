@@ -66,6 +66,63 @@ jest.mock('../AutomationDemo', () => ({
         cursorPreserved: true
       }
     })
+  ),
+  normalizeImagePoint: jest.fn(() => ({
+    normalizedX: 0.5,
+    normalizedY: 0.5,
+    inputPoint: { x: 640, y: 360 }
+  })),
+  getContentSize: jest.fn(() => ({ width: 1280, height: 720 })),
+  clickContent: jest.fn(() =>
+    Promise.resolve({
+      dispatchedAt: 1000,
+      inputPoint: { x: 640, y: 360 },
+      evidence: {
+        backgroundFocusPreserved: true,
+        cursorPreserved: true
+      }
+    })
+  )
+}));
+
+jest.mock('../DemoCoordinateStore', () => ({
+  reset: jest.fn(() =>
+    Promise.resolve({
+      scriptId: 'demo-click',
+      profileId: 'p_001',
+      points: []
+    })
+  ),
+  append: jest.fn(() =>
+    Promise.resolve({
+      scriptId: 'demo-click',
+      profileId: 'p_001',
+      points: [{ order: 1, normalizedX: 0.5, normalizedY: 0.5 }]
+    })
+  ),
+  load: jest.fn(() =>
+    Promise.resolve({
+      scriptId: 'demo-click',
+      profileId: 'p_001',
+      points: [{ order: 1, normalizedX: 0.5, normalizedY: 0.5 }]
+    })
+  ),
+  clear: jest.fn(() =>
+    Promise.resolve({
+      scriptId: 'demo-click',
+      profileId: 'p_001',
+      points: []
+    })
+  )
+}));
+
+jest.mock('../../../automation-scripts/demo-click', () => ({
+  run: jest.fn(() =>
+    Promise.resolve({
+      scriptId: 'demo-click',
+      pointCount: 1,
+      clicks: []
+    })
   )
 }));
 
@@ -92,6 +149,8 @@ const SessionLifecycle = require('../SessionLifecycle');
 const KeyboardShortcuts = require('../../ui/manager/KeyboardShortcuts');
 const TencentLaunchFlow = require('../TencentLaunchFlow');
 const AutomationDemo = require('../AutomationDemo');
+const DemoCoordinateStore = require('../DemoCoordinateStore');
+const DemoClickScript = require('../../../automation-scripts/demo-click');
 const urlConfig = require('../../config/urls');
 
 /**
@@ -214,6 +273,11 @@ describe('Launcher.js', () => {
       expect(typeof Launcher.clickAutomationForSender).toBe('function');
       expect(typeof Launcher.captureAutomationForProfile).toBe('function');
       expect(typeof Launcher.clickAutomationForProfile).toBe('function');
+      expect(typeof Launcher.beginAutomationRecordingForProfile).toBe('function');
+      expect(typeof Launcher.recordAutomationPointForProfile).toBe('function');
+      expect(typeof Launcher.getAutomationRecordingForProfile).toBe('function');
+      expect(typeof Launcher.clearAutomationRecordingForProfile).toBe('function');
+      expect(typeof Launcher.runAutomationDemoForProfile).toBe('function');
     });
     test('exporta Flash Probe registry bridge', () => {
       expect(typeof Launcher.registerFlashProbeConnection).toBe('function');
@@ -412,6 +476,76 @@ describe('Launcher.js', () => {
       await expect(Launcher.captureAutomationForProfile('missing')).resolves.toEqual({
         ok: false,
         error: 'profile-mismatch'
+      });
+    });
+
+    test('坐标记录写入 JSON，独立 Demo 脚本只收到受限 API 并执行内容坐标点击', async () => {
+      launchAndTrack('p_001');
+
+      const begin = await Launcher.beginAutomationRecordingForProfile('p_001');
+      const recorded = await Launcher.recordAutomationPointForProfile('p_001', 960, 540);
+      const loaded = await Launcher.getAutomationRecordingForProfile('p_001');
+      const run = await Launcher.runAutomationDemoForProfile('p_001');
+      const cleared = await Launcher.clearAutomationRecordingForProfile('p_001');
+
+      expect(begin).toEqual(expect.objectContaining({ ok: true, recording: expect.any(Object) }));
+      expect(recorded).toEqual(
+        expect.objectContaining({
+          ok: true,
+          point: { order: 1, normalizedX: 0.5, normalizedY: 0.5 }
+        })
+      );
+      expect(loaded).toEqual(
+        expect.objectContaining({
+          ok: true,
+          recording: expect.objectContaining({ points: expect.any(Array) })
+        })
+      );
+      expect(run).toEqual(
+        expect.objectContaining({
+          ok: true,
+          result: expect.objectContaining({ scriptId: 'demo-click', pointCount: 1 })
+        })
+      );
+      expect(cleared).toEqual(
+        expect.objectContaining({
+          ok: true,
+          recording: expect.objectContaining({ points: [] })
+        })
+      );
+
+      expect(DemoCoordinateStore.reset).toHaveBeenCalledWith('p_001');
+      expect(AutomationDemo.normalizeImagePoint).toHaveBeenCalledWith(
+        960,
+        540,
+        { width: 1920, height: 1080 },
+        { width: 1280, height: 720 }
+      );
+      expect(DemoCoordinateStore.append).toHaveBeenCalledWith('p_001', {
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        inputPoint: { x: 640, y: 360 }
+      });
+
+      const restrictedApi = DemoClickScript.run.mock.calls[0][0];
+      expect(Object.keys(restrictedApi).sort()).toEqual([
+        'clickContent',
+        'getContentSize',
+        'loadCoordinates',
+        'now',
+        'sleep'
+      ]);
+      expect(restrictedApi).not.toHaveProperty('window');
+      expect(restrictedApi).not.toHaveProperty('webContents');
+      expect(restrictedApi).not.toHaveProperty('sendCommand');
+      await expect(restrictedApi.getContentSize()).resolves.toEqual({
+        width: 1280,
+        height: 720
+      });
+      await restrictedApi.clickContent(640, 360);
+      expect(AutomationDemo.clickContent).toHaveBeenCalledWith(bwMock.win, 640, 360, {
+        profileId: 'p_001',
+        settleDelayMs: 0
       });
     });
 

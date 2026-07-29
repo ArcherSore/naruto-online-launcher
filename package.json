@@ -62,7 +62,9 @@
       "src/**/*.html",
       "src/**/*.css",
       "src/**/*.png",
-      "src/flash-probe/FlashProbe.swf"
+      "src/flash-probe/FlashProbe.swf",
+      "automation-scripts/demo-click/manifest.json",
+      "automation-scripts/demo-click/index.js"
     ],
     "extraResources": [
       {

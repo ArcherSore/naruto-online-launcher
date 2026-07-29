@@ -404,6 +404,95 @@ function registerIpcHandlers(handlers) {
         }
       );
     });
+
+    ipcMain.handle('automation-demo:manager-recording-get', function (event, profileId) {
+      if (
+        !_isManagerSender(event) ||
+        typeof profileId !== 'string' ||
+        !store.get(profileId) ||
+        typeof _handlers.getAutomationRecordingForProfile !== 'function'
+      ) {
+        return { ok: false, error: 'automation-unavailable' };
+      }
+      return Promise.resolve(_handlers.getAutomationRecordingForProfile(profileId)).catch(
+        function () {
+          return { ok: false, error: 'recording-load-failed' };
+        }
+      );
+    });
+
+    ipcMain.handle('automation-demo:manager-recording-begin', function (event, profileId) {
+      if (
+        !_isManagerSender(event) ||
+        typeof profileId !== 'string' ||
+        !store.get(profileId) ||
+        typeof _handlers.beginAutomationRecordingForProfile !== 'function'
+      ) {
+        return { ok: false, error: 'automation-unavailable' };
+      }
+      return Promise.resolve(_handlers.beginAutomationRecordingForProfile(profileId)).catch(
+        function () {
+          return { ok: false, error: 'recording-begin-failed' };
+        }
+      );
+    });
+
+    ipcMain.handle(
+      'automation-demo:manager-record-point',
+      function (event, profileId, imageX, imageY) {
+        if (
+          !_isManagerSender(event) ||
+          typeof profileId !== 'string' ||
+          !store.get(profileId) ||
+          typeof _handlers.recordAutomationPointForProfile !== 'function'
+        ) {
+          return { ok: false, error: 'automation-unavailable' };
+        }
+        if (
+          typeof imageX !== 'number' ||
+          !Number.isFinite(imageX) ||
+          typeof imageY !== 'number' ||
+          !Number.isFinite(imageY)
+        ) {
+          return { ok: false, error: 'invalid-coordinate-type' };
+        }
+        return Promise.resolve(
+          _handlers.recordAutomationPointForProfile(profileId, imageX, imageY)
+        ).catch(function () {
+          return { ok: false, error: 'record-point-failed' };
+        });
+      }
+    );
+
+    ipcMain.handle('automation-demo:manager-recording-clear', function (event, profileId) {
+      if (
+        !_isManagerSender(event) ||
+        typeof profileId !== 'string' ||
+        !store.get(profileId) ||
+        typeof _handlers.clearAutomationRecordingForProfile !== 'function'
+      ) {
+        return { ok: false, error: 'automation-unavailable' };
+      }
+      return Promise.resolve(_handlers.clearAutomationRecordingForProfile(profileId)).catch(
+        function () {
+          return { ok: false, error: 'recording-clear-failed' };
+        }
+      );
+    });
+
+    ipcMain.handle('automation-demo:manager-run-script', function (event, profileId) {
+      if (
+        !_isManagerSender(event) ||
+        typeof profileId !== 'string' ||
+        !store.get(profileId) ||
+        typeof _handlers.runAutomationDemoForProfile !== 'function'
+      ) {
+        return { ok: false, error: 'automation-unavailable' };
+      }
+      return Promise.resolve(_handlers.runAutomationDemoForProfile(profileId)).catch(function () {
+        return { ok: false, error: 'demo-script-failed' };
+      });
+    });
   }
 
   if (FlashProbeRuntime.isEnabled()) {

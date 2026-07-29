@@ -8,6 +8,8 @@ let profiles = [];
 let editingProfileId = null;
 let automationProfileId = null;
 let automationBusy = false;
+let automationRecordingMode = false;
+let automationRecording = null;
 const openWindows = Object.create(null);
 const debugEnabled = process.env.SHINOBI_DEBUG === '1';
 
@@ -30,9 +32,15 @@ const elements = {
   memory: document.getElementById('memorySummary'),
   toast: document.getElementById('toast'),
   automationModal: document.getElementById('automationModal'),
+  automationPreviewStage: document.getElementById('automationPreviewStage'),
   automationPreview: document.getElementById('automationPreview'),
+  automationMarkerLayer: document.getElementById('automationMarkerLayer'),
   automationStatus: document.getElementById('automationStatus'),
-  automationEvidence: document.getElementById('automationEvidence')
+  automationEvidence: document.getElementById('automationEvidence'),
+  automationCoordinateList: document.getElementById('automationCoordinateList'),
+  automationCaptureBtn: document.getElementById('automationCaptureBtn'),
+  automationClearBtn: document.getElementById('automationClearBtn'),
+  automationRunBtn: document.getElementById('automationRunBtn')
 };
 
 function escapeHtml(value) {
@@ -183,32 +191,119 @@ function setAutomationStatus(message, state) {
   elements.automationStatus.className = 'automation-status ' + (state || '');
 }
 
+function setAutomationBusy(busy) {
+  automationBusy = busy === true;
+  if (elements.automationCaptureBtn) elements.automationCaptureBtn.disabled = automationBusy;
+  if (elements.automationClearBtn) elements.automationClearBtn.disabled = automationBusy;
+  if (elements.automationRunBtn) {
+    const pointCount =
+      automationRecording && Array.isArray(automationRecording.points)
+        ? automationRecording.points.length
+        : 0;
+    elements.automationRunBtn.disabled = automationBusy || pointCount < 1;
+  }
+}
+
+function renderAutomationRecording() {
+  const points =
+    automationRecording && Array.isArray(automationRecording.points)
+      ? automationRecording.points
+      : [];
+  if (elements.automationCoordinateList) {
+    elements.automationCoordinateList.innerHTML =
+      points.length > 0
+        ? points
+            .map(function (point, index) {
+              return (
+                '<li><span class="automation-coordinate-order">' +
+                (index + 1) +
+                '</span><code>x=' +
+                Number(point.normalizedX).toFixed(6) +
+                ', y=' +
+                Number(point.normalizedY).toFixed(6) +
+                '</code></li>'
+              );
+            })
+            .join('')
+        : '<li class="automation-empty-coordinate">尚未记录</li>';
+  }
+  if (elements.automationMarkerLayer) {
+    elements.automationMarkerLayer.innerHTML = points
+      .map(function (point, index) {
+        return (
+          '<span class="automation-marker" style="left:' +
+          Number(point.normalizedX) * 100 +
+          '%;top:' +
+          Number(point.normalizedY) * 100 +
+          '%">' +
+          (index + 1) +
+          '</span>'
+        );
+      })
+      .join('');
+  }
+  if (elements.automationCaptureBtn) {
+    elements.automationCaptureBtn.textContent = points.length > 0 ? '重新记录' : '获取坐标';
+  }
+  setAutomationBusy(automationBusy);
+}
+
 function closeAutomationModal() {
   if (!elements.automationModal || automationBusy) return;
   elements.automationModal.classList.remove('show');
   elements.automationModal.setAttribute('aria-hidden', 'true');
   automationProfileId = null;
+  automationRecordingMode = false;
+  automationRecording = null;
   if (elements.automationPreview) {
     elements.automationPreview.removeAttribute('src');
-    elements.automationPreview.hidden = true;
   }
+  if (elements.automationPreviewStage) elements.automationPreviewStage.hidden = true;
+  if (elements.automationMarkerLayer) elements.automationMarkerLayer.innerHTML = '';
   if (elements.automationEvidence) elements.automationEvidence.textContent = '';
 }
 
 async function openAutomationModal(profileId) {
   if (!debugEnabled || !elements.automationModal || automationBusy) return;
   automationProfileId = profileId;
-  automationBusy = true;
+  automationRecordingMode = false;
+  automationRecording = null;
   elements.automationModal.classList.add('show');
   elements.automationModal.setAttribute('aria-hidden', 'false');
-  elements.automationPreview.hidden = true;
+  if (elements.automationPreviewStage) elements.automationPreviewStage.hidden = true;
   elements.automationEvidence.textContent = '';
-  setAutomationStatus('正在截取后台游戏画面…', 'pending');
+  setAutomationStatus('正在读取已保存坐标…', 'pending');
+  setAutomationBusy(true);
 
-  const result = await ipcRenderer.invoke('automation-demo:manager-capture', profileId);
-  automationBusy = false;
+  const result = await ipcRenderer.invoke('automation-demo:manager-recording-get', profileId);
+  setAutomationBusy(false);
   if (!result || !result.ok) {
-    setAutomationStatus('截图失败：' + ((result && result.error) || 'unknown'), 'error');
+    setAutomationStatus('读取坐标失败：' + ((result && result.error) || 'unknown'), 'error');
+    return;
+  }
+
+  automationRecording = result.recording;
+  renderAutomationRecording();
+  setAutomationStatus(
+    automationRecording.points.length > 0
+      ? '已载入保存的坐标。可直接 Run，或点击“重新记录”获取新截图。'
+      : '点击“获取坐标”截取游戏画面并开始记录。',
+    'ready'
+  );
+}
+
+async function beginAutomationRecording() {
+  if (!automationProfileId || automationBusy) return;
+  automationRecordingMode = false;
+  setAutomationBusy(true);
+  setAutomationStatus('正在截取后台游戏画面并清空旧坐标…', 'pending');
+  const result = await ipcRenderer.invoke(
+    'automation-demo:manager-recording-begin',
+    automationProfileId
+  );
+  setAutomationBusy(false);
+  if (!result || !result.ok) {
+    setAutomationStatus('获取截图失败：' + ((result && result.error) || 'unknown'), 'error');
     return;
   }
 
@@ -217,58 +312,140 @@ async function openAutomationModal(profileId) {
     setAutomationStatus('截图文件读取失败', 'error');
     return;
   }
+  automationRecording = result.recording;
+  automationRecordingMode = true;
   elements.automationPreview.src = dataUrl;
-  elements.automationPreview.hidden = false;
-  setAutomationStatus('点击截图中的目标位置；点击将通过 CDP 发往后台游戏窗口。', 'ready');
+  elements.automationPreviewStage.hidden = false;
+  elements.automationEvidence.textContent = '';
+  renderAutomationRecording();
+  setAutomationStatus('记录模式：依次点击截图中的 1～2 个位置；此时不会点击游戏。', 'ready');
 }
 
-function formatAutomationEvidence(evidence) {
-  if (!evidence) return '未返回采证结果';
-  const focus = evidence.backgroundFocusPreserved ? '通过' : '未通过';
-  const cursor = evidence.cursorPreserved === true ? '通过' : '无法确认';
-  const visual = evidence.visualChange;
-  const visualText =
-    visual && visual.available
-      ? (visual.changedRatio * 100).toFixed(2) + '% 像素发生变化'
-      : '像素变化不可用';
-  return '后台焦点保持：' + focus + '；系统光标保持：' + cursor + '；画面证据：' + visualText;
+function formatRunEvidence(result) {
+  if (!result || !Array.isArray(result.clicks)) return '未返回运行证据';
+  const allFocus = result.clicks.every(function (click) {
+    return click.evidence && click.evidence.backgroundFocusPreserved;
+  });
+  const allCursor = result.clicks.every(function (click) {
+    return click.evidence && click.evidence.cursorPreserved === true;
+  });
+  let intervalText = '';
+  if (result.clicks.length === 2) {
+    intervalText =
+      '；点击间隔：' + (result.clicks[1].dispatchedAt - result.clicks[0].dispatchedAt) + ' ms';
+  }
+  return (
+    '脚本：' +
+    result.scriptId +
+    '；点击次数：' +
+    result.pointCount +
+    '；后台焦点保持：' +
+    (allFocus ? '通过' : '未通过') +
+    '；系统光标保持：' +
+    (allCursor ? '通过' : '未通过') +
+    intervalText
+  );
 }
 
 if (elements.automationPreview) {
   elements.automationPreview.addEventListener('click', async function (event) {
-    if (!automationProfileId || automationBusy || !this.naturalWidth || !this.naturalHeight) return;
+    if (
+      !automationProfileId ||
+      !automationRecordingMode ||
+      automationBusy ||
+      !this.naturalWidth ||
+      !this.naturalHeight
+    ) {
+      return;
+    }
     const bounds = this.getBoundingClientRect();
     if (bounds.width <= 0 || bounds.height <= 0) return;
     const imageX = ((event.clientX - bounds.left) * this.naturalWidth) / bounds.width;
     const imageY = ((event.clientY - bounds.top) * this.naturalHeight) / bounds.height;
 
-    automationBusy = true;
-    setAutomationStatus('正在后台派发 CDP 点击并采集点击后画面…', 'pending');
+    setAutomationBusy(true);
+    setAutomationStatus(
+      '正在保存第 ' + ((automationRecording.points.length || 0) + 1) + ' 个坐标…',
+      'pending'
+    );
     const result = await ipcRenderer.invoke(
-      'automation-demo:manager-click',
+      'automation-demo:manager-record-point',
       automationProfileId,
       imageX,
       imageY
     );
-    automationBusy = false;
+    setAutomationBusy(false);
 
     if (!result || !result.ok) {
       const error = (result && result.error) || 'unknown';
-      const hint = error === 'cdp-already-attached' ? '；请关闭游戏窗口的 DevTools 后重试' : '';
-      setAutomationStatus('CDP 点击失败：' + error + hint, 'error');
+      setAutomationStatus('坐标保存失败：' + error, 'error');
       return;
     }
 
-    const afterUrl = readPngDataUrl(result.evidence && result.evidence.afterFilePath);
-    if (afterUrl) this.src = afterUrl;
-    elements.automationEvidence.textContent = formatAutomationEvidence(result.evidence);
+    automationRecording = result.recording;
+    automationRecordingMode = automationRecording.points.length < 2;
+    renderAutomationRecording();
     setAutomationStatus(
-      result.evidence && result.evidence.backgroundFocusPreserved
-        ? 'CDP 命令已完成，游戏窗口全程保持后台。'
-        : 'CDP 命令已完成，但焦点保持证据未通过。',
-      result.evidence && result.evidence.backgroundFocusPreserved ? 'ok' : 'error'
+      automationRecordingMode
+        ? '第 1 个坐标已保存；可继续记录第 2 个，或直接 Run。'
+        : '两个坐标已按顺序保存。请手动恢复游戏界面后点击 Run。',
+      'ok'
     );
   });
+}
+
+async function clearAutomationRecording() {
+  if (!automationProfileId || automationBusy) return;
+  automationRecordingMode = false;
+  setAutomationBusy(true);
+  const result = await ipcRenderer.invoke(
+    'automation-demo:manager-recording-clear',
+    automationProfileId
+  );
+  setAutomationBusy(false);
+  if (!result || !result.ok) {
+    setAutomationStatus('清空失败：' + ((result && result.error) || 'unknown'), 'error');
+    return;
+  }
+  automationRecording = result.recording;
+  if (elements.automationPreviewStage) elements.automationPreviewStage.hidden = true;
+  if (elements.automationEvidence) elements.automationEvidence.textContent = '';
+  renderAutomationRecording();
+  setAutomationStatus('坐标已清空。点击“获取坐标”重新记录。', 'ready');
+}
+
+async function runAutomationScript() {
+  if (
+    !automationProfileId ||
+    automationBusy ||
+    !automationRecording ||
+    !automationRecording.points.length
+  ) {
+    return;
+  }
+  automationRecordingMode = false;
+  setAutomationBusy(true);
+  setAutomationStatus('正在读取 JSON 并按顺序执行后台 CDP 点击…', 'pending');
+  const result = await ipcRenderer.invoke(
+    'automation-demo:manager-run-script',
+    automationProfileId
+  );
+  setAutomationBusy(false);
+  if (!result || !result.ok) {
+    const error = (result && result.error) || 'unknown';
+    const hint = error === 'cdp-already-attached' ? '；请关闭游戏窗口的 DevTools 后重试' : '';
+    setAutomationStatus('Run 失败：' + error + hint, 'error');
+    return;
+  }
+
+  const clicks = result.result && result.result.clicks;
+  const lastClick = clicks && clicks[clicks.length - 1];
+  const afterUrl = readPngDataUrl(
+    lastClick && lastClick.evidence && lastClick.evidence.afterFilePath
+  );
+  if (afterUrl && elements.automationPreview) elements.automationPreview.src = afterUrl;
+  elements.automationEvidence.textContent = formatRunEvidence(result.result);
+  setAutomationStatus('Run 完成；游戏窗口未被主动聚焦。', 'ok');
 }
 
 function profileById(profileId) {
@@ -378,6 +555,18 @@ if (closeAutomationModalBtn) {
 const closeAutomationBtn = document.getElementById('closeAutomationBtn');
 if (closeAutomationBtn) {
   closeAutomationBtn.addEventListener('click', closeAutomationModal);
+}
+
+if (elements.automationCaptureBtn) {
+  elements.automationCaptureBtn.addEventListener('click', beginAutomationRecording);
+}
+
+if (elements.automationClearBtn) {
+  elements.automationClearBtn.addEventListener('click', clearAutomationRecording);
+}
+
+if (elements.automationRunBtn) {
+  elements.automationRunBtn.addEventListener('click', runAutomationScript);
 }
 
 elements.search.addEventListener('input', debounce(renderProfiles, 120));

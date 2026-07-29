@@ -200,19 +200,32 @@
           </button>
         </div>
         <div class="modal-body">
-          <p class="automation-status pending" id="automationStatus">正在准备截图…</p>
+          <p class="automation-status ready" id="automationStatus">
+            点击“获取坐标”截取游戏画面并开始记录。
+          </p>
           <div class="automation-preview-frame">
-            <img
-              id="automationPreview"
-              class="automation-preview"
-              alt="后台游戏窗口截图，点击图中目标以派发 CDP 点击"
-              draggable="false"
-              hidden
-            />
+            <div class="automation-preview-stage" id="automationPreviewStage" hidden>
+              <img
+                id="automationPreview"
+                class="automation-preview"
+                alt="后台游戏窗口截图，点击图中目标以记录归一化坐标"
+                draggable="false"
+              />
+              <div class="automation-marker-layer" id="automationMarkerLayer"></div>
+            </div>
+          </div>
+          <div class="automation-recording">
+            <strong>已记录坐标（最多 2 个）</strong>
+            <ol id="automationCoordinateList">
+              <li class="automation-empty-coordinate">尚未记录</li>
+            </ol>
           </div>
           <p class="automation-evidence" id="automationEvidence"></p>
         </div>
         <div class="modal-actions">
+          <button class="secondary-button" id="automationClearBtn" type="button">清空</button>
+          <button class="secondary-button" id="automationCaptureBtn" type="button">获取坐标</button>
+          <button class="primary-button" id="automationRunBtn" type="button" disabled>Run</button>
           <button class="secondary-button" id="closeAutomationBtn" type="button">关闭</button>
         </div>
       </div>

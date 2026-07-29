@@ -7,6 +7,7 @@
 | 路径                             | 职责                                                      |
 | -------------------------------- | --------------------------------------------------------- |
 | `src/`                           | Electron 主进程、管理 UI、Profile、腾讯流程、Flash 与诊断 |
+| `automation-scripts/demo-click/` | 仅 Debug 使用的固定坐标回放 Demo，不是通用脚本框架        |
 | `flash/`                         | Windows/Linux PPAPI 二进制与版本清单                      |
 | `assets/`                        | 应用图标                                                  |
 | `linux/`                         | AppImage 安装、运行与卸载脚本                             |
@@ -35,6 +36,7 @@ Flash 二进制随仓库和发行包提供。`src/app/FlashUpdater.js` 已按上
 - `src/app/SessionLifecycle.js`：通用 load/crash/responsive/close 生命周期。
 - `src/app/StallDetector.js`：关键 SWF stall 检测。
 - `src/app/AutomationDemo.js`：仅 Debug 使用的 CDP 后台截图/点击 POC，不是稳定生产接口。
+- `src/app/DemoCoordinateStore.js`：仅 Debug 使用的 1～2 点归一化坐标 JSON 存储。
 - `src/ui/manager/KeyboardShortcuts.js`：游戏窗口 F5、F11、F12、Alt+F4。
 - `src/config/urls.js`：腾讯官方 URL 与精确 URL 角色。
 
@@ -68,6 +70,12 @@ ProfileManager.launch(profileId)
 - `src/ui/manager/StateBroadcaster.js`：安全 Profile、流程与内存状态推送。
 - `src/ui/index.html`、`src/ui/app.js`、`src/ui/styles.css`：腾讯 Profile 管理界面。
 - `src/preload.js`：游戏 renderer 的最小版本、debug 与恢复 bridge。
+
+Debug 坐标回放 Demo：
+
+- `automation-scripts/demo-click/manifest.json`：固定 Demo 元数据和 1000ms 间隔。
+- `automation-scripts/demo-click/index.js`：通过受限 API 读取坐标、按运行时内容尺寸映射并顺序点击。
+- `tests/runtime/cdp-ppapi-background-smoke.js`：隐藏 PPAPI 窗口的一坐标/两坐标端到端验证。
 
 ## 网络、安全与诊断
 

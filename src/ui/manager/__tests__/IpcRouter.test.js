@@ -126,6 +126,11 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
     expect(handleHandlers['automation-demo:click']).toBeDefined();
     expect(handleHandlers['automation-demo:manager-capture']).toBeDefined();
     expect(handleHandlers['automation-demo:manager-click']).toBeDefined();
+    expect(handleHandlers['automation-demo:manager-recording-get']).toBeDefined();
+    expect(handleHandlers['automation-demo:manager-recording-begin']).toBeDefined();
+    expect(handleHandlers['automation-demo:manager-record-point']).toBeDefined();
+    expect(handleHandlers['automation-demo:manager-recording-clear']).toBeDefined();
+    expect(handleHandlers['automation-demo:manager-run-script']).toBeDefined();
     expect(handleHandlers['flash-probe:snapshot']).toBeDefined();
     expect(handleHandlers['diagnostics:export']).toBeDefined();
     expect(handleHandlers['inspector:entries']).toBeDefined();
@@ -187,6 +192,68 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
     ).toEqual({ ok: false, error: 'automation-unavailable' });
     expect(
       handleHandlers['automation-demo:manager-click']({ sender: managerSender }, 'missing', 10, 20)
+    ).toEqual({ ok: false, error: 'automation-unavailable' });
+  });
+
+  test('管理窗口坐标记录与 Run 仅通过可信 sender 和受限 handler', async () => {
+    const managerSender = { id: 200 };
+    ManagerWindow.getManagerWindow.mockReturnValue({
+      webContents: managerSender,
+      isDestroyed: jest.fn(() => false)
+    });
+    store.get.mockImplementation(function (id) {
+      return id === 'p_001' ? { id: 'p_001', name: 'Safe' } : null;
+    });
+    const getRecording = jest.fn(() => Promise.resolve({ ok: true, recording: { points: [] } }));
+    const beginRecording = jest.fn(() => Promise.resolve({ ok: true, recording: { points: [] } }));
+    const recordPoint = jest.fn(() =>
+      Promise.resolve({ ok: true, recording: { points: [{ order: 1 }] } })
+    );
+    const clearRecording = jest.fn(() => Promise.resolve({ ok: true, recording: { points: [] } }));
+    const runDemo = jest.fn(() => Promise.resolve({ ok: true, result: { pointCount: 1 } }));
+    IpcRouter.registerIpcHandlers({
+      getAutomationRecordingForProfile: getRecording,
+      beginAutomationRecordingForProfile: beginRecording,
+      recordAutomationPointForProfile: recordPoint,
+      clearAutomationRecordingForProfile: clearRecording,
+      runAutomationDemoForProfile: runDemo
+    });
+
+    await handleHandlers['automation-demo:manager-recording-get'](
+      { sender: managerSender },
+      'p_001'
+    );
+    await handleHandlers['automation-demo:manager-recording-begin'](
+      { sender: managerSender },
+      'p_001'
+    );
+    await handleHandlers['automation-demo:manager-record-point'](
+      { sender: managerSender },
+      'p_001',
+      10,
+      20
+    );
+    await handleHandlers['automation-demo:manager-recording-clear'](
+      { sender: managerSender },
+      'p_001'
+    );
+    await handleHandlers['automation-demo:manager-run-script']({ sender: managerSender }, 'p_001');
+
+    expect(getRecording).toHaveBeenCalledWith('p_001');
+    expect(beginRecording).toHaveBeenCalledWith('p_001');
+    expect(recordPoint).toHaveBeenCalledWith('p_001', 10, 20);
+    expect(clearRecording).toHaveBeenCalledWith('p_001');
+    expect(runDemo).toHaveBeenCalledWith('p_001');
+    expect(
+      handleHandlers['automation-demo:manager-record-point'](
+        { sender: managerSender },
+        'p_001',
+        '10',
+        20
+      )
+    ).toEqual({ ok: false, error: 'invalid-coordinate-type' });
+    expect(
+      handleHandlers['automation-demo:manager-run-script']({ sender: { id: 201 } }, 'p_001')
     ).toEqual({ ok: false, error: 'automation-unavailable' });
   });
 

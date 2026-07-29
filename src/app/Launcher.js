@@ -12,6 +12,8 @@ const partition = require('../profiles/partition');
 const SessionLifecycle = require('./SessionLifecycle');
 const TencentLaunchFlow = require('./TencentLaunchFlow');
 const AutomationDemo = require('./AutomationDemo');
+const DemoCoordinateStore = require('./DemoCoordinateStore');
+const DemoClickScript = require('../../automation-scripts/demo-click');
 const Auditor = require('./Auditor');
 const KeyboardShortcuts = require('../ui/manager/KeyboardShortcuts');
 const StateBroadcaster = require('../ui/manager/StateBroadcaster');
@@ -138,6 +140,7 @@ function launchProfile(profileId, onOpened, onClosed) {
     failLoadTimer: null,
     closeTimer: null,
     automationDemoCaptureSize: null,
+    automationDemoCaptureContentSize: null,
     flashProbeConnection: null,
     flashProbeHello: null
   };
@@ -263,6 +266,7 @@ async function captureAutomationForMatch(match) {
   try {
     const result = await AutomationDemo.capture(match.entry.window, match.profileId);
     match.entry.automationDemoCaptureSize = result.imageSize;
+    match.entry.automationDemoCaptureContentSize = result.contentSize;
     return {
       ok: true,
       filePath: result.filePath,
@@ -318,6 +322,103 @@ function captureAutomationForProfile(profileId) {
 
 function clickAutomationForProfile(profileId, imageX, imageY) {
   return clickAutomationForMatch(findGameEntryForProfile(profileId), imageX, imageY);
+}
+
+async function beginAutomationRecordingForProfile(profileId) {
+  const match = findGameEntryForProfile(profileId);
+  const captureResult = await captureAutomationForMatch(match);
+  if (!captureResult.ok) return captureResult;
+
+  try {
+    const recording = await DemoCoordinateStore.reset(profileId);
+    return Object.assign({}, captureResult, { recording: recording });
+  } catch (error) {
+    return { ok: false, error: error.code || 'recording-reset-failed' };
+  }
+}
+
+async function recordAutomationPointForProfile(profileId, imageX, imageY) {
+  if (!AutomationDemo.isEnabled()) return { ok: false, error: 'debug-disabled' };
+  const match = findGameEntryForProfile(profileId);
+  if (!match) return { ok: false, error: 'profile-mismatch' };
+  if (!match.entry.automationDemoCaptureSize || !match.entry.automationDemoCaptureContentSize) {
+    return { ok: false, error: 'capture-required' };
+  }
+
+  try {
+    const normalized = AutomationDemo.normalizeImagePoint(
+      imageX,
+      imageY,
+      match.entry.automationDemoCaptureSize,
+      match.entry.automationDemoCaptureContentSize
+    );
+    const recording = await DemoCoordinateStore.append(profileId, normalized);
+    return {
+      ok: true,
+      recording: recording,
+      point: recording.points[recording.points.length - 1]
+    };
+  } catch (error) {
+    return { ok: false, error: error.code || 'record-point-failed' };
+  }
+}
+
+async function getAutomationRecordingForProfile(profileId) {
+  if (!AutomationDemo.isEnabled()) return { ok: false, error: 'debug-disabled' };
+  try {
+    return { ok: true, recording: await DemoCoordinateStore.load(profileId) };
+  } catch (error) {
+    return { ok: false, error: error.code || 'recording-load-failed' };
+  }
+}
+
+async function clearAutomationRecordingForProfile(profileId) {
+  if (!AutomationDemo.isEnabled()) return { ok: false, error: 'debug-disabled' };
+  try {
+    return { ok: true, recording: await DemoCoordinateStore.clear(profileId) };
+  } catch (error) {
+    return { ok: false, error: error.code || 'recording-clear-failed' };
+  }
+}
+
+function createRestrictedDemoApi(match) {
+  const profileId = match.profileId;
+  const win = match.entry.window;
+  return Object.freeze({
+    loadCoordinates: function () {
+      return DemoCoordinateStore.load(profileId);
+    },
+    getContentSize: function () {
+      return Promise.resolve(AutomationDemo.getContentSize(win));
+    },
+    clickContent: function (contentX, contentY) {
+      return AutomationDemo.clickContent(win, contentX, contentY, {
+        profileId: profileId,
+        settleDelayMs: 0
+      });
+    },
+    sleep: function (ms) {
+      return new Promise(function (resolve) {
+        setTimeout(resolve, ms);
+      });
+    },
+    now: function () {
+      return Date.now();
+    }
+  });
+}
+
+async function runAutomationDemoForProfile(profileId) {
+  if (!AutomationDemo.isEnabled()) return { ok: false, error: 'debug-disabled' };
+  const match = findGameEntryForProfile(profileId);
+  if (!match) return { ok: false, error: 'profile-mismatch' };
+
+  try {
+    const result = await DemoClickScript.run(createRestrictedDemoApi(match));
+    return { ok: true, result: result };
+  } catch (error) {
+    return { ok: false, error: error.code || 'demo-script-failed' };
+  }
 }
 
 function registerFlashProbeConnection(connection, hello) {
@@ -424,6 +525,11 @@ module.exports = {
   clickAutomationForSender: clickAutomationForSender,
   captureAutomationForProfile: captureAutomationForProfile,
   clickAutomationForProfile: clickAutomationForProfile,
+  beginAutomationRecordingForProfile: beginAutomationRecordingForProfile,
+  recordAutomationPointForProfile: recordAutomationPointForProfile,
+  getAutomationRecordingForProfile: getAutomationRecordingForProfile,
+  clearAutomationRecordingForProfile: clearAutomationRecordingForProfile,
+  runAutomationDemoForProfile: runAutomationDemoForProfile,
   registerFlashProbeConnection: registerFlashProbeConnection,
   unregisterFlashProbeConnection: unregisterFlashProbeConnection,
   snapshotFlashProbeForSender: snapshotFlashProbeForSender,
