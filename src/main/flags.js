@@ -59,6 +59,9 @@ function applyAll(opts) {
   app.commandLine.appendSwitch('always-authorize-plugins');
   app.commandLine.appendSwitch('allow-outdated-plugins');
 
+  // Do not force device-scale-factor here. Chromium applies it process-wide,
+  // which would also bypass the OS DPI scaling of the manager/setup windows.
+
   // Background throttling off
   // NOTE: disable-background-networking, disable-component-update, disable-default-apps,
   // disable-extensions, disable-translate, disable-domain-reliability, disable-client-side-

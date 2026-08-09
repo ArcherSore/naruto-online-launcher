@@ -111,10 +111,11 @@ function sessionForPartition(partitionName) {
 }
 
 let nextWebContentsId = 1;
-function createWebContents(owner, ses) {
+function createWebContents(owner, ses, initialZoomFactor) {
   const target = createEventTarget();
   let currentURL = '';
   let destroyed = false;
+  let zoomFactor = initialZoomFactor || 1;
 
   Object.assign(target, {
     id: nextWebContentsId++,
@@ -128,6 +129,8 @@ function createWebContents(owner, ses) {
     stop: jest.fn(),
     send: jest.fn(),
     executeJavaScript: jest.fn(function () { return Promise.resolve(false); }),
+    setZoomFactor: jest.fn(function (value) { zoomFactor = value; }),
+    getZoomFactor: jest.fn(function () { return zoomFactor; }),
     insertCSS: jest.fn(function () { return Promise.resolve('css-key'); }),
     openDevTools: jest.fn(),
     closeDevTools: jest.fn(),
@@ -185,6 +188,7 @@ function createBrowserWindow(options) {
   let minimized = false;
   let maximized = false;
   let alwaysOnTop = false;
+  let contentSize = [opts.width || 800, opts.height || 600];
 
   Object.assign(target, {
     id: nextWindowId++,
@@ -214,12 +218,14 @@ function createBrowserWindow(options) {
     setTitle: jest.fn(),
     setMenuBarVisibility: jest.fn(),
     setMenu: jest.fn(),
+    setContentSize: jest.fn(function (width, height) { contentSize = [width, height]; }),
+    getContentSize: jest.fn(function () { return contentSize.slice(); }),
     getBounds: jest.fn(function () {
       return { x: 0, y: 0, width: opts.width || 800, height: opts.height || 600 };
     })
   });
 
-  target.webContents = createWebContents(target, ses);
+  target.webContents = createWebContents(target, ses, webPreferences.zoomFactor);
   createdWindows.push(target);
   return target;
 }
@@ -278,10 +284,13 @@ const electronMock = {
   shell: { openExternal: jest.fn(), openPath: jest.fn(), showItemInFolder: jest.fn() },
   screen: {
     getPrimaryDisplay: jest.fn(function () {
-      return { workAreaSize: { width: 1920, height: 1080 } };
+      return { workAreaSize: { width: 1920, height: 1080 }, scaleFactor: 1 };
+    }),
+    getDisplayMatching: jest.fn(function () {
+      return { workAreaSize: { width: 1920, height: 1080 }, scaleFactor: 1 };
     }),
     getAllDisplays: jest.fn(function () {
-      return [{ workAreaSize: { width: 1920, height: 1080 } }];
+      return [{ workAreaSize: { width: 1920, height: 1080 }, scaleFactor: 1 }];
     })
   },
   nativeImage: { createFromPath: jest.fn(), fromPath: jest.fn(), createEmpty: jest.fn() },

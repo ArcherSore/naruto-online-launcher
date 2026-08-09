@@ -12,6 +12,7 @@ const partition = require('../profiles/partition');
 const SessionLifecycle = require('./SessionLifecycle');
 const TencentLaunchFlow = require('./TencentLaunchFlow');
 const Auditor = require('./Auditor');
+const GameViewport = require('./GameViewport');
 const KeyboardShortcuts = require('../ui/manager/KeyboardShortcuts');
 const StateBroadcaster = require('../ui/manager/StateBroadcaster');
 const urlConfig = require('../config/urls');
@@ -87,11 +88,14 @@ function launchProfile(profileId, onOpened, onClosed) {
   activeRecoveryProfileId = profileId;
   const launcherUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 NarutoOnlineLauncher/1.0';
+  const viewportMetrics = GameViewport.getInitialMetrics();
   const win = new BrowserWindow({
-    width: 1280,
-    height: 720,
-    minWidth: 800,
-    minHeight: 600,
+    width: viewportMetrics.contentWidth,
+    height: viewportMetrics.contentHeight,
+    useContentSize: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
     backgroundColor: '#0a0a0f',
     icon: resolveIconPath(),
     title: WINDOW_TITLE + ' — ' + profile.name,
@@ -99,6 +103,7 @@ function launchProfile(profileId, onOpened, onClosed) {
     autoHideMenuBar: true,
     webPreferences: {
       plugins: true,
+      zoomFactor: viewportMetrics.zoomFactor,
       nodeIntegration: false,
       contextIsolation: true,
       backgroundThrottling: false,
@@ -135,6 +140,7 @@ function launchProfile(profileId, onOpened, onClosed) {
     launchFlow: launchFlow,
     auditor: auditor,
     lifecycle: null,
+    viewport: GameViewport.attach(win),
     failLoadTimer: null,
     closeTimer: null
   };
@@ -163,6 +169,9 @@ function launchProfile(profileId, onOpened, onClosed) {
       launchFlow.handleResponsive();
     },
     onClosed: function () {
+      if (entry.viewport && typeof entry.viewport.detach === 'function') {
+        entry.viewport.detach();
+      }
       launchFlow.close();
       try {
         auditor.destroy();
@@ -244,20 +253,7 @@ function getAutomationTarget(profileId) {
   ) {
     return null;
   }
-  let rawSize = null;
-  try {
-    rawSize = entry.window.getContentSize();
-  } catch (_) {
-    rawSize = null;
-  }
-  const contentSize =
-    Array.isArray(rawSize) &&
-    Number.isInteger(rawSize[0]) &&
-    rawSize[0] > 0 &&
-    Number.isInteger(rawSize[1]) &&
-    rawSize[1] > 0
-      ? Object.freeze({ width: rawSize[0], height: rawSize[1] })
-      : null;
+  const contentSize = GameViewport.getAutomationContentSize(entry.window);
   let snapshot = null;
   try {
     snapshot =
@@ -276,7 +272,10 @@ function getAutomationTarget(profileId) {
 }
 
 function onAutomationTargetClosed(listener) {
-  if (typeof listener !== 'function') return function () { return false; };
+  if (typeof listener !== 'function')
+    return function () {
+      return false;
+    };
   automationTargetClosedListeners.add(listener);
   return function () {
     return automationTargetClosedListeners.delete(listener);

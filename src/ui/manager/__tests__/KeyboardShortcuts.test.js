@@ -134,6 +134,23 @@ describe('KeyboardShortcuts.js', () => {
   });
 
   describe('Bloqueios', () => {
+    test('F11 é bloqueado para preservar o conteúdo fixo', () => {
+      const { win, getHandler } = makeMockWin();
+      KeyboardShortcuts.attach(win, 'TestProfile');
+      const ev = fire(getHandler(), { key: 'F11', control: false, alt: false, shift: false });
+      expect(ev.preventDefault).toHaveBeenCalled();
+    });
+
+    test.each(['+', '=', '-', '_', '0', 'Add', 'Subtract'])(
+      'Ctrl+%s é bloqueado para preservar o zoom uniforme',
+      key => {
+        const { win, getHandler } = makeMockWin();
+        KeyboardShortcuts.attach(win, 'TestProfile');
+        const ev = fire(getHandler(), { key: key, control: true, alt: false, shift: false });
+        expect(ev.preventDefault).toHaveBeenCalled();
+      }
+    );
+
     test('F10 é bloqueado', () => {
       const { win, getHandler } = makeMockWin();
       KeyboardShortcuts.attach(win, 'TestProfile');

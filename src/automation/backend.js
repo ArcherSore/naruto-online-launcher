@@ -63,6 +63,15 @@ function createAutomationBackend(options) {
   }
 
   function readContentSize(target) {
+    if (Object.prototype.hasOwnProperty.call(target, 'contentSize')) {
+      if (validSize(target.contentSize)) {
+        return Object.freeze({
+          width: target.contentSize.width,
+          height: target.contentSize.height
+        });
+      }
+      throw new AutomationError('window-unavailable');
+    }
     let raw;
     try {
       raw = target.window.getContentSize();
@@ -197,9 +206,10 @@ function createAutomationBackend(options) {
           resolveTarget(profileId);
           actionError = new AutomationError('cdp-dispatch-failed');
         } catch (targetError) {
-          actionError = targetError instanceof AutomationError
-            ? targetError
-            : new AutomationError('window-unavailable');
+          actionError =
+            targetError instanceof AutomationError
+              ? targetError
+              : new AutomationError('window-unavailable');
         }
       }
     } finally {

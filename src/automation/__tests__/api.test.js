@@ -112,6 +112,24 @@ describe('Automation API v1 happy path', () => {
     );
   });
 
+  test('uses the canonical page coordinates when the DPI-compensated window DIP is smaller', async () => {
+    const target = makeTarget();
+    target.window.getContentSize.mockReturnValue([960, 540]);
+    target.contentSize = { width: 1920, height: 1080 };
+    const backend = createAutomationBackend({
+      targetProvider: function () { return target; },
+      now: function () { return 321; }
+    });
+
+    await expect(backend.click('p_aaaaaaaa', {
+      normalizedX: 0.5,
+      normalizedY: 0.5
+    })).resolves.toEqual({ dispatchedAt: 321, contentPoint: { x: 960, y: 540 } });
+    expect(backend.getWindowState('p_aaaaaaaa').contentSize).toEqual({
+      width: 1920,
+      height: 1080
+    });
+  });
   test('still rejects missing, destroyed, and invalid-size objective targets', async () => {
     await expect(createAutomationBackend({ targetProvider: function () { return null; } })
       .capture('p_aaaaaaaa')).rejects.toMatchObject({ code: 'window-unavailable' });
@@ -126,6 +144,12 @@ describe('Automation API v1 happy path', () => {
     invalidSize.window.getContentSize.mockReturnValue([0, 51]);
     await expect(createAutomationBackend({ targetProvider: function () { return invalidSize; } })
       .capture('p_aaaaaaaa')).rejects.toMatchObject({ code: 'window-unavailable' });
+
+    const driftedCanonicalTarget = makeTarget({ gameReady: false });
+    driftedCanonicalTarget.contentSize = null;
+    await expect(createAutomationBackend({ targetProvider: function () {
+      return driftedCanonicalTarget;
+    } }).capture('p_aaaaaaaa')).rejects.toMatchObject({ code: 'window-unavailable' });
   });
 
   test('dispatches atomic CDP 1.3 move/press/release and owned detach without focus', async () => {

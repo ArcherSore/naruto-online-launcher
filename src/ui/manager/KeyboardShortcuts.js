@@ -33,6 +33,23 @@ function attach(win, profileName, onReloadCurrentRole) {
       win.close();
       return;
     }
+    // A viewport de automação é fixa: bloqueia fullscreen e atalhos de zoom.
+    if (input.key === 'F11' && !input.control && !input.alt && !input.shift) {
+      event.preventDefault();
+      return;
+    }
+    const zoomKey =
+      input.key === '+' ||
+      input.key === '=' ||
+      input.key === '-' ||
+      input.key === '_' ||
+      input.key === '0' ||
+      input.key === 'Add' ||
+      input.key === 'Subtract';
+    if (input.control && !input.alt && zoomKey) {
+      event.preventDefault();
+      return;
+    }
     // F5 preserva integralmente a Session. No caminho de produção o Launcher
     // sempre fornece o callback que classifica e recarrega apenas o papel atual.
     if (input.key === 'F5' && !input.control && !input.alt && !input.shift) {

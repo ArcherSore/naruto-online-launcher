@@ -73,6 +73,7 @@ const urlConfig = require('../../config/urls');
  * Cria mock de BrowserWindow para electron.BrowserWindow.
  */
 function mockBrowserWindow() {
+  let contentSize = [1920, 1080];
   const wc = {
     session: {
       setUserAgent: jest.fn(),
@@ -80,14 +81,22 @@ function mockBrowserWindow() {
     },
     on: jest.fn(),
     once: jest.fn(),
-    stop: jest.fn()
+    removeListener: jest.fn(),
+    stop: jest.fn(),
+    isDestroyed: jest.fn(() => false),
+    setZoomFactor: jest.fn()
   };
   const win = {
     webContents: wc,
     on: jest.fn(),
+    removeListener: jest.fn(),
     once: jest.fn(),
     isDestroyed: jest.fn(() => false),
-    getContentSize: jest.fn(() => [1280, 720]),
+    getBounds: jest.fn(() => ({ x: 0, y: 0, width: contentSize[0], height: contentSize[1] })),
+    getContentSize: jest.fn(() => contentSize.slice()),
+    setContentSize: jest.fn((width, height) => {
+      contentSize = [width, height];
+    }),
     show: jest.fn(),
     focus: jest.fn(),
     close: jest.fn(),
@@ -116,6 +125,8 @@ describe('Launcher.js', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    electron.screen.getPrimaryDisplay.mockReturnValue({ scaleFactor: 1 });
+    electron.screen.getDisplayMatching.mockReturnValue({ scaleFactor: 1 });
     onClosedCallbacks = {};
     bwMock = mockBrowserWindow();
     electron.BrowserWindow.mockImplementation(function (opts) {
@@ -214,11 +225,38 @@ describe('Launcher.js', () => {
       expect(opts).toBeDefined();
       expect(opts.show).toBe(false);
       expect(opts.autoHideMenuBar).toBe(true);
+      expect(opts.width).toBe(1920);
+      expect(opts.height).toBe(1080);
+      expect(opts.useContentSize).toBe(true);
+      expect(opts.resizable).toBe(false);
+      expect(opts.maximizable).toBe(false);
+      expect(opts.fullscreenable).toBe(false);
       expect(opts.webPreferences).toBeDefined();
       expect(opts.webPreferences.plugins).toBe(true);
+      expect(opts.webPreferences.zoomFactor).toBe(1);
       expect(opts.webPreferences.nodeIntegration).toBe(false);
       expect(opts.webPreferences.contextIsolation).toBe(true);
       expect(opts.webPreferences.partition).toBe('persist:profile-p_001');
+      expect(bwMock.win.setContentSize).toHaveBeenCalledWith(1920, 1080);
+      expect(bwMock.wc.setZoomFactor).toHaveBeenCalledWith(1);
+    });
+
+    test('仅对 200% DPI 的游戏窗口使用 960×540 DIP 和 0.5 页面缩放', () => {
+      electron.screen.getPrimaryDisplay.mockReturnValue({ scaleFactor: 2 });
+      electron.screen.getDisplayMatching.mockReturnValue({ scaleFactor: 2 });
+
+      launchAndTrack('p_001');
+
+      const opts = bwMock._lastOpts;
+      expect(opts.width).toBe(960);
+      expect(opts.height).toBe(540);
+      expect(opts.webPreferences.zoomFactor).toBe(0.5);
+      expect(bwMock.win.setContentSize).toHaveBeenCalledWith(960, 540);
+      expect(bwMock.wc.setZoomFactor).toHaveBeenCalledWith(0.5);
+      expect(Launcher.getAutomationTarget('p_001').contentSize).toEqual({
+        width: 1920,
+        height: 1080
+      });
     });
 
     test('腾讯路径不安装 Oasis blocker 或 Cookie/CSP 注入', () => {
@@ -418,7 +456,7 @@ describe('Launcher.js', () => {
         window: bwMock.win,
         webContents: bwMock.wc,
         gameReady: true,
-        contentSize: { width: 1280, height: 720 }
+        contentSize: { width: 1920, height: 1080 }
       });
       expect(target).not.toHaveProperty('session');
       expect(target).not.toHaveProperty('partitionName');

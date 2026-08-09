@@ -28,10 +28,11 @@ Flash 二进制随仓库和发行包提供。`src/app/FlashUpdater.js` 已按上
 ## 腾讯登录与窗口
 
 - `src/app/Launcher.js`：创建游戏 `BrowserWindow`、绑定 Profile Partition、装配流程与窗口 registry。
+- `src/app/GameViewport.js`：仅对游戏窗口按显示器 DPI 反向补偿，使物理内容、页面坐标和截图统一为 1920×1080、有效 devicePixelRatio=1，并在导航或跨屏后恢复合同。
 - `src/app/TencentLaunchFlow.js`：腾讯官方选服、扫码认证子窗、游戏导航、页面探针与有界恢复状态机。
 - `src/app/SessionLifecycle.js`：通用 load/crash/responsive/close 生命周期。
 - `src/app/StallDetector.js`：关键 SWF stall 检测。
-- `src/ui/manager/KeyboardShortcuts.js`：游戏窗口 F5、F11、F12、Alt+F4。
+- `src/ui/manager/KeyboardShortcuts.js`：游戏窗口 F5、F12、Alt+F4，并阻止 F11 与页面缩放快捷键改变统一画面。
 - `src/config/urls.js`：腾讯官方 URL 与精确 URL 角色。
 
 流程：
