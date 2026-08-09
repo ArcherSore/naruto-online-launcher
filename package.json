@@ -29,7 +29,7 @@
   },
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --linux AppImage --win portable --publish never",
+    "build": "npm run build:win",
     "build:linux": "electron-builder --linux AppImage --publish never",
     "build:win": "electron-builder --win portable --publish never",
     "lint": "eslint src/",
@@ -58,6 +58,7 @@
       "output": "dist"
     },
     "files": [
+      "automation-scripts/**",
       "src/**/*.js",
       "src/**/*.html",
       "src/**/*.css",

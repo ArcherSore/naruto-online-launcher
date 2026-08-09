@@ -7,12 +7,13 @@
 | 路径 | 职责 |
 | --- | --- |
 | `src/` | Electron 主进程、管理 UI、Profile、腾讯流程、Flash 与诊断 |
+| `automation-scripts/` | 随 Windows 安装包发布的可信内置 CommonJS 脚本；每个直接子目录一个脚本包 |
 | `flash/` | Windows/Linux PPAPI 二进制与版本清单 |
 | `assets/` | 应用图标 |
 | `linux/` | AppImage 安装、运行与卸载脚本 |
 | `.github/workflows/` | Node 16.20.2 下的 CI 与双平台构建 |
 | `specs/001-tencent-game-launch/` | 腾讯启动流程需求、设计、任务和历史验证记录 |
-| `tests/`、`src/**/__tests__/` | Jest 基础设施与保留的腾讯相关回归测试 |
+| `tests/`、`src/**/__tests__/` | Jest 基础设施、自动化 runtime smoke 与腾讯相关回归测试 |
 
 ## 启动与 Flash
 
@@ -64,6 +65,31 @@ ProfileManager.launch(profileId)
 - `src/ui/index.html`、`src/ui/app.js`、`src/ui/styles.css`：腾讯 Profile 管理界面。
 - `src/preload.js`：游戏 renderer 的最小版本、debug 与恢复 bridge。
 
+## 内置自动化
+
+- `src/automation/registry.js`：只扫描固定的 `automation-scripts/`，验证 manifest、包边界、
+  CommonJS 导出和 ID 唯一性。
+- `src/automation/runner.js`、`coordinator.js`：运行状态、deadline、取消、同 Profile lease 与动作
+  FIFO；不同 Profile 可独立运行。
+- `src/automation/api.js`、`backend.js`：脚本唯一受支持的 Automation API 与 Launcher/CDP 后端；
+  负责窗口状态、坐标映射和不抢焦点的后台点击。
+- `src/automation/recording.js`、`store.js`：有时限的截图录点，以及
+  `userData/automation-data/profiles/<profileId>/scripts/<scriptId>/` 下的隔离用户数据。
+- `src/automation/index.js`：组合 registry、runner、coordinator、backend、recording 与 Profile/
+  窗口生命周期。
+- `automation-scripts/demo-click/`：正式示例脚本，只通过注入的 Automation API 读取坐标、等待
+  并连续点击。
+- `src/ui/manager/IpcRouter.js`、`StateBroadcaster.js`：管理页的请求校验、安全 DTO 与状态广播。
+- `tests/runtime/`：经过正式 registry → runner → Automation API 的 Chromium、PPAPI/AS3 和
+  Windows 打包运行 smoke。
+
+通用自动化能力只检查所属 Profile 窗口、webContents、内容尺寸、输入和动作生命周期等客观
+资源。腾讯流程阶段及 `GAME_READY` 仅用于诊断；页面是否适合操作由脚本通过受限 API 判断，
+不能成为截图、录点或脚本启动的全局硬门槛。
+
+脚本合同、稳定状态/错误、数据边界和验证命令详见
+[`docs/BUILTIN_AUTOMATION.md`](./BUILTIN_AUTOMATION.md)。
+
 ## 网络、安全与诊断
 
 - `src/network/inspector.js`：只保留 resource type、origin、pathname、status code、error code。
@@ -89,8 +115,8 @@ ProfileManager.launch(profileId)
 | Jest | `npm test -- --runInBand` |
 | lint | `npm run lint` |
 | Prettier 检查 | `npx prettier --check "src/**/*.{js,html,css,json}" "tests/**/*.js"` |
+| 默认发布构建（Windows） | `npm run build` |
 | Windows portable | `npm run build:win` |
-| Linux AppImage | `npm run build:linux` |
 
 项目固定 Node.js 16.20.2、npm 8.19.4、Electron 11.5.0。
 
@@ -100,4 +126,4 @@ ProfileManager.launch(profileId)
 - 扫码后跳转、Session 过期和重新扫码。
 - Flash 游戏主页面与关键 SWF 加载。
 - 两个 Profile 的真实登录态隔离。
-- Windows portable 与 Linux AppImage 的真实启动。
+- Windows portable 的真实启动与包内自动化脚本发现。

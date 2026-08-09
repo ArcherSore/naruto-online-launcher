@@ -324,6 +324,58 @@ describe('StateBroadcaster.js', () => {
 
       expect(ManagerWindow.send).toHaveBeenCalledTimes(2);
     });
+
+    test('restores a frozen automation catalog and status snapshot when configured', () => {
+      StateBroadcaster.setAutomationService({
+        listCatalog: function () {
+          return [{ id: 'demo-click', name: 'Demo Click', version: '1.0.0', apiVersion: 1, description: null, entryPath: 'C:\\secret.js' }];
+        },
+        listStatuses: function () {
+          return [{ runId: 'run-1', profileId: 'p_001', scriptId: 'demo-click', status: 'running', startedAt: 1, endedAt: null, error: null, deadlineAt: 999, token: 'secret' }];
+        }
+      });
+      StateBroadcaster.pushAll();
+      expect(ManagerWindow.send).toHaveBeenCalledWith('automation:catalog', {
+        scripts: [{ id: 'demo-click', name: 'Demo Click', version: '1.0.0', apiVersion: 1, description: null }]
+      });
+      expect(ManagerWindow.send).toHaveBeenCalledWith('automation:statuses', {
+        statuses: [{ runId: 'run-1', profileId: 'p_001', scriptId: 'demo-click', status: 'running', startedAt: 1, endedAt: null, error: null }]
+      });
+      expect(JSON.stringify(ManagerWindow.send.mock.calls)).not.toContain('secret');
+      StateBroadcaster.setAutomationService(null);
+    });
+  });
+
+  test('pushAutomationStatus enforces the exact status and error allowlists', () => {
+    StateBroadcaster.pushAutomationStatus({
+      runId: 'run-1', profileId: 'p_001', scriptId: 'demo-click', status: 'failed',
+      startedAt: 1, endedAt: 2,
+      error: { code: 'script-failed', safeMessage: 'cookie=secret', stack: 'secret' },
+      token: 'secret'
+    });
+    expect(ManagerWindow.send).toHaveBeenCalledWith('automation:status', {
+      runId: 'run-1', profileId: 'p_001', scriptId: 'demo-click', status: 'failed',
+      startedAt: 1, endedAt: 2,
+      error: { code: 'script-failed', safeMessage: '内置脚本执行失败' }
+    });
+    expect(JSON.stringify(ManagerWindow.send.mock.calls)).not.toContain('secret');
+    jest.clearAllMocks();
+    StateBroadcaster.pushAutomationStatus({ status: 'forged', profileId: 'p_001' });
+    expect(ManagerWindow.send).not.toHaveBeenCalled();
+  });
+
+  test('drops unknown error codes and keeps Profile status events isolated', () => {
+    StateBroadcaster.pushAutomationStatus({
+      runId: 'run-a', profileId: 'p_a', scriptId: 'demo-click', status: 'failed',
+      startedAt: 1, endedAt: 2,
+      error: { code: 'cookie=secret', safeMessage: 'C:\\secret.js' },
+      otherProfileId: 'p_b', token: 'secret'
+    });
+    expect(ManagerWindow.send).toHaveBeenCalledWith('automation:status', {
+      runId: 'run-a', profileId: 'p_a', scriptId: 'demo-click', status: 'failed',
+      startedAt: 1, endedAt: 2, error: null
+    });
+    expect(JSON.stringify(ManagerWindow.send.mock.calls)).not.toMatch(/p_b|cookie|secret/i);
   });
 
   describe('startAutoRefresh', () => {

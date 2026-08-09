@@ -175,6 +175,41 @@
       </form>
     </div>
 
+    <div
+      class="modal-backdrop"
+      id="automationModal"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="automationModalTitle"
+    >
+      <section class="modal automation-modal">
+        <div class="modal-heading">
+          <h2 id="automationModalTitle">内置自动化</h2>
+          <button
+            class="modal-close-btn"
+            id="closeAutomationModalBtn"
+            type="button"
+            aria-label="关闭自动化面板"
+          >
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <div id="automationScriptList" class="automation-script-list"></div>
+          <div class="automation-capture-wrap">
+            <img id="automationCapture" alt="坐标录制截图" hidden />
+            <p class="field-hint">截图仅在内存中短期保留；点击画面即可记录归一化坐标。</p>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary-button" id="automationClearBtn" type="button">清空坐标</button>
+          <button class="secondary-button" id="automationRecordBtn" type="button">截图录点</button>
+          <button class="primary-button" id="automationCloseBtn" type="button">完成</button>
+        </div>
+      </section>
+    </div>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="app.js"></script>
   </body>

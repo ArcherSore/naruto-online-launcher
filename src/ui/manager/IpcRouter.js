@@ -20,6 +20,7 @@ const mg = require('../../memory/guard');
 const partition = require('../../profiles/partition');
 const ManagerWindow = require('./ManagerWindow');
 const StateBroadcaster = require('./StateBroadcaster');
+const { isKnownCode, SAFE_MESSAGES } = require('../../automation/errors');
 
 let _handlers = {};
 let _inspectors = new Map(); // profileId -> inspector instance
@@ -57,6 +58,85 @@ const RECOVERY_ACTIONS = Object.freeze([
   'RELOAD_GAME',
   'RETURN_TO_SELECTOR'
 ]);
+const SCRIPT_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const RUN_STATUSES = Object.freeze([
+  'idle',
+  'running',
+  'stopping',
+  'succeeded',
+  'failed',
+  'cancelled'
+]);
+
+function isManagerSender(event) {
+  const win = _getWin();
+  return !!(win && event && event.sender && win.webContents === event.sender);
+}
+
+function validProfileId(profileId) {
+  return typeof profileId === 'string' && profileId.length > 0 && !!store.get(profileId);
+}
+
+function validScriptId(scriptId) {
+  return (
+    typeof scriptId === 'string' &&
+    scriptId.length <= 64 &&
+    SCRIPT_ID_PATTERN.test(scriptId)
+  );
+}
+
+function safeAutomationError(error, fallback) {
+  if (error && isKnownCode(error.code)) return error.code;
+  if (error && isKnownCode(error.error)) return error.error;
+  return fallback || 'script-failed';
+}
+
+function safeAutomationStatus(value) {
+  if (!value || typeof value !== 'object' || RUN_STATUSES.indexOf(value.status) === -1) return null;
+  if (typeof value.profileId !== 'string' || typeof value.scriptId !== 'string') return null;
+  const status = {
+    runId: typeof value.runId === 'string' ? value.runId : null,
+    profileId: value.profileId,
+    scriptId: value.scriptId,
+    status: value.status,
+    startedAt: typeof value.startedAt === 'number' ? value.startedAt : null,
+    endedAt: typeof value.endedAt === 'number' ? value.endedAt : null,
+    error: null
+  };
+  if (
+    value.error &&
+    typeof value.error.code === 'string' &&
+    isKnownCode(value.error.code)
+  ) {
+    status.error = { code: value.error.code, safeMessage: SAFE_MESSAGES[value.error.code] };
+  }
+  return status;
+}
+
+function safeScript(value) {
+  if (!value || typeof value !== 'object' || !validScriptId(value.id)) return null;
+  const script = {
+    id: value.id,
+    name: typeof value.name === 'string' ? value.name : value.id,
+    version: typeof value.version === 'string' ? value.version : '',
+    apiVersion: value.apiVersion === 1 ? 1 : null,
+    description: typeof value.description === 'string' ? value.description : null
+  };
+  if (value.status) script.status = safeAutomationStatus(value.status);
+  return script;
+}
+
+function requireAutomationRequest(event, request, needsScript) {
+  if (!isManagerSender(event)) return { ok: false, error: 'invalid-sender' };
+  if (!request || typeof request !== 'object' || !validProfileId(request.profileId)) {
+    return { ok: false, error: 'invalid-arguments' };
+  }
+  if (needsScript && !validScriptId(request.scriptId)) {
+    return { ok: false, error: 'invalid-arguments' };
+  }
+  if (!_handlers.automation) return { ok: false, error: 'script-not-found' };
+  return null;
+}
 
 function sanitizeProfileInput(value) {
   const source = value && typeof value === 'object' ? value : {};
@@ -328,6 +408,152 @@ function registerIpcHandlers(handlers) {
   });
 
   // ── Memory ──
+  ipcMain.handle('automation:list', async function (event, request) {
+    const invalid = requireAutomationRequest(event, request, false);
+    if (invalid) return invalid;
+    try {
+      const scripts = _handlers.automation
+        .list(request.profileId)
+        .map(safeScript)
+        .filter(Boolean);
+      const state = _handlers.automation.windowState(request.profileId);
+      return {
+        ok: true,
+        target: {
+          available: !!(state && state.available === true),
+          gameReady: !!(state && state.gameReady === true)
+        },
+        scripts: scripts
+      };
+    } catch (error) {
+      return { ok: false, error: safeAutomationError(error) };
+    }
+  });
+
+  ipcMain.handle('automation:status', async function (event, request) {
+    const invalid = requireAutomationRequest(event, request, true);
+    if (invalid) return invalid;
+    try {
+      return {
+        ok: true,
+        status: safeAutomationStatus(
+          _handlers.automation.status(request.profileId, request.scriptId)
+        )
+      };
+    } catch (error) {
+      return { ok: false, error: safeAutomationError(error) };
+    }
+  });
+
+  ipcMain.handle('automation:start', async function (event, request) {
+    const invalid = requireAutomationRequest(event, request, true);
+    if (invalid) return invalid;
+    try {
+      const result = _handlers.automation.start(request.profileId, request.scriptId);
+      if (!result || result.ok !== true) {
+        return { ok: false, error: safeAutomationError(result) };
+      }
+      return { ok: true, status: safeAutomationStatus(result.status) };
+    } catch (error) {
+      return { ok: false, error: safeAutomationError(error) };
+    }
+  });
+
+  ipcMain.handle('automation:stop', async function (event, request) {
+    const invalid = requireAutomationRequest(event, request, false);
+    if (invalid) return invalid;
+    if (typeof request.runId !== 'string' || request.runId.length < 1 || request.runId.length > 128) {
+      return { ok: false, error: 'invalid-arguments' };
+    }
+    try {
+      const result = _handlers.automation.stop(request.profileId, request.runId);
+      if (!result || result.ok !== true) {
+        return { ok: false, error: safeAutomationError(result, 'run-not-active') };
+      }
+      return { ok: true, status: safeAutomationStatus(result.status) };
+    } catch (error) {
+      return { ok: false, error: safeAutomationError(error) };
+    }
+  });
+
+  ipcMain.handle('automation:coordinates:get', async function (event, request) {
+    const invalid = requireAutomationRequest(event, request, true);
+    if (invalid) return invalid;
+    try {
+      return {
+        ok: true,
+        points: _handlers.automation.getCoordinates(request.profileId, request.scriptId)
+      };
+    } catch (error) {
+      return { ok: false, error: safeAutomationError(error, 'coordinates-invalid') };
+    }
+  });
+
+  ipcMain.handle('automation:recording:begin', async function (event, request) {
+    const invalid = requireAutomationRequest(event, request, true);
+    if (invalid) return invalid;
+    try {
+      const result = await _handlers.automation.beginRecording(
+        request.profileId,
+        request.scriptId,
+        String(event.sender.id)
+      );
+      return {
+        ok: true,
+        capture: {
+          captureId: result.capture.captureId,
+          pngDataUrl: result.capture.pngDataUrl,
+          imageSize: result.capture.imageSize,
+          contentSize: result.capture.contentSize,
+          expiresAt: result.capture.expiresAt
+        },
+        points: result.points
+      };
+    } catch (error) {
+      return { ok: false, error: safeAutomationError(error, 'capture-failed') };
+    }
+  });
+
+  ipcMain.handle('automation:recording:add-point', async function (event, request) {
+    const invalid = requireAutomationRequest(event, request, true);
+    if (invalid) return invalid;
+    if (
+      typeof request.captureId !== 'string' ||
+      request.captureId.length < 1 ||
+      request.captureId.length > 128 ||
+      !Number.isFinite(request.imageX) ||
+      !Number.isFinite(request.imageY)
+    ) {
+      return { ok: false, error: 'invalid-arguments' };
+    }
+    try {
+      const result = _handlers.automation.addPoint({
+        profileId: request.profileId,
+        scriptId: request.scriptId,
+        captureId: request.captureId,
+        imageX: request.imageX,
+        imageY: request.imageY,
+        ownerId: String(event.sender.id)
+      });
+      return { ok: true, point: result.point, points: result.points };
+    } catch (error) {
+      return { ok: false, error: safeAutomationError(error, 'coordinates-invalid') };
+    }
+  });
+
+  ipcMain.handle('automation:coordinates:clear', async function (event, request) {
+    const invalid = requireAutomationRequest(event, request, true);
+    if (invalid) return invalid;
+    try {
+      return {
+        ok: true,
+        points: _handlers.automation.clearCoordinates(request.profileId, request.scriptId)
+      };
+    } catch (error) {
+      return { ok: false, error: safeAutomationError(error, 'storage-write-failed') };
+    }
+  });
+
   ipcMain.handle('memory:stats', function () {
     return mg.getStats();
   });

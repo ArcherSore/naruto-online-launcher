@@ -15,6 +15,7 @@
 const store = require('../../profiles/store');
 const mg = require('../../memory/guard');
 const ManagerWindow = require('./ManagerWindow');
+const { isKnownCode, SAFE_MESSAGES } = require('../../automation/errors');
 
 const SAFE_PROFILE_FIELDS = Object.freeze([
   'id',
@@ -69,6 +70,14 @@ const SAFE_RECOVERY_ACTIONS = Object.freeze([
 const FIXED_FLOW_MESSAGES = Object.freeze({
   SESSION_REJECTED: '会话被腾讯官方拒绝，请重新扫码'
 });
+const AUTOMATION_STATUSES = Object.freeze([
+  'idle',
+  'running',
+  'stopping',
+  'succeeded',
+  'failed',
+  'cancelled'
+]);
 
 function pickFields(value, fields) {
   const source = value && typeof value === 'object' ? value : {};
@@ -84,6 +93,76 @@ let _memCb = null,
 let _pushTimer = null;
 let _storeChangeCb = null;
 let _started = false;
+let _automationService = null;
+let _automationUnsubscribe = null;
+
+function safeAutomationScript(value) {
+  if (!value || typeof value !== 'object' || typeof value.id !== 'string') return null;
+  if (typeof value.name !== 'string' || typeof value.version !== 'string' || value.apiVersion !== 1) {
+    return null;
+  }
+  return {
+    id: value.id,
+    name: value.name,
+    version: value.version,
+    apiVersion: 1,
+    description: typeof value.description === 'string' ? value.description : null
+  };
+}
+
+function safeAutomationStatus(value) {
+  if (!value || typeof value !== 'object') return null;
+  if (
+    AUTOMATION_STATUSES.indexOf(value.status) === -1 ||
+    typeof value.profileId !== 'string' ||
+    typeof value.scriptId !== 'string'
+  ) {
+    return null;
+  }
+  const safe = {
+    runId: typeof value.runId === 'string' ? value.runId : null,
+    profileId: value.profileId,
+    scriptId: value.scriptId,
+    status: value.status,
+    startedAt: typeof value.startedAt === 'number' ? value.startedAt : null,
+    endedAt: typeof value.endedAt === 'number' ? value.endedAt : null,
+    error: null
+  };
+  if (
+    value.error &&
+    typeof value.error.code === 'string' &&
+    isKnownCode(value.error.code)
+  ) {
+    safe.error = { code: value.error.code, safeMessage: SAFE_MESSAGES[value.error.code] };
+  }
+  return safe;
+}
+
+function setAutomationService(service) {
+  if (typeof _automationUnsubscribe === 'function') _automationUnsubscribe();
+  _automationUnsubscribe = null;
+  _automationService = service && typeof service === 'object' ? service : null;
+  if (_automationService && typeof _automationService.onStatus === 'function') {
+    _automationUnsubscribe = _automationService.onStatus(pushAutomationStatus);
+  }
+}
+
+function pushAutomationCatalog() {
+  if (!_automationService || typeof _automationService.listCatalog !== 'function') return;
+  const scripts = _automationService.listCatalog().map(safeAutomationScript).filter(Boolean);
+  ManagerWindow.send('automation:catalog', { scripts: scripts });
+}
+
+function pushAutomationStatuses() {
+  if (!_automationService || typeof _automationService.listStatuses !== 'function') return;
+  const statuses = _automationService.listStatuses().map(safeAutomationStatus).filter(Boolean);
+  ManagerWindow.send('automation:statuses', { statuses: statuses });
+}
+
+function pushAutomationStatus(status) {
+  const safe = safeAutomationStatus(status);
+  if (safe) ManagerWindow.send('automation:status', safe);
+}
 
 function pushProfiles() {
   const list = store.getAll().map(function (p) {
@@ -141,6 +220,8 @@ function pushMemory() {
 function pushAll() {
   pushProfiles();
   pushMemory();
+  pushAutomationCatalog();
+  pushAutomationStatuses();
 }
 
 /**
@@ -190,6 +271,10 @@ module.exports = {
   pushProfiles: pushProfiles,
   pushMemory: pushMemory,
   pushFlowState: pushFlowState,
+  setAutomationService: setAutomationService,
+  pushAutomationCatalog: pushAutomationCatalog,
+  pushAutomationStatuses: pushAutomationStatuses,
+  pushAutomationStatus: pushAutomationStatus,
   pushAll: pushAll,
   startAutoRefresh: startAutoRefresh,
   stopAutoRefresh: stopAutoRefresh

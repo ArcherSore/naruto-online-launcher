@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "demo-click",
+  "name": "后台连续点击示例",
+  "version": "1.0.0",
+  "entry": "index.js",
+  "apiVersion": 1,
+  "description": "按已记录顺序后台点击当前 Profile 的归一化坐标。"
+}

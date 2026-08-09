@@ -156,6 +156,8 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening
+- [ ] TXXX Verify generic capability availability depends only on objective resource validity and
+  page/flow readiness remains diagnostic or script-owned
 - [ ] TXXX Document any user-authorized local diagnostic session with exact read-only scope,
   Profile/time bounds, prohibited persistence, redaction, and cleanup
 - [ ] TXXX Run quickstart.md validation

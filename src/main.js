@@ -111,6 +111,8 @@ let uiManager = null;
 let setupWindow = null;
 let isQuitting = false;
 let activeGameWindows = 0;
+let automationService = null;
+let automationShutdownStarted = false;
 
 // v3.5: Aplica idioma do config ao i18n global
 i18n.setLanguage(config.language || i18n.DEFAULT_LANGUAGE);
@@ -352,6 +354,34 @@ function _initManagerAndLaunch() {
     /* ignore */
   }
 
+  if (!automationService) {
+    const Launcher = require('./app/Launcher');
+    const { createAutomationService } = require('./automation');
+    automationService = createAutomationService({
+      app: app,
+      profileStore: profileStore,
+      launcher: Launcher,
+      logger: logger
+    });
+    const automationCatalog = automationService.listCatalog();
+    const automationIssues = automationService.registrationIssues();
+    logger.info('Automation: registry scan complete', {
+      action: 'registry-scan',
+      status: 'succeeded',
+      registeredCount: automationCatalog.length,
+      issueCount: automationIssues.length
+    });
+    automationIssues.forEach(function (issue) {
+      logger.warn('Automation: package registration rejected', {
+        action: 'registry-reject',
+        packageName: issue.packageName,
+        scriptId: issue.scriptId,
+        errorCode: issue.code
+      });
+    });
+    require('./ui/manager/StateBroadcaster').setAutomationService(automationService);
+  }
+
   // UI Manager — skip em Ramen Mode (manager-only economiza 45MB em PCs <2GB)
   uiManager = require('./ui/controller');
   uiManager.registerIpcHandlers({
@@ -363,6 +393,7 @@ function _initManagerAndLaunch() {
     requestRecoveryForSender: function (sender, action) {
       return require('./app/Launcher').requestRecoveryForSender(sender, action);
     },
+    automation: automationService,
     getMemoryStats: function () {
       return memoryGuard.getStats();
     },
@@ -455,8 +486,18 @@ function _initManagerAndLaunch() {
   // flashPath is guaranteed non-null here; boot stops on a corrupt install.
 }
 
-app.on('before-quit', function () {
+app.on('before-quit', function (event) {
   isQuitting = true;
+  if (!automationService || automationShutdownStarted) return;
+  automationShutdownStarted = true;
+  event.preventDefault();
+  Promise.resolve(automationService.shutdown())
+    .catch(function () {
+      // Exit still proceeds after the bounded cleanup attempt fails.
+    })
+    .finally(function () {
+      app.quit();
+    });
 });
 
 // v3.3: SEM TRAY — quando todas as janelas fecham, o app encerra.

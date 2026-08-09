@@ -136,7 +136,7 @@ const INVENTORY = collectDeveloperText();
 
 describe('developer-owned production text contract', () => {
   test('keeps the logger call count stable', () => {
-    expect(INVENTORY.loggerCalls).toHaveLength(145);
+    expect(INVENTORY.loggerCalls).toHaveLength(147);
   });
 
   test('uses ASCII-only static fragments', () => {

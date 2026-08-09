@@ -678,6 +678,50 @@ textarea:focus-visible {
   border: 0;
 }
 
+.automation-modal {
+  width: min(760px, calc(100vw - 48px));
+}
+
+.automation-script-list {
+  display: grid;
+  gap: 10px;
+}
+
+.automation-script-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.automation-script-meta,
+.field-hint {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+
+.automation-error {
+  margin-top: 4px;
+  color: var(--status-danger);
+  font-size: var(--font-xs);
+}
+
+.automation-capture-wrap img {
+  display: block;
+  max-width: 100%;
+  margin-top: 14px;
+  cursor: crosshair;
+  border: 1px solid var(--border-subtle);
+}
+
+.automation-capture-wrap img[hidden] {
+  display: none !important;
+}
+
 .check-row {
   display: flex;
   align-items: center;

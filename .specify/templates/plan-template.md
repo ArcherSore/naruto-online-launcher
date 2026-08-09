@@ -47,6 +47,11 @@ or Session data for diagnosis, the check MUST distinguish routine production obs
 from user-authorized local diagnosis and document: authorization source, purpose, exact
 read-only scope, Profile boundary, time bound, prohibited uses, redaction, and cleanup.
 
+If the feature exposes generic automation or window capabilities, the check MUST classify each
+availability prerequisite as either objective resource validity or script/page strategy. Page
+roles, flow stages, DOM semantics, and `GAME_READY`-style signals MUST NOT globally gate generic
+capture, recording, or script start unless the plan proves an independent safety necessity.
+
 ## Project Structure
 
 ### Documentation (this feature)

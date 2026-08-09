@@ -1,29 +1,26 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 2.0.0
+- Version change: 2.0.0 → 2.1.0
 - Modified principles:
-  - III. 官方认证与安全边界 → III. 官方认证与受控诊断边界
-  - IX. 可诊断性（增加用户明确授权的临时本地诊断通道）
+  - IV. 模块化而非过度抽象（增加通用能力门槛与脚本策略的职责边界）
 - Added sections: 无
-- Removed sections: “页面源码、Cookie/Storage、表单及身份参数即使经用户授权也绝对不可读取”
-  的隐含约束
+- Removed sections: 无
 - Templates updated:
   - ✅ `.specify/templates/plan-template.md`
   - ✅ `.specify/templates/spec-template.md`
   - ✅ `.specify/templates/tasks-template.md`
 - Current feature artifacts requiring synchronized updates:
-  - ✅ `specs/001-tencent-game-launch/spec.md`
-  - ✅ `specs/001-tencent-game-launch/plan.md`
-  - ✅ `specs/001-tencent-game-launch/research.md`
-  - ✅ `specs/001-tencent-game-launch/data-model.md`
-  - ✅ `specs/001-tencent-game-launch/contracts/navigation-contract.md`
-  - ✅ `specs/001-tencent-game-launch/quickstart.md`
-  - ✅ `specs/001-tencent-game-launch/tasks.md`
-  - ✅ `specs/001-tencent-game-launch/validation/README.md`
-  - ✅ `specs/001-tencent-game-launch/validation/windows-failure-recovery.md`
+  - ✅ `specs/003-builtin-automation-framework/spec.md`
+  - ✅ `specs/003-builtin-automation-framework/plan.md`
+  - ✅ `specs/003-builtin-automation-framework/data-model.md`
+  - ✅ `specs/003-builtin-automation-framework/contracts/manager-ipc-contract.md`
+  - ✅ `specs/003-builtin-automation-framework/contracts/runtime-contract.md`
+  - ✅ `specs/003-builtin-automation-framework/quickstart.md`
+  - ✅ `specs/003-builtin-automation-framework/tasks.md`
 - Spec Kit commands reviewed: `.agents/skills/speckit-*/SKILL.md`，无需修改
-- Runtime guidance reviewed: `AGENTS.md`、`README.md`、`docs/REPO_MAP.md`；无新增冲突
-- Follow-up TODOs: README 产品说明仍需由独立文档任务迁移
+- Runtime guidance reviewed: `AGENTS.md`、`README.md`、`docs/REPO_MAP.md`；`AGENTS.md` 与
+  `docs/REPO_MAP.md` 已同步
+- Follow-up TODOs: 无
 -->
 
 # 腾讯国服《火影忍者 OL》启动器 Constitution
@@ -75,6 +72,13 @@ Tasks 和代码变更必须能够追溯到明确的用户故事、功能需求�
 边界、入口与依赖方向。新增行为应优先在现有架构中形成内聚模块；不得强制把每项功能拆成
 独立库，也不得为尚未出现在当前 Feature Spec 中的变化点预建框架、插件层或通用抽象。
 跨模块副作用必须在 Plan 中显式说明。
+
+通用框架能力的可用门槛必须只依赖该能力客观需要的资源条件。对于内置自动化，Profile、
+所属窗口、webContents、内容尺寸、输入数据和动作生命周期是否有效属于框架职责；“当前页面
+是否适合某个脚本操作”属于脚本策略。扫码、选服、Flash 加载或 `GAME_READY` 等页面语义状态
+可以作为诊断或脚本判断信号，但不得在没有独立安全必要性的情况下全局禁用截图、录点、脚本
+启动或其他通用能力。未来图像识别、页面等待及动作条件必须通过受限 Automation API 由脚本
+表达，不得反向固化为框架对所有脚本的统一页面门槛。
 
 理由：清晰边界便于迁移和诊断；按实际需求抽象可避免在旧版 Electron 环境中引入额外复杂度。
 
@@ -146,6 +150,9 @@ Constitution 约束后续所有 Feature Spec、Implementation Plan、Tasks 和�
 - 常规诊断数据必须遵循最小化和脱敏原则；不能证明安全的字段默认按敏感数据处理。只有符合
   Principle III 的用户明确授权诊断可以临时读取原始页面或认证状态，且不得持久化或转为
   生产采集。
+- 自动化能力门槛必须区分客观资源有效性和脚本页面策略。若 Plan 拟以流程阶段、页面角色或
+  DOM 语义禁用通用能力，必须证明这是该能力本身的安全必要条件；否则该信号只能用于诊断或
+  由脚本通过受限 API 消费。
 
 ## 规格驱动交付与质量门
 
@@ -175,4 +182,4 @@ MUST 规则视为阻塞问题。复杂性必须回溯到当前需求并记录更
 `AGENTS.md` 和 `docs/REPO_MAP.md` 为入口，但它们不得覆盖本 Constitution；发现冲突时必须提出
 显式宪章修订或修正文档，禁止静默选择。
 
-**Version**: 2.0.0 | **Ratified**: 2026-07-20 | **Last Amended**: 2026-07-26
+**Version**: 2.1.0 | **Ratified**: 2026-07-20 | **Last Amended**: 2026-08-09

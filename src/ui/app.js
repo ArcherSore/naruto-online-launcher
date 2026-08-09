@@ -6,6 +6,11 @@ const { debounce } = require('../utils/throttle');
 let profiles = [];
 let editingProfileId = null;
 const openWindows = Object.create(null);
+let automationProfileId = null;
+let automationScripts = [];
+let automationCaptureId = null;
+let automationSelectedScriptId = null;
+let automationTarget = { available: false, gameReady: false };
 
 const elements = {
   grid: document.getElementById('profileGrid'),
@@ -24,7 +29,42 @@ const elements = {
   colorHexText: document.getElementById('colorHexText'),
   notifications: document.getElementById('profileNotifications'),
   memory: document.getElementById('memorySummary'),
-  toast: document.getElementById('toast')
+  toast: document.getElementById('toast'),
+  automationModal: document.getElementById('automationModal'),
+  automationList: document.getElementById('automationScriptList'),
+  automationCapture: document.getElementById('automationCapture'),
+  automationRecord: document.getElementById('automationRecordBtn'),
+  automationClear: document.getElementById('automationClearBtn')
+};
+
+const AUTOMATION_ERRORS = {
+  'profile-busy': '该 Profile 正在执行自动化，请先停止或等待完成。',
+  'game-not-ready': '请先完成扫码、选服并等待游戏加载完成。',
+  'window-unavailable': '游戏窗口不可用，请重新打开 Profile。',
+  'coordinates-invalid': '坐标数据无效，请清空后重新录制。',
+  'coordinates-missing': '请先为该脚本记录至少一个坐标。',
+  'capture-expired': '截图已过期，请重新截图录点。',
+  'capture-mismatch': '截图与当前脚本不匹配，请重新截图。',
+  'cdp-already-attached': '请关闭游戏 DevTools 后重试。',
+  'cdp-attach-failed': '后台输入通道连接失败，请稍后重试。',
+  'cdp-detached': '游戏窗口的后台输入通道已断开，请重新打开窗口。',
+  'cdp-dispatch-failed': '后台点击失败，请确认游戏窗口仍可用。',
+  'action-timeout': '单次自动化动作超时，请重试。',
+  'run-timeout': '脚本运行超时。',
+  'profile-not-found': 'Profile 已不存在，请刷新列表。',
+  'script-not-found': '内置脚本不可用，请刷新列表。',
+  'run-not-active': '自动化已经停止。',
+  'run-cancelled': '脚本已取消。',
+  'script-failed': '内置脚本执行失败，请查看脱敏日志。'
+};
+
+const AUTOMATION_STATUS_TEXT = {
+  idle: '未运行',
+  running: '运行中',
+  stopping: '停止中',
+  succeeded: '已完成',
+  failed: '失败',
+  cancelled: '已取消'
 };
 
 function escapeHtml(value) {
@@ -122,6 +162,7 @@ function renderProfiles() {
         '<button class="icon-button compact menu-trigger" data-action="toggle-menu" aria-label="更多操作" title="更多操作">•••</button>' +
         '<div class="dropdown-menu" hidden>' +
         '<button class="dropdown-item" data-action="edit">编辑</button>' +
+        '<button class="dropdown-item" data-action="automation">自动化</button>' +
         '<button class="dropdown-item danger" data-action="delete">删除</button>' +
         '</div>' +
         '</div>' +
@@ -130,6 +171,70 @@ function renderProfiles() {
       );
     })
     .join('');
+}
+
+function automationErrorMessage(result, fallback) {
+  const code = result && result.error;
+  return AUTOMATION_ERRORS[code] || fallback;
+}
+
+function renderAutomationScripts() {
+  const runnable = automationTarget.available === true;
+  if (!automationSelectedScriptId && automationScripts.length > 0) {
+    automationSelectedScriptId = automationScripts[0].id;
+  }
+  elements.automationList.innerHTML = automationScripts
+    .map(function (script) {
+      const status = script.status || { status: 'idle' };
+      const running = status.status === 'running' || status.status === 'stopping';
+      const errorCode = status.error && status.error.code;
+      const recovery = errorCode && AUTOMATION_ERRORS[errorCode]
+        ? '<div class="automation-error">' + escapeHtml(AUTOMATION_ERRORS[errorCode]) + '</div>'
+        : '';
+      const disabled = !running && !runnable ? ' disabled' : '';
+      return '<div class="automation-script-row" data-script-id="' + escapeHtml(script.id) + '">' +
+        '<div><strong>' + escapeHtml(script.name) + '</strong>' +
+        '<div class="automation-script-meta">' + escapeHtml(script.id) + ' · v' +
+        escapeHtml(script.version) + ' · API v' + escapeHtml(script.apiVersion) + '</div>' +
+        '<div>' + escapeHtml(AUTOMATION_STATUS_TEXT[status.status] || AUTOMATION_STATUS_TEXT.idle) +
+        '</div>' + recovery + '</div>' +
+        '<button class="' + (running ? 'danger-button' : 'primary-button') +
+        ' compact" data-automation-action="' + (running ? 'stop' : 'start') +
+        '" data-run-id="' + escapeHtml(status.runId || '') + '"' + disabled + '>' +
+        (running ? '停止' : '启动') + '</button></div>';
+    })
+    .join('');
+  elements.automationRecord.disabled = !runnable || !automationSelectedScriptId;
+  elements.automationClear.disabled = !automationSelectedScriptId;
+}
+
+async function openAutomationModal(profileId) {
+  closeAllDropdowns();
+  automationProfileId = profileId;
+  automationSelectedScriptId = null;
+  automationCaptureId = null;
+  elements.automationCapture.hidden = true;
+  elements.automationCapture.removeAttribute('src');
+  const result = await ipcRenderer.invoke('automation:list', { profileId: profileId });
+  if (!result || !result.ok) {
+    showToast(automationErrorMessage(result, '无法读取内置脚本'), 'error');
+    return;
+  }
+  automationScripts = Array.isArray(result.scripts) ? result.scripts : [];
+  automationTarget = result.target || { available: false, gameReady: false };
+  renderAutomationScripts();
+  elements.automationModal.classList.add('show');
+  elements.automationModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeAutomationModal() {
+  elements.automationModal.classList.remove('show');
+  elements.automationModal.setAttribute('aria-hidden', 'true');
+  elements.automationCapture.hidden = true;
+  elements.automationCapture.removeAttribute('src');
+  automationCaptureId = null;
+  automationProfileId = null;
+  automationTarget = { available: false, gameReady: false };
 }
 
 function openProfileModal(profile) {
@@ -225,9 +330,88 @@ elements.grid.addEventListener('click', function (event) {
   if (action === 'refresh') ipcRenderer.send('profile:refresh', profileId);
   if (action === 'close') ipcRenderer.send('profile:close', profileId);
   if (action === 'edit') openProfileModal(profileById(profileId));
+  if (action === 'automation') openAutomationModal(profileId);
   if (action === 'delete' && window.confirm('删除这个 Profile 及其本地独立会话数据？')) {
     ipcRenderer.send('profile:delete', profileId);
   }
+});
+
+elements.automationList.addEventListener('click', async function (event) {
+  const button = event.target.closest('button[data-automation-action]');
+  const row = event.target.closest('[data-script-id]');
+  if (!button || !row) return;
+  const scriptId = row.getAttribute('data-script-id');
+  automationSelectedScriptId = scriptId;
+  const action = button.getAttribute('data-automation-action');
+  const result = action === 'start'
+    ? await ipcRenderer.invoke('automation:start', {
+      profileId: automationProfileId,
+      scriptId: scriptId
+    })
+    : await ipcRenderer.invoke('automation:stop', {
+      profileId: automationProfileId,
+      runId: button.getAttribute('data-run-id')
+    });
+  if (!result || !result.ok) {
+    showToast(automationErrorMessage(result, '自动化操作失败'), 'error');
+  }
+});
+
+elements.automationRecord.addEventListener('click', async function () {
+  if (!automationSelectedScriptId || !automationTarget.available) {
+    showToast('请先打开游戏窗口。', 'error');
+    return;
+  }
+  const result = await ipcRenderer.invoke('automation:recording:begin', {
+    profileId: automationProfileId,
+    scriptId: automationSelectedScriptId
+  });
+  if (!result || !result.ok) {
+    showToast(automationErrorMessage(result, '截图失败'), 'error');
+    return;
+  }
+  automationCaptureId = result.capture.captureId;
+  elements.automationCapture.src = result.capture.pngDataUrl;
+  elements.automationCapture.hidden = false;
+});
+
+elements.automationCapture.addEventListener('click', async function (event) {
+  if (!automationCaptureId || !automationSelectedScriptId) return;
+  const rect = elements.automationCapture.getBoundingClientRect();
+  if (!(rect.width > 0) || !(rect.height > 0)) return;
+  const imageX = (event.clientX - rect.left) * elements.automationCapture.naturalWidth / rect.width;
+  const imageY = (event.clientY - rect.top) * elements.automationCapture.naturalHeight / rect.height;
+  const result = await ipcRenderer.invoke('automation:recording:add-point', {
+    profileId: automationProfileId,
+    scriptId: automationSelectedScriptId,
+    captureId: automationCaptureId,
+    imageX: imageX,
+    imageY: imageY
+  });
+  showToast(result && result.ok ? '坐标已记录' : automationErrorMessage(result, '坐标记录失败'),
+    result && result.ok ? 'ok' : 'error');
+});
+
+elements.automationCapture.addEventListener('error', function () {
+  if (!automationCaptureId) return;
+  elements.automationCapture.hidden = true;
+  automationCaptureId = null;
+  showToast('截图预览加载失败，请重试。', 'error');
+});
+
+elements.automationClear.addEventListener('click', async function () {
+  if (!automationSelectedScriptId) return;
+  const result = await ipcRenderer.invoke('automation:coordinates:clear', {
+    profileId: automationProfileId,
+    scriptId: automationSelectedScriptId
+  });
+  showToast(result && result.ok ? '坐标已清空' : automationErrorMessage(result, '清空失败'),
+    result && result.ok ? 'ok' : 'error');
+});
+
+['closeAutomationModalBtn', 'automationCloseBtn'].forEach(function (id) {
+  const button = document.getElementById(id);
+  if (button) button.addEventListener('click', closeAutomationModal);
 });
 
 // Global click handler to close dropdowns when clicking outside
@@ -300,6 +484,9 @@ document.addEventListener('keydown', function (event) {
     if (elements.modal.classList.contains('show')) {
       closeProfileModal();
     }
+    if (elements.automationModal.classList.contains('show')) {
+      closeAutomationModal();
+    }
   }
 });
 
@@ -311,7 +498,21 @@ ipcRenderer.on('profiles:updated', function (_event, list) {
 ipcRenderer.on('game-window:status', function (_event, state) {
   if (!state || typeof state.profileId !== 'string') return;
   openWindows[state.profileId] = state.open === true;
+  if (state.profileId === automationProfileId) {
+    automationTarget.available = state.open === true;
+    if (!automationTarget.available) automationTarget.gameReady = false;
+    renderAutomationScripts();
+  }
   renderProfiles();
+});
+
+ipcRenderer.on('launch-flow:status', function (_event, state) {
+  if (!state || state.profileId !== automationProfileId) return;
+  automationTarget = {
+    available: automationTarget.available === true,
+    gameReady: state.stage === 'GAME_READY'
+  };
+  renderAutomationScripts();
 });
 
 ipcRenderer.on('profile:toast', function (_event, message) {
@@ -322,6 +523,28 @@ ipcRenderer.on('profile:toast', function (_event, message) {
 ipcRenderer.on('memory:update', function (_event, stats) {
   const total = stats && typeof stats.totalMB === 'number' ? Math.round(stats.totalMB) : null;
   elements.memory.textContent = total === null ? '内存状态暂不可用' : '约使用 ' + total + ' MB';
+});
+
+ipcRenderer.on('automation:status', function (_event, status) {
+  if (!status || status.profileId !== automationProfileId) return;
+  automationScripts = automationScripts.map(function (script) {
+    if (script.id === status.scriptId) {
+      return Object.assign({}, script, { status: status });
+    }
+    return script;
+  });
+  renderAutomationScripts();
+});
+
+ipcRenderer.on('automation:statuses', function (_event, payload) {
+  const statuses = payload && Array.isArray(payload.statuses) ? payload.statuses : [];
+  automationScripts = automationScripts.map(function (script) {
+    const found = statuses.find(function (status) {
+      return status.profileId === automationProfileId && status.scriptId === script.id;
+    });
+    return found ? Object.assign({}, script, { status: found }) : script;
+  });
+  if (automationProfileId) renderAutomationScripts();
 });
 
 ipcRenderer.send('manager:ready');

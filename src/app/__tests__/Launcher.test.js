@@ -36,7 +36,8 @@ jest.mock('../TencentLaunchFlow', () => ({
     handleRendererGone: jest.fn(),
     handleUnresponsive: jest.fn(),
     handleResponsive: jest.fn(),
-    requestRecovery: jest.fn(() => true)
+    requestRecovery: jest.fn(() => true),
+    getSnapshot: jest.fn(() => ({ stage: 'GAME_READY' }))
   }))
 }));
 
@@ -86,6 +87,7 @@ function mockBrowserWindow() {
     on: jest.fn(),
     once: jest.fn(),
     isDestroyed: jest.fn(() => false),
+    getContentSize: jest.fn(() => [1280, 720]),
     show: jest.fn(),
     focus: jest.fn(),
     close: jest.fn(),
@@ -182,6 +184,10 @@ describe('Launcher.js', () => {
     });
     test('exporta requestRecoveryForSender como função', () => {
       expect(typeof Launcher.requestRecoveryForSender).toBe('function');
+    });
+    test('exports narrow automation target and close observer adapters', () => {
+      expect(typeof Launcher.getAutomationTarget).toBe('function');
+      expect(typeof Launcher.onAutomationTargetClosed).toBe('function');
     });
   });
 
@@ -401,6 +407,33 @@ describe('Launcher.js', () => {
       launchAndTrack('p_001');
       const wc = Launcher.getWebContents('p_001');
       expect(wc).toBe(bwMock.wc);
+    });
+  });
+
+  describe('automation target adapter', () => {
+    test('returns only the owned window target, current size, and GAME_READY state', () => {
+      launchAndTrack('p_001');
+      const target = Launcher.getAutomationTarget('p_001');
+      expect(target).toEqual({
+        window: bwMock.win,
+        webContents: bwMock.wc,
+        gameReady: true,
+        contentSize: { width: 1280, height: 720 }
+      });
+      expect(target).not.toHaveProperty('session');
+      expect(target).not.toHaveProperty('partitionName');
+      expect(target).not.toHaveProperty('launchFlow');
+      expect(Launcher.getAutomationTarget('missing')).toBe(null);
+    });
+
+    test('notifies observers only for the closed Profile and supports unsubscribe', () => {
+      const observer = jest.fn();
+      const unsubscribe = Launcher.onAutomationTargetClosed(observer);
+      launchAndTrack('p_001');
+      onClosedCallbacks['p_001']();
+      expect(observer).toHaveBeenCalledWith('p_001');
+      expect(unsubscribe()).toBe(true);
+      expect(unsubscribe()).toBe(false);
     });
   });
 

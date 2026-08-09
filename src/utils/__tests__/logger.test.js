@@ -199,4 +199,88 @@ describe('logger.js', () => {
     logger.info('玩家甲');
     expect(electronLog.info).toHaveBeenCalledWith('[INFO] [Launcher] 玩家甲');
   });
+
+  describe('automation logging boundary', () => {
+    test('allows only safe automation correlation scalar fields', () => {
+      logger.info('automation event', {
+        runId: 'run-1',
+        profileId: 'p_aaaaaaaa',
+        scriptId: 'demo-click',
+        packageName: 'demo-click-package',
+        status: 'running',
+        action: 'click',
+        durationMs: 12,
+        retryCount: 1,
+        screenshot: Buffer.from('secret'),
+        config: { token: 'secret' },
+        Cookie: 'skey=secret'
+      });
+      expect(lastLogCall('info')[1]).toEqual({
+        runId: 'run-1',
+        profileId: 'p_aaaaaaaa',
+        scriptId: 'demo-click',
+        packageName: 'demo-click-package',
+        status: 'running',
+        action: 'click',
+        durationMs: 12,
+        retryCount: 1
+      });
+      expect(serializedLastCall('info')).not.toContain('secret');
+    });
+
+    test('creates a bound logger whose correlation fields cannot be overridden', () => {
+      const bound = logger.createBoundLogger({
+        runId: 'run-1',
+        profileId: 'p_aaaaaaaa',
+        scriptId: 'demo-click'
+      });
+      bound.warn('script event', {
+        runId: 'forged',
+        profileId: 'forged',
+        scriptId: 'forged',
+        action: 'wait'
+      });
+      expect(lastLogCall('warn')[1]).toEqual({
+        runId: 'run-1',
+        profileId: 'p_aaaaaaaa',
+        scriptId: 'demo-click',
+        action: 'wait'
+      });
+      expect(Object.keys(bound).sort()).toEqual(['debug', 'error', 'info', 'warn']);
+      expect(Object.isFrozen(bound)).toBe(true);
+    });
+
+    test('does not interrupt a script when the underlying logger fails', () => {
+      electronLog.error.mockImplementationOnce(function () {
+        throw new Error('logger failed');
+      });
+      const bound = logger.createBoundLogger({ runId: 'run-1' });
+      expect(function () {
+        bound.error('script event', { action: 'click' });
+      }).not.toThrow();
+    });
+
+    test('allows only scalar registry summary counts and safe package identity fields', () => {
+      logger.info('automation registry summary', {
+        action: 'registry-scan',
+        registeredCount: 1,
+        issueCount: 2,
+        packageName: 'broken-package',
+        scriptId: 'broken-script',
+        errorCode: 'manifest-invalid',
+        manifest: '{"ticket":"secret"}',
+        entryPath: 'C:\\secret.js',
+        stack: 'secret'
+      });
+      expect(lastLogCall('info')[1]).toEqual({
+        action: 'registry-scan',
+        registeredCount: 1,
+        issueCount: 2,
+        packageName: 'broken-package',
+        scriptId: 'broken-script',
+        errorCode: 'manifest-invalid'
+      });
+      expect(serializedLastCall('info')).not.toContain('secret');
+    });
+  });
 });

@@ -112,6 +112,19 @@
 - **Prohibited uses**: [credential capture, authentication bypass, replay, cross-profile access]
 - **Retention and cleanup**: [what must never be persisted and when temporary data is discarded]
 
+### Capability Availability Boundaries *(include for generic automation/window capabilities)*
+
+<!--
+  Define the minimum objective resource conditions for each generic capability separately from
+  script-specific page readiness. State whether page roles, flow stages, DOM semantics, or
+  GAME_READY-like signals are diagnostic only or are proven safety prerequisites. Generic capture,
+  recording, and script start must not inherit one script's page policy as a global hard gate.
+-->
+
+- **Framework prerequisites**: [Profile/window/webContents/content/data/lifecycle validity]
+- **Script strategy**: [page/image/state conditions evaluated by the script through restricted APIs]
+- **Diagnostic-only signals**: [flow or page readiness signals that do not disable generic capabilities]
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]

@@ -373,4 +373,147 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
     );
     expect(visibleSource).toMatch(/[\u4e00-\u9fff]/);
   });
+
+  describe('automation IPC v1', () => {
+    const sender = { id: 91 };
+
+    function eventForManager() {
+      ManagerWindow.getManagerWindow.mockReturnValue({
+        isDestroyed: function () { return false; },
+        webContents: sender
+      });
+      return { sender: sender };
+    }
+
+    function installAutomation() {
+      const automation = {
+        list: jest.fn(function () { return []; }),
+        windowState: jest.fn(function () { return { available: true, gameReady: true }; }),
+        start: jest.fn(function (profileId, scriptId) {
+          return { ok: true, status: { runId: 'run-1', profileId: profileId, scriptId: scriptId, status: 'running', startedAt: 1, endedAt: null, error: null } };
+        }),
+        status: jest.fn(function (profileId, scriptId) {
+          return { runId: null, profileId: profileId, scriptId: scriptId, status: 'idle', startedAt: null, endedAt: null, error: null };
+        }),
+        stop: jest.fn(function (profileId, runId) {
+          return { ok: true, status: { runId: runId, profileId: profileId, scriptId: 'demo-click', status: 'stopping', startedAt: 1, endedAt: null, error: null } };
+        }),
+        getCoordinates: jest.fn(function () { return []; }),
+        beginRecording: jest.fn(async function () { return { capture: { captureId: 'capture-1', pngDataUrl: 'data:image/png;base64,eA==', imageSize: { width: 1, height: 1 }, contentSize: { width: 1, height: 1 }, expiresAt: 2 }, points: [] }; }),
+        addPoint: jest.fn(function () { return { point: { order: 1, normalizedX: 0, normalizedY: 0 }, points: [{ order: 1, normalizedX: 0, normalizedY: 0 }] }; }),
+        clearCoordinates: jest.fn(function () { return []; })
+      };
+      IpcRouter.registerIpcHandlers({ automation: automation });
+      return automation;
+    }
+
+    test('registers every generic automation command and rejects a non-manager sender', async () => {
+      installAutomation();
+      [
+        'automation:list',
+        'automation:status',
+        'automation:start',
+        'automation:stop',
+        'automation:coordinates:get',
+        'automation:recording:begin',
+        'automation:recording:add-point',
+        'automation:coordinates:clear'
+      ].forEach(function (channel) {
+        expect(handleHandlers[channel]).toBeDefined();
+      });
+      ManagerWindow.getManagerWindow.mockReturnValue({
+        isDestroyed: function () { return false; },
+        webContents: { id: 92 }
+      });
+      expect(
+        await handleHandlers['automation:list']({ sender: sender }, { profileId: 'p_001' })
+      ).toEqual({ ok: false, error: 'invalid-sender' });
+    });
+
+    test('validates IDs and returns only contract DTOs for list/start/recording', async () => {
+      const automation = installAutomation();
+      store.get.mockImplementation(function (id) {
+        return id === 'p_001' ? { id: 'p_001', name: 'Safe' } : null;
+      });
+      const event = eventForManager();
+      expect(await handleHandlers['automation:list'](event, { profileId: 'p_001' })).toEqual({
+        ok: true,
+        target: { available: true, gameReady: true },
+        scripts: []
+      });
+      expect(
+        await handleHandlers['automation:start'](event, {
+          profileId: 'p_001', scriptId: '../entry.js', entryPath: 'C:\\secret.js'
+        })
+      ).toEqual({ ok: false, error: 'invalid-arguments' });
+      expect(
+        await handleHandlers['automation:start'](event, {
+          profileId: 'p_001', scriptId: 'demo-click'
+        })
+      ).toEqual({ ok: true, status: expect.objectContaining({ status: 'running' }) });
+      const recording = await handleHandlers['automation:recording:begin'](event, {
+        profileId: 'p_001', scriptId: 'demo-click'
+      });
+      expect(recording.ok).toBe(true);
+      expect(automation.beginRecording).toHaveBeenCalledWith('p_001', 'demo-click', '91');
+      expect(JSON.stringify(recording)).not.toMatch(/entryPath|webContents|session|cookie/i);
+    });
+
+    test('maps domain failures to a stable envelope without raw error text', async () => {
+      const automation = installAutomation();
+      store.get.mockReturnValue({ id: 'p_001' });
+      automation.getCoordinates.mockImplementation(function () {
+        const error = new Error('cookie=secret');
+        error.code = 'coordinates-invalid';
+        throw error;
+      });
+      expect(
+        await handleHandlers['automation:coordinates:get'](eventForManager(), {
+          profileId: 'p_001', scriptId: 'demo-click'
+        })
+      ).toEqual({ ok: false, error: 'coordinates-invalid' });
+    });
+
+    test('queries and stops an exact runId while canonicalizing the status error summary', async () => {
+      const automation = installAutomation();
+      store.get.mockReturnValue({ id: 'p_001' });
+      automation.status.mockReturnValue({
+        runId: 'run-timeout-1',
+        profileId: 'p_001',
+        scriptId: 'demo-click',
+        status: 'failed',
+        startedAt: 1,
+        endedAt: 2,
+        error: { code: 'run-timeout', safeMessage: 'cookie=secret', stack: 'C:\\secret.js' }
+      });
+      const event = eventForManager();
+      expect(await handleHandlers['automation:status'](event, {
+        profileId: 'p_001', scriptId: 'demo-click'
+      })).toEqual({
+        ok: true,
+        status: {
+          runId: 'run-timeout-1', profileId: 'p_001', scriptId: 'demo-click',
+          status: 'failed', startedAt: 1, endedAt: 2,
+          error: { code: 'run-timeout', safeMessage: '脚本运行超过时限' }
+        }
+      });
+      const stopped = await handleHandlers['automation:stop'](event, {
+        profileId: 'p_001', runId: 'run-1'
+      });
+      expect(stopped).toEqual({ ok: true, status: expect.objectContaining({
+        profileId: 'p_001', runId: 'run-1', status: 'stopping'
+      }) });
+      expect(automation.stop).toHaveBeenCalledWith('p_001', 'run-1');
+      expect(JSON.stringify(stopped)).not.toContain('secret');
+    });
+
+    test('returns run-not-active for a stale runId and does not expose service exceptions', async () => {
+      const automation = installAutomation();
+      store.get.mockReturnValue({ id: 'p_001' });
+      automation.stop.mockReturnValue({ ok: false, error: 'run-not-active' });
+      expect(await handleHandlers['automation:stop'](eventForManager(), {
+        profileId: 'p_001', runId: 'stale-run'
+      })).toEqual({ ok: false, error: 'run-not-active' });
+    });
+  });
 });

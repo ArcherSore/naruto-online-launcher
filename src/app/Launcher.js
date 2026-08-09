@@ -18,6 +18,7 @@ const urlConfig = require('../config/urls');
 
 const WINDOW_TITLE = 'Naruto Online';
 const gameWindows = new Map();
+const automationTargetClosedListeners = new Set();
 let activeRecoveryProfileId = null;
 
 function getGameUrl() {
@@ -169,6 +170,13 @@ function launchProfile(profileId, onOpened, onClosed) {
         logger.debug('Auditor: destroy failed - ' + error.message);
       }
       gameWindows.delete(profileId);
+      automationTargetClosedListeners.forEach(function (listener) {
+        try {
+          listener(profileId);
+        } catch (_) {
+          // One automation observer must not interrupt window cleanup.
+        }
+      });
       if (activeRecoveryProfileId === profileId) activeRecoveryProfileId = null;
       if (onClosed) onClosed();
     }
@@ -224,6 +232,57 @@ function getWebContents(profileId) {
   return entry.window.webContents;
 }
 
+function getAutomationTarget(profileId) {
+  const entry = gameWindows.get(profileId);
+  if (
+    !entry ||
+    !entry.window ||
+    entry.window.isDestroyed() ||
+    !entry.window.webContents ||
+    (typeof entry.window.webContents.isDestroyed === 'function' &&
+      entry.window.webContents.isDestroyed())
+  ) {
+    return null;
+  }
+  let rawSize = null;
+  try {
+    rawSize = entry.window.getContentSize();
+  } catch (_) {
+    rawSize = null;
+  }
+  const contentSize =
+    Array.isArray(rawSize) &&
+    Number.isInteger(rawSize[0]) &&
+    rawSize[0] > 0 &&
+    Number.isInteger(rawSize[1]) &&
+    rawSize[1] > 0
+      ? Object.freeze({ width: rawSize[0], height: rawSize[1] })
+      : null;
+  let snapshot = null;
+  try {
+    snapshot =
+      entry.launchFlow && typeof entry.launchFlow.getSnapshot === 'function'
+        ? entry.launchFlow.getSnapshot()
+        : null;
+  } catch (_) {
+    snapshot = null;
+  }
+  return Object.freeze({
+    window: entry.window,
+    webContents: entry.window.webContents,
+    gameReady: !!(snapshot && snapshot.stage === 'GAME_READY'),
+    contentSize: contentSize
+  });
+}
+
+function onAutomationTargetClosed(listener) {
+  if (typeof listener !== 'function') return function () { return false; };
+  automationTargetClosedListeners.add(listener);
+  return function () {
+    return automationTargetClosedListeners.delete(listener);
+  };
+}
+
 function requestRecoveryForSender(sender, action) {
   let matchedProfileId = null;
   let matchedEntry = null;
@@ -265,6 +324,8 @@ module.exports = {
   refreshProfile: refreshProfile,
   isProfileOpen: isProfileOpen,
   getWebContents: getWebContents,
+  getAutomationTarget: getAutomationTarget,
+  onAutomationTargetClosed: onAutomationTargetClosed,
   requestRecoveryForSender: requestRecoveryForSender,
   hasOpenWindows: hasOpenWindows,
   getGameUrl: getGameUrl

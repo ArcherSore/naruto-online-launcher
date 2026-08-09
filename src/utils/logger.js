@@ -25,8 +25,16 @@ const ICONS = Object.freeze({
 });
 
 const SAFE_LOG_FIELDS = Object.freeze([
+  'runId',
   'profileId',
   'profileLabel',
+  'scriptId',
+  'packageName',
+  'registeredCount',
+  'issueCount',
+  'status',
+  'action',
+  'durationMs',
   'stage',
   'event',
   'role',
@@ -114,7 +122,7 @@ function sanitizeFields(data) {
     }
 
     const value = data[field];
-    if (typeof value === 'string') safe[field] = sanitizeMessage(value);
+    if (typeof value === 'string') safe[field] = sanitizeMessage(value).slice(0, 512);
     else if (typeof value === 'number' || typeof value === 'boolean' || value === null) {
       safe[field] = value;
     }
@@ -129,8 +137,39 @@ function formatMessage(level, msg) {
 
 function write(level, msg, data) {
   const formatted = formatMessage(level, msg);
-  if (data !== undefined) log[level](formatted, sanitizeFields(data));
-  else log[level](formatted);
+  try {
+    if (data !== undefined) log[level](formatted, sanitizeFields(data));
+    else log[level](formatted);
+  } catch (_) {
+    // Logging must never interrupt launcher or trusted script execution.
+  }
+}
+
+function createBoundLogger(boundFields) {
+  const safeBound = sanitizeFields(boundFields || {}) || {};
+
+  function boundWrite(level, event, fields) {
+    const safeFields = sanitizeFields(fields || {}) || {};
+    Object.keys(safeBound).forEach(function (key) {
+      safeFields[key] = safeBound[key];
+    });
+    write(level, event, safeFields);
+  }
+
+  return Object.freeze({
+    debug: function (event, fields) {
+      boundWrite('debug', event, fields);
+    },
+    info: function (event, fields) {
+      boundWrite('info', event, fields);
+    },
+    warn: function (event, fields) {
+      boundWrite('warn', event, fields);
+    },
+    error: function (event, fields) {
+      boundWrite('error', event, fields);
+    }
+  });
 }
 
 const logger = {
@@ -148,6 +187,7 @@ const logger = {
   },
   sanitizeMessage: sanitizeMessage,
   sanitizeFields: sanitizeFields,
+  createBoundLogger: createBoundLogger,
   SAFE_LOG_FIELDS: SAFE_LOG_FIELDS
 };
 
