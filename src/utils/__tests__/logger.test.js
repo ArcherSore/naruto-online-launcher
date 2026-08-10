@@ -201,6 +201,45 @@ describe('logger.js', () => {
   });
 
   describe('automation logging boundary', () => {
+    test('allows only scalar Vision diagnostics and rejects image, path, and identity data', () => {
+      logger.info('vision attempt', {
+        runId: 'run-1',
+        profileId: 'p_aaaaaaaa',
+        scriptId: 'demo-click',
+        templateId: 'sample-target',
+        stage: 'match',
+        attempt: 2,
+        durationMs: 7,
+        errorCode: 'vision-timeout',
+        imageWidth: 1920,
+        imageHeight: 1080,
+        templateWidth: 10,
+        templateHeight: 4,
+        path: 'C:\\secret\\sample-target.png',
+        png: Buffer.from('secret'),
+        bitmap: Buffer.from('secret'),
+        rawError: 'nativeImage cookie=secret',
+        url: 'https://game.invalid/?ticket=secret',
+        Cookie: 'secret',
+        Session: 'secret'
+      });
+      expect(lastLogCall('info')[1]).toEqual({
+        runId: 'run-1',
+        profileId: 'p_aaaaaaaa',
+        scriptId: 'demo-click',
+        templateId: 'sample-target',
+        stage: 'match',
+        attempt: 2,
+        durationMs: 7,
+        errorCode: 'vision-timeout',
+        imageWidth: 1920,
+        imageHeight: 1080,
+        templateWidth: 10,
+        templateHeight: 4
+      });
+      expect(serializedLastCall('info')).not.toContain('secret');
+    });
+
     test('allows only safe automation correlation scalar fields', () => {
       logger.info('automation event', {
         runId: 'run-1',

@@ -5,7 +5,8 @@ const path = require('path');
 
 const root = path.join(__dirname, '..', '..', '..', 'automation-scripts');
 const forbiddenModules = new Set([
-  'electron', 'child_process', 'cluster', 'dgram', 'http', 'https', 'net', 'tls', 'worker_threads'
+  'electron', 'child_process', 'cluster', 'dgram', 'fs', 'http', 'https', 'net', 'path', 'tls',
+  'worker_threads'
 ]);
 
 function javascriptFiles(directory) {
@@ -56,5 +57,14 @@ describe('trusted built-in script review boundary', () => {
       'utf8'
     );
     expect(contract).toContain('not represented as an adversarial runtime sandbox');
+  });
+
+  test('keeps profileId read-only and requires visual assets to use context.vision', () => {
+    const guide = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+    expect(guide).toContain('context.profileId');
+    expect(guide).toContain('context.vision');
+    expect(guide).toContain('assets/vision');
+    expect(guide).toMatch(/不得.*(?:覆盖|伪造).*profileId/);
+    expect(guide).toMatch(/assets\/vision.*只能.*Vision API/);
   });
 });

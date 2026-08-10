@@ -401,6 +401,18 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
         getCoordinates: jest.fn(function () { return []; }),
         beginRecording: jest.fn(async function () { return { capture: { captureId: 'capture-1', pngDataUrl: 'data:image/png;base64,eA==', imageSize: { width: 1, height: 1 }, contentSize: { width: 1, height: 1 }, expiresAt: 2 }, points: [] }; }),
         addPoint: jest.fn(function () { return { point: { order: 1, normalizedX: 0, normalizedY: 0 }, points: [{ order: 1, normalizedX: 0, normalizedY: 0 }] }; }),
+        listVisionTemplates: jest.fn(function () { return ['target']; }),
+        testVision: jest.fn(async function () {
+          return {
+            found: true,
+            match: {
+              rect: { x: 2, y: 3, width: 4, height: 5 },
+              center: { normalizedX: 0.4, normalizedY: 0.5 },
+              confidence: 0.99
+            },
+            clicked: true
+          };
+        }),
         clearCoordinates: jest.fn(function () { return []; })
       };
       IpcRouter.registerIpcHandlers({ automation: automation });
@@ -417,6 +429,8 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
         'automation:coordinates:get',
         'automation:recording:begin',
         'automation:recording:add-point',
+        'automation:vision:templates',
+        'automation:vision:test',
         'automation:coordinates:clear'
       ].forEach(function (channel) {
         expect(handleHandlers[channel]).toBeDefined();
@@ -457,6 +471,49 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
       expect(recording.ok).toBe(true);
       expect(automation.beginRecording).toHaveBeenCalledWith('p_001', 'demo-click', '91');
       expect(JSON.stringify(recording)).not.toMatch(/entryPath|webContents|session|cookie/i);
+    });
+
+    test('validates and returns safe in-launcher Vision test DTOs', async () => {
+      const automation = installAutomation();
+      store.get.mockReturnValue({ id: 'p_001' });
+      const event = eventForManager();
+
+      expect(await handleHandlers['automation:vision:templates'](event, {
+        profileId: 'p_001', scriptId: 'demo-click'
+      })).toEqual({ ok: true, templates: ['target'] });
+      const request = {
+        profileId: 'p_001',
+        scriptId: 'demo-click',
+        templateId: 'target',
+        roi: { x: 10, y: 20, width: 30, height: 40 },
+        threshold: 0.95,
+        click: true
+      };
+      expect(await handleHandlers['automation:vision:test'](event, request)).toEqual({
+        ok: true,
+        found: true,
+        match: {
+          rect: { x: 2, y: 3, width: 4, height: 5 },
+          center: { normalizedX: 0.4, normalizedY: 0.5 },
+          confidence: 0.99
+        },
+        clicked: true
+      });
+      expect(automation.testVision).toHaveBeenCalledWith('p_001', 'demo-click', {
+        templateId: 'target',
+        roi: { x: 10, y: 20, width: 30, height: 40 },
+        threshold: 0.95,
+        click: true
+      });
+      expect(await handleHandlers['automation:vision:test'](event, Object.assign({}, request, {
+        templateId: '../target'
+      }))).toEqual({ ok: false, error: 'invalid-arguments' });
+      expect(await handleHandlers['automation:vision:test'](event, Object.assign({}, request, {
+        roi: { x: 10, y: 20, width: 0, height: 40 }
+      }))).toEqual({ ok: false, error: 'invalid-arguments' });
+      expect(await handleHandlers['automation:vision:test'](event, Object.assign({}, request, {
+        threshold: 1.1
+      }))).toEqual({ ok: false, error: 'invalid-arguments' });
     });
 
     test('maps domain failures to a stable envelope without raw error text', async () => {

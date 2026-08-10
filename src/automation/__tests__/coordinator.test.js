@@ -89,6 +89,25 @@ describe('profile automation coordinator', () => {
     expect(coordinator.owns(newer)).toBe(true);
     expect(coordinator.owns(other)).toBe(true);
   });
+
+  test('keeps a complete visual wait as one FIFO action while another Profile advances', async () => {
+    const coordinator = createCoordinator();
+    const first = coordinator.tryAcquire('p_aaaaaaaa', 'run-a').lease;
+    const second = coordinator.tryAcquire('p_bbbbbbbb', 'run-b').lease;
+    let releaseWait;
+    const order = [];
+    const wait = coordinator.enqueue(first, function () {
+      order.push('wait-start');
+      return new Promise(function (resolve) { releaseWait = resolve; });
+    });
+    const click = coordinator.enqueue(first, function () { order.push('click'); });
+    const otherProfile = coordinator.enqueue(second, function () { order.push('other-profile'); });
+    await otherProfile;
+    expect(order).toEqual(['wait-start', 'other-profile']);
+    releaseWait();
+    await Promise.all([wait, click]);
+    expect(order).toEqual(['wait-start', 'other-profile', 'click']);
+  });
 });
 
 function deferredAction() {

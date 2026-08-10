@@ -1,35 +1,7 @@
 'use strict';
 
 const { AutomationError } = require('./errors');
-
-function validSize(size) {
-  return !!(
-    size &&
-    Number.isInteger(size.width) &&
-    size.width > 0 &&
-    Number.isInteger(size.height) &&
-    size.height > 0
-  );
-}
-
-function mapNormalizedPoint(point, contentSize) {
-  if (
-    !point ||
-    !Number.isFinite(point.normalizedX) ||
-    !Number.isFinite(point.normalizedY) ||
-    point.normalizedX < 0 ||
-    point.normalizedX >= 1 ||
-    point.normalizedY < 0 ||
-    point.normalizedY >= 1
-  ) {
-    throw new AutomationError('coordinates-invalid');
-  }
-  if (!validSize(contentSize)) throw new AutomationError('window-unavailable');
-  return Object.freeze({
-    x: Math.min(contentSize.width - 1, Math.floor(point.normalizedX * contentSize.width)),
-    y: Math.min(contentSize.height - 1, Math.floor(point.normalizedY * contentSize.height))
-  });
-}
+const { mapNormalizedPoint, validSize } = require('./coordinates');
 
 function createAutomationBackend(options) {
   const opts = options || {};
@@ -81,6 +53,31 @@ function createAutomationBackend(options) {
     const size = { width: raw && raw[0], height: raw && raw[1] };
     if (!validSize(size)) throw new AutomationError('window-unavailable');
     return Object.freeze(size);
+  }
+
+  function readCdpViewportSize(target) {
+    let raw;
+    try {
+      raw = target.window.getContentSize();
+    } catch (_) {
+      throw new AutomationError('window-unavailable');
+    }
+    const size = { width: raw && raw[0], height: raw && raw[1] };
+    if (!validSize(size)) throw new AutomationError('window-unavailable');
+    return Object.freeze(size);
+  }
+
+  function mapContentPointToCdp(contentPoint, contentSize, cdpViewportSize) {
+    if (
+      contentSize.width === cdpViewportSize.width &&
+      contentSize.height === cdpViewportSize.height
+    ) {
+      return contentPoint;
+    }
+    return Object.freeze({
+      x: ((contentPoint.x + 0.5) * cdpViewportSize.width) / contentSize.width,
+      y: ((contentPoint.y + 0.5) * cdpViewportSize.height) / contentSize.height
+    });
   }
 
   function getWindowState(profileId) {
@@ -142,7 +139,13 @@ function createAutomationBackend(options) {
 
   async function click(profileId, normalizedPoint) {
     const target = resolveTarget(profileId);
-    const point = mapNormalizedPoint(normalizedPoint, readContentSize(target));
+    const contentSize = readContentSize(target);
+    const contentPoint = mapNormalizedPoint(normalizedPoint, contentSize);
+    const cdpPoint = mapContentPointToCdp(
+      contentPoint,
+      contentSize,
+      readCdpViewportSize(target)
+    );
     const cdp = target.webContents.debugger;
     if (
       !cdp ||
@@ -192,12 +195,12 @@ function createAutomationBackend(options) {
           if (detached) throw new AutomationError('cdp-detached');
           await cdp.sendCommand(
             'Input.dispatchMouseEvent',
-            Object.assign({ x: point.x, y: point.y }, events[index])
+            Object.assign({ x: cdpPoint.x, y: cdpPoint.y }, events[index])
           );
         }
       })();
       await Promise.race([dispatch, timeout, unexpectedDetach]);
-      result = Object.freeze({ dispatchedAt: now(), contentPoint: point });
+      result = Object.freeze({ dispatchedAt: now(), contentPoint: contentPoint });
     } catch (error) {
       if (error instanceof AutomationError) {
         actionError = error;

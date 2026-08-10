@@ -1,7 +1,11 @@
 'use strict';
 
-const { ipcRenderer } = require('electron');
+const { clipboard, ipcRenderer } = require('electron');
 const { debounce } = require('../utils/throttle');
+const {
+  clientPointToImage,
+  createVisionSelection
+} = require('./automation-selection');
 
 let profiles = [];
 let editingProfileId = null;
@@ -11,6 +15,12 @@ let automationScripts = [];
 let automationCaptureId = null;
 let automationSelectedScriptId = null;
 let automationTarget = { available: false, gameReady: false };
+let automationCaptureMode = 'point';
+let automationCaptureMeta = null;
+let automationSelectionStart = null;
+let automationSelection = null;
+let automationVisionTemplates = [];
+let automationVisionBusy = false;
 
 const elements = {
   grid: document.getElementById('profileGrid'),
@@ -33,6 +43,20 @@ const elements = {
   automationModal: document.getElementById('automationModal'),
   automationList: document.getElementById('automationScriptList'),
   automationCapture: document.getElementById('automationCapture'),
+  automationCaptureStage: document.getElementById('automationCaptureStage'),
+  automationCaptureHint: document.getElementById('automationCaptureHint'),
+  automationSelectionOverlay: document.getElementById('automationSelectionOverlay'),
+  automationMatchOverlay: document.getElementById('automationMatchOverlay'),
+  automationVisionResult: document.getElementById('automationVisionResult'),
+  automationVisionRoiText: document.getElementById('automationVisionRoiText'),
+  automationVisionCenterText: document.getElementById('automationVisionCenterText'),
+  automationVisionTemplateId: document.getElementById('automationVisionTemplateId'),
+  automationVisionThreshold: document.getElementById('automationVisionThreshold'),
+  automationVisionMatchText: document.getElementById('automationVisionMatchText'),
+  automationVisionMatch: document.getElementById('automationVisionMatchBtn'),
+  automationVisionMatchClick: document.getElementById('automationVisionMatchClickBtn'),
+  automationVisionCopy: document.getElementById('automationVisionCopyBtn'),
+  automationVisionSelect: document.getElementById('automationVisionSelectBtn'),
   automationRecord: document.getElementById('automationRecordBtn'),
   automationClear: document.getElementById('automationClearBtn')
 };
@@ -55,6 +79,13 @@ const AUTOMATION_ERRORS = {
   'script-not-found': '内置脚本不可用，请刷新列表。',
   'run-not-active': '自动化已经停止。',
   'run-cancelled': '脚本已取消。',
+  'vision-input-invalid': 'Vision 参数无效，请重新框选 ROI。',
+  'vision-template-id-invalid': 'Vision 模板标识无效。',
+  'vision-template-not-found': '未找到当前脚本的 Vision 模板。',
+  'vision-template-read-failed': 'Vision 模板读取失败。',
+  'vision-template-invalid': 'Vision 模板不是有效 PNG。',
+  'vision-template-too-large': 'Vision 模板大于当前 ROI。',
+  'vision-timeout': '等待 Vision 条件超时。',
   'script-failed': '内置脚本执行失败，请查看脱敏日志。'
 };
 
@@ -178,6 +209,207 @@ function automationErrorMessage(result, fallback) {
   return AUTOMATION_ERRORS[code] || fallback;
 }
 
+function resetAutomationSelection() {
+  automationSelectionStart = null;
+  automationSelection = null;
+  elements.automationSelectionOverlay.hidden = true;
+  elements.automationSelectionOverlay.removeAttribute('style');
+  elements.automationMatchOverlay.hidden = true;
+  elements.automationMatchOverlay.removeAttribute('style');
+  elements.automationVisionResult.hidden = true;
+  elements.automationVisionRoiText.textContent = '';
+  elements.automationVisionCenterText.textContent = '';
+  elements.automationVisionMatchText.textContent = '框选后可直接匹配当前游戏画面。';
+  updateVisionTestControls();
+}
+
+function resetAutomationCapture() {
+  automationCaptureId = null;
+  automationCaptureMode = 'point';
+  automationCaptureMeta = null;
+  resetAutomationSelection();
+  elements.automationCapture.hidden = true;
+  elements.automationCapture.removeAttribute('src');
+  elements.automationCaptureStage.hidden = true;
+  elements.automationCaptureHint.textContent =
+    '“截图录点”用于单击记录坐标；“Vision 框选”用于拖拽生成 ROI 并记录中心点。';
+}
+
+function imagePointFromMouse(event) {
+  const image = elements.automationCapture;
+  const rect = image.getBoundingClientRect();
+  return clientPointToImage(event, {
+    left: rect.left,
+    top: rect.top,
+    clientLeft: image.clientLeft,
+    clientTop: image.clientTop,
+    clientWidth: image.clientWidth,
+    clientHeight: image.clientHeight,
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight
+  });
+}
+
+function renderSelectionOverlay(selection) {
+  if (!selection) return;
+  renderImageRectOverlay(elements.automationSelectionOverlay, selection.roi);
+}
+
+function renderImageRectOverlay(element, rect) {
+  if (!element || !rect || !automationCaptureMeta) return;
+  const image = elements.automationCapture;
+  const left = image.offsetLeft + image.clientLeft +
+    (rect.x * image.clientWidth) / automationCaptureMeta.imageSize.width;
+  const top = image.offsetTop + image.clientTop +
+    (rect.y * image.clientHeight) / automationCaptureMeta.imageSize.height;
+  const width = (rect.width * image.clientWidth) / automationCaptureMeta.imageSize.width;
+  const height = (rect.height * image.clientHeight) / automationCaptureMeta.imageSize.height;
+  element.style.left = left + 'px';
+  element.style.top = top + 'px';
+  element.style.width = Math.max(1, width) + 'px';
+  element.style.height = Math.max(1, height) + 'px';
+  element.hidden = false;
+}
+
+function renderVisionSelection(selection, point) {
+  if (!selection) return;
+  const roi = selection.roi;
+  const normalized = point || selection.center;
+  elements.automationVisionRoiText.textContent =
+    roi.x + ',' + roi.y + ',' + roi.width + ',' + roi.height;
+  elements.automationVisionCenterText.textContent =
+    'pixel(' + selection.imageCenter.x + ',' + selection.imageCenter.y + ') · normalized(' +
+    normalized.normalizedX.toFixed(9) + ',' + normalized.normalizedY.toFixed(9) + ')';
+  elements.automationVisionResult.hidden = false;
+  updateVisionTestControls();
+}
+
+function renderVisionTemplates() {
+  const selected = elements.automationVisionTemplateId.value;
+  if (automationVisionTemplates.length === 0) {
+    elements.automationVisionTemplateId.innerHTML =
+      '<option value="">assets/vision/ 中没有可用 PNG</option>';
+  } else {
+    elements.automationVisionTemplateId.innerHTML = automationVisionTemplates.map(function (id) {
+      return '<option value="' + escapeHtml(id) + '">' + escapeHtml(id) + '.png</option>';
+    }).join('');
+    if (automationVisionTemplates.indexOf(selected) !== -1) {
+      elements.automationVisionTemplateId.value = selected;
+    }
+  }
+  updateVisionTestControls();
+}
+
+function updateVisionTestControls() {
+  const ready = !!(
+    automationSelection &&
+    automationTarget.available &&
+    automationSelectedScriptId &&
+    automationVisionTemplates.length > 0 &&
+    !automationVisionBusy
+  );
+  elements.automationVisionTemplateId.disabled = automationVisionBusy;
+  elements.automationVisionThreshold.disabled = automationVisionBusy;
+  elements.automationVisionMatch.disabled = !ready;
+  elements.automationVisionMatchClick.disabled = !ready;
+}
+
+async function loadVisionTemplates(showError) {
+  const scriptId = automationSelectedScriptId;
+  automationVisionTemplates = [];
+  renderVisionTemplates();
+  if (!automationProfileId || !scriptId) return;
+  const result = await ipcRenderer.invoke('automation:vision:templates', {
+    profileId: automationProfileId,
+    scriptId: scriptId
+  });
+  if (automationSelectedScriptId !== scriptId) return;
+  if (!result || !result.ok) {
+    if (showError) {
+      showToast(automationErrorMessage(result, '无法读取该脚本的 Vision 模板'), 'error');
+    }
+    return;
+  }
+  automationVisionTemplates = Array.isArray(result.templates) ? result.templates : [];
+  renderVisionTemplates();
+}
+
+async function runVisionTest(shouldClick) {
+  if (!automationSelection || automationVisionBusy) return;
+  const templateId = elements.automationVisionTemplateId.value;
+  const threshold = Number(elements.automationVisionThreshold.value);
+  if (!templateId || !Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+    showToast('请选择模板并填写 0 到 1 之间的阈值。', 'error');
+    return;
+  }
+  automationVisionBusy = true;
+  updateVisionTestControls();
+  elements.automationMatchOverlay.hidden = true;
+  elements.automationVisionMatchText.textContent = shouldClick ? '正在匹配，命中后将点击…' : '正在匹配…';
+  let result;
+  try {
+    result = await ipcRenderer.invoke('automation:vision:test', {
+      profileId: automationProfileId,
+      scriptId: automationSelectedScriptId,
+      templateId: templateId,
+      roi: automationSelection.roi,
+      threshold: threshold,
+      click: shouldClick
+    });
+  } finally {
+    automationVisionBusy = false;
+    updateVisionTestControls();
+  }
+  if (!result || !result.ok) {
+    elements.automationVisionMatchText.textContent = '测试失败。';
+    showToast(automationErrorMessage(result, 'Vision 测试失败'), 'error');
+    return;
+  }
+  if (!result.found || !result.match) {
+    elements.automationVisionMatchText.textContent = '未命中：请检查模板尺寸、ROI 或阈值。';
+    showToast('当前画面未匹配到模板。', 'info');
+    return;
+  }
+  renderImageRectOverlay(elements.automationMatchOverlay, result.match.rect);
+  const rect = result.match.rect;
+  elements.automationVisionMatchText.textContent =
+    '命中 rect(' + rect.x + ',' + rect.y + ',' + rect.width + ',' + rect.height + ') · ' +
+    'confidence ' + (result.match.confidence * 100).toFixed(2) + '%' +
+    (result.clicked ? ' · 已点击' : '');
+  showToast(result.clicked ? '匹配成功并已点击。' : '匹配成功。', 'ok');
+}
+
+async function beginAutomationCapture(mode) {
+  if (!automationSelectedScriptId || !automationTarget.available) {
+    showToast('请先打开游戏窗口。', 'error');
+    return;
+  }
+  const result = await ipcRenderer.invoke('automation:recording:begin', {
+    profileId: automationProfileId,
+    scriptId: automationSelectedScriptId
+  });
+  if (!result || !result.ok) {
+    showToast(automationErrorMessage(result, '截图失败'), 'error');
+    return;
+  }
+  automationCaptureId = result.capture.captureId;
+  automationCaptureMode = mode;
+  automationCaptureMeta = {
+    imageSize: result.capture.imageSize,
+    contentSize: result.capture.contentSize
+  };
+  resetAutomationSelection();
+  elements.automationCapture.src = result.capture.pngDataUrl;
+  elements.automationCapture.hidden = false;
+  elements.automationCaptureStage.hidden = false;
+  const sizes = result.capture.imageSize.width + '×' + result.capture.imageSize.height +
+    ' screenshot / ' + result.capture.contentSize.width + '×' +
+    result.capture.contentSize.height + ' content';
+  elements.automationCaptureHint.textContent = mode === 'vision-roi'
+    ? '在截图上拖拽框选 ROI；结束后自动记录选区中心。' + sizes
+    : '点击截图记录归一化坐标。' + sizes;
+}
+
 function renderAutomationScripts() {
   const runnable = automationTarget.available === true;
   if (!automationSelectedScriptId && automationScripts.length > 0) {
@@ -192,7 +424,9 @@ function renderAutomationScripts() {
         ? '<div class="automation-error">' + escapeHtml(AUTOMATION_ERRORS[errorCode]) + '</div>'
         : '';
       const disabled = !running && !runnable ? ' disabled' : '';
-      return '<div class="automation-script-row" data-script-id="' + escapeHtml(script.id) + '">' +
+      const selected = script.id === automationSelectedScriptId ? ' selected' : '';
+      return '<div class="automation-script-row' + selected + '" data-script-id="' +
+        escapeHtml(script.id) + '">' +
         '<div><strong>' + escapeHtml(script.name) + '</strong>' +
         '<div class="automation-script-meta">' + escapeHtml(script.id) + ' · v' +
         escapeHtml(script.version) + ' · API v' + escapeHtml(script.apiVersion) + '</div>' +
@@ -205,16 +439,16 @@ function renderAutomationScripts() {
     })
     .join('');
   elements.automationRecord.disabled = !runnable || !automationSelectedScriptId;
+  elements.automationVisionSelect.disabled = !runnable || !automationSelectedScriptId;
   elements.automationClear.disabled = !automationSelectedScriptId;
+  updateVisionTestControls();
 }
 
 async function openAutomationModal(profileId) {
   closeAllDropdowns();
   automationProfileId = profileId;
   automationSelectedScriptId = null;
-  automationCaptureId = null;
-  elements.automationCapture.hidden = true;
-  elements.automationCapture.removeAttribute('src');
+  resetAutomationCapture();
   const result = await ipcRenderer.invoke('automation:list', { profileId: profileId });
   if (!result || !result.ok) {
     showToast(automationErrorMessage(result, '无法读取内置脚本'), 'error');
@@ -223,6 +457,7 @@ async function openAutomationModal(profileId) {
   automationScripts = Array.isArray(result.scripts) ? result.scripts : [];
   automationTarget = result.target || { available: false, gameReady: false };
   renderAutomationScripts();
+  await loadVisionTemplates(false);
   elements.automationModal.classList.add('show');
   elements.automationModal.setAttribute('aria-hidden', 'false');
 }
@@ -230,9 +465,9 @@ async function openAutomationModal(profileId) {
 function closeAutomationModal() {
   elements.automationModal.classList.remove('show');
   elements.automationModal.setAttribute('aria-hidden', 'true');
-  elements.automationCapture.hidden = true;
-  elements.automationCapture.removeAttribute('src');
-  automationCaptureId = null;
+  resetAutomationCapture();
+  automationVisionTemplates = [];
+  renderVisionTemplates();
   automationProfileId = null;
   automationTarget = { available: false, gameReady: false };
 }
@@ -339,9 +574,14 @@ elements.grid.addEventListener('click', function (event) {
 elements.automationList.addEventListener('click', async function (event) {
   const button = event.target.closest('button[data-automation-action]');
   const row = event.target.closest('[data-script-id]');
-  if (!button || !row) return;
+  if (!row) return;
   const scriptId = row.getAttribute('data-script-id');
+  const changed = automationSelectedScriptId !== scriptId;
+  if (changed) resetAutomationCapture();
   automationSelectedScriptId = scriptId;
+  renderAutomationScripts();
+  if (changed) await loadVisionTemplates(false);
+  if (!button) return;
   const action = button.getAttribute('data-automation-action');
   const result = action === 'start'
     ? await ipcRenderer.invoke('automation:start', {
@@ -358,44 +598,121 @@ elements.automationList.addEventListener('click', async function (event) {
 });
 
 elements.automationRecord.addEventListener('click', async function () {
-  if (!automationSelectedScriptId || !automationTarget.available) {
-    showToast('请先打开游戏窗口。', 'error');
-    return;
-  }
-  const result = await ipcRenderer.invoke('automation:recording:begin', {
-    profileId: automationProfileId,
-    scriptId: automationSelectedScriptId
-  });
-  if (!result || !result.ok) {
-    showToast(automationErrorMessage(result, '截图失败'), 'error');
-    return;
-  }
-  automationCaptureId = result.capture.captureId;
-  elements.automationCapture.src = result.capture.pngDataUrl;
-  elements.automationCapture.hidden = false;
+  await beginAutomationCapture('point');
+});
+
+elements.automationVisionSelect.addEventListener('click', async function () {
+  automationCaptureMode = 'vision-roi';
+  await loadVisionTemplates(true);
+  await beginAutomationCapture(automationCaptureMode);
 });
 
 elements.automationCapture.addEventListener('click', async function (event) {
-  if (!automationCaptureId || !automationSelectedScriptId) return;
-  const rect = elements.automationCapture.getBoundingClientRect();
-  if (!(rect.width > 0) || !(rect.height > 0)) return;
-  const imageX = (event.clientX - rect.left) * elements.automationCapture.naturalWidth / rect.width;
-  const imageY = (event.clientY - rect.top) * elements.automationCapture.naturalHeight / rect.height;
+  if (
+    automationCaptureMode !== 'point' ||
+    !automationCaptureId ||
+    !automationSelectedScriptId
+  ) {
+    return;
+  }
+  const imagePoint = imagePointFromMouse(event);
+  if (!imagePoint) return;
   const result = await ipcRenderer.invoke('automation:recording:add-point', {
     profileId: automationProfileId,
     scriptId: automationSelectedScriptId,
     captureId: automationCaptureId,
-    imageX: imageX,
-    imageY: imageY
+    imageX: imagePoint.x,
+    imageY: imagePoint.y
   });
   showToast(result && result.ok ? '坐标已记录' : automationErrorMessage(result, '坐标记录失败'),
     result && result.ok ? 'ok' : 'error');
 });
 
+elements.automationCapture.addEventListener('mousedown', function (event) {
+  if (
+    event.button !== 0 ||
+    automationCaptureMode !== 'vision-roi' ||
+    !automationCaptureId ||
+    !automationCaptureMeta
+  ) {
+    return;
+  }
+  event.preventDefault();
+  automationSelectionStart = imagePointFromMouse(event);
+  if (!automationSelectionStart) return;
+  const preview = createVisionSelection(
+    automationSelectionStart,
+    automationSelectionStart,
+    automationCaptureMeta.imageSize,
+    automationCaptureMeta.contentSize
+  );
+  renderSelectionOverlay(preview);
+});
+
+document.addEventListener('mousemove', function (event) {
+  if (!automationSelectionStart || automationCaptureMode !== 'vision-roi') return;
+  const current = imagePointFromMouse(event);
+  if (!current) return;
+  const preview = createVisionSelection(
+    automationSelectionStart,
+    current,
+    automationCaptureMeta.imageSize,
+    automationCaptureMeta.contentSize
+  );
+  renderSelectionOverlay(preview);
+});
+
+document.addEventListener('mouseup', async function (event) {
+  if (!automationSelectionStart || automationCaptureMode !== 'vision-roi') return;
+  const start = automationSelectionStart;
+  automationSelectionStart = null;
+  const current = imagePointFromMouse(event);
+  if (!current || !automationCaptureMeta) return;
+  const selection = createVisionSelection(
+    start,
+    current,
+    automationCaptureMeta.imageSize,
+    automationCaptureMeta.contentSize
+  );
+  if (!selection) return;
+  automationSelection = selection;
+  renderSelectionOverlay(selection);
+  renderVisionSelection(selection, selection.center);
+  elements.automationMatchOverlay.hidden = true;
+  elements.automationVisionMatchText.textContent = 'ROI 已自动填入，可直接匹配当前游戏画面。';
+  const result = await ipcRenderer.invoke('automation:recording:add-point', {
+    profileId: automationProfileId,
+    scriptId: automationSelectedScriptId,
+    captureId: automationCaptureId,
+    imageX: selection.imageCenter.x,
+    imageY: selection.imageCenter.y
+  });
+  if (result && result.ok) {
+    renderVisionSelection(selection, result.point);
+    showToast('ROI 已生成，中心坐标已记录', 'ok');
+  } else {
+    showToast(automationErrorMessage(result, 'ROI 已生成，但中心坐标记录失败'), 'error');
+  }
+});
+
+elements.automationVisionCopy.addEventListener('click', function () {
+  if (!automationSelection) return;
+  const roi = automationSelection.roi;
+  clipboard.writeText('--roi ' + roi.x + ',' + roi.y + ',' + roi.width + ',' + roi.height);
+  showToast('ROI 参数已复制', 'ok');
+});
+
+elements.automationVisionMatch.addEventListener('click', async function () {
+  await runVisionTest(false);
+});
+
+elements.automationVisionMatchClick.addEventListener('click', async function () {
+  await runVisionTest(true);
+});
+
 elements.automationCapture.addEventListener('error', function () {
   if (!automationCaptureId) return;
-  elements.automationCapture.hidden = true;
-  automationCaptureId = null;
+  resetAutomationCapture();
   showToast('截图预览加载失败，请重试。', 'error');
 });
 

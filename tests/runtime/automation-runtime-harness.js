@@ -9,6 +9,10 @@ const { createCoordinator } = require('../../src/automation/coordinator');
 const { createAutomationBackend } = require('../../src/automation/backend');
 const { createAutomationApi } = require('../../src/automation/api');
 const { createRunner } = require('../../src/automation/runner');
+const { createVisionCodec } = require('../../src/automation/vision/codec');
+const { createVisionTemplateLoader } = require('../../src/automation/vision/template-loader');
+const { createVisionMatcher } = require('../../src/automation/vision/matcher');
+const { createVisionApi } = require('../../src/automation/vision/api');
 
 function noop() {}
 
@@ -22,6 +26,17 @@ function createRuntime(options) {
 
   const profileExists = function (profileId) { return profileId === opts.profileId; };
   const coordinator = createCoordinator();
+  const visionCodec = createVisionCodec();
+  const visionLoader = createVisionTemplateLoader({ registry: registry, codec: visionCodec });
+  const visionMatcher = createVisionMatcher();
+  let runOverride = null;
+  const runnerRegistry = Object.freeze({
+    get: function (scriptId) {
+      const record = registry.get(scriptId);
+      if (!record || !runOverride) return record;
+      return Object.freeze(Object.assign({}, record, { run: runOverride }));
+    }
+  });
   const store = createAutomationStore({
     rootDir: rootDir,
     profileExists: profileExists,
@@ -35,7 +50,7 @@ function createRuntime(options) {
     actionTimeoutMs: opts.actionTimeoutMs || 10000
   });
   const runner = createRunner({
-    registry: registry,
+    registry: runnerRegistry,
     store: store,
     coordinator: coordinator,
     timeoutMs: opts.timeoutMs || 15000,
@@ -55,24 +70,56 @@ function createRuntime(options) {
         backend: backend,
         profileExists: profileExists
       }));
+    },
+    createVision: function (runOptions) {
+      return createVisionApi(Object.assign({}, runOptions, {
+        coordinator: coordinator,
+        backend: backend,
+        loader: visionLoader,
+        codec: visionCodec,
+        matcher: visionMatcher,
+        profileExists: profileExists
+      }));
     }
   });
+
+  async function finishRun(started) {
+    if (!started.ok) throw new Error('run start failed: ' + started.error);
+    await runner.waitForRun(started.status.runId);
+    const status = runner.getStatus(opts.profileId, 'demo-click');
+    if (status.status !== 'succeeded') {
+      throw new Error('run failed: ' + (status.error ? status.error.code : status.status));
+    }
+    return status;
+  }
 
   return Object.freeze({
     registry: registry,
     store: store,
     runner: runner,
     runDemo: async function (points, config) {
+      runOverride = null;
       store.setCoordinates(opts.profileId, 'demo-click', points);
       store.setConfig(opts.profileId, 'demo-click', config || {});
-      const started = runner.start(opts.profileId, 'demo-click');
-      if (!started.ok) throw new Error('run start failed: ' + started.error);
-      await runner.waitForRun(started.status.runId);
-      const status = runner.getStatus(opts.profileId, 'demo-click');
-      if (status.status !== 'succeeded') {
-        throw new Error('run failed: ' + (status.error ? status.error.code : status.status));
+      return finishRun(runner.start(opts.profileId, 'demo-click'));
+    },
+    runVisionClick: async function (visionOptions) {
+      const call = visionOptions || {};
+      let result = null;
+      runOverride = async function (context) {
+        result = await context.vision.find(call.templateId || 'sample-target', {
+          roi: call.roi,
+          threshold: call.threshold === undefined ? 0.99 : call.threshold
+        });
+        if (!result) throw new Error('vision-no-match');
+        await context.automation.click(result.center);
+      };
+      try {
+        const status = await finishRun(runner.start(opts.profileId, 'demo-click'));
+        return Object.freeze({ status: status, result: result });
+      } finally {
+        runOverride = null;
       }
-      return status;
     },
     cleanup: function () {
       runner.shutdown();

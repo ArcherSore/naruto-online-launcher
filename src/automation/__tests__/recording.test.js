@@ -2,6 +2,7 @@
 
 const { createRecordingService } = require('../recording');
 const { createAutomationBackend } = require('../backend');
+const { mapNormalizedPoint } = require('../coordinates');
 
 describe('coordinate recording service', () => {
   function makeStore() {
@@ -76,7 +77,9 @@ describe('coordinate recording service', () => {
       profileId: 'p_aaaaaaaa', scriptId: 'demo-click', ownerId: 'manager-1',
       captureId: begun.capture.captureId, imageX: 100, imageY: 50
     });
-    expect(added.point).toEqual({ order: 1, normalizedX: 0.5, normalizedY: 0.5 });
+    expect(added.point).toEqual({ order: 1, normalizedX: 0.505, normalizedY: 0.51 });
+    expect(mapNormalizedPoint(added.point, { width: 100, height: 50 }))
+      .toEqual({ x: 50, y: 25 });
     expect(function () {
       service.addPoint({
         profileId: 'p_aaaaaaaa', scriptId: 'demo-click', ownerId: 'manager-2',
@@ -118,5 +121,34 @@ describe('coordinate recording service', () => {
         });
       }).toThrow(expect.objectContaining({ code: 'capture-expired' }));
     });
+  });
+
+  test('round-trips a recorded 1920x1080 content pixel through the normalized mapper', async () => {
+    const store = makeStore();
+    const service = createRecordingService({
+      backend: {
+        capture: async function () {
+          return {
+            png: Buffer.from('image'),
+            imageSize: { width: 1920, height: 1080 },
+            contentSize: { width: 1920, height: 1080 },
+            capturedAt: 1
+          };
+        }
+      },
+      store: store
+    });
+    const begun = await service.begin('p_aaaaaaaa', 'demo-click', 'manager-1');
+    const added = service.addPoint({
+      profileId: 'p_aaaaaaaa',
+      scriptId: 'demo-click',
+      ownerId: 'manager-1',
+      captureId: begun.capture.captureId,
+      imageX: 123,
+      imageY: 39
+    });
+
+    expect(mapNormalizedPoint(added.point, { width: 1920, height: 1080 }))
+      .toEqual({ x: 123, y: 39 });
   });
 });

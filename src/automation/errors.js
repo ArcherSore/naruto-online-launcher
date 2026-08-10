@@ -33,7 +33,14 @@ const CODES = Object.freeze({
   CDP_DISPATCH_FAILED: 'cdp-dispatch-failed',
   ACTION_TIMEOUT: 'action-timeout',
   STORAGE_READ_FAILED: 'storage-read-failed',
-  STORAGE_WRITE_FAILED: 'storage-write-failed'
+  STORAGE_WRITE_FAILED: 'storage-write-failed',
+  VISION_INPUT_INVALID: 'vision-input-invalid',
+  VISION_TEMPLATE_ID_INVALID: 'vision-template-id-invalid',
+  VISION_TEMPLATE_NOT_FOUND: 'vision-template-not-found',
+  VISION_TEMPLATE_READ_FAILED: 'vision-template-read-failed',
+  VISION_TEMPLATE_INVALID: 'vision-template-invalid',
+  VISION_TEMPLATE_TOO_LARGE: 'vision-template-too-large',
+  VISION_TIMEOUT: 'vision-timeout'
 });
 
 const SAFE_MESSAGES = Object.freeze({
@@ -69,7 +76,14 @@ const SAFE_MESSAGES = Object.freeze({
   'cdp-dispatch-failed': '后台点击派发失败',
   'action-timeout': '自动化动作超过时限',
   'storage-read-failed': '无法读取脚本用户数据',
-  'storage-write-failed': '无法保存脚本用户数据'
+  'storage-write-failed': '无法保存脚本用户数据',
+  'vision-input-invalid': '视觉调用参数无效',
+  'vision-template-id-invalid': '视觉模板标识无效',
+  'vision-template-not-found': '未找到当前脚本的视觉模板',
+  'vision-template-read-failed': '无法读取当前脚本的视觉模板',
+  'vision-template-invalid': '视觉模板不是有效的受支持 PNG',
+  'vision-template-too-large': '视觉模板大于当前搜索区域',
+  'vision-timeout': '等待视觉条件超过时限'
 });
 
 const KNOWN_CODES = new Set(Object.values(CODES));
