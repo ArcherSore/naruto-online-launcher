@@ -132,7 +132,7 @@ npm test -- --runInBand src/automation/__tests__/package-discovery.test.js
 ## 不得恢复的失败路线
 
 本框架只选择性保留已验证的归一化坐标映射、CDP 三事件点击、Chromium/PPAPI 靶场与
-`demo-click` 行为。不得恢复或迁移 FlashProbe、PreloadSwf、TCP、`mm.cfg`、临时 Demo
+`automation-scripts/demo` 示例行为。不得恢复或迁移 FlashProbe、PreloadSwf、TCP、`mm.cfg`、临时 Demo
 IPC/UI、像素差证据流，也不得整体 cherry-pick Demo 分支。新增脚本不能复制窗口查找、DPI
 映射或 CDP 生命周期；这些职责必须留在正式 backend/API。Vision v1 不包含 multi-scale、OCR、
 rotation、feature/object detection、Python/OpenCV、Worker/WorkerPool、新输入、调度器或 DSL。

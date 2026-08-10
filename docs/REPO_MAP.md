@@ -85,8 +85,8 @@ ProfileManager.launch(profileId)
   调用正式 Vision/Automation API 执行“匹配”与“匹配并点击”。
 - `src/automation/index.js`：组合 registry、runner、coordinator、backend、recording 与 Profile/
   窗口生命周期。
-- `automation-scripts/demo-click/`：正式示例脚本，只通过注入的 Automation API 读取坐标、等待
-  并连续点击。
+- `automation-scripts/demo/`：正式示例脚本，只通过注入的 Vision/Automation API 依次等待模板
+  并点击匹配中心。
 - `src/ui/manager/IpcRouter.js`、`StateBroadcaster.js`：管理页的请求校验、安全 DTO 与状态广播。
 - `tests/runtime/`：经过正式 registry → runner → Automation/Vision API 的 Chromium、PPAPI/AS3 和
   Windows 打包运行 smoke。

@@ -54,7 +54,7 @@ describe('built-in package discovery parity', () => {
     expect(pkg.build.extraResources || []).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ from: expect.stringContaining('automation-scripts') })
     ]));
-    expect(packageFiles()).toContain('demo-click/assets/vision/sample-target.png');
+    expect(packageFiles()).toContain('demo/assets/vision/entry-activity.png');
   });
 
   test('manifest, entry, relative modules, and assets match the ASAR byte-for-byte', () => {

@@ -9,6 +9,70 @@ const { createVisionMatcher } = require('../vision/matcher');
 const fixtures = require('./vision-fixtures');
 
 describe('Vision screenshot pixel to CDP coordinate chain', () => {
+  test('rejects a captured PNG when the same profile target is replaced during capture', async () => {
+    const pending = fixtures.deferred();
+    function target(label, capturePage) {
+      return {
+        label: label,
+        window: {
+          isDestroyed: function () { return false; },
+          getContentSize: function () { return [1920, 1080]; },
+          isFocused: function () { return false; },
+          isVisible: function () { return true; },
+          isMinimized: function () { return false; }
+        },
+        webContents: {
+          isDestroyed: function () { return false; },
+          capturePage: jest.fn(capturePage)
+        },
+        contentSize: { width: 1920, height: 1080 }
+      };
+    }
+    const oldTarget = target('old', function () { return pending.promise; });
+    const newTarget = target('new', async function () {
+      throw new Error('new target must not be captured');
+    });
+    let currentTarget = oldTarget;
+    const backend = createAutomationBackend({ targetProvider: function () { return currentTarget; } });
+    const operation = backend.capture('p_aaaaaaaa');
+    currentTarget = newTarget;
+    pending.resolve({
+      toPNG: function () { return Buffer.from('old-png'); },
+      getSize: function () { return { width: 1920, height: 1080 }; }
+    });
+
+    await expect(operation).rejects.toMatchObject({ code: 'capture-failed' });
+    expect(newTarget.webContents.capturePage).not.toHaveBeenCalled();
+  });
+
+  test('rejects a captured PNG when canonical contentSize changes during capture', async () => {
+    const pending = fixtures.deferred();
+    let contentSize = { width: 1920, height: 1080 };
+    const window = {
+      isDestroyed: function () { return false; },
+      getContentSize: function () { return [1920, 1080]; },
+      isFocused: function () { return false; },
+      isVisible: function () { return true; },
+      isMinimized: function () { return false; }
+    };
+    const webContents = {
+      isDestroyed: function () { return false; },
+      capturePage: function () { return pending.promise; }
+    };
+    const backend = createAutomationBackend({
+      targetProvider: function () {
+        return { window: window, webContents: webContents, contentSize: contentSize };
+      }
+    });
+    const operation = backend.capture('p_aaaaaaaa');
+    contentSize = { width: 960, height: 540 };
+    pending.resolve({
+      toPNG: function () { return Buffer.from('stale-png'); },
+      getSize: function () { return { width: 1920, height: 1080 }; }
+    });
+    await expect(operation).rejects.toMatchObject({ code: 'capture-failed' });
+  });
+
   test('keeps image/content/DIP spaces separate and clicks the float-sensitive midpoint', async () => {
     const imageSize = { width: 3840, height: 2160 };
     const contentSize = { width: 1920, height: 1080 };

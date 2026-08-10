@@ -80,7 +80,12 @@ jobs:
             exit 1
           }
           Write-Host "✓ Flash binaries committed (Linux + Windows)"
+          npx electron-builder --win dir --publish never
+          node tools/vision-author/scripts/assert-package-excluded.js dist/win-unpacked/resources/app.asar
+          node -e "require('asar').extractAll('dist/win-unpacked/resources/app.asar','dist/packaged-smoke-app')"
+          & node_modules/electron/dist/electron.exe tests/runtime/packaged-automation-smoke.js dist/packaged-smoke-app
           npx electron-builder --win portable --publish never
+          node tools/vision-author/scripts/assert-package-excluded.js dist/win-unpacked/resources/app.asar
           mkdir release
           Copy-Item dist/*.exe release/
           Compress-Archive -Path release/* -DestinationPath naruto-online-win.zip
