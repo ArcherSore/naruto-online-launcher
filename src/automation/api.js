@@ -1,7 +1,6 @@
 'use strict';
 
 const { AutomationError } = require('./errors');
-const { deepFreeze } = require('./store');
 
 function createRunBoundAction(options) {
   const opts = options || {};
@@ -82,11 +81,6 @@ function createAutomationApi(options) {
     },
     getWindowState: function () {
       return gate.enqueue(function () { return opts.backend.getWindowState(opts.profileId); });
-    },
-    getCoordinates: function () {
-      return gate.enqueue(function () {
-        return deepFreeze(opts.store.getCoordinates(opts.profileId, opts.scriptId));
-      });
     },
     click: function (point) {
       return gate.enqueue(function () { return opts.backend.click(opts.profileId, point); });

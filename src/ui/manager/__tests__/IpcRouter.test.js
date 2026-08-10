@@ -397,23 +397,7 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
         }),
         stop: jest.fn(function (profileId, runId) {
           return { ok: true, status: { runId: runId, profileId: profileId, scriptId: 'demo-click', status: 'stopping', startedAt: 1, endedAt: null, error: null } };
-        }),
-        getCoordinates: jest.fn(function () { return []; }),
-        beginRecording: jest.fn(async function () { return { capture: { captureId: 'capture-1', pngDataUrl: 'data:image/png;base64,eA==', imageSize: { width: 1, height: 1 }, contentSize: { width: 1, height: 1 }, expiresAt: 2 }, points: [] }; }),
-        addPoint: jest.fn(function () { return { point: { order: 1, normalizedX: 0, normalizedY: 0 }, points: [{ order: 1, normalizedX: 0, normalizedY: 0 }] }; }),
-        listVisionTemplates: jest.fn(function () { return ['target']; }),
-        testVision: jest.fn(async function () {
-          return {
-            found: true,
-            match: {
-              rect: { x: 2, y: 3, width: 4, height: 5 },
-              center: { normalizedX: 0.4, normalizedY: 0.5 },
-              confidence: 0.99
-            },
-            clicked: true
-          };
-        }),
-        clearCoordinates: jest.fn(function () { return []; })
+        })
       };
       IpcRouter.registerIpcHandlers({ automation: automation });
       return automation;
@@ -425,7 +409,11 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
         'automation:list',
         'automation:status',
         'automation:start',
-        'automation:stop',
+        'automation:stop'
+      ].forEach(function (channel) {
+        expect(handleHandlers[channel]).toBeDefined();
+      });
+      [
         'automation:coordinates:get',
         'automation:recording:begin',
         'automation:recording:add-point',
@@ -433,7 +421,7 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
         'automation:vision:test',
         'automation:coordinates:clear'
       ].forEach(function (channel) {
-        expect(handleHandlers[channel]).toBeDefined();
+        expect(handleHandlers[channel]).toBeUndefined();
       });
       ManagerWindow.getManagerWindow.mockReturnValue({
         isDestroyed: function () { return false; },
@@ -444,8 +432,8 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
       ).toEqual({ ok: false, error: 'invalid-sender' });
     });
 
-    test('validates IDs and returns only contract DTOs for list/start/recording', async () => {
-      const automation = installAutomation();
+    test('validates IDs and returns only contract DTOs for list/start', async () => {
+      installAutomation();
       store.get.mockImplementation(function (id) {
         return id === 'p_001' ? { id: 'p_001', name: 'Safe' } : null;
       });
@@ -465,70 +453,6 @@ describe('IpcRouter 腾讯 Profile/安全 IPC 边界', () => {
           profileId: 'p_001', scriptId: 'demo-click'
         })
       ).toEqual({ ok: true, status: expect.objectContaining({ status: 'running' }) });
-      const recording = await handleHandlers['automation:recording:begin'](event, {
-        profileId: 'p_001', scriptId: 'demo-click'
-      });
-      expect(recording.ok).toBe(true);
-      expect(automation.beginRecording).toHaveBeenCalledWith('p_001', 'demo-click', '91');
-      expect(JSON.stringify(recording)).not.toMatch(/entryPath|webContents|session|cookie/i);
-    });
-
-    test('validates and returns safe in-launcher Vision test DTOs', async () => {
-      const automation = installAutomation();
-      store.get.mockReturnValue({ id: 'p_001' });
-      const event = eventForManager();
-
-      expect(await handleHandlers['automation:vision:templates'](event, {
-        profileId: 'p_001', scriptId: 'demo-click'
-      })).toEqual({ ok: true, templates: ['target'] });
-      const request = {
-        profileId: 'p_001',
-        scriptId: 'demo-click',
-        templateId: 'target',
-        roi: { x: 10, y: 20, width: 30, height: 40 },
-        threshold: 0.95,
-        click: true
-      };
-      expect(await handleHandlers['automation:vision:test'](event, request)).toEqual({
-        ok: true,
-        found: true,
-        match: {
-          rect: { x: 2, y: 3, width: 4, height: 5 },
-          center: { normalizedX: 0.4, normalizedY: 0.5 },
-          confidence: 0.99
-        },
-        clicked: true
-      });
-      expect(automation.testVision).toHaveBeenCalledWith('p_001', 'demo-click', {
-        templateId: 'target',
-        roi: { x: 10, y: 20, width: 30, height: 40 },
-        threshold: 0.95,
-        click: true
-      });
-      expect(await handleHandlers['automation:vision:test'](event, Object.assign({}, request, {
-        templateId: '../target'
-      }))).toEqual({ ok: false, error: 'invalid-arguments' });
-      expect(await handleHandlers['automation:vision:test'](event, Object.assign({}, request, {
-        roi: { x: 10, y: 20, width: 0, height: 40 }
-      }))).toEqual({ ok: false, error: 'invalid-arguments' });
-      expect(await handleHandlers['automation:vision:test'](event, Object.assign({}, request, {
-        threshold: 1.1
-      }))).toEqual({ ok: false, error: 'invalid-arguments' });
-    });
-
-    test('maps domain failures to a stable envelope without raw error text', async () => {
-      const automation = installAutomation();
-      store.get.mockReturnValue({ id: 'p_001' });
-      automation.getCoordinates.mockImplementation(function () {
-        const error = new Error('cookie=secret');
-        error.code = 'coordinates-invalid';
-        throw error;
-      });
-      expect(
-        await handleHandlers['automation:coordinates:get'](eventForManager(), {
-          profileId: 'p_001', scriptId: 'demo-click'
-        })
-      ).toEqual({ ok: false, error: 'coordinates-invalid' });
     });
 
     test('queries and stops an exact runId while canonicalizing the status error summary', async () => {

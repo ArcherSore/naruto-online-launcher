@@ -32,7 +32,7 @@ automation-scripts/
 - `id` 必须是 1～64 字符的 lowercase ASCII slug，并在 NFKC + lowercase 后保持唯一。
 - `entry` 必须是包内相对 `.js` 路径；禁止绝对路径、`..` traversal 和符号链接逃逸。
 - TypeScript 只能用于开发，提交和发布前必须预编译为 Node.js 16 / CommonJS 可直接运行的 JavaScript。
-- manifest、入口、相对模块和 `assets` 都是只读安装资源。用户配置与坐标由框架写入 `userData/automation-data`，脚本不得修改安装目录。
+- manifest、入口、相对模块和 `assets` 都是只读安装资源。用户配置由框架写入 `userData/automation-data`，脚本不得修改安装目录。
 
 ## 入口与最小上下文
 
@@ -42,11 +42,11 @@ automation-scripts/
 'use strict';
 
 module.exports = async function run(context) {
-  const points = await context.automation.getCoordinates();
-  for (let index = 0; index < points.length; index++) {
-    if (context.signal.aborted) return;
-    await context.automation.click(points[index]);
-  }
+  const target = await context.vision.waitFor('battle-button', {
+    roi: { x: 1400, y: 760, width: 480, height: 260 },
+    timeoutMs: 10000
+  });
+  await context.automation.click(target.center);
 };
 ```
 
@@ -56,7 +56,7 @@ module.exports = async function run(context) {
 - 深冻结的 `config`
 - 只读协作式取消 `signal`
 - 已绑定运行/Profile/脚本身份的结构化 `log`
-- 深冻结的 `automation` API：`capture`、`getWindowState`、`getCoordinates`、`click`、`wait`
+- 深冻结的 `automation` API：`capture`、`getWindowState`、`click`、`wait`
 - 深冻结的 `context.vision`：`find`、`waitFor`、`waitUntilGone`
 
 Vision v1 只做固定 `1920×1080 + Windows 100%` 基准下的 exact-scale 模板匹配，不做缩放、

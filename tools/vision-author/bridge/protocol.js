@@ -7,26 +7,26 @@ const MAX_MESSAGE_BYTES = 24 * 1024 * 1024;
 const REQUEST_KEYS = Object.freeze(['op', 'payload', 'protocolVersion', 'requestId', 'type']);
 
 const ERROR_DETAILS = Object.freeze({
-  'authentication-failed': ['Vision Author 连接认证失败。', '关闭该会话并从开发入口重新启动。'],
-  'protocol-invalid': ['Vision Author 连接协议无效。', '关闭该会话并从开发入口重新启动。'],
-  'message-too-large': ['Vision Author 消息超过安全上限。', '重新 capture，若持续失败请重启开发会话。'],
-  'invalid-request': ['Vision Author 请求无效。', '刷新工具状态后重试。'],
-  'profile-not-found': ['所选 Profile 已不存在。', '刷新 Profile 列表并重新选择。'],
-  'profile-unavailable': ['所选 Profile 当前无法 capture。', '启动或恢复该 Profile 后重试。'],
-  'capture-busy': ['上一轮 capture 尚未完成。', '等待后续计划 tick。'],
-  'capture-failed': ['正式 Profile capture 失败。', '确认 Profile 窗口可用后继续 Live。'],
+  'authentication-failed': ['脚本截图工具连接认证失败。', '关闭该会话并从开发入口重新启动。'],
+  'protocol-invalid': ['脚本截图工具连接协议无效。', '关闭该会话并从开发入口重新启动。'],
+  'message-too-large': ['脚本截图工具消息超过安全上限。', '重新截图，若持续失败请重启开发会话。'],
+  'invalid-request': ['脚本截图工具请求无效。', '刷新工具状态后重试。'],
+  'profile-not-found': ['所选游戏窗口已不存在。', '刷新游戏窗口列表并重新选择。'],
+  'profile-unavailable': ['所选游戏窗口当前无法截图。', '启动或恢复该游戏窗口后重试。'],
+  'capture-busy': ['上一轮截图尚未完成。', '等待下一次自动刷新。'],
+  'capture-failed': ['游戏窗口截图失败。', '确认游戏窗口可用后恢复实时画面。'],
   'clipboard-failed': ['系统剪贴板写入失败。', '保留屏幕文本并手工复制。'],
-  'frame-stale': ['目标帧已失效。', '恢复 Live 并重新 Freeze 当前帧。'],
-  'frame-contract-invalid': ['当前帧不满足 Vision authoring 合同。', '修复画面尺寸合同后重新 capture。'],
+  'frame-stale': ['目标画面已失效。', '恢复实时画面并重新冻结。'],
+  'frame-contract-invalid': ['当前画面不满足制作要求。', '修复画面尺寸后重新截图。'],
   'selection-invalid': ['选区不是有效截图像素矩形。', '在图像范围内重新框选非零区域。'],
-  'preview-stale': ['Template preview 已失效。', '在当前冻结帧重新选择 Template。'],
-  'script-not-found': ['Target Script 已失效。', '重启开发会话以刷新可信脚本列表。'],
-  'template-id-invalid': ['templateId 格式无效。', '使用 1–64 位小写字母、数字和单连字符。'],
+  'preview-stale': ['模板预览已失效。', '在当前冻结画面重新框选模板。'],
+  'script-not-found': ['目标脚本已失效。', '重启开发会话以刷新可信脚本列表。'],
+  'template-id-invalid': ['模板 ID 格式无效。', '使用 1–64 位小写字母、数字和单连字符。'],
   'target-conflict': ['目标模板已存在或状态已变化。', '核对确切目标并重新确认替换。'],
   'replacement-confirmation-invalid': ['替换确认已失效。', '重新执行保存预检并确认确切目标。'],
   'target-boundary-invalid': ['模板目标不在可信脚本边界内。', '修复脚本目录后重启开发会话。'],
   'storage-write-failed': ['模板写入失败。', '检查目录权限后重试；原文件保持不变。'],
-  'connection-closed': ['Vision Author 连接已关闭。', '从开发入口重新启动会话。']
+  'connection-closed': ['脚本截图工具连接已关闭。', '从开发入口重新启动会话。']
 });
 
 const OP_FIELDS = Object.freeze({

@@ -150,7 +150,7 @@ function createAuthorWindowOptions() {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#11131a',
-    title: 'Vision Author Tool',
+    title: '脚本截图工具',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       backgroundThrottling: false,

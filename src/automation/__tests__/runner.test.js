@@ -10,11 +10,10 @@ function deferred() {
   return { promise: promise, resolve: resolve };
 }
 
-function fiveActionApi() {
+function automationApi() {
   return Object.freeze({
     capture: jest.fn(),
     getWindowState: jest.fn(),
-    getCoordinates: jest.fn(),
     click: jest.fn(),
     wait: jest.fn()
   });
@@ -38,7 +37,7 @@ describe('automation runner happy path', () => {
       },
       store: { getConfig: function () { return {}; } },
       coordinator: createCoordinator(),
-      createApi: fiveActionApi,
+      createApi: automationApi,
       profileExists: function () { return true; },
       targetAvailable: targetAvailable,
       gameReady: gameReady,
@@ -59,7 +58,7 @@ describe('automation runner happy path', () => {
       },
       store: { getConfig: function () { return {}; } },
       coordinator: createCoordinator(),
-      createApi: fiveActionApi,
+      createApi: automationApi,
       profileExists: function () { return true; },
       targetAvailable: function () { return false; },
       logger: { createBoundLogger: function () { return {}; } }
@@ -74,7 +73,7 @@ describe('automation runner happy path', () => {
   test('invokes a registered script through a minimal frozen run context', async () => {
     const contextSeen = deferred();
     const run = jest.fn(async function (context) { contextSeen.resolve(context); });
-    const api = fiveActionApi();
+    const api = automationApi();
     const runner = createRunner({
       registry: { get: function () { return { manifest: { id: 'demo-click' }, run: run }; } },
       store: { getConfig: function () { return { nested: { delayMs: 10 } }; } },
@@ -130,7 +129,7 @@ describe('automation runner happy path', () => {
       },
       store: { getConfig: function () { return {}; } },
       coordinator: createCoordinator(),
-      createApi: fiveActionApi,
+      createApi: automationApi,
       profileExists: function () { return true; },
       gameReady: function () { return true; },
       logger: { createBoundLogger: function () { return {}; } }
@@ -161,7 +160,7 @@ describe('automation runner cancellation, deadline, and isolation', () => {
       registry: { get: function () { return { manifest: { id: 'demo-click' }, run: run }; } },
       store: { getConfig: function () { return {}; } },
       coordinator: createCoordinator(),
-      createApi: function () { return fiveActionApi(); },
+      createApi: function () { return automationApi(); },
       profileExists: function () { return true; },
       gameReady: function () { return true; },
       logger: { createBoundLogger: function () { return {}; } },
@@ -276,7 +275,7 @@ describe('automation runner cancellation, deadline, and isolation', () => {
       registry: { get: function () { return { manifest: { id: 'demo-click' }, run: function (context) { return context.vision.waitFor('target'); } }; } },
       store: { getConfig: function () { return {}; } },
       coordinator: coordinator,
-      createApi: function () { return fiveActionApi(); },
+      createApi: function () { return automationApi(); },
       createVision: function (runOptions) {
         return createVisionApi(Object.assign({}, runOptions, {
           backend: { capture: function () { return captureGate.promise; } },

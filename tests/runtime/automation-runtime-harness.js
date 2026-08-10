@@ -101,13 +101,11 @@ function createRuntime(options) {
     runner: runner,
     runDemo: async function (points, config) {
       runOverride = async function (context) {
-        const recorded = await context.automation.getCoordinates();
-        for (let index = 0; index < recorded.length; index++) {
+        for (let index = 0; index < points.length; index++) {
           if (index > 0) await context.automation.wait(1000);
-          await context.automation.click(recorded[index]);
+          await context.automation.click(points[index]);
         }
       };
-      store.setCoordinates(opts.profileId, SCRIPT_ID, points);
       store.setConfig(opts.profileId, SCRIPT_ID, config || {});
       try {
         return await finishRun(runner.start(opts.profileId, SCRIPT_ID));

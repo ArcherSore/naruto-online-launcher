@@ -1,12 +1,12 @@
 # Vision 腾讯真游戏手动验收
 
-启动器自动化面板已经提供 Windows x64、`1920×1080 + 100%` 固定环境的主要人工验收入口。本目录保留可选命令行 harness，主要用于 `waitFor` / `waitUntilGone` 动态场景；两种入口都不扩展 Linux、DPI 或多缩放支持。
+仓库开发工具提供 Windows x64、`1920×1080 + 100%` 固定环境的模板与 ROI 制作入口。本目录保留可选命令行 harness，主要用于 `waitFor` / `waitUntilGone` 动态场景；两种入口都不扩展 Linux、DPI 或多缩放支持。
 
 ## 准备
 
-1. 从当前固定尺寸游戏画面裁出 exact-scale 局部 PNG，保存到待测脚本的 `assets/vision/<template-id>.png`；不保存完整截图、URL、Cookie、票据或验证码。
-2. 启动 launcher 并打开目标 Profile，在“自动化”面板选中该脚本，点击“Vision 框选”并拖出 ROI。面板会自动填入 screenshot-pixel ROI、保存中心坐标并列出该脚本自己的模板。
-3. 点击“匹配”查看绿色命中框、rect/confidence；点击“匹配并点击”后目视确认目标被触发、游戏窗口不抢焦点且 OS 鼠标未移动。无需运行命令行。
+1. 关闭普通 Launcher，从仓库根运行 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/vision-author/start.ps1`。
+2. 在“脚本截图工具”中选择游戏窗口，冻结画面并框选模板与 ROI；保存模板后复制生成的示例代码。
+3. 将示例代码加入待测脚本，再从正式版“自动化”面板启动该脚本，目视确认目标被触发、游戏窗口不抢焦点且 OS 鼠标未移动。
 
 ## 可选命令行 harness
 

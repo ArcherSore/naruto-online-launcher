@@ -3,77 +3,97 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Vision Author Tool</title>
+    <title>脚本截图工具</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="toolbar">
+    <header class="app-header">
       <div>
-        <p class="eyebrow">Developer only · formal Profile capture</p>
-        <h1>Vision Author Tool</h1>
+        <p class="eyebrow">仅限开发环境</p>
+        <h1>脚本截图工具</h1>
       </div>
-      <div class="profile-control">
-        <label for="profile-select">Profile</label>
-        <div class="profile-control-row">
-          <select id="profile-select">
-            <option value="">选择当前 Launcher Profile</option>
-          </select>
-          <button id="refresh-profiles" class="secondary" type="button">刷新 Profile</button>
-        </div>
-      </div>
-      <button id="freeze-button" type="button" disabled>Freeze</button>
-      <button id="resume-button" class="secondary" type="button" disabled>Resume Live</button>
+      <p>制作自动化脚本使用的模板和 ROI</p>
     </header>
 
     <main class="layout">
-      <section class="viewer-card" aria-label="Profile capture">
+      <section class="viewer-card" aria-label="截图画面">
         <div id="viewer" class="viewer">
-          <img id="capture-image" alt="所选 Profile 的正式 capture" draggable="false" hidden />
+          <img id="capture-image" alt="所选游戏窗口的截图" draggable="false" hidden />
           <div id="template-overlay" class="selection template" hidden></div>
           <div id="roi-overlay" class="selection roi" hidden></div>
-          <p id="capture-empty">选择可用 Profile 后显示完整正式 capture。</p>
+          <p id="capture-empty">选择可用游戏窗口后显示截图。</p>
         </div>
-        <p class="source-note">唯一来源：Launcher 正式 automation backend；固定 1000ms tick，无截图 fallback。</p>
+        <p class="source-note">画面来自启动器正式截图链，每秒刷新一次。</p>
       </section>
 
-      <aside class="metadata-card">
-        <h2>Frame metadata</h2>
-        <dl>
-          <div><dt>状态</dt><dd id="status-value">DISCONNECTED</dd></div>
-          <div><dt>Profile</dt><dd id="profile-value">—</dd></div>
-          <div><dt>imageSize</dt><dd id="image-size-value">—</dd></div>
-          <div><dt>contentSize</dt><dd id="content-size-value">—</dd></div>
-          <div><dt>capturedAt</dt><dd id="captured-at-value">—</dd></div>
-          <div><dt>Authoring contract</dt><dd id="contract-value">—</dd></div>
-        </dl>
-        <p id="error-panel" class="error" role="status" hidden></p>
-        <section class="authoring-panel">
-          <h2>Frozen-frame selections</h2>
+      <aside class="tool-panel" aria-label="工具栏">
+        <details class="tool-section" open>
+          <summary>画面控制</summary>
+          <div class="tool-section-content">
+            <label class="field-label" for="profile-select">游戏窗口</label>
+            <div class="profile-control-row">
+              <select id="profile-select">
+                <option value="">选择游戏窗口</option>
+              </select>
+              <button id="refresh-profiles" class="secondary" type="button">刷新</button>
+            </div>
+            <div class="mode-buttons">
+              <button id="freeze-button" type="button" disabled>冻结画面</button>
+              <button id="resume-button" class="secondary" type="button" disabled>恢复实时</button>
+            </div>
+            <dl>
+              <div><dt>状态</dt><dd id="status-value">未连接</dd></div>
+              <div><dt>游戏窗口</dt><dd id="profile-value">—</dd></div>
+              <div><dt>截图尺寸</dt><dd id="image-size-value">—</dd></div>
+              <div><dt>内容尺寸</dt><dd id="content-size-value">—</dd></div>
+              <div><dt>截图时间</dt><dd id="captured-at-value">—</dd></div>
+              <div><dt>画面校验</dt><dd id="contract-value">—</dd></div>
+            </dl>
+            <p id="error-panel" class="error" role="status" hidden></p>
+          </div>
+        </details>
+
+        <details class="tool-section" open>
+          <summary>框选与预览</summary>
+          <div class="tool-section-content">
           <div class="mode-buttons">
-            <button id="template-mode" type="button" disabled>Template</button>
+            <button id="template-mode" type="button" disabled>模板</button>
             <button id="roi-mode" class="secondary" type="button" disabled>ROI</button>
           </div>
-          <h3>Template rect</h3>
+          <h3>模板区域</h3>
           <code id="template-value">—</code>
-          <h3>ROI rect</h3>
+          <h3>ROI</h3>
           <code id="roi-value">—</code>
-          <h3>Crop preview</h3>
-          <div class="preview-box"><img id="preview-image" alt="Template crop preview" hidden /></div>
-          <h3>Target Script</h3>
-          <select id="script-select"><option value="">选择可信脚本</option></select>
-          <h3>templateId</h3>
+          <h3>模板预览</h3>
+          <div class="preview-box"><img id="preview-image" alt="模板预览" hidden /></div>
+          </div>
+        </details>
+
+        <details class="tool-section">
+          <summary>保存模板</summary>
+          <div class="tool-section-content">
+          <label class="field-label" for="script-select">目标脚本</label>
+          <select id="script-select"><option value="">选择脚本</option></select>
+          <label class="field-label" for="template-id">模板 ID</label>
           <input id="template-id" type="text" maxlength="64" autocomplete="off" spellcheck="false"
             pattern="[a-z0-9]+(?:-[a-z0-9]+)*" aria-describedby="template-id-help" placeholder="battle-button" />
           <p id="template-id-help" class="field-help">必填：1–64 位小写字母、数字和单连字符。</p>
-          <button id="save-button" type="button" disabled>保存 Template PNG</button>
+          <button id="save-button" type="button" disabled>保存模板</button>
           <p id="save-result" class="save-result" role="status"></p>
+          </div>
+        </details>
+
+        <details class="tool-section">
+          <summary>复制代码</summary>
+          <div class="tool-section-content">
           <h3>ROI</h3>
           <pre id="roi-output"></pre><button class="secondary copy" data-copy="roi-output" type="button">复制 ROI</button>
           <h3>find()</h3>
           <pre id="find-output"></pre><button class="secondary copy" data-copy="find-output" type="button">复制 find()</button>
           <h3>waitFor()</h3>
           <pre id="wait-output"></pre><button class="secondary copy" data-copy="wait-output" type="button">复制 waitFor()</button>
-        </section>
+          </div>
+        </details>
       </aside>
     </main>
     <script src="app.js"></script>

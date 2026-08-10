@@ -126,7 +126,7 @@ describe('Vision screenshot pixel to CDP coordinate chain', () => {
       matcher: createVisionMatcher({ slicePixels: 8 })
     }));
     const automation = createAutomationApi(Object.assign({}, common, {
-      store: { getCoordinates: function () { return []; } }
+        profileExists: function () { return true; }
     }));
 
     const found = await vision.find('target', { roi: rect, threshold: 1 });

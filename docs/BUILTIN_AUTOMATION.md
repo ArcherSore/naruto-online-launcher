@@ -11,7 +11,7 @@ automation-scripts/<package>
   -> registry（固定根目录、manifest v1、入口/包边界、ID 冲突）
   -> runner（状态、runId、deadline、取消）
   -> coordinator（Profile lease、动作 FIFO）
-  -> Automation API（capture/window state/coordinates/click/wait）
+  -> Automation API（capture/window state/click/wait）
   -> Vision API（find/waitFor/waitUntilGone）
   -> backend -> Launcher 当前 Profile 的隔离窗口
 ```
@@ -27,10 +27,8 @@ automation-scripts/<package>
   `matcher.js` 以纯 JS 协作分片做 exact-scale + ROI 匹配，`template-loader.js` 只从 registry
   记录的当前脚本 `packageRoot/assets/vision/` 加载模板。
 - 通用能力只检查所属 Profile 的窗口/webContents、内容尺寸、输入、lease 与动作生命周期；
-  `GAME_READY` 仅作诊断，不是截图、录点、启动或点击的全局门槛。脚本如需等待特定画面，
+  `GAME_READY` 仅作诊断，不是截图、启动或点击的全局门槛。脚本如需等待特定画面，
   应通过受限 Automation API 自行判断。
-- `recording.js` 的截图只作为短期录点数据返回给发起它的管理窗口，过期、窗口关闭或 owner
-  离开后即清理，不进入普通日志。
 - `IpcRouter.js` 校验 manager sender、Profile/script/run 标识并只返回白名单 DTO；
   `StateBroadcaster.js` 只广播安全 catalog 和状态。
 
@@ -41,7 +39,7 @@ automation-scripts/<package>
 2. 入口直接 `module.exports = async function run(context) { ... }`；发布内容必须是 Node.js 16
    可直接运行的 JavaScript。TypeScript 必须先预编译，不能要求用户安装编译器。
 3. 只使用 `context.profileId/config/signal/log/automation/vision`。Automation API v1 仅提供
-   `capture()`、`getWindowState()`、`getCoordinates()`、`click(point)`、`wait(ms)`。
+   `capture()`、`getWindowState()`、`click(point)`、`wait(ms)`。
    Vision v1 仅提供 `find(templateId, options?)`、`waitFor(...)`、`waitUntilGone(...)`。
 4. 每个异步动作都 `await`，循环边界检查 `context.signal.aborted`；禁止同步死循环或长时间同步
    计算，因为可信同进程模型无法硬终止阻塞 event loop 的代码。
@@ -58,13 +56,12 @@ automation-scripts/<package>
 - 视觉模板固定为当前已注册脚本包的 `assets/vision/<template-id>.png`，templateId 仅允许
   1～64 位 lowercase slug。脚本不能传路径/URL/root/身份 override；成功模板可按脚本身份在
   进程内只读缓存，但截图、ROI、结果和等待状态不跨 Profile/run 缓存，也不进入 userData。
-- 配置与坐标保存在
-  `app.getPath('userData')/automation-data/profiles/<profileId>/scripts/<scriptId>/`，文件分别为
-  `config.json` 与 `coordinates.json`。
+- 配置保存在
+  `app.getPath('userData')/automation-data/profiles/<profileId>/scripts/<scriptId>/config.json`。
 - 数据 envelope 包含 `schemaVersion`、`profileId`、`scriptId` 和 `updatedAt`。读取时会验证身份、
-  schema、大小与坐标；写入使用同目录临时文件再原子替换。
-- 定向清除只删除对应 payload；Profile 删除会停止运行和清除临时录点，不递归删除持久用户
-  数据。应用更新或脚本资源替换不得覆盖这些数据。
+  schema 与大小；写入使用同目录临时文件再原子替换。
+- Profile 删除会停止运行，但不递归删除持久用户数据。应用更新或脚本资源替换不得覆盖配置。
+  旧版本产生的 `coordinates.json` 不再读取或写入，也不会在升级时主动删除。
 
 ## 稳定状态与错误
 
@@ -80,8 +77,8 @@ automation-scripts/<package>
 - 身份/运行：`script-not-found`、`profile-not-found`、`profile-busy`、`game-not-ready`（保留的旧版
   诊断码，通用 v1 能力不再产生）、
   `window-unavailable`、`run-not-active`、`run-cancelled`、`run-timeout`、`script-failed`。
-- 数据/录点：`config-invalid`、`coordinates-missing`、`coordinates-invalid`、`capture-failed`、
-  `capture-expired`、`storage-read-failed`、`storage-write-failed`。
+- 数据/截图：`config-invalid`、`coordinates-invalid`、`capture-failed`、`storage-read-failed`、
+  `storage-write-failed`。
 - 后台动作：`cdp-unavailable`、`cdp-already-attached`、`cdp-attach-failed`、`cdp-detached`、
   `cdp-dispatch-failed`、`action-timeout`。
 - Vision：`vision-input-invalid`、`vision-template-id-invalid`、`vision-template-not-found`、
@@ -101,11 +98,8 @@ pixel 单元格中心映射到当前 BrowserWindow/CDP viewport。DIP 不进入 
 v1 产品边界仍是 `1920×1080 + Windows 100%`，纯逻辑 unequal-size/DIP 哨兵不代表 DPI 或
 多缩放支持。
 
-启动器“自动化”面板提供受控的人工验收入口：选中脚本后点击“Vision 框选”，在截图上拖出
-ROI，面板会自动填入 screenshot-pixel ROI 和中心坐标，并只列出该脚本自身
-`assets/vision/*.png` 的安全 templateId。随后可点击“匹配”查看 rect/confidence，或点击
-“匹配并点击”让命中的 `center` 经正式 `automation.click()` 链派发。该入口不接受文件路径，
-不绕过 registry、Profile lease、模板隔离、Vision API 或坐标 mapper。
+正式版“自动化”面板只提供脚本查看、启动、停止和状态展示。模板裁剪、ROI 框选与代码复制
+统一由仓库中的开发工具 `tools/vision-author/` 完成，不进入 Windows 正式发布包。
 
 renderer 只能显示 `src/automation/errors.js` 为已知码定义的安全说明。注册日志仅记录安全包名、
 script ID、错误码与计数；运行日志只记录 run/Profile/script/phase/level 等结构化字段，不记录

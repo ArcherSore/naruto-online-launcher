@@ -78,12 +78,11 @@ ProfileManager.launch(profileId)
   cell midpoint 编码；BrowserWindow/CDP viewport 的末段映射只存在于 backend。
 - `src/automation/vision/`：可信脚本的 `find/waitFor/waitUntilGone`、Electron nativeImage PNG
   解码、纯 JS exact-scale/ROI 协作分片 matcher，以及基于 registry packageRoot 的专属模板加载。
-- `src/automation/recording.js`、`store.js`：有时限的截图录点，以及
-  `userData/automation-data/profiles/<profileId>/scripts/<scriptId>/` 下的隔离用户数据。
-- `src/ui/automation-selection.js`：管理页截图点击/拖拽到 screenshot-pixel ROI、中心点及
-  click-compatible normalized point 的纯几何换算；自动化面板可自动填入 ROI，并通过受控 IPC
-  调用正式 Vision/Automation API 执行“匹配”与“匹配并点击”。
-- `src/automation/index.js`：组合 registry、runner、coordinator、backend、recording 与 Profile/
+- `src/automation/store.js`：管理
+  `userData/automation-data/profiles/<profileId>/scripts/<scriptId>/` 下的隔离脚本配置。
+- `src/ui/index.html`、`app.js`、`styles.css`：正式版自动化面板只展示、启动和停止内置脚本；
+  桌面端每屏显示六张脚本卡片，更多脚本在面板内滚动，不包含录点或 Vision 调试入口。
+- `src/automation/index.js`：组合 registry、runner、coordinator、backend 与 Profile/
   窗口生命周期。
 - `automation-scripts/demo/`：正式示例脚本，只通过注入的 Vision/Automation API 依次等待模板
   并点击匹配中心。
@@ -93,7 +92,7 @@ ProfileManager.launch(profileId)
 
 通用自动化能力只检查所属 Profile 窗口、webContents、内容尺寸、输入和动作生命周期等客观
 资源。腾讯流程阶段及 `GAME_READY` 仅用于诊断；页面是否适合操作由脚本通过受限 API 判断，
-不能成为截图、录点或脚本启动的全局硬门槛。
+不能成为截图或脚本启动的全局硬门槛。模板和 ROI 只通过仓库开发工具制作。
 
 脚本合同、稳定状态/错误、数据边界和验证命令详见
 [`docs/BUILTIN_AUTOMATION.md`](./BUILTIN_AUTOMATION.md)。

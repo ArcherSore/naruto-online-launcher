@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;"
+      content="default-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self';"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>火影忍者 OL 启动器</title>
@@ -185,7 +185,10 @@
     >
       <section class="modal automation-modal">
         <div class="modal-heading">
-          <h2 id="automationModalTitle">内置自动化</h2>
+          <div class="automation-modal-title-group">
+            <h2 id="automationModalTitle">内置自动化</h2>
+            <p id="automationProfileSummary" class="automation-profile-summary"></p>
+          </div>
           <button
             class="modal-close-btn"
             id="closeAutomationModalBtn"
@@ -195,72 +198,15 @@
             ×
           </button>
         </div>
-        <div class="modal-body">
-          <div id="automationScriptList" class="automation-script-list"></div>
-          <div class="automation-capture-wrap">
-            <div class="automation-capture-stage" id="automationCaptureStage" hidden>
-              <img id="automationCapture" alt="自动化截图" draggable="false" hidden />
-              <div
-                class="automation-selection-overlay"
-                id="automationSelectionOverlay"
-                aria-hidden="true"
-                hidden
-              ></div>
-              <div
-                class="automation-match-overlay"
-                id="automationMatchOverlay"
-                aria-hidden="true"
-                hidden
-              ></div>
-            </div>
-            <p class="field-hint" id="automationCaptureHint">
-              “截图录点”用于单击记录坐标；“Vision 框选”用于拖拽生成 ROI 并记录中心点。
-            </p>
-            <div class="automation-selection-result" id="automationVisionResult" hidden>
-              <div><span>ROI：</span><code id="automationVisionRoiText"></code></div>
-              <div><span>中心：</span><code id="automationVisionCenterText"></code></div>
-              <div class="automation-vision-test-fields">
-                <label>
-                  <span>模板</span>
-                  <select id="automationVisionTemplateId" aria-label="Vision 模板"></select>
-                </label>
-                <label>
-                  <span>阈值</span>
-                  <input
-                    id="automationVisionThreshold"
-                    type="number"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value="0.95"
-                    aria-label="Vision 匹配阈值"
-                  />
-                </label>
-              </div>
-              <div class="automation-vision-match-text" id="automationVisionMatchText">
-                框选后可直接匹配当前游戏画面。
-              </div>
-              <div class="automation-vision-test-actions">
-                <button class="secondary-button compact" id="automationVisionCopyBtn" type="button">
-                  复制 ROI
-                </button>
-                <button class="secondary-button compact" id="automationVisionMatchBtn" type="button">
-                  匹配
-                </button>
-                <button class="primary-button compact" id="automationVisionMatchClickBtn" type="button">
-                  匹配并点击
-                </button>
-              </div>
-            </div>
-          </div>
+        <div class="modal-body automation-modal-body">
+          <div
+            id="automationScriptList"
+            class="automation-script-list"
+            aria-live="polite"
+          ></div>
         </div>
         <div class="modal-actions">
-          <button class="secondary-button" id="automationClearBtn" type="button">清空坐标</button>
-          <button class="secondary-button" id="automationRecordBtn" type="button">截图录点</button>
-          <button class="secondary-button" id="automationVisionSelectBtn" type="button">
-            Vision 框选
-          </button>
-          <button class="primary-button" id="automationCloseBtn" type="button">完成</button>
+          <button class="primary-button" id="automationCloseBtn" type="button">关闭</button>
         </div>
       </section>
     </div>

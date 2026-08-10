@@ -6,8 +6,6 @@ const path = require('path');
 const { AutomationError } = require('./errors');
 
 const CONFIG_LIMIT = 256 * 1024;
-const COORDINATES_LIMIT = 64 * 1024;
-const MAX_POINTS = 100;
 
 function isPlainObject(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -57,34 +55,6 @@ function cloneConfig(value) {
   }
 }
 
-function cloneCoordinates(points) {
-  if (!Array.isArray(points) || points.length > MAX_POINTS) {
-    throw new AutomationError('coordinates-invalid');
-  }
-  return points.map(function (point, index) {
-    if (
-      !isPlainObject(point) ||
-      Object.keys(point).some(function (key) {
-        return ['order', 'normalizedX', 'normalizedY'].indexOf(key) === -1;
-      }) ||
-      point.order !== index + 1 ||
-      !Number.isFinite(point.normalizedX) ||
-      !Number.isFinite(point.normalizedY) ||
-      point.normalizedX < 0 ||
-      point.normalizedX >= 1 ||
-      point.normalizedY < 0 ||
-      point.normalizedY >= 1
-    ) {
-      throw new AutomationError('coordinates-invalid');
-    }
-    return {
-      order: point.order,
-      normalizedX: point.normalizedX,
-      normalizedY: point.normalizedY
-    };
-  });
-}
-
 function createAutomationStore(options) {
   const opts = options || {};
   if (typeof opts.rootDir !== 'string' || !path.isAbsolute(opts.rootDir)) {
@@ -122,7 +92,7 @@ function createAutomationStore(options) {
     const target = filePath(profileId, scriptId, fileName);
     let raw;
     try {
-      if (!fs.existsSync(target)) return payloadName === 'config' ? {} : [];
+      if (!fs.existsSync(target)) return {};
       const stats = fs.statSync(target);
       if (!stats.isFile() || stats.size > limit) throw new AutomationError(invalidCode);
       raw = fs.readFileSync(target, 'utf8');
@@ -146,18 +116,14 @@ function createAutomationStore(options) {
     ) {
       throw new AutomationError(invalidCode);
     }
-    const cloned =
-      payloadName === 'config'
-        ? cloneConfig(envelope.config)
-        : cloneCoordinates(envelope.points);
-    return deepFreeze(cloned);
+    return deepFreeze(cloneConfig(envelope[payloadName]));
   }
 
   function writeEnvelope(profileId, scriptId, fileName, limit, envelope) {
     const target = filePath(profileId, scriptId, fileName);
     const encoded = JSON.stringify(envelope, null, 2);
     if (Buffer.byteLength(encoded, 'utf8') > limit) {
-      throw new AutomationError(fileName === 'config.json' ? 'config-invalid' : 'coordinates-invalid');
+      throw new AutomationError('config-invalid');
     }
     const directory = path.dirname(target);
     const temp = path.join(
@@ -196,31 +162,6 @@ function createAutomationStore(options) {
     return deepFreeze(cloned);
   }
 
-  function getCoordinates(profileId, scriptId) {
-    return deepFreeze(
-      readEnvelope(
-        profileId,
-        scriptId,
-        'coordinates.json',
-        COORDINATES_LIMIT,
-        'coordinates-invalid',
-        'points'
-      )
-    );
-  }
-
-  function setCoordinates(profileId, scriptId, points) {
-    const cloned = cloneCoordinates(points);
-    writeEnvelope(profileId, scriptId, 'coordinates.json', COORDINATES_LIMIT, {
-      schemaVersion: 1,
-      profileId: profileId,
-      scriptId: scriptId,
-      updatedAt: new Date(now()).toISOString(),
-      points: cloned
-    });
-    return deepFreeze(cloned);
-  }
-
   function clearFile(profileId, scriptId, fileName) {
     const target = filePath(profileId, scriptId, fileName);
     try {
@@ -236,20 +177,12 @@ function createAutomationStore(options) {
     clearConfig: function (profileId, scriptId) {
       clearFile(profileId, scriptId, 'config.json');
       return deepFreeze({});
-    },
-    getCoordinates: getCoordinates,
-    setCoordinates: setCoordinates,
-    clearCoordinates: function (profileId, scriptId) {
-      clearFile(profileId, scriptId, 'coordinates.json');
-      return deepFreeze([]);
     }
   });
 }
 
 module.exports = {
   CONFIG_LIMIT: CONFIG_LIMIT,
-  COORDINATES_LIMIT: COORDINATES_LIMIT,
-  MAX_POINTS: MAX_POINTS,
   createAutomationStore: createAutomationStore,
   deepFreeze: deepFreeze
 };

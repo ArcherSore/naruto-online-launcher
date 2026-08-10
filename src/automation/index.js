@@ -1,20 +1,17 @@
 'use strict';
 
-const crypto = require('crypto');
 const path = require('path');
 const { createRegistry } = require('./registry');
 const { createAutomationStore } = require('./store');
 const { createCoordinator } = require('./coordinator');
 const { createAutomationBackend } = require('./backend');
 const { createAutomationApi } = require('./api');
-const { createRecordingService } = require('./recording');
 const { createRunner } = require('./runner');
 const { AutomationError } = require('./errors');
 const { createVisionCodec } = require('./vision/codec');
 const { createVisionTemplateLoader } = require('./vision/template-loader');
 const { createVisionMatcher } = require('./vision/matcher');
 const { createVisionApi } = require('./vision/api');
-const { createCancellationController } = require('./cancellation');
 
 function createAutomationService(options) {
   const opts = options || {};
@@ -68,8 +65,6 @@ function createAutomationService(options) {
     createApi: createRunApi,
     createVision: createRunVision
   });
-  const recording = createRecordingService({ backend: backend, store: store });
-  const activeVisionTests = new Map();
   let serviceActive = true;
   let profileChangeUnsubscribe = null;
   const knownProfileIds = new Set(
@@ -79,9 +74,6 @@ function createAutomationService(options) {
   );
   const unsubscribeClose = opts.launcher.onAutomationTargetClosed(function (profileId) {
     runner.cancelProfile(profileId, 'window-closed');
-    const activeTest = activeVisionTests.get(profileId);
-    if (activeTest) activeTest.controller.abort('window-closed');
-    recording.clearProfile(profileId);
   });
 
   function handleProfileChange() {
@@ -94,9 +86,6 @@ function createAutomationService(options) {
     knownProfileIds.forEach(function (profileId) {
       if (!currentIds.has(profileId)) {
         runner.cancelProfile(profileId, 'window-closed');
-        const activeTest = activeVisionTests.get(profileId);
-        if (activeTest) activeTest.controller.abort('window-closed');
-        recording.clearProfile(profileId);
       }
     });
     runner.listStatuses().forEach(function (status) {
@@ -105,7 +94,6 @@ function createAutomationService(options) {
         !profileExists(status.profileId)
       ) {
         runner.cancelProfile(status.profileId, 'window-closed');
-        recording.clearProfile(status.profileId);
       }
     });
     knownProfileIds.clear();
@@ -123,61 +111,6 @@ function createAutomationService(options) {
 
   function requireScript(scriptId) {
     if (!registry.has(scriptId)) throw new AutomationError('script-not-found');
-  }
-
-  async function testVision(profileId, scriptId, request) {
-    requireProfile(profileId);
-    requireScript(scriptId);
-    if (!request || typeof request !== 'object' || typeof request.click !== 'boolean') {
-      throw new AutomationError('vision-input-invalid');
-    }
-    if (!backend.getWindowState(profileId).available) {
-      throw new AutomationError('window-unavailable');
-    }
-    const testId = 'vision-ui-' + crypto.randomBytes(12).toString('hex');
-    const acquired = coordinator.tryAcquire(profileId, testId);
-    if (!acquired.ok) throw new AutomationError(acquired.error || 'profile-busy');
-    const controller = createCancellationController();
-    const deadlineAt = Date.now() + 30000;
-    const runOptions = {
-      profileId: profileId,
-      scriptId: scriptId,
-      lease: acquired.lease,
-      signal: controller.signal,
-      deadlineAt: deadlineAt,
-      coordinator: coordinator,
-      store: store,
-      profileExists: profileExists
-    };
-    const timeout = setTimeout(function () { controller.abort('timeout'); }, 30000);
-    if (timeout && typeof timeout.unref === 'function') timeout.unref();
-
-    const operation = (async function () {
-      try {
-        const vision = createRunVision(runOptions);
-        const automation = createRunApi(runOptions);
-        const match = await vision.find(request.templateId, {
-          roi: request.roi,
-          threshold: request.threshold
-        });
-        let clicked = false;
-        if (match && request.click) {
-          await automation.click(match.center);
-          clicked = true;
-        }
-        return Object.freeze({ found: !!match, match: match, clicked: clicked });
-      } finally {
-        clearTimeout(timeout);
-        try {
-          await coordinator.whenIdle(acquired.lease);
-        } finally {
-          coordinator.release(acquired.lease);
-          activeVisionTests.delete(profileId);
-        }
-      }
-    })();
-    activeVisionTests.set(profileId, { controller: controller, promise: operation });
-    return operation;
   }
 
   return Object.freeze({
@@ -206,52 +139,15 @@ function createAutomationService(options) {
     stop: function (profileId, runId) {
       return runner.stop(profileId, runId);
     },
-    getCoordinates: function (profileId, scriptId) {
-      requireProfile(profileId);
-      requireScript(scriptId);
-      return store.getCoordinates(profileId, scriptId);
-    },
-    beginRecording: function (profileId, scriptId, ownerId) {
-      requireProfile(profileId);
-      requireScript(scriptId);
-      return recording.begin(profileId, scriptId, ownerId);
-    },
-    addPoint: function (request) {
-      requireProfile(request && request.profileId);
-      requireScript(request && request.scriptId);
-      return recording.addPoint(request);
-    },
-    listVisionTemplates: function (profileId, scriptId) {
-      requireProfile(profileId);
-      requireScript(scriptId);
-      return visionLoader.list(scriptId);
-    },
-    testVision: testVision,
-    clearCoordinates: function (profileId, scriptId) {
-      requireProfile(profileId);
-      requireScript(scriptId);
-      return recording.clearCoordinates(profileId, scriptId);
-    },
     listStatuses: runner.listStatuses,
     onStatus: runner.onStatus,
     cancelProfile: runner.cancelProfile,
-    clearOwner: recording.clearOwner,
     shutdown: function () {
       if (!serviceActive) return runner.shutdown();
       serviceActive = false;
       unsubscribeClose();
       if (profileChangeUnsubscribe) profileChangeUnsubscribe();
-      recording.clearAll();
-      const pendingVisionTests = Array.from(activeVisionTests.values());
-      pendingVisionTests.forEach(function (activeTest) {
-        activeTest.controller.abort('app-quit');
-      });
-      return Promise.all([
-        runner.shutdown(),
-        Promise.all(pendingVisionTests.map(function (activeTest) {
-          return activeTest.promise.catch(function () {});
-        }))
-      ]).then(function () {});
+      return runner.shutdown();
     }
   });
 }

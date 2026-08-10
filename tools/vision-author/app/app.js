@@ -119,6 +119,56 @@
     return Promise.resolve(bridge.copyText(text));
   }
 
+  function createCopyFeedback(options) {
+    const opts = options || {};
+    if (!opts.button || typeof opts.copy !== 'function') {
+      throw new TypeError('button and copy are required');
+    }
+    const button = opts.button;
+    const defaultLabel = button.textContent;
+    const setTimer = typeof opts.setTimeout === 'function' ? opts.setTimeout : setTimeout;
+    const clearTimer = typeof opts.clearTimeout === 'function' ? opts.clearTimeout : clearTimeout;
+    const durationMs = Number.isInteger(opts.durationMs) && opts.durationMs > 0
+      ? opts.durationMs
+      : 1500;
+    let timer = null;
+    let generation = 0;
+
+    function reset() {
+      generation += 1;
+      if (timer !== null) clearTimer(timer);
+      timer = null;
+      button.textContent = defaultLabel;
+    }
+
+    function show(label, token) {
+      if (token !== generation) return;
+      button.textContent = label;
+      if (timer !== null) clearTimer(timer);
+      timer = setTimer(function () {
+        if (token !== generation) return;
+        timer = null;
+        button.textContent = defaultLabel;
+      }, durationMs);
+    }
+
+    function trigger() {
+      generation += 1;
+      const token = generation;
+      if (timer !== null) clearTimer(timer);
+      timer = null;
+      button.textContent = defaultLabel;
+      return Promise.resolve().then(opts.copy).then(function (result) {
+        show('已复制', token);
+        return result;
+      }, function () {
+        show('复制失败', token);
+      });
+    }
+
+    return Object.freeze({ reset: reset, trigger: trigger });
+  }
+
   function safeError(error, fallbackCode) {
     if (error && typeof error.code === 'string') {
       return {
@@ -555,16 +605,17 @@
         saveResult.textContent = failure.safeMessage || '保存失败。';
       });
     });
+    const copyFeedbacks = [];
     document.querySelectorAll('[data-copy]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        const target = document.getElementById(button.dataset.copy);
-        copyTextSafely(bridge, target.textContent).then(function () {
-          button.textContent = '已复制';
-        }).catch(function () {
-          button.textContent = '复制失败，请手工复制';
-        });
+      const target = document.getElementById(button.dataset.copy);
+      const feedback = createCopyFeedback({
+        button: button,
+        copy: function () { return copyTextSafely(bridge, target.textContent); }
       });
+      copyFeedbacks.push(feedback);
+      button.addEventListener('click', feedback.trigger);
     });
+    let outputSignature = null;
 
     function renderSelection(selection, overlay, value, state, transient) {
       if (!selection || !state || !state.currentFrame) {
@@ -588,7 +639,7 @@
       overlay.style.width = (selection.width / state.currentFrame.imageSize.width * imageBox.width) + 'px';
       overlay.style.height = (selection.height / state.currentFrame.imageSize.height * imageBox.height) + 'px';
       value.textContent = '{ x: ' + selection.x + ', y: ' + selection.y + ', width: ' + selection.width + ', height: ' + selection.height + ' }' +
-        (transient ? '（拖动中）' : (selection.referenceOnly || state.referenceOnly ? '（reference-only）' : ''));
+        (transient ? '（拖动中）' : (selection.referenceOnly || state.referenceOnly ? '（仅供参考）' : ''));
     }
 
     function renderDraftSelections(state) {
@@ -685,7 +736,10 @@
     bridge.onDisconnected(function (failure) { controller.disconnect(failure); });
 
     controller.subscribe(function (state) {
-      status.textContent = state.mode + (state.capturePending ? ' · capture pending' : '');
+      const modeText = state.mode === 'LIVE'
+        ? '实时画面'
+        : state.mode === 'FROZEN' ? '已冻结' : '未连接';
+      status.textContent = modeText + (state.capturePending ? ' · 正在截图' : '');
       const targetUnavailable = !!(state.error && (
         state.error.code === 'profile-unavailable' || state.error.code === 'connection-closed'
       ));
@@ -703,7 +757,9 @@
         imageSize.textContent = formatSize(frame.imageSize);
         contentSize.textContent = formatSize(frame.contentSize);
         capturedAt.textContent = new Date(frame.capturedAt).toLocaleString();
-        contract.textContent = frame.contract.valid ? '有效' : frame.contract.failures.join(', ');
+        contract.textContent = frame.contract.valid
+          ? '有效'
+          : '无效（' + frame.contract.failures.length + ' 项）';
         contract.dataset.valid = String(frame.contract.valid);
       }
       error.hidden = !state.error;
@@ -722,6 +778,11 @@
       roiOutput.textContent = outputs.roi;
       findOutput.textContent = outputs.find;
       waitOutput.textContent = outputs.waitFor;
+      const nextOutputSignature = outputs.roi + '\u0000' + outputs.find + '\u0000' + outputs.waitFor;
+      if (outputSignature !== null && outputSignature !== nextOutputSignature) {
+        copyFeedbacks.forEach(function (feedback) { feedback.reset(); });
+      }
+      outputSignature = nextOutputSignature;
       const currentTemplateId = state.draft.templateId || '';
       const templateIdValid = validTemplateId(currentTemplateId);
       templateIdInput.dataset.valid = currentTemplateId ? String(templateIdValid) : '';
@@ -745,6 +806,7 @@
   return {
     INTERVAL_MS: INTERVAL_MS,
     createDefaultTimers: createDefaultTimers,
+    createCopyFeedback: createCopyFeedback,
     createLiveController: createLiveController,
     copyTextSafely: copyTextSafely,
     fitImageBox: fitImageBox,

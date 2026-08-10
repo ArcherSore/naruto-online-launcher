@@ -8,72 +8,62 @@ describe('manager automation panel assets', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
 
-  test('contains a generic automation dialog, script list, and coordinate image', () => {
+  test('contains only the release script catalog and run controls', () => {
     expect(html).toContain('id="automationModal"');
-    expect(html).toContain('id="automationCapture"');
     expect(html).toContain('id="automationScriptList"');
-    expect(html).toContain("img-src 'self' data:");
-    expect(css).toContain('.automation-capture-wrap img[hidden]');
+    expect(html).toContain('id="automationProfileSummary"');
+    ['automationCapture', 'automationRecordBtn', 'automationClearBtn',
+      'automationVisionSelectBtn', 'automationVisionMatchBtn'].forEach(function (id) {
+      expect(html).not.toContain('id="' + id + '"');
+    });
+    expect(html).not.toContain('截图录点');
+    expect(html).not.toContain('清空坐标');
+    expect(html).not.toContain('Vision 框选');
   });
 
-  test('offers screenshot ROI selection and in-launcher Vision matching/clicking', () => {
-    expect(html).toContain('id="automationVisionSelectBtn"');
-    expect(html).toContain('id="automationSelectionOverlay"');
-    expect(html).toContain('id="automationMatchOverlay"');
-    expect(html).toContain('id="automationVisionRoiText"');
-    expect(html).toContain('id="automationVisionCenterText"');
-    expect(html).toContain('id="automationVisionTemplateId"');
-    expect(html).toContain('id="automationVisionThreshold"');
-    expect(html).toContain('id="automationVisionMatchBtn"');
-    expect(html).toContain('id="automationVisionMatchClickBtn"');
-    expect(html).toContain('id="automationVisionMatchText"');
-    expect(html).toContain('id="automationVisionCopyBtn"');
-    expect(js).toContain("automationCaptureMode = 'vision-roi'");
-    expect(js).toContain("'automation:recording:add-point'");
-    expect(js).toContain("'automation:vision:templates'");
-    expect(js).toContain("'automation:vision:test'");
-    expect(js).toContain("click: shouldClick");
-    expect(js).toContain("clipboard.writeText('--roi '");
-    expect(css).toContain('.automation-selection-overlay');
-    expect(css).toContain('.automation-match-overlay');
+  test('shows six cards in a two-column, three-row scroll viewport', () => {
+    expect(css).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(css).toContain('grid-auto-rows: 126px;');
+    expect(css).toContain('max-height: 398px;');
+    expect(css).toContain('overflow-y: auto;');
+    expect(css).toContain('@media (max-width: 760px)');
+    expect(js).toContain('automation-script-description');
+    expect(js).toContain('automation-status-');
   });
 
-  test('renders script identity and uses only generic versioned channels', () => {
-    expect(js).toContain('script.id');
-    expect(js).toContain('script.version');
-    expect(js).toContain('script.apiVersion');
-    ['automation:list', 'automation:start', 'automation:recording:begin',
-      'automation:recording:add-point', 'automation:vision:templates',
-      'automation:vision:test', 'automation:coordinates:clear'].forEach(function (channel) {
+  test('runs a script directly from its card through release channels only', () => {
+    ['automation:list', 'automation:start', 'automation:stop'].forEach(function (channel) {
       expect(js).toContain("'" + channel + "'");
     });
-    expect(js).not.toContain('automation-demo:');
+    ['automation:recording:begin', 'automation:recording:add-point',
+      'automation:vision:templates', 'automation:vision:test',
+      'automation:coordinates:get', 'automation:coordinates:clear'].forEach(function (channel) {
+      expect(js).not.toContain("'" + channel + "'");
+    });
+    expect(js).toContain("button.closest('[data-script-id]')");
+    expect(js).not.toContain('automationSelectedScriptId');
   });
 
-  test('uses target availability for start and recording while keeping readiness diagnostic', () => {
+  test('uses target availability for start while keeping readiness diagnostic', () => {
     expect(js).toContain('const runnable = automationTarget.available === true;');
     expect(js).not.toContain(
       'const runnable = automationTarget.available === true && automationTarget.gameReady === true;'
     );
-    expect(js).not.toContain('!automationTarget.available || !automationTarget.gameReady');
-    expect(js).toContain('elements.automationRecord.disabled');
     expect(js).toContain("ipcRenderer.on('launch-flow:status'");
     expect(js).toContain("state.stage === 'GAME_READY'");
   });
 
-  test('renders stop/stopping, restores status snapshots, and has fixed recovery copy', () => {
-    expect(js).toContain("'automation:stop'");
+  test('renders stop/stopping, status snapshots, and safe run recovery text', () => {
     expect(js).toContain("stopping: '停止中'");
     expect(js).toContain("ipcRenderer.on('automation:status'");
     expect(js).toContain("ipcRenderer.on('automation:statuses'");
     ['profile-busy', 'cdp-already-attached', 'run-timeout', 'window-unavailable',
-      'coordinates-invalid', 'vision-input-invalid', 'vision-template-not-found',
-      'vision-timeout'].forEach(function (code) {
+      'vision-template-not-found', 'vision-timeout'].forEach(function (code) {
       expect(js).toContain("'" + code + "'");
     });
   });
 
-  test('updates availability for the selected Profile when its game window opens or closes', () => {
+  test('updates availability for the active Profile when its game window changes', () => {
     expect(js).toContain('state.profileId === automationProfileId');
     expect(js).toContain('automationTarget.available = state.open === true');
   });

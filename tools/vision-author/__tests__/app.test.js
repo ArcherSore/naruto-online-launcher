@@ -334,5 +334,56 @@ describe('Vision Author renderer state races', () => {
     expect(host.setInterval).toHaveBeenCalledWith(callback, 1000);
     expect(host.clearInterval).toHaveBeenCalledWith(41);
   });
+
+  test('restores copy button labels after success and failure feedback', async () => {
+    const { createCopyFeedback } = require('../app/app');
+    const successButton = fakeElement();
+    successButton.textContent = '复制 ROI';
+    const success = createCopyFeedback({
+      button: successButton,
+      copy: jest.fn(async function () { return { copied: true }; })
+    });
+    await success.trigger();
+    expect(successButton.textContent).toBe('已复制');
+    jest.advanceTimersByTime(1499);
+    expect(successButton.textContent).toBe('已复制');
+    jest.advanceTimersByTime(1);
+    expect(successButton.textContent).toBe('复制 ROI');
+
+    const failureButton = fakeElement();
+    failureButton.textContent = '复制 find()';
+    const failure = createCopyFeedback({
+      button: failureButton,
+      copy: jest.fn(async function () { throw new Error('clipboard unavailable'); })
+    });
+    await failure.trigger();
+    expect(failureButton.textContent).toBe('复制失败');
+    jest.advanceTimersByTime(1500);
+    expect(failureButton.textContent).toBe('复制 find()');
+  });
+
+  test('ignores stale copy completions and resets feedback when output changes', async () => {
+    const first = helpers.deferred();
+    const second = helpers.deferred();
+    const button = fakeElement();
+    button.textContent = '复制 waitFor()';
+    const copy = jest.fn()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    const { createCopyFeedback } = require('../app/app');
+    const feedback = createCopyFeedback({ button: button, copy: copy });
+    const firstTrigger = feedback.trigger();
+    const secondTrigger = feedback.trigger();
+    first.resolve({ copied: true });
+    await firstTrigger;
+    expect(button.textContent).toBe('复制 waitFor()');
+    second.resolve({ copied: true });
+    await secondTrigger;
+    expect(button.textContent).toBe('已复制');
+    feedback.reset();
+    expect(button.textContent).toBe('复制 waitFor()');
+    jest.advanceTimersByTime(2000);
+    expect(button.textContent).toBe('复制 waitFor()');
+  });
 });
 

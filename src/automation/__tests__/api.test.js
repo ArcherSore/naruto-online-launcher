@@ -186,7 +186,7 @@ describe('Automation API v1 happy path', () => {
     expect(target.window.show).toBeUndefined();
   });
 
-  test('exposes exactly five frozen actions bound to the current lease', async () => {
+  test('exposes exactly four frozen actions bound to the current lease', async () => {
     const target = makeTarget();
     const coordinator = createCoordinator();
     const lease = coordinator.tryAcquire('p_aaaaaaaa', 'run-1').lease;
@@ -199,21 +199,13 @@ describe('Automation API v1 happy path', () => {
       deadlineAt: Date.now() + 10000,
       coordinator: coordinator,
       profileExists: function () { return true; },
-      store: {
-        getCoordinates: function () {
-          return [{ order: 1, normalizedX: 0.25, normalizedY: 0.25 }];
-        }
-      },
       backend: createAutomationBackend({ targetProvider: function () { return target; } })
     });
     expect(Object.keys(api).sort()).toEqual([
-      'capture', 'click', 'getCoordinates', 'getWindowState', 'wait'
+      'capture', 'click', 'getWindowState', 'wait'
     ]);
     expect(Object.isFrozen(api)).toBe(true);
-    const points = await api.getCoordinates();
-    expect(Object.isFrozen(points)).toBe(true);
-    expect(Object.isFrozen(points[0])).toBe(true);
-    await api.click(points[0]);
+    await api.click({ normalizedX: 0.25, normalizedY: 0.25 });
   });
 
   test('fences queued actions after cancellation but lets the active atomic click clean up', async () => {
@@ -234,7 +226,6 @@ describe('Automation API v1 happy path', () => {
       deadlineAt: Date.now() + 10000,
       coordinator: coordinator,
       profileExists: function () { return true; },
-      store: { getCoordinates: function () { return []; } },
       backend: backend
     });
     const first = api.click({ normalizedX: 0.25, normalizedY: 0.5 });
