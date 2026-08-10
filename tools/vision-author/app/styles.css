@@ -57,4 +57,8 @@ code { display: block; color: #d8dce7; font-size: 11px; white-space: normal; ove
 .preview-box img { max-width: 100%; max-height: 160px; image-rendering: auto; }
 pre { margin: 0; min-height: 36px; max-height: 180px; overflow: auto; white-space: pre-wrap; border: 1px solid #303544; border-radius: 7px; padding: 8px; background: #08090d; color: #d8dce7; font-size: 11px; }
 .copy { min-height: 32px; padding: 5px 8px; font-size: 12px; }
+.field-help { min-height: 18px; color: #9ba3b8; font-size: 12px; line-height: 1.45; }
+.field-help[data-valid="true"] { color: #72d69c; }
+.field-help[data-valid="false"] { color: #ffb1a1; }
+#template-id[data-valid="false"] { border-color: #c96458; box-shadow: 0 0 0 1px rgba(201, 100, 88, 0.35); }
 .save-result { min-height: 18px; color: #9ba3b8; font-size: 12px; overflow-wrap: anywhere; }

@@ -73,6 +73,26 @@
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(templateId);
   }
 
+  function suggestTemplateId(templateId) {
+    if (typeof templateId !== 'string') return null;
+    const suggestion = templateId.trim().toLowerCase()
+      .replace(/[_\s]+/g, '-')
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    return suggestion !== templateId && validTemplateId(suggestion) ? suggestion : null;
+  }
+
+  function templateIdHelpText(templateId) {
+    if (!templateId) return '必填：1–64 位小写字母、数字和单连字符。';
+    if (validTemplateId(templateId)) return '将保存为 ' + templateId + '.png';
+    const suggestion = suggestTemplateId(templateId);
+    const reason = templateId.indexOf('_') !== -1
+      ? '不能使用下划线，请使用单连字符。'
+      : '仅允许 1–64 位小写字母、数字和分隔非空段的单连字符。';
+    return '格式无效：' + reason + (suggestion ? ' 建议改为 ' + suggestion + '。' : '');
+  }
+
   function formatRoi(roi) {
     if (!validSelection(roi, { width: Number.MAX_SAFE_INTEGER, height: Number.MAX_SAFE_INTEGER })) {
       throw safeError(null, 'selection-invalid');
@@ -369,9 +389,12 @@
     }
 
     function savePreflight() {
+      if (!validTemplateId(state.draft.templateId)) {
+        return Promise.reject(safeError(null, 'template-id-invalid'));
+      }
       if (
         state.mode !== 'FROZEN' || state.referenceOnly || !state.frozenFrameId ||
-        !state.draft.previewId || !state.draft.targetScriptId || !validTemplateId(state.draft.templateId) ||
+        !state.draft.previewId || !state.draft.targetScriptId ||
         !state.currentFrame || !state.currentFrame.contract.valid
       ) {
         return Promise.reject(safeError(null, 'frame-stale'));
@@ -475,6 +498,7 @@
     const previewImage = document.getElementById('preview-image');
     const scriptSelect = document.getElementById('script-select');
     const templateIdInput = document.getElementById('template-id');
+    const templateIdHelp = document.getElementById('template-id-help');
     const saveButton = document.getElementById('save-button');
     const saveResult = document.getElementById('save-result');
     const roiOutput = document.getElementById('roi-output');
@@ -698,9 +722,14 @@
       roiOutput.textContent = outputs.roi;
       findOutput.textContent = outputs.find;
       waitOutput.textContent = outputs.waitFor;
+      const currentTemplateId = state.draft.templateId || '';
+      const templateIdValid = validTemplateId(currentTemplateId);
+      templateIdInput.dataset.valid = currentTemplateId ? String(templateIdValid) : '';
+      templateIdHelp.dataset.valid = currentTemplateId ? String(templateIdValid) : '';
+      templateIdHelp.textContent = templateIdHelpText(currentTemplateId);
       saveButton.disabled = !(
         state.mode === 'FROZEN' && !state.referenceOnly && state.draft.previewId &&
-        state.draft.targetScriptId && validTemplateId(state.draft.templateId) &&
+        state.draft.targetScriptId && templateIdValid &&
         state.currentFrame && state.currentFrame.contract.valid && !targetUnavailable
       );
     });
@@ -725,6 +754,8 @@
     mapDragToRect: mapDragToRect,
     refreshProfileOptions: refreshProfileOptions,
     safeError: safeError,
+    suggestTemplateId: suggestTemplateId,
+    templateIdHelpText: templateIdHelpText,
     validTemplateId: validTemplateId
   };
 });

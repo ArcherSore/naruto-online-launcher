@@ -28,7 +28,7 @@ function fakeDocument() {
     'resume-button', 'status-value', 'profile-value', 'image-size-value', 'content-size-value',
     'captured-at-value', 'contract-value', 'error-panel', 'viewer', 'template-mode', 'roi-mode',
     'template-overlay', 'roi-overlay', 'template-value', 'roi-value', 'preview-image',
-    'script-select', 'template-id', 'save-button', 'save-result', 'roi-output', 'find-output',
+    'script-select', 'template-id', 'template-id-help', 'save-button', 'save-result', 'roi-output', 'find-output',
     'wait-output'
   ];
   const elements = {};
@@ -264,6 +264,46 @@ describe('Vision Author renderer state races', () => {
     await Promise.resolve();
     expect(sourceWrites).toHaveLength(2);
     controller.disconnect();
+  });
+
+  test('explains an invalid templateId and suggests the valid kebab-case form', () => {
+    const document = fakeDocument();
+    const bridge = {
+      listProfiles: jest.fn(async () => ({ profiles: [] })),
+      listScripts: jest.fn(async () => ({ scripts: [] })),
+      capture: jest.fn(),
+      markDisplayed: jest.fn(),
+      releaseFrame: jest.fn(async () => ({ released: true })),
+      onDisconnected: jest.fn()
+    };
+    const { initializeRenderer } = require('../app/app');
+    const controller = initializeRenderer(document, bridge);
+    const input = document.elements['template-id'];
+    const help = document.elements['template-id-help'];
+
+    input.value = 'entry_activity';
+    input.dispatch('input');
+
+    expect(input.dataset.valid).toBe('false');
+    expect(help.textContent).toContain('不能使用下划线');
+    expect(help.textContent).toContain('entry-activity');
+    expect(document.elements['save-button'].disabled).toBe(true);
+    controller.disconnect();
+  });
+
+  test('save preflight reports template-id-invalid instead of frame-stale', async () => {
+    const bridge = {
+      capture: jest.fn(),
+      markDisplayed: jest.fn(),
+      releaseFrame: jest.fn(async () => ({ released: true }))
+    };
+    const { createLiveController } = require('../app/app');
+    const controller = createLiveController({ bridge: bridge });
+    controller.setTemplateId('entry_activity');
+
+    await expect(controller.savePreflight()).rejects.toEqual(expect.objectContaining({
+      code: 'template-id-invalid'
+    }));
   });
 
   test('disables Chromium background throttling for the fixed Live schedule', () => {

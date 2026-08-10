@@ -1,6 +1,8 @@
 'use strict';
 
-const { app, BrowserWindow, screen } = require('electron');
+const fs = require('fs');
+const path = require('path');
+const { app, BrowserWindow, nativeImage, screen } = require('electron');
 const { createRuntime } = require('./automation-runtime-harness');
 
 const TIMEOUT_MS = 20000;
@@ -17,6 +19,11 @@ function emit(result) {
 }
 
 async function run() {
+  const templatePng = fs.readFileSync(path.join(
+    __dirname, '..', '..', 'automation-scripts', 'demo', 'assets', 'vision', 'entry-activity.png'
+  ));
+  const templateSize = nativeImage.createFromBuffer(templatePng).getSize();
+  const templateDataUrl = 'data:image/png;base64,' + templatePng.toString('base64');
   stage = 'create-target';
   const target = new BrowserWindow({
     width: 400,
@@ -35,9 +42,8 @@ async function run() {
     'html,body{margin:0;width:100%;height:100%;overflow:hidden}' +
     'button{position:absolute;top:30%;width:25%;height:40%}' +
     '#first{left:8%}#second{right:8%}' +
-    '#vision-target{position:absolute;left:190px;top:10px;width:20px;height:20px;' +
-    'background:rgb(17,34,51)}</style>' +
-    '<div id="vision-target"></div><button id="first">FIRST</button><button id="second">SECOND</button>' +
+    '#vision-target{position:absolute;left:190px;top:10px}</style>' +
+    '<img id="vision-target" src="' + templateDataUrl + '"><button id="first">FIRST</button><button id="second">SECOND</button>' +
     '<script>window.__events=[];["vision-target","first","second"].forEach(function(id){' +
     'document.getElementById(id).addEventListener("click",function(event){' +
     'window.__events.push({id:id==="vision-target"?"vision":id,at:Date.now(),x:event.clientX,y:event.clientY});});});</script>';
@@ -52,7 +58,8 @@ async function run() {
   const firstSize = target.getContentSize();
   stage = 'vision-find-click';
   const vision = await runtime.runVisionClick({
-    roi: { x: 190, y: 10, width: 20, height: 20 },
+    templateId: 'entry-activity',
+    roi: { x: 190, y: 10, width: templateSize.width, height: templateSize.height },
     threshold: 0.99
   });
   setTimeout(function () {
@@ -91,8 +98,8 @@ async function run() {
     result.clickCount === 3 &&
     result.targetOrder.join(',') === 'vision,first,second' &&
     result.visionRect.x >= 190 && result.visionRect.y >= 10 &&
-    result.visionRect.x + result.visionRect.width <= 210 &&
-    result.visionRect.y + result.visionRect.height <= 30 &&
+    result.visionRect.x + result.visionRect.width <= 190 + templateSize.width &&
+    result.visionRect.y + result.visionRect.height <= 10 + templateSize.height &&
     result.visionConfidence >= 0.99 &&
     result.intervalMs >= 850 &&
     result.intervalMs <= 1500 &&

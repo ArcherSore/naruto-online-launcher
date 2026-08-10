@@ -14,6 +14,8 @@ const { createVisionTemplateLoader } = require('../../src/automation/vision/temp
 const { createVisionMatcher } = require('../../src/automation/vision/matcher');
 const { createVisionApi } = require('../../src/automation/vision/api');
 
+const SCRIPT_ID = 'daily-reward';
+
 function noop() {}
 
 function createRuntime(options) {
@@ -22,7 +24,7 @@ function createRuntime(options) {
   const scriptsRoot = path.join(__dirname, '..', '..', 'automation-scripts');
   const registry = createRegistry({ rootDir: scriptsRoot });
   registry.scan();
-  if (!registry.has('demo-click')) throw new Error('demo-click was not registered');
+  if (!registry.has(SCRIPT_ID)) throw new Error(SCRIPT_ID + ' was not registered');
 
   const profileExists = function (profileId) { return profileId === opts.profileId; };
   const coordinator = createCoordinator();
@@ -86,7 +88,7 @@ function createRuntime(options) {
   async function finishRun(started) {
     if (!started.ok) throw new Error('run start failed: ' + started.error);
     await runner.waitForRun(started.status.runId);
-    const status = runner.getStatus(opts.profileId, 'demo-click');
+    const status = runner.getStatus(opts.profileId, SCRIPT_ID);
     if (status.status !== 'succeeded') {
       throw new Error('run failed: ' + (status.error ? status.error.code : status.status));
     }
@@ -98,16 +100,26 @@ function createRuntime(options) {
     store: store,
     runner: runner,
     runDemo: async function (points, config) {
-      runOverride = null;
-      store.setCoordinates(opts.profileId, 'demo-click', points);
-      store.setConfig(opts.profileId, 'demo-click', config || {});
-      return finishRun(runner.start(opts.profileId, 'demo-click'));
+      runOverride = async function (context) {
+        const recorded = await context.automation.getCoordinates();
+        for (let index = 0; index < recorded.length; index++) {
+          if (index > 0) await context.automation.wait(1000);
+          await context.automation.click(recorded[index]);
+        }
+      };
+      store.setCoordinates(opts.profileId, SCRIPT_ID, points);
+      store.setConfig(opts.profileId, SCRIPT_ID, config || {});
+      try {
+        return await finishRun(runner.start(opts.profileId, SCRIPT_ID));
+      } finally {
+        runOverride = null;
+      }
     },
     runVisionClick: async function (visionOptions) {
       const call = visionOptions || {};
       let result = null;
       runOverride = async function (context) {
-        result = await context.vision.find(call.templateId || 'sample-target', {
+        result = await context.vision.find(call.templateId || 'entry-activity', {
           roi: call.roi,
           threshold: call.threshold === undefined ? 0.99 : call.threshold
         });
@@ -115,7 +127,7 @@ function createRuntime(options) {
         await context.automation.click(result.center);
       };
       try {
-        const status = await finishRun(runner.start(opts.profileId, 'demo-click'));
+        const status = await finishRun(runner.start(opts.profileId, SCRIPT_ID));
         return Object.freeze({ status: status, result: result });
       } finally {
         runOverride = null;

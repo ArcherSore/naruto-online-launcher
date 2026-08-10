@@ -27,7 +27,7 @@ async function run() {
   const registry = createRegistry({ rootDir: automationRoot });
   registry.scan();
   const catalog = registry.list();
-  if (catalog.length !== 1 || catalog[0].id !== 'demo-click') {
+  if (catalog.length !== 1 || catalog[0].id !== 'daily-reward') {
     throw new Error('packaged-catalog-mismatch');
   }
 
@@ -41,22 +41,21 @@ async function run() {
   const visionMatcher = createVisionMatcher();
   const templatePng = fs.readFileSync(path.join(
     automationRoot,
-    'demo-click',
+    'demo',
     'assets',
     'vision',
-    'sample-target.png'
+    'entry-activity.png'
   ));
   const templateImage = nativeImage.createFromBuffer(templatePng);
   const templateSize = templateImage.getSize();
   let visionResult = null;
-  const demoRecord = registry.get('demo-click');
+  const demoRecord = registry.get('daily-reward');
   const runnerRegistry = Object.freeze({
     get: function (scriptId) {
-      if (scriptId !== 'demo-click') return registry.get(scriptId);
+      if (scriptId !== 'daily-reward') return registry.get(scriptId);
       return Object.freeze(Object.assign({}, demoRecord, {
         run: async function (context) {
-          await demoRecord.run(context);
-          visionResult = await context.vision.find('sample-target', { threshold: 1 });
+          visionResult = await context.vision.find('entry-activity', { threshold: 1 });
           if (!visionResult) throw new Error('packaged-vision-no-match');
           await context.automation.click(visionResult.center);
         }
@@ -122,29 +121,22 @@ async function run() {
   });
 
   try {
-    store.setCoordinates(profileId, 'demo-click', [
-      { order: 1, normalizedX: 0.25, normalizedY: 0.5 },
-      { order: 2, normalizedX: 0.75, normalizedY: 0.5 }
-    ]);
-    const started = runner.start(profileId, 'demo-click');
+    const started = runner.start(profileId, 'daily-reward');
     if (!started.ok) throw new Error(started.error || 'packaged-run-start-failed');
     await runner.waitForRun(started.status.runId);
-    const status = runner.getStatus(profileId, 'demo-click');
-    const intervalMs = clicks.length === 3 ? clicks[1].at - clicks[0].at : null;
-    const ok = status.status === 'succeeded' && clicks.length === 3 &&
-      clicks[0].order === 1 && clicks[1].order === 2 && clicks[2].order === 3 &&
-      intervalMs >= 850 && intervalMs <= 1500 &&
+    const status = runner.getStatus(profileId, 'daily-reward');
+    const ok = status.status === 'succeeded' && clicks.length === 1 && clicks[0].order === 1 &&
       visionResult && visionResult.rect.x === 0 && visionResult.rect.y === 0 &&
       visionResult.rect.width === templateSize.width && visionResult.rect.height === templateSize.height &&
       visionResult.confidence === 1 &&
-      clicks[2].normalizedX === visionResult.center.normalizedX;
+      clicks[0].normalizedX === visionResult.center.normalizedX;
     process.stdout.write('PACKAGED_AUTOMATION_SMOKE ' + JSON.stringify({
       ok: ok,
       executable: path.basename(process.execPath),
       catalog: catalog,
       status: status.status,
       clickCount: clicks.length,
-      intervalMs: intervalMs,
+      intervalMs: null,
       vision: visionResult
     }) + '\n');
     if (!ok) process.exitCode = 1;

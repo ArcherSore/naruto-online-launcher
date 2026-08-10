@@ -62,7 +62,9 @@
           <h3>Target Script</h3>
           <select id="script-select"><option value="">选择可信脚本</option></select>
           <h3>templateId</h3>
-          <input id="template-id" type="text" maxlength="64" autocomplete="off" placeholder="battle-button" />
+          <input id="template-id" type="text" maxlength="64" autocomplete="off" spellcheck="false"
+            pattern="[a-z0-9]+(?:-[a-z0-9]+)*" aria-describedby="template-id-help" placeholder="battle-button" />
+          <p id="template-id-help" class="field-help">必填：1–64 位小写字母、数字和单连字符。</p>
           <button id="save-button" type="button" disabled>保存 Template PNG</button>
           <p id="save-result" class="save-result" role="status"></p>
           <h3>ROI</h3>

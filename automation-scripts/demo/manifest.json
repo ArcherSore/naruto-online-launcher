@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "daily-reward",
+  "name": "每日奖励",
+  "version": "0.1.0",
+  "entry": "index.js",
+  "apiVersion": 1,
+  "description": "自动领取每日奖励。"
+}

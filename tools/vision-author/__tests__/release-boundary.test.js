@@ -42,8 +42,8 @@ describe('Vision Author release boundary', () => {
       verifier.assertPackageEntries([
         '/src/main.js',
         '/src/automation/backend.js',
-        '/automation-scripts/demo-click/manifest.json',
-        '/automation-scripts/demo-click/assets/vision/sample-target.png'
+        '/automation-scripts/demo/manifest.json',
+        '/automation-scripts/demo/assets/vision/entry-activity.png'
       ]);
     }).not.toThrow();
     [
@@ -53,7 +53,7 @@ describe('Vision Author release boundary', () => {
       '/src/naruto-vision-author-protocol.js'
     ].forEach(function (entry) {
       expect(function () {
-        verifier.assertPackageEntries(['/src/main.js', '/automation-scripts/demo-click/manifest.json', entry]);
+        verifier.assertPackageEntries(['/src/main.js', '/automation-scripts/demo/manifest.json', entry]);
       }).toThrow(expect.objectContaining({ code: 'vision-author-release-boundary' }));
     });
   });
