@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const { AutomationError } = require('./errors');
+const { mapImagePointToNormalized } = require('./coordinates');
 const { deepFreeze } = require('./store');
 
 function validSize(size) {
@@ -88,18 +89,15 @@ function createRecordingService(options) {
       throw new AutomationError('coordinates-invalid');
     }
     const points = opts.store.getCoordinates(request.profileId, request.scriptId).slice();
-    const contentX = Math.min(
-      record.contentSize.width - 1,
-      Math.floor((request.imageX * record.contentSize.width) / record.imageSize.width)
-    );
-    const contentY = Math.min(
-      record.contentSize.height - 1,
-      Math.floor((request.imageY * record.contentSize.height) / record.imageSize.height)
+    const normalized = mapImagePointToNormalized(
+      { x: request.imageX, y: request.imageY },
+      record.imageSize,
+      record.contentSize
     );
     const point = {
       order: points.length + 1,
-      normalizedX: contentX / record.contentSize.width,
-      normalizedY: contentY / record.contentSize.height
+      normalizedX: normalized.normalizedX,
+      normalizedY: normalized.normalizedY
     };
     points.push(point);
     return deepFreeze({

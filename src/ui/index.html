@@ -198,13 +198,68 @@
         <div class="modal-body">
           <div id="automationScriptList" class="automation-script-list"></div>
           <div class="automation-capture-wrap">
-            <img id="automationCapture" alt="坐标录制截图" hidden />
-            <p class="field-hint">截图仅在内存中短期保留；点击画面即可记录归一化坐标。</p>
+            <div class="automation-capture-stage" id="automationCaptureStage" hidden>
+              <img id="automationCapture" alt="自动化截图" draggable="false" hidden />
+              <div
+                class="automation-selection-overlay"
+                id="automationSelectionOverlay"
+                aria-hidden="true"
+                hidden
+              ></div>
+              <div
+                class="automation-match-overlay"
+                id="automationMatchOverlay"
+                aria-hidden="true"
+                hidden
+              ></div>
+            </div>
+            <p class="field-hint" id="automationCaptureHint">
+              “截图录点”用于单击记录坐标；“Vision 框选”用于拖拽生成 ROI 并记录中心点。
+            </p>
+            <div class="automation-selection-result" id="automationVisionResult" hidden>
+              <div><span>ROI：</span><code id="automationVisionRoiText"></code></div>
+              <div><span>中心：</span><code id="automationVisionCenterText"></code></div>
+              <div class="automation-vision-test-fields">
+                <label>
+                  <span>模板</span>
+                  <select id="automationVisionTemplateId" aria-label="Vision 模板"></select>
+                </label>
+                <label>
+                  <span>阈值</span>
+                  <input
+                    id="automationVisionThreshold"
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value="0.95"
+                    aria-label="Vision 匹配阈值"
+                  />
+                </label>
+              </div>
+              <div class="automation-vision-match-text" id="automationVisionMatchText">
+                框选后可直接匹配当前游戏画面。
+              </div>
+              <div class="automation-vision-test-actions">
+                <button class="secondary-button compact" id="automationVisionCopyBtn" type="button">
+                  复制 ROI
+                </button>
+                <button class="secondary-button compact" id="automationVisionMatchBtn" type="button">
+                  匹配
+                </button>
+                <button class="primary-button compact" id="automationVisionMatchClickBtn" type="button">
+                  匹配并点击
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-actions">
           <button class="secondary-button" id="automationClearBtn" type="button">清空坐标</button>
           <button class="secondary-button" id="automationRecordBtn" type="button">截图录点</button>
+          <button class="secondary-button" id="automationVisionSelectBtn" type="button">
+            Vision 框选
+          </button>
           <button class="primary-button" id="automationCloseBtn" type="button">完成</button>
         </div>
       </section>

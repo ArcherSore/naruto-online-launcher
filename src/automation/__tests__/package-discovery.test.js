@@ -51,6 +51,10 @@ describe('built-in package discovery parity', () => {
   test('electron-builder includes the complete immutable script resource root', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     expect(pkg.build.files).toContain('automation-scripts/**');
+    expect(pkg.build.extraResources || []).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ from: expect.stringContaining('automation-scripts') })
+    ]));
+    expect(packageFiles()).toContain('demo-click/assets/vision/sample-target.png');
   });
 
   test('manifest, entry, relative modules, and assets match the ASAR byte-for-byte', () => {

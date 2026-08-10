@@ -3,11 +3,8 @@
 const { AutomationError } = require('./errors');
 const { deepFreeze } = require('./store');
 
-function createAutomationApi(options) {
+function createRunBoundAction(options) {
   const opts = options || {};
-  const now = typeof opts.now === 'function' ? opts.now : Date.now;
-  const setTimer = typeof opts.setTimeout === 'function' ? opts.setTimeout : setTimeout;
-  const clearTimer = typeof opts.clearTimeout === 'function' ? opts.clearTimeout : clearTimeout;
 
   function cancellationError() {
     return new AutomationError(
@@ -30,6 +27,20 @@ function createAutomationApi(options) {
     });
   }
 
+  return Object.freeze({
+    cancellationError: cancellationError,
+    enqueue: enqueue,
+    preflight: preflight
+  });
+}
+
+function createAutomationApi(options) {
+  const opts = options || {};
+  const now = typeof opts.now === 'function' ? opts.now : Date.now;
+  const setTimer = typeof opts.setTimeout === 'function' ? opts.setTimeout : setTimeout;
+  const clearTimer = typeof opts.clearTimeout === 'function' ? opts.clearTimeout : clearTimeout;
+  const gate = createRunBoundAction(opts);
+
   function wait(milliseconds) {
     if (
       !Number.isInteger(milliseconds) ||
@@ -40,10 +51,10 @@ function createAutomationApi(options) {
     ) {
       return Promise.reject(new AutomationError('action-timeout'));
     }
-    return enqueue(function () {
+    return gate.enqueue(function () {
       return new Promise(function (resolve, reject) {
         if (opts.signal.aborted) {
-          reject(cancellationError());
+          reject(gate.cancellationError());
           return;
         }
         let settled = false;
@@ -58,7 +69,7 @@ function createAutomationApi(options) {
           settled = true;
           clearTimer(timer);
           opts.signal.removeEventListener('abort', onAbort);
-          reject(cancellationError());
+          reject(gate.cancellationError());
         }
         opts.signal.addEventListener('abort', onAbort, { once: true });
       });
@@ -67,21 +78,24 @@ function createAutomationApi(options) {
 
   return Object.freeze({
     capture: function () {
-      return enqueue(function () { return opts.backend.capture(opts.profileId); });
+      return gate.enqueue(function () { return opts.backend.capture(opts.profileId); });
     },
     getWindowState: function () {
-      return enqueue(function () { return opts.backend.getWindowState(opts.profileId); });
+      return gate.enqueue(function () { return opts.backend.getWindowState(opts.profileId); });
     },
     getCoordinates: function () {
-      return enqueue(function () {
+      return gate.enqueue(function () {
         return deepFreeze(opts.store.getCoordinates(opts.profileId, opts.scriptId));
       });
     },
     click: function (point) {
-      return enqueue(function () { return opts.backend.click(opts.profileId, point); });
+      return gate.enqueue(function () { return opts.backend.click(opts.profileId, point); });
     },
     wait: wait
   });
 }
 
-module.exports = { createAutomationApi: createAutomationApi };
+module.exports = {
+  createAutomationApi: createAutomationApi,
+  createRunBoundAction: createRunBoundAction
+};

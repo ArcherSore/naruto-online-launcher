@@ -47,4 +47,12 @@ describe('automation cancellation', () => {
     }).not.toThrow();
     expect(later).toHaveBeenCalledTimes(1);
   });
+
+  test('keeps the first run boundary reason for Vision timeout races', () => {
+    const controller = createCancellationController();
+    controller.abort('timeout');
+    controller.abort('user-stop');
+    expect(controller.signal.aborted).toBe(true);
+    expect(controller.signal.reason).toBe('timeout');
+  });
 });

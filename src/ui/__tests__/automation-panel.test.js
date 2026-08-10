@@ -16,12 +16,35 @@ describe('manager automation panel assets', () => {
     expect(css).toContain('.automation-capture-wrap img[hidden]');
   });
 
+  test('offers screenshot ROI selection and in-launcher Vision matching/clicking', () => {
+    expect(html).toContain('id="automationVisionSelectBtn"');
+    expect(html).toContain('id="automationSelectionOverlay"');
+    expect(html).toContain('id="automationMatchOverlay"');
+    expect(html).toContain('id="automationVisionRoiText"');
+    expect(html).toContain('id="automationVisionCenterText"');
+    expect(html).toContain('id="automationVisionTemplateId"');
+    expect(html).toContain('id="automationVisionThreshold"');
+    expect(html).toContain('id="automationVisionMatchBtn"');
+    expect(html).toContain('id="automationVisionMatchClickBtn"');
+    expect(html).toContain('id="automationVisionMatchText"');
+    expect(html).toContain('id="automationVisionCopyBtn"');
+    expect(js).toContain("automationCaptureMode = 'vision-roi'");
+    expect(js).toContain("'automation:recording:add-point'");
+    expect(js).toContain("'automation:vision:templates'");
+    expect(js).toContain("'automation:vision:test'");
+    expect(js).toContain("click: shouldClick");
+    expect(js).toContain("clipboard.writeText('--roi '");
+    expect(css).toContain('.automation-selection-overlay');
+    expect(css).toContain('.automation-match-overlay');
+  });
+
   test('renders script identity and uses only generic versioned channels', () => {
     expect(js).toContain('script.id');
     expect(js).toContain('script.version');
     expect(js).toContain('script.apiVersion');
     ['automation:list', 'automation:start', 'automation:recording:begin',
-      'automation:recording:add-point', 'automation:coordinates:clear'].forEach(function (channel) {
+      'automation:recording:add-point', 'automation:vision:templates',
+      'automation:vision:test', 'automation:coordinates:clear'].forEach(function (channel) {
       expect(js).toContain("'" + channel + "'");
     });
     expect(js).not.toContain('automation-demo:');
@@ -44,7 +67,8 @@ describe('manager automation panel assets', () => {
     expect(js).toContain("ipcRenderer.on('automation:status'");
     expect(js).toContain("ipcRenderer.on('automation:statuses'");
     ['profile-busy', 'cdp-already-attached', 'run-timeout', 'window-unavailable',
-      'coordinates-invalid'].forEach(function (code) {
+      'coordinates-invalid', 'vision-input-invalid', 'vision-template-not-found',
+      'vision-timeout'].forEach(function (code) {
       expect(js).toContain("'" + code + "'");
     });
   });

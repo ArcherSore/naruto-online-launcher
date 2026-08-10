@@ -74,14 +74,21 @@ ProfileManager.launch(profileId)
   FIFO；不同 Profile 可独立运行。
 - `src/automation/api.js`、`backend.js`：脚本唯一受支持的 Automation API 与 Launcher/CDP 后端；
   负责窗口状态、坐标映射和不抢焦点的后台点击。
+- `src/automation/coordinates.js`：共享 normalized/content mapper 与 screenshot center 到 normalized
+  cell midpoint 编码；BrowserWindow/CDP viewport 的末段映射只存在于 backend。
+- `src/automation/vision/`：可信脚本的 `find/waitFor/waitUntilGone`、Electron nativeImage PNG
+  解码、纯 JS exact-scale/ROI 协作分片 matcher，以及基于 registry packageRoot 的专属模板加载。
 - `src/automation/recording.js`、`store.js`：有时限的截图录点，以及
   `userData/automation-data/profiles/<profileId>/scripts/<scriptId>/` 下的隔离用户数据。
+- `src/ui/automation-selection.js`：管理页截图点击/拖拽到 screenshot-pixel ROI、中心点及
+  click-compatible normalized point 的纯几何换算；自动化面板可自动填入 ROI，并通过受控 IPC
+  调用正式 Vision/Automation API 执行“匹配”与“匹配并点击”。
 - `src/automation/index.js`：组合 registry、runner、coordinator、backend、recording 与 Profile/
   窗口生命周期。
 - `automation-scripts/demo-click/`：正式示例脚本，只通过注入的 Automation API 读取坐标、等待
   并连续点击。
 - `src/ui/manager/IpcRouter.js`、`StateBroadcaster.js`：管理页的请求校验、安全 DTO 与状态广播。
-- `tests/runtime/`：经过正式 registry → runner → Automation API 的 Chromium、PPAPI/AS3 和
+- `tests/runtime/`：经过正式 registry → runner → Automation/Vision API 的 Chromium、PPAPI/AS3 和
   Windows 打包运行 smoke。
 
 通用自动化能力只检查所属 Profile 窗口、webContents、内容尺寸、输入和动作生命周期等客观

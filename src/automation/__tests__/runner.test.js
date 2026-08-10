@@ -2,6 +2,7 @@
 
 const { createCoordinator } = require('../coordinator');
 const { createRunner } = require('../runner');
+const { createVisionApi } = require('../vision/api');
 
 function deferred() {
   let resolve;
@@ -16,6 +17,14 @@ function fiveActionApi() {
     getCoordinates: jest.fn(),
     click: jest.fn(),
     wait: jest.fn()
+  });
+}
+
+function threeMethodVision() {
+  return Object.freeze({
+    find: jest.fn(),
+    waitFor: jest.fn(),
+    waitUntilGone: jest.fn()
   });
 }
 
@@ -71,6 +80,7 @@ describe('automation runner happy path', () => {
       store: { getConfig: function () { return { nested: { delayMs: 10 } }; } },
       coordinator: createCoordinator(),
       createApi: function () { return api; },
+      createVision: function () { return threeMethodVision(); },
       profileExists: function () { return true; },
       gameReady: function () { return true; },
       logger: {
@@ -100,11 +110,13 @@ describe('automation runner happy path', () => {
     });
     const context = await contextSeen.promise;
     expect(Object.keys(context).sort()).toEqual([
-      'automation', 'config', 'log', 'profileId', 'signal'
+      'automation', 'config', 'log', 'profileId', 'signal', 'vision'
     ]);
     expect(Object.isFrozen(context)).toBe(true);
     expect(Object.isFrozen(context.config.nested)).toBe(true);
     expect(context.automation).toBe(api);
+    expect(Object.keys(context.vision).sort()).toEqual(['find', 'waitFor', 'waitUntilGone']);
+    expect(Object.isFrozen(context.vision)).toBe(true);
     await runner.waitForRun(accepted.status.runId);
     expect(runner.getStatus('p_aaaaaaaa', 'demo-click')).toEqual(
       expect.objectContaining({ status: 'succeeded', endedAt: expect.any(Number) })
@@ -253,5 +265,43 @@ describe('automation runner cancellation, deadline, and isolation', () => {
     gates.p_bbbbbbbb.resolve();
     await runner.waitForRun(second.status.runId);
     expect(runner.getStatus('p_bbbbbbbb', 'demo-click').status).toBe('succeeded');
+  });
+
+  test('drops an in-flight Vision capture after cancellation without decode or match', async () => {
+    const captureGate = deferred();
+    const coordinator = createCoordinator();
+    const codec = { decodeCapture: jest.fn() };
+    const matcher = { match: jest.fn() };
+    const runner = createRunner({
+      registry: { get: function () { return { manifest: { id: 'demo-click' }, run: function (context) { return context.vision.waitFor('target'); } }; } },
+      store: { getConfig: function () { return {}; } },
+      coordinator: coordinator,
+      createApi: function () { return fiveActionApi(); },
+      createVision: function (runOptions) {
+        return createVisionApi(Object.assign({}, runOptions, {
+          backend: { capture: function () { return captureGate.promise; } },
+          loader: { load: function () { return { width: 1, height: 1, bitmap: Buffer.alloc(4) }; } },
+          codec: codec,
+          matcher: matcher,
+          profileExists: function () { return true; }
+        }));
+      },
+      profileExists: function () { return true; },
+      targetAvailable: function () { return true; },
+      logger: { createBoundLogger: function () { return {}; } }
+    });
+    const started = runner.start('p_aaaaaaaa', 'demo-click');
+    await new Promise(function (resolve) { setImmediate(resolve); });
+    runner.stop('p_aaaaaaaa', started.status.runId);
+    captureGate.resolve({
+      png: Buffer.from('png'), imageSize: { width: 1, height: 1 },
+      contentSize: { width: 1, height: 1 }, capturedAt: 1
+    });
+    await runner.waitForRun(started.status.runId);
+    expect(runner.getStatus('p_aaaaaaaa', 'demo-click')).toEqual(expect.objectContaining({
+      status: 'cancelled', error: expect.objectContaining({ code: 'run-cancelled' })
+    }));
+    expect(codec.decodeCapture).not.toHaveBeenCalled();
+    expect(matcher.match).not.toHaveBeenCalled();
   });
 });

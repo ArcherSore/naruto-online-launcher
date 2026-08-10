@@ -3,7 +3,13 @@
 const { createCancellationController } = require('../cancellation');
 const { createCoordinator } = require('../coordinator');
 const { createAutomationBackend, mapNormalizedPoint } = require('../backend');
-const { createAutomationApi } = require('../api');
+const { createAutomationApi, createRunBoundAction } = require('../api');
+
+function deferred() {
+  let resolve;
+  const promise = new Promise(function (resolvePromise) { resolve = resolvePromise; });
+  return { promise: promise, resolve: resolve };
+}
 
 function makeTarget(options) {
   const opts = options || {};
@@ -112,7 +118,7 @@ describe('Automation API v1 happy path', () => {
     );
   });
 
-  test('uses the canonical page coordinates when the DPI-compensated window DIP is smaller', async () => {
+  test('keeps canonical contentPoint while scaling the dispatched CDP viewport coordinate', async () => {
     const target = makeTarget();
     target.window.getContentSize.mockReturnValue([960, 540]);
     target.contentSize = { width: 1920, height: 1080 };
@@ -125,6 +131,9 @@ describe('Automation API v1 happy path', () => {
       normalizedX: 0.5,
       normalizedY: 0.5
     })).resolves.toEqual({ dispatchedAt: 321, contentPoint: { x: 960, y: 540 } });
+    target.cdp.sendCommand.mock.calls.forEach(function (call) {
+      expect({ x: call[1].x, y: call[1].y }).toEqual({ x: 480.25, y: 270.25 });
+    });
     expect(backend.getWindowState('p_aaaaaaaa').contentSize).toEqual({
       width: 1920,
       height: 1080
@@ -287,5 +296,48 @@ describe('Automation API v1 happy path', () => {
     await expect(createAutomationBackend({ targetProvider: function () { return target; } })
       .click('p_aaaaaaaa', { normalizedX: 0.5, normalizedY: 0.5 }))
       .rejects.toMatchObject({ code: 'window-unavailable' });
+  });
+});
+
+describe('shared run-bound action gate', () => {
+  test('preflights lease and cancellation before invoking a queued action', async () => {
+    const coordinator = createCoordinator();
+    const acquired = coordinator.tryAcquire('p_aaaaaaaa', 'run-1');
+    const signal = { aborted: false, reason: null };
+    const gate = createRunBoundAction({
+      coordinator: coordinator,
+      lease: acquired.lease,
+      signal: signal,
+      profileId: 'p_aaaaaaaa',
+      profileExists: function () { return true; }
+    });
+    const blocker = deferred();
+    coordinator.enqueue(acquired.lease, function () { return blocker.promise; });
+    const action = jest.fn();
+    const queued = gate.enqueue(action);
+    signal.aborted = true;
+    signal.reason = 'user-stop';
+    blocker.resolve();
+    await expect(queued).rejects.toMatchObject({ code: 'run-cancelled' });
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  test('does not add a page-stage or GAME_READY gate and preserves one-profile FIFO', async () => {
+    const coordinator = createCoordinator();
+    const acquired = coordinator.tryAcquire('p_aaaaaaaa', 'run-1');
+    const gate = createRunBoundAction({
+      coordinator: coordinator,
+      lease: acquired.lease,
+      signal: { aborted: false },
+      profileId: 'p_aaaaaaaa',
+      profileExists: function () { return true; },
+      gameReady: function () { return false; }
+    });
+    const order = [];
+    await Promise.all([
+      gate.enqueue(async function () { order.push('first'); }),
+      gate.enqueue(async function () { order.push('second'); })
+    ]);
+    expect(order).toEqual(['first', 'second']);
   });
 });

@@ -85,6 +85,41 @@ function validScriptId(scriptId) {
   );
 }
 
+function validVisionRect(rect) {
+  if (!rect || typeof rect !== 'object' || Array.isArray(rect)) return false;
+  if (Object.keys(rect).sort().join(',') !== 'height,width,x,y') return false;
+  return Number.isInteger(rect.x) && rect.x >= 0 &&
+    Number.isInteger(rect.y) && rect.y >= 0 &&
+    Number.isInteger(rect.width) && rect.width > 0 &&
+    Number.isInteger(rect.height) && rect.height > 0;
+}
+
+function safeVisionMatch(value) {
+  if (!value || typeof value !== 'object' || !validVisionRect(value.rect)) return null;
+  if (
+    !value.center ||
+    !Number.isFinite(value.center.normalizedX) ||
+    !Number.isFinite(value.center.normalizedY) ||
+    !Number.isFinite(value.confidence) ||
+    value.confidence < 0 || value.confidence > 1
+  ) {
+    return null;
+  }
+  return {
+    rect: {
+      x: value.rect.x,
+      y: value.rect.y,
+      width: value.rect.width,
+      height: value.rect.height
+    },
+    center: {
+      normalizedX: value.center.normalizedX,
+      normalizedY: value.center.normalizedY
+    },
+    confidence: value.confidence
+  };
+}
+
 function safeAutomationError(error, fallback) {
   if (error && isKnownCode(error.code)) return error.code;
   if (error && isKnownCode(error.error)) return error.error;
@@ -538,6 +573,62 @@ function registerIpcHandlers(handlers) {
       return { ok: true, point: result.point, points: result.points };
     } catch (error) {
       return { ok: false, error: safeAutomationError(error, 'coordinates-invalid') };
+    }
+  });
+
+  ipcMain.handle('automation:vision:templates', async function (event, request) {
+    const invalid = requireAutomationRequest(event, request, true);
+    if (invalid) return invalid;
+    try {
+      const templates = _handlers.automation.listVisionTemplates(
+        request.profileId,
+        request.scriptId
+      );
+      return {
+        ok: true,
+        templates: Array.isArray(templates)
+          ? templates.filter(validScriptId).slice(0, 256)
+          : []
+      };
+    } catch (error) {
+      return { ok: false, error: safeAutomationError(error, 'vision-template-read-failed') };
+    }
+  });
+
+  ipcMain.handle('automation:vision:test', async function (event, request) {
+    const invalid = requireAutomationRequest(event, request, true);
+    if (invalid) return invalid;
+    if (
+      !validScriptId(request.templateId) ||
+      !validVisionRect(request.roi) ||
+      !Number.isFinite(request.threshold) ||
+      request.threshold < 0 || request.threshold > 1 ||
+      typeof request.click !== 'boolean'
+    ) {
+      return { ok: false, error: 'invalid-arguments' };
+    }
+    try {
+      const result = await _handlers.automation.testVision(
+        request.profileId,
+        request.scriptId,
+        {
+          templateId: request.templateId,
+          roi: {
+            x: request.roi.x,
+            y: request.roi.y,
+            width: request.roi.width,
+            height: request.roi.height
+          },
+          threshold: request.threshold,
+          click: request.click
+        }
+      );
+      const found = !!(result && result.found === true);
+      const match = found ? safeVisionMatch(result.match) : null;
+      if (found && !match) return { ok: false, error: 'script-failed' };
+      return { ok: true, found: found, match: match, clicked: !!(result && result.clicked) };
+    } catch (error) {
+      return { ok: false, error: safeAutomationError(error) };
     }
   });
 

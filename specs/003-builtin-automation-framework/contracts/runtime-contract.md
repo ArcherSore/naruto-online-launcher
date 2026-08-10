@@ -129,6 +129,9 @@ Rules:
 
 - Both normalized values must be finite and in `[0,1)`.
 - Mapping uses current content size at action execution time.
+- Returned `contentPoint` is the canonical integer page coordinate. The backend may internally map its
+  pixel-cell midpoint to a floating-point CDP viewport coordinate when BrowserWindow content DIP differs;
+  that internal coordinate is not exposed to scripts.
 - The Profile lease serializes the whole atomic click.
 - The atomic click completes move/press/release and owned debugger cleanup before cancellation takes effect on the next action.
 - The method never focuses the window and never calls an OS global mouse API.

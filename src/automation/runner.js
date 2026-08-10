@@ -164,7 +164,7 @@ function createRunner(options) {
     const logger = opts.logger && typeof opts.logger.createBoundLogger === 'function'
       ? opts.logger.createBoundLogger({ runId: runId, profileId: profileId, scriptId: scriptId })
       : Object.freeze({ debug: function () {}, info: function () {}, warn: function () {}, error: function () {} });
-    const automation = opts.createApi({
+    const runOptions = {
       profileId: profileId,
       scriptId: scriptId,
       lease: run.lease,
@@ -173,13 +173,22 @@ function createRunner(options) {
       coordinator: opts.coordinator,
       store: opts.store,
       profileExists: opts.profileExists
-    });
+    };
+    const automation = opts.createApi(runOptions);
+    const vision = typeof opts.createVision === 'function'
+      ? opts.createVision(runOptions)
+      : Object.freeze({
+        find: function () { return Promise.reject(new AutomationError('script-failed')); },
+        waitFor: function () { return Promise.reject(new AutomationError('script-failed')); },
+        waitUntilGone: function () { return Promise.reject(new AutomationError('script-failed')); }
+      });
     const context = Object.freeze({
       profileId: profileId,
       config: config,
       signal: controller.signal,
       log: logger,
-      automation: automation
+      automation: automation,
+      vision: vision
     });
     activeByProfile.set(profileId, run);
     runs.set(runId, run);
