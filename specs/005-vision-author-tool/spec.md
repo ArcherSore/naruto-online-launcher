@@ -33,6 +33,10 @@
 3. **Given** 已显示一个完整有效帧，**When** 开发者手动 Freeze，**Then** 当前帧、Profile 身份、原始 PNG 和 metadata 被固定，直到恢复 Live 前均不发生变化。
 4. **Given** 工具处于 Live 状态并已显示一个完整有效帧，**When** 开发者开始 Template 或 ROI 框选，**Then** 工具先自动冻结该已显示帧，再以该帧作为框选依据，而不是在框选开始时重新 capture。
 5. **Given** 当前处于 Freeze 状态，**When** 开发者恢复 Live，**Then** 工具重新获取后续正式 capture 帧；既有 Template/ROI 参数可以保留为参考，但不再被视为当前 Live 帧的可保存选区。
+6. **Given** Profile 列表中的目标最初尚未启动或其可用性随后发生变化，**When** 开发者点击刷新 Profile，**Then** 工具原地重新列举当前 Launcher Profile 及其可用性，无需刷新整个 Author 页面。
+7. **Given** 工具处于 Live 状态且 Author 窗口失焦、被其他窗口遮挡或处于后台，**When** 固定刷新 tick 到达，**Then** 工具仍按约 1 秒节奏尝试 capture，不因 Chromium 后台节流而停止刷新。
+8. **Given** Live View 已提交一个 frame 给图像元素，**When** 同一 frame 上仅发生 tick 计数、capture pending 或其他非帧状态更新，**Then** 工具不得重复设置该 frame 的图像 source 或重启其解码；只有不同的新 frame 成为当前显示帧时才提交一次新 source。
+9. **Given** Author Renderer 运行于项目锁定的 Electron 11 浏览器环境，**When** 选择 Profile 或 Resume Live，**Then** 固定 ticker 必须以浏览器 timer host 作为正确调用 receiver 成功注册，不得在 t0 capture 后因 `Illegal invocation` 停止。
 
 ---
 
@@ -51,6 +55,7 @@
 3. **Given** Template 和 ROI 均已选定，**When** 开发者调整其中一个，**Then** 另一个选区保持不变，且两者都继续引用同一个冻结帧身份。
 4. **Given** 工具为了适配可用空间而缩放显示冻结画面，**When** 开发者在显示画面上框选，**Then** 工具显示的矩形与原始截图像素边界一致，显示缩放不会改变、插值或猜测 authoring 坐标。
 5. **Given** 当前帧不满足正式 Vision authoring 的尺寸或坐标合同，**When** 开发者查看或尝试使用该帧，**Then** 工具明确显示不满足项，允许诊断性查看，但阻止将其保存为正式模板，且不会静默缩放、裁正或替换 metadata。
+6. **Given** 开发者已进入 Template 或 ROI 框选模式，**When** 按住鼠标并拖动，**Then** 对应选择框和截图像素坐标随指针移动实时更新，并仅在释放指针后提交最终选区及 Template preview。
 
 ---
 
@@ -131,17 +136,17 @@
 ### Functional Requirements
 
 - **FR-001**: Author Tool MUST 仅定位为仓库开发者工具，MUST NOT 成为普通用户 Launcher 功能、公开 Launcher API、第三方插件协议或正式发布能力。
-- **FR-002**: 工具 MUST 能列出当前正在运行 Launcher 中满足安全身份展示要求的 Profile，并允许开发者明确选择一个 Profile 作为当前 capture 与 authoring 目标。
+- **FR-002**: 工具 MUST 能列出当前正在运行 Launcher 中满足安全身份展示要求的 Profile，并允许开发者明确选择一个 Profile 作为当前 capture 与 authoring 目标；MUST 提供显式刷新 Profile 操作，以原地重新列举 Profile 及可用性而无需刷新整个 Author 页面。
 - **FR-003**: 可选择的 Profile MUST 以 Launcher 当前正式 Profile/窗口 capture 能力的客观可用性为依据；页面阶段、Flash 状态或 `GAME_READY` 可以显示为诊断信息，但 MUST NOT 在没有独立安全必要性时成为全局 authoring 门槛。
 - **FR-004**: 工具 MUST 只通过所选 Profile 的正式 capture 能力取得完整游戏画面；MUST NOT 将桌面截图、HWND/BitBlt、Launcher 窗口手工 crop、自动 resize 后的画面或外部图片文件用作正式 authoring 来源或失败回退。
 - **FR-005**: 每个完整帧 MUST 将原始 PNG 与同次 capture 的 metadata 作为不可拆分的单元，metadata 至少包含 `imageSize`、`contentSize`、捕获时间和足以确认所选 Profile 的安全身份；MUST NOT 混用不同 capture 或不同 Profile 的图像与 metadata。
-- **FR-006**: V1 Live 状态 MUST 使用固定的约 1000 毫秒 tick 尝试启动 capture，MUST NOT 提供预设或自定义刷新间隔选择；tick 到达且没有未完成 capture 时 MUST 启动一轮 capture，上一轮尚未完成时 MUST 跳过该 tick。任何时刻同一工具实例对当前 Profile 最多只能有一个 capture 未完成，跳过的 tick MUST NOT 排队、补跑或改变后续 tick 节奏。
-- **FR-007**: 新帧只有在 PNG、metadata 和 Profile 归属均完整且仍对应当前选择时才能替换 Live View；失败、迟到或来自旧 Profile 的结果 MUST NOT 覆盖最近一个有效显示帧。
+- **FR-006**: V1 Live 状态 MUST 使用固定的约 1000 毫秒 tick 尝试启动 capture，MUST NOT 提供预设或自定义刷新间隔选择；tick 到达且没有未完成 capture 时 MUST 启动一轮 capture，上一轮尚未完成时 MUST 跳过该 tick。任何时刻同一工具实例对当前 Profile 最多只能有一个 capture 未完成，跳过的 tick MUST NOT 排队、补跑或改变后续 tick 节奏；Author 窗口失焦、被遮挡或处于后台时该节奏 MUST 继续，不得受 Chromium 后台节流影响。Renderer 调用原生 timer MUST 保留 Electron 11 浏览器 timer host receiver，不得在 t0 capture 后因 `Illegal invocation` 导致 ticker 注册失败。
+- **FR-007**: 新帧只有在 PNG、metadata 和 Profile 归属均完整且仍对应当前选择时才能替换 Live View；失败、迟到或来自旧 Profile 的结果 MUST NOT 覆盖最近一个有效显示帧。Renderer MUST 以 frame identity 去重图像 source 提交：tick 计数、pending/error/mode 等非帧状态变化 MUST NOT 对同一 frame 重复设置 source 或重启图片解码。
 - **FR-008**: 工具 MUST 提供明确的 Live 与 Freeze 状态。Freeze MUST 固定当前完整显示帧的原始 PNG、metadata、Profile 身份和帧身份，并停止后续周期 capture，直至开发者恢复 Live。
 - **FR-009**: 开发者开始 Template 或 ROI 框选时，工具 MUST 在使用选择输入前自动 Freeze 当前完整显示帧；此操作 MUST NOT 为框选另行 capture 或替换已显示帧。
 - **FR-010**: Template 区域、ROI、crop preview、复制参数与模板保存 MUST 记录并校验其 frozen frame 身份；模板保存所使用的帧 MUST 与 Template 框选和 preview 使用的帧完全相同。
 - **FR-011**: 恢复 Live 后，工具 MAY 保留既有 Template/ROI 参数作为参考，但 MUST 清楚区分这些参数与当前 Live 画面，且 MUST NOT 允许它们在未重新绑定当前有效 frozen frame 的情况下保存模板。
-- **FR-012**: 工具 MUST 允许在同一 frozen frame 上分别创建、查看和调整 Template 区域与搜索 ROI；调整任一选区 MUST NOT 隐式改变另一选区。
+- **FR-012**: 工具 MUST 允许在同一 frozen frame 上分别创建、查看和调整 Template 区域与搜索 ROI；调整任一选区 MUST NOT 隐式改变另一选区；按住指针拖动期间，对应选择框和截图像素坐标 MUST 随指针移动实时显示，最终选区与 Template preview 仅在释放指针后提交。
 - **FR-013**: Template 和 ROI MUST 使用当前 frozen frame `imageSize` 的 screenshot-pixel 矩形 `{ x, y, width, height }`；所有值 MUST 是落在原始图像边界内的整数，宽高 MUST 大于零。
 - **FR-014**: 无论冻结画面在工具中如何适配显示，框选、显示坐标、crop preview、复制值和保存 crop 均 MUST 回到原始 screenshot pixel；工具 MUST NOT 把界面显示像素、内容坐标或其他坐标空间冒充截图像素。
 - **FR-015**: crop preview MUST 来自 frozen frame 原始 PNG 的 Template 像素矩形，且 MUST 在选择或帧发生变化时明确更新或失效；不得使用另一次 capture、缩略图或重建画面生成 preview。

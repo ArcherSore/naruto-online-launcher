@@ -6,9 +6,9 @@
 
 ## Summary
 
-在 `tools/vision-author/` 中实现一个只供仓库开发者使用的外置 Electron Author Tool。开发启动脚本
-仍以 `electron .` 启动正式 Launcher，但通过 unpackaged Electron 支持的 `NODE_OPTIONS=--require`
-预加载同目录 developer bootstrap；bootstrap 在同一个 Launcher 主进程中组合
+在 `tools/vision-author/` 中实现一个只供仓库开发者使用的外置 Electron Author Tool。开发启动脚本通过
+锁定 Electron 运行仓库根极薄 `vision-author-launcher.js` shim；shim 在正常 Electron main 阶段安装
+同目录 developer bootstrap，再加载正式 `src/main.js`。bootstrap 在同一个 Launcher 主进程中组合
 `Launcher.getAutomationTarget(profileId)` 与 `createAutomationBackend()`，再通过随机命名、会话令牌
 保护的 Windows Named Pipe 连接一个独立 Author Tool 进程。正式 `src/main.js` 不引用工具或 bridge，
 根 `package.json` 不增加发布可见入口，现有 electron-builder allowlist 继续完全排除 `tools/**`。
@@ -101,8 +101,10 @@ specs/005-vision-author-tool/
 ### Source Code（计划涉及的主要路径）
 
 ```text
+vision-author-launcher.js             # 根目录极薄 developer shim；build allowlist 之外
 tools/vision-author/                  # electron-builder files allowlist 之外
-├── start.ps1                         # developer-only 启动；预加载 bootstrap 后运行 electron .
+├── start.ps1                         # developer-only ASCII PowerShell 启动入口
+├── launcher-entry.js                 # 归一应用身份、安装 bootstrap、加载正式 main
 ├── launcher-bootstrap.js             # 同一 Launcher 进程中的 bridge/Author 子进程生命周期
 ├── bridge/
 │   ├── protocol.js                   # 4-byte length prefix、auth、request/response DTO
@@ -137,7 +139,8 @@ tests/
     └── packaged-automation-smoke.js  # 保持模板随可信脚本发布的正向回归
 ```
 
-**Structure Decision**：工具、专用 bridge、启动入口、UI 与专属测试全部位于 `tools/vision-author/**`。
+**Structure Decision**：除根目录极薄 `vision-author-launcher.js` shim 外，工具、专用 bridge、入口逻辑、UI 与
+专属测试全部位于 `tools/vision-author/**`。
 正式 `src/main.js` 保持零引用，根 `package.json` 不增加 author script 或 `tools/**` build glob。唯一计划修改的
 产品源码是正式 capture race hardening，职责仍属于 automation backend，且由现有 runtime Vision 与 Author
 Tool 同时受益，不构成开发连接入口。
@@ -146,8 +149,9 @@ Tool 同时受益，不构成开发连接入口。
 
 ```text
 tools/vision-author/start.ps1
-  → NODE_OPTIONS=--require=<repo>/tools/vision-author/launcher-bootstrap.js
-  → electron .
+  → electron <repo>/vision-author-launcher.js
+    → tools/vision-author/launcher-entry.js
+    → 归一 app name/userData → 安装 developer bootstrap → 加载正式 src/main.js
     → 正式 src/main.js / app.getAppPath() / Profile Store / Launcher.gameWindows
     → developer bootstrap（仅 unpackaged 当前进程）
       → createRegistry({ app }).scan()
@@ -184,25 +188,25 @@ preview 与确认 grant；Launcher 可继续运行，但不会为另一客户端
 
 ### 1. Developer-only 启动与发布隔离
 
-1. `start.ps1` 从仓库根解析本地 Electron 11 binary，临时为该子进程设置绝对路径
-   `NODE_OPTIONS=--require=<launcher-bootstrap.js>`，然后执行正常 `electron .`。不改 `src/main.js`，
-   不以 `electron tools/...` 改变 `app.getAppPath()`。
+1. `start.ps1` 从仓库根解析本地 Electron 11 binary，以根 `vision-author-launcher.js` 为显式应用入口；
+   `launcher-entry.js` 在正常 Electron main 阶段取得 `electron.app`，归一应用名/userData，安装 bootstrap 后
+   加载正式 `src/main.js`。不改 `src/main.js`，也不以 `electron tools/...` 改变 `app.getAppPath()`。
 2. bootstrap 必须在任何能力初始化前 fail closed：只允许 `process.type === 'browser'`、
    `process.defaultApp === true`、`app.isPackaged === false`、`app.getAppPath()` 为当前仓库根且
    `tools/vision-author` 位于其下。
 3. bootstrap 等待正式 `ready` handler 完成当前同步初始化后启动 bridge；若 single-instance lock 因普通
    Launcher 已运行而退出，则不创建 pipe、不启动 Author Tool，并由启动脚本给出“关闭现有 Launcher，
    再使用 Vision Author 开发入口重启”的恢复提示。V1 不向普通实例注入连接代码。
-4. bootstrap 生成随机 pipe 名与 32-byte token，只通过清理过 `NODE_OPTIONS` 的 Author 子进程环境传递；
+4. bootstrap 生成随机 pipe 名与 32-byte token，只通过清理过开发注入变量的 Author 子进程环境传递；
    token、pipe、PNG 和绝对保存路径不写日志。Author 子进程退出或 Launcher 退出即关闭 pipe、清内存并
    终止另一侧。
 5. electron-builder `build.files` 保持只含 `automation-scripts/**` 与 `src/**/*.{js,html,css,png}`；不加入
-   `tools/**`。release verifier 必须检查真实 `app.asar` 与 portable 内容均不存在 tool、bootstrap、bridge、
-   UI、启动脚本或协议字符串，并确认正式 `src/main.js` 无 author require/flag/env hook。
+   `tools/**` 或根 shim。release verifier 必须检查真实 `app.asar` 与 portable 内容均不存在 root shim、tool、
+   bootstrap、bridge、UI、启动脚本或协议字符串，并确认正式 `src/main.js` 无 author require/flag/env hook。
 
-官方 Electron 文档说明 unpackaged Electron 支持大部分 `NODE_OPTIONS`，而 packaged app 禁用除极少数外的
-Node options；Electron 11.4.8 还专门修复了 Windows packaged app 接受 `--require` 的问题，项目使用的
-11.5.0 已包含该修复。该事实只能作为第二道防线，首要边界仍是工具文件不进包、正式 main 零入口。
+锁定 Electron 11.5.0 的 Windows 实测表明，`NODE_OPTIONS --require` 执行时 `require('electron')` 仍为可执行
+文件路径，无法取得 `electron.app`，不能作为本 Feature 的注入方式。首要边界仍是 developer entry/tool 文件
+不进包、正式 main 零入口；真实启动回归必须同时观察 Launcher、可见 Author 窗口与随机 Pipe。
 
 ### 2. 最小 Named Pipe contract
 
@@ -270,12 +274,15 @@ Node options；Electron 11.4.8 还专门修复了 Windows packaged app 接受 `-
 2. pointer 坐标先减 content-box origin，再按 `imageSize/renderedSize` 映射；任意拖动方向规范为 left/top/
    right/bottom，边界使用 floor/ceil 得到完整覆盖的整数 screenshot-pixel rect，最后复用 Vision
    `validRect(rect,imageSize)`。零面积或越界选择拒绝。
-3. Template 与 ROI 是两个独立 `SelectionRect`，均包含同一 `frozenFrameId`；调整一个不修改另一个。
+3. `pointerdown` 立即取得 pointer capture 并触发必要的自动 Freeze；`pointermove` 只渲染当前拖拽矩形与
+   screenshot-pixel 坐标，不修改 frozen-frame draft；`pointerup` 才提交最终 Template/ROI 并生成 preview，
+   同时覆盖自动 Freeze 尚未完成就先释放指针的竞态。
+4. Template 与 ROI 是两个独立 `SelectionRect`，均包含同一 `frozenFrameId`；调整一个不修改另一个。
    两者不要求包含或相交。
-4. Template 变化后请求 bridge 创建 `PreviewArtifact`。bridge 只从 pinned 原 PNG 解码，以 Template rect
+5. Template 变化后请求 bridge 创建 `PreviewArtifact`。bridge 只从 pinned 原 PNG 解码，以 Template rect
    做无缩放像素 crop，重新编码 PNG，并返回 `previewId`；输出再 decode 并验证尺寸与逐像素来源。不得从
    DOM canvas、缩略图或另一次 capture 生成 preview。
-5. save 不再接收 rect，而接收当前 `previewId`。bridge 由 preview 找回 frozenFrameId、Template rect 与
+6. save 不再接收 rect，而接收当前 `previewId`。bridge 由 preview 找回 frozenFrameId、Template rect 与
    crop bytes，从而保证选择、preview 和最终保存是同一 frozen frame 的同一像素产物。
 
 ### 7. 可信 Target Script 与模板保存
@@ -335,6 +342,14 @@ Node options；Electron 11.4.8 还专门修复了 Windows packaged app 接受 `-
   frame/image/metadata/Profile 不混用。
 - frame/selection/preview 测试覆盖四角、反向拖动、留白、零面积、display scaling、PNG header/decoded/
   metadata mismatch、非 `1920×1080` 保存阻止和逐像素 crop。
+- Renderer 回归覆盖 Profile 原地重新列举、已选项保留、拖动期间 overlay 百分比实时更新，以及
+  Author BrowserWindow `backgroundThrottling: false`，保证失焦/被遮挡时固定 Live tick 不被 Chromium 暂停。
+- Renderer 以 `frameId` 为图像 source 提交 identity；同一 frame 上的 scheduled/pending/error/mode emit
+  只更新文本与控件，不得重复赋值大 PNG data URL。回归测试须证明第二轮 capture pending 时旧 frame 的
+  `img.src` 写入次数保持不变，而新 frame ack 后只增加一次。
+- 默认 timer adapter 必须通过持有 `window/global` host 的 wrapper 调用 `host.setInterval/clearInterval`，不得把
+  原生浏览器 timer 函数复制到普通对象后作为其方法调用。除 Jest fake timer 单测外，使用锁定 Electron 11
+  Renderer probe 验证 t0 后 ticker 可触发，防止 Node 宽松 receiver 语义掩盖 `Illegal invocation`。
 - bridge protocol 覆盖错误 token、第二 client、超限、畸形 JSON、未知字段/op、重复 requestId、未认证副作用 0；
   DTO allowlist 不含 URL/Session/Partition/Cookie/webContents/path。
 - registry/save 覆盖 manifest id 与目录名不同、伪造 id/path、包删除/替换、symlink/junction/case-only 冲突、

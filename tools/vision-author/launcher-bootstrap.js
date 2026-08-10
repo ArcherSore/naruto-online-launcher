@@ -77,11 +77,12 @@ function spawnDefaultAuthor(options) {
   const env = cleanChildEnv(opts.processObject.env);
   env.VISION_AUTHOR_PIPE = opts.pipeName;
   env.VISION_AUTHOR_TOKEN = opts.token;
-  return childProcess.spawn(opts.processObject.execPath, [path.join(opts.repoRoot, 'tools', 'vision-author', 'app', 'main.js')], {
+  const spawn = opts.spawn || childProcess.spawn;
+  return spawn(opts.processObject.execPath, [path.join(opts.repoRoot, 'tools', 'vision-author', 'app', 'main.js')], {
     cwd: opts.repoRoot,
     env: env,
     stdio: 'inherit',
-    windowsHide: true
+    windowsHide: false
   });
 }
 
@@ -177,22 +178,11 @@ function createLauncherBootstrap(options) {
   return Object.freeze({ install: install, start: start, close: cleanup, environment: environment });
 }
 
-function autoInstall() {
-  if (process.env.VISION_AUTHOR_BOOTSTRAP !== '1') return null;
-  let electron;
-  try { electron = require('electron'); } catch (_) { return null; }
-  const controller = createLauncherBootstrap({ app: electron.app, processObject: process });
-  controller.install();
-  return controller;
-}
-
-const automaticController = autoInstall();
-
 module.exports = {
-  automaticController: automaticController,
   cleanChildEnv: cleanChildEnv,
   createLauncherBootstrap: createLauncherBootstrap,
   initializeDefaultRuntime: initializeDefaultRuntime,
   makePipeName: makePipeName,
+  spawnDefaultAuthor: spawnDefaultAuthor,
   validateDeveloperEnvironment: validateDeveloperEnvironment
 };

@@ -11,6 +11,14 @@ describe('Vision Author release boundary', () => {
     expect(packageJson.build.files).toContain('automation-scripts/**');
     expect(packageJson.build.files.some(entry => /tools[\\/]vision-author/i.test(entry))).toBe(false);
     expect(Object.keys(packageJson.scripts).some(name => /vision|author/i.test(name))).toBe(false);
+    expect(packageJson.build.files).not.toContain('vision-author-launcher.js');
+  });
+
+  test('developer root shim exists outside the packaged allowlist and only delegates to the tool entry', () => {
+    const source = fs.readFileSync(path.join(repoRoot, 'vision-author-launcher.js'), 'utf8');
+    expect(source).toMatch(/tools[\\/]vision-author[\\/]launcher-entry/);
+    expect(source).toMatch(/startDeveloperLauncher/);
+    expect(source).not.toMatch(/src[\\/]main/);
   });
 
   test('formal src/main.js has zero Author require, flag or environment hook', () => {
@@ -41,6 +49,7 @@ describe('Vision Author release boundary', () => {
     [
       '/tools/vision-author/app/main.js',
       '/launcher-bootstrap.js',
+      '/vision-author-launcher.js',
       '/src/naruto-vision-author-protocol.js'
     ].forEach(function (entry) {
       expect(function () {

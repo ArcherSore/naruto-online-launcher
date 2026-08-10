@@ -141,15 +141,8 @@ function exactPayload(value, keys) {
   return payload;
 }
 
-async function startAuthorApp(options) {
-  const opts = options || {};
-  const electron = opts.electron || require('electron');
-  const pipeName = opts.pipeName || process.env.VISION_AUTHOR_PIPE;
-  const token = opts.token || process.env.VISION_AUTHOR_TOKEN;
-  const client = createPipeClient({ pipeName: pipeName, token: token, net: opts.net });
-  await electron.app.whenReady();
-  await client.connect();
-  const window = new electron.BrowserWindow({
+function createAuthorWindowOptions() {
+  return {
     width: 1280,
     height: 900,
     minWidth: 960,
@@ -160,12 +153,24 @@ async function startAuthorApp(options) {
     title: 'Vision Author Tool',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      backgroundThrottling: false,
       contextIsolation: true,
       nodeIntegration: false,
       enableRemoteModule: false,
       sandbox: false
     }
-  });
+  };
+}
+
+async function startAuthorApp(options) {
+  const opts = options || {};
+  const electron = opts.electron || require('electron');
+  const pipeName = opts.pipeName || process.env.VISION_AUTHOR_PIPE;
+  const token = opts.token || process.env.VISION_AUTHOR_TOKEN;
+  const client = createPipeClient({ pipeName: pipeName, token: token, net: opts.net });
+  await electron.app.whenReady();
+  await client.connect();
+  const window = new electron.BrowserWindow(createAuthorWindowOptions());
   Object.keys(IPC_OPERATIONS).forEach(function (channel) {
     const operation = IPC_OPERATIONS[channel];
     electron.ipcMain.handle(channel, function (_event, payload) {
@@ -212,6 +217,7 @@ if (require.main === module) {
 
 module.exports = {
   IPC_OPERATIONS: IPC_OPERATIONS,
+  createAuthorWindowOptions: createAuthorWindowOptions,
   createPipeClient: createPipeClient,
   startAuthorApp: startAuthorApp
 };

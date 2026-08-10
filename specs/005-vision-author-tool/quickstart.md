@@ -49,6 +49,9 @@ Expected：全部现有与 `tools/vision-author` suites 通过；无 Node/Electr
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/vision-author/start.ps1
 ```
 
+该脚本以仓库根 `vision-author-launcher.js` 作为显式 Electron developer entry，不使用
+`NODE_OPTIONS --require`；脚本自身保持纯 ASCII，可由 Windows PowerShell 5.1 直接解析。
+
 Expected：
 
 1. 正式 Launcher 正常启动，现有 Profile/Session/Flash 行为与 `npm start` 相同。
@@ -60,15 +63,19 @@ Expected：
 
 ## 4. Live scheduling acceptance
 
-1. 打开一个可 capture Profile，在 Author Tool 选择它。
-2. 观察至少 10 秒，记录 frame capturedAt、计划 tick、started/skipped count。
-3. 用测试 seam 或调试开关把一轮正式 capture completion 延迟到跨越两个 tick；该 seam 只能位于开发工具，
+1. Author Tool 初次列举时先保持目标 Profile 未启动，随后启动该 Profile 并点击“刷新 Profile”；确认选项原地变为可用且无需 F5。
+2. 选择该 Profile，观察至少 10 秒，记录 frame capturedAt、计划 tick、started/skipped count。
+3. 将 Author 窗口失焦并用游戏窗口遮挡至少 10 秒，再返回 Author；确认期间 frame capturedAt 仍约每秒推进。
+4. 用测试 seam 或调试开关把一轮正式 capture completion 延迟到跨越两个 tick；该 seam 只能位于开发工具，
    不得替换截图来源。
 
 Expected：
 
 - 首个 t0 tick 后，计划 tick 间隔均在 900–1100ms。
+- 锁定 Electron 11 Renderer 中 timer 注册不出现 `TypeError: Illegal invocation`；选择 Profile/Resume 后不止 t0 一帧。
 - capture 每次在下一 tick 前完成时，每 tick 启动一次。
+- Profile 刷新后列表不重复，目标可用性与 Launcher 当前状态一致；Author 失焦/被遮挡不暂停 Live tick。
+- 每个新 frame 只设置一次图像 source；scheduled/pending/error/mode 状态 emit 不重复设置旧 frame，Live 画面无需 Freeze/Resume 即持续更新。
 - slow capture 期间最大并发 1；两个 busy tick 各启动 0；完成瞬间补跑 0；只在下一个计划 tick 启动。
 - UI 没有 250/500/custom interval 控件。
 
@@ -78,7 +85,7 @@ Expected：
 2. 点击 Freeze，记录 frameId/profile/capturedAt。
 3. 等待 3 秒，确认图像与 metadata 不变且没有新 capture start。
 4. Resume Live；再开始 Template selection，确认 selection 开始前自动 Freeze 当前显示帧。
-5. 在四角、边缘、中部执行正向/反向 drag；分别创建/调整 Template 与 ROI。
+5. 在四角、边缘、中部执行正向/反向 drag；确认按住拖动期间对应选择框和坐标持续更新，分别创建/调整 Template 与 ROI。
 6. 改变窗口大小和显示缩放，仅观察 Author UI display mapping。
 
 Expected：
@@ -86,6 +93,7 @@ Expected：
 - Freeze pin 的是点击时已经显示的 frame，不新 capture。
 - 已在途 capture 即使返回也不替换 frozen frame。
 - Template/ROI 都显示整数 screenshot-pixel `{x,y,width,height}`，互不修改。
+- pointermove 只实时预览选择框和坐标，pointerup 才提交最终选区并生成 Template preview。
 - 留白/零面积 selection 拒绝；缩放 Author 窗口不改变已有坐标。
 - preview 尺寸等于 Template rect，并与 frozen PNG 对应像素逐一一致。
 
@@ -171,7 +179,7 @@ npm run build:win
 
 Expected：
 
-- `app.asar` 中 tool/bootstrap/bridge/Author UI/start entry 数均为 0。
+- `app.asar` 中根 developer shim、tool/bootstrap/bridge/Author UI/start entry 数均为 0。
 - 标准 packaged executable 不创建 Author pipe/window。
 - `automation-scripts/**` 与正式模板仍在包内，runtime packaged automation smoke 通过。
 - Launcher、Flash、Profile isolation、Vision runtime 回归退化数为 0。

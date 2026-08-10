@@ -37,7 +37,7 @@
 ### Tests（先写并确认失败）
 
 - [X] T003 [P] 为 4-byte big-endian framing、24 MiB 上限、首包 `hello`、constant-time token、重复 requestId、未知字段/op、第二 client 与未认证零副作用编写失败测试，放入 `tools/vision-author/__tests__/protocol.test.js`（FR-027～FR-028；bridge contract §2～§5）
-- [X] T004 [P] 为 `NODE_OPTIONS --require` 预加载、`ready` 后正式同步初始化完成再建 pipe/拉起 child、single-instance 失败零入口、packaged/非 browser/错误 repo fail-closed、退出双向清理编写失败测试，放入 `tools/vision-author/__tests__/bootstrap.test.js`（FR-001、FR-025、FR-029～FR-030；US4-AC1/2/4；SC-009～SC-010）
+- [X] T004 [P] 为显式 developer entry、`ready` 后正式同步初始化完成再建 pipe/拉起 child、single-instance 失败零入口、packaged/非 browser/错误 repo fail-closed、退出双向清理编写失败测试，放入 `tools/vision-author/__tests__/bootstrap.test.js`（FR-001、FR-025、FR-029～FR-030；US4-AC1/2/4；SC-009～SC-010）
 - [X] T005 [P] 为 `backend.capture()` 前后 window、webContents 与 contentSize 身份一致性编写失败回归，覆盖同一 `profileId` 关闭重开时拒绝旧 PNG，更新 `src/automation/__tests__/vision-coordinate-chain.test.js`（FR-005、FR-007、FR-026；SC-006）
 
 ### Implementation
@@ -46,8 +46,8 @@
 - [X] T007 实现随机 Windows Named Pipe、单 client、消息上限、重复/畸形请求断开和无队列 request dispatcher，放入 `tools/vision-author/bridge/server.js`（FR-001、FR-025、FR-027；SC-009）
 - [X] T008 实现外部 Electron 进程的唯一 pipe client、requestId 关联、断连收敛与安全 BrowserWindow 配置，放入 `tools/vision-author/app/main.js`（FR-025、FR-027～FR-030）
 - [X] T009 实现 `contextIsolation:true`、`nodeIntegration:false` 的显式方法 allowlist，禁止 renderer 直接接触 token、`net`、`fs`、Electron main 或任意 op/path，放入 `tools/vision-author/app/preload.js`（FR-001、FR-027～FR-030；US4-AC5）
-- [X] T010 实现 unpackaged browser/repo fail-closed、正式 `ready` 初始化后启动、随机 256-bit token/pipe、清理 `NODE_OPTIONS` 的 Author child 环境和双向生命周期，放入 `tools/vision-author/launcher-bootstrap.js`（FR-001、FR-025、FR-027～FR-030；US4-AC1/2/4）
-- [X] T011 实现从仓库根解析 Electron、仅对子进程设置绝对 `NODE_OPTIONS=--require`、普通实例冲突恢复提示与 exit-code 透传，放入 `tools/vision-author/start.ps1`（FR-001、FR-025、FR-029～FR-030；SC-009～SC-010）
+- [X] T010 实现 unpackaged browser/repo fail-closed、正式 `ready` 初始化后启动、随机 256-bit token/pipe、清理开发注入变量的 Author child 环境和双向生命周期，放入 `tools/vision-author/launcher-bootstrap.js`（FR-001、FR-025、FR-027～FR-030；US4-AC1/2/4）
+- [X] T011 实现从仓库根解析 Electron、通过根 shim 与显式 developer entry 安装 bootstrap、普通实例冲突恢复提示与 exit-code 透传，放入 `vision-author-launcher.js`、`tools/vision-author/launcher-entry.js` 和 `tools/vision-author/start.ps1`（FR-001、FR-025、FR-029～FR-030；SC-009～SC-010）
 - [X] T012 加固正式 capture await race：返回后重新解析同一 Profile 并比较原 window、webContents、contentSize，不一致统一拒绝旧帧，更新 `src/automation/backend.js`，不得新增页面阶段或 `GAME_READY` 门槛（FR-003～FR-005、FR-007、FR-026；SC-006）
 - [X] T013 运行 `npm test -- --runInBand tools/vision-author/__tests__/protocol.test.js tools/vision-author/__tests__/bootstrap.test.js src/automation/__tests__/vision-coordinate-chain.test.js`，确认 `tools/vision-author/__tests__/protocol.test.js` 所代表的 Foundational 红灯已转绿且现有坐标链无回归（FR-030；SC-006、SC-009）
 
@@ -166,6 +166,10 @@
 - [ ] T054 构建 unpacked 与 portable，运行 `tools/vision-author/scripts/assert-package-excluded.js` 和 `tests/runtime/packaged-automation-smoke.js`，核对标准 executable 无 pipe/window、Author 内容为 0 而可信脚本模板仍发布（FR-029～FR-030；SC-010）
   - 自动化部分已通过：unpacked/portable 构建、真实 `app.asar` 排除检查和 packaged automation smoke；标准 executable 启动时无 Author pipe/window 仍待人工观察。
 - [X] T055 审计 `tools/vision-author/README.md`、`specs/005-vision-author-tool/quickstart.md`、`package.json` 与 `package-lock.json`：同步最终开发命令/覆盖后重启限制，确认无新依赖/lockfile 改写、无 GPL 源码或素材、无 OCR/公开 API/任意文件能力及其他 Out of Scope（FR-001、FR-030～FR-031）
+- [X] T056 修复 Electron 11 真实启动：以显式 developer entry 替代 `NODE_OPTIONS --require`，归一正式 userData，保持 `start.ps1` 为 Windows PowerShell 5.1 可解析的纯 ASCII，禁止隐藏交互式 Author child，并通过真实启动核对 Launcher 窗口、可见 Author 窗口、随机 Pipe 各 1 且退出遗留进程 0（FR-001、FR-025、FR-029～FR-030；SC-009～SC-010）
+- [X] T057 为 Profile 原地刷新、后台 Live tick 与拖拽实时选择框编写失败回归测试，并更新 Author BrowserWindow、toolbar 与 pointer 事件状态机；验证初始不可用 Profile 可在启动后刷新为可用、窗口失焦/被遮挡仍约 1 秒 capture、Template/ROI 拖动中实时显示但仅在 pointerup 提交（FR-002、FR-006、FR-012；US1-AC6/7、US2-AC6；SC-001、SC-003、SC-008）
+- [X] T058 [US1] 为 Live 非帧状态 emit 重复设置同一大 PNG source 编写失败 Renderer 回归测试，并按 frameId 去重 `capture-image.src` 提交；验证 scheduled/pending/error/mode 更新写入数为 0、新 frame 写入数为 1，避免 Electron 11 持续取消图片解码导致 Freeze 后才可见（FR-007；US1-AC8；SC-001～SC-002）
+- [X] T059 [US1] 用锁定 Electron 11 Renderer probe 复现默认 timer adapter 的 `TypeError: Illegal invocation`，为 timer host receiver 编写失败回归并改用 host-bound wrapper；验证 Profile selection/Resume 的 t0 capture 后可成功注册固定 ticker（FR-006；US1-AC9；SC-001）
 
 ---
 

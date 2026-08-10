@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const asar = require('asar');
 
-const FORBIDDEN_ENTRY = /(^|\/)(tools\/vision-author|launcher-bootstrap(?:\.js)?|[^/]*naruto-vision-author[^/]*)($|\/)/i;
+const FORBIDDEN_ENTRY = /(^|\/)(tools\/vision-author|launcher-bootstrap(?:\.js)?|vision-author-launcher(?:\.js)?|[^/]*naruto-vision-author[^/]*)($|\/)/i;
 const FORBIDDEN_SOURCE = /vision-author|launcher-bootstrap|VISION_AUTHOR|naruto-vision-author/i;
 
 function boundaryError(message) {

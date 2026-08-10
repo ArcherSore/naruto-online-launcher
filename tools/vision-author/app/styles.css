@@ -24,6 +24,8 @@ h1 { font-size: 24px; }
 h2 { font-size: 17px; margin-bottom: 16px; }
 .eyebrow { color: #f0a85a; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 5px; }
 .profile-control { display: grid; gap: 6px; color: #b8bcc8; font-size: 12px; }
+.profile-control-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.profile-control-row button { white-space: nowrap; }
 select, button, input { border: 1px solid #4a4f60; border-radius: 8px; color: #fff; background: #20232c; min-height: 40px; padding: 8px 12px; }
 button { cursor: pointer; border-color: #d97b2b; background: #d96d1f; font-weight: 700; }
 button.secondary { background: #242833; border-color: #565d70; }

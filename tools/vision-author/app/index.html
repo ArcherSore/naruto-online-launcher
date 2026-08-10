@@ -12,12 +12,15 @@
         <p class="eyebrow">Developer only · formal Profile capture</p>
         <h1>Vision Author Tool</h1>
       </div>
-      <label class="profile-control">
-        <span>Profile</span>
-        <select id="profile-select">
-          <option value="">选择当前 Launcher Profile</option>
-        </select>
-      </label>
+      <div class="profile-control">
+        <label for="profile-select">Profile</label>
+        <div class="profile-control-row">
+          <select id="profile-select">
+            <option value="">选择当前 Launcher Profile</option>
+          </select>
+          <button id="refresh-profiles" class="secondary" type="button">刷新 Profile</button>
+        </div>
+      </div>
       <button id="freeze-button" type="button" disabled>Freeze</button>
       <button id="resume-button" class="secondary" type="button" disabled>Resume Live</button>
     </header>

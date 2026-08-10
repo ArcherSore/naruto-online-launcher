@@ -7,6 +7,21 @@
 })(typeof window === 'object' ? window : null, function () {
   const INTERVAL_MS = 1000;
 
+  function createDefaultTimers(host) {
+    const timerHost = host || (typeof window === 'object' ? window : globalThis);
+    if (!timerHost || typeof timerHost.setInterval !== 'function' || typeof timerHost.clearInterval !== 'function') {
+      throw new TypeError('timer host is required');
+    }
+    return Object.freeze({
+      setInterval: function (callback, delay) {
+        return timerHost.setInterval(callback, delay);
+      },
+      clearInterval: function (interval) {
+        return timerHost.clearInterval(interval);
+      }
+    });
+  }
+
   function fitImageBox(container, imageSize) {
     if (!container || !imageSize || container.width <= 0 || container.height <= 0 || imageSize.width <= 0 || imageSize.height <= 0) {
       return null;
@@ -98,10 +113,7 @@
   function createLiveController(options) {
     const opts = options || {};
     if (!opts.bridge || typeof opts.bridge.capture !== 'function') throw new TypeError('bridge is required');
-    const timers = opts.timers || {
-      setInterval: setInterval,
-      clearInterval: clearInterval
-    };
+    const timers = opts.timers || createDefaultTimers();
     const listeners = new Set();
     let interval = null;
     let viewEpoch = 0;
@@ -415,8 +427,33 @@
       : '—';
   }
 
+  function refreshProfileOptions(document, bridge, select) {
+    if (!document || !bridge || typeof bridge.listProfiles !== 'function' || !select) {
+      return Promise.reject(safeError(null, 'connection-closed'));
+    }
+    const selectedValue = select.value;
+    return Promise.resolve(bridge.listProfiles()).then(function (result) {
+      while (select.options.length > 1) select.remove(select.options.length - 1);
+      const profiles = result && Array.isArray(result.profiles) ? result.profiles : [];
+      profiles.forEach(function (option) {
+        const element = document.createElement('option');
+        element.value = option.id;
+        element.textContent = option.name + (option.available ? '' : '（不可用）');
+        element.disabled = !option.available;
+        select.appendChild(element);
+      });
+      if (profiles.some(function (option) { return option.id === selectedValue; })) {
+        select.value = selectedValue;
+      } else {
+        select.value = '';
+      }
+      return profiles;
+    });
+  }
+
   function initializeRenderer(document, bridge) {
     const profileSelect = document.getElementById('profile-select');
+    const refreshProfilesButton = document.getElementById('refresh-profiles');
     const image = document.getElementById('capture-image');
     const empty = document.getElementById('capture-empty');
     const freezeButton = document.getElementById('freeze-button');
@@ -444,18 +481,23 @@
     const findOutput = document.getElementById('find-output');
     const waitOutput = document.getElementById('wait-output');
     let selectionMode = null;
-    let dragStart = null;
+    let activeDrag = null;
+    let renderedFrameId = null;
     const controller = createLiveController({ bridge: bridge });
 
-    bridge.listProfiles().then(function (result) {
-      (result.profiles || []).forEach(function (option) {
-        const element = document.createElement('option');
-        element.value = option.id;
-        element.textContent = option.name + (option.available ? '' : '（不可用）');
-        element.disabled = !option.available;
-        profileSelect.appendChild(element);
+    function refreshProfiles() {
+      refreshProfilesButton.disabled = true;
+      return refreshProfileOptions(document, bridge, profileSelect).then(function (profiles) {
+        refreshProfilesButton.disabled = false;
+        return profiles;
+      }, function (failure) {
+        refreshProfilesButton.disabled = false;
+        controller.disconnect(failure);
+        throw failure;
       });
-    }).catch(function (failure) { controller.disconnect(failure); });
+    }
+
+    refreshProfiles().catch(function () {});
     bridge.listScripts().then(function (result) {
       (result.scripts || []).forEach(function (option) {
         const element = document.createElement('option');
@@ -468,6 +510,7 @@
     profileSelect.addEventListener('change', function () {
       if (profileSelect.value) controller.selectProfile(profileSelect.value);
     });
+    refreshProfilesButton.addEventListener('click', function () { refreshProfiles().catch(function () {}); });
     freezeButton.addEventListener('click', function () { controller.freeze().catch(function () {}); });
     resumeButton.addEventListener('click', function () { controller.resume(); });
     templateButton.addEventListener('click', function () { selectionMode = 'template'; });
@@ -498,28 +541,122 @@
         });
       });
     });
-    viewer.addEventListener('pointerdown', function (event) {
-      if (!selectionMode || !controller.getState().currentFrame) return;
-      const begin = controller.getState().mode === 'FROZEN' ? Promise.resolve() : controller.freeze();
-      begin.then(function () {
-        dragStart = { x: event.clientX, y: event.clientY };
-        if (typeof viewer.setPointerCapture === 'function') viewer.setPointerCapture(event.pointerId);
-      }).catch(function () {});
-    });
-    viewer.addEventListener('pointerup', function (event) {
-      if (!dragStart || !selectionMode) return;
-      const state = controller.getState();
+
+    function renderSelection(selection, overlay, value, state, transient) {
+      if (!selection || !state || !state.currentFrame) {
+        overlay.hidden = true;
+        value.textContent = '—';
+        return;
+      }
       const imageBox = image.getBoundingClientRect();
-      const rect = mapDragToRect(
-        dragStart,
-        { x: event.clientX, y: event.clientY },
+      const viewerBox = viewer.getBoundingClientRect();
+      if (imageBox.width <= 0 || imageBox.height <= 0) {
+        overlay.hidden = true;
+        return;
+      }
+      const viewerClientLeft = Number.isFinite(viewer.clientLeft) ? viewer.clientLeft : 0;
+      const viewerClientTop = Number.isFinite(viewer.clientTop) ? viewer.clientTop : 0;
+      overlay.hidden = false;
+      overlay.style.left = (imageBox.left - viewerBox.left - viewerClientLeft +
+        selection.x / state.currentFrame.imageSize.width * imageBox.width) + 'px';
+      overlay.style.top = (imageBox.top - viewerBox.top - viewerClientTop +
+        selection.y / state.currentFrame.imageSize.height * imageBox.height) + 'px';
+      overlay.style.width = (selection.width / state.currentFrame.imageSize.width * imageBox.width) + 'px';
+      overlay.style.height = (selection.height / state.currentFrame.imageSize.height * imageBox.height) + 'px';
+      value.textContent = '{ x: ' + selection.x + ', y: ' + selection.y + ', width: ' + selection.width + ', height: ' + selection.height + ' }' +
+        (transient ? '（拖动中）' : (selection.referenceOnly || state.referenceOnly ? '（reference-only）' : ''));
+    }
+
+    function renderDraftSelections(state) {
+      renderSelection(state.draft.template, templateOverlay, templateValue, state, false);
+      renderSelection(state.draft.roi, roiOverlay, roiValue, state, false);
+    }
+
+    function rectForDrag(drag) {
+      const state = controller.getState();
+      if (!drag || !state.currentFrame) return null;
+      const imageBox = image.getBoundingClientRect();
+      return mapDragToRect(
+        drag.start,
+        drag.end,
         { left: imageBox.left, top: imageBox.top, width: imageBox.width, height: imageBox.height },
         state.currentFrame.imageSize
       );
-      dragStart = null;
+    }
+
+    function renderActiveDrag() {
+      if (!activeDrag || !activeDrag.ready) return;
+      const state = controller.getState();
+      const rect = rectForDrag(activeDrag);
       if (!rect) return;
-      controller.setSelection(selectionMode, rect);
-      if (selectionMode === 'template') controller.createPreview().catch(function () {});
+      if (activeDrag.kind === 'template') {
+        renderSelection(rect, templateOverlay, templateValue, state, true);
+      } else {
+        renderSelection(rect, roiOverlay, roiValue, state, true);
+      }
+    }
+
+    function restoreCommittedSelections() {
+      renderDraftSelections(controller.getState());
+    }
+
+    function finishActiveDrag() {
+      if (!activeDrag || !activeDrag.ready || !activeDrag.released) return;
+      const drag = activeDrag;
+      const rect = rectForDrag(drag);
+      activeDrag = null;
+      restoreCommittedSelections();
+      if (!rect) return;
+      controller.setSelection(drag.kind, rect);
+      if (drag.kind === 'template') controller.createPreview().catch(function () {});
+    }
+
+    viewer.addEventListener('pointerdown', function (event) {
+      const state = controller.getState();
+      if (activeDrag || !selectionMode || !state.currentFrame) return;
+      const drag = {
+        start: { x: event.clientX, y: event.clientY },
+        end: { x: event.clientX, y: event.clientY },
+        pointerId: event.pointerId,
+        kind: selectionMode,
+        ready: false,
+        released: false
+      };
+      activeDrag = drag;
+      if (typeof viewer.setPointerCapture === 'function') viewer.setPointerCapture(event.pointerId);
+      const begin = state.mode === 'FROZEN' ? Promise.resolve() : controller.freeze();
+      begin.then(function () {
+        if (activeDrag !== drag) return;
+        drag.ready = true;
+        renderActiveDrag();
+        finishActiveDrag();
+      }).catch(function () {
+        if (activeDrag === drag) activeDrag = null;
+        restoreCommittedSelections();
+      });
+    });
+    viewer.addEventListener('pointermove', function (event) {
+      if (!activeDrag || event.pointerId !== activeDrag.pointerId) return;
+      activeDrag.end = { x: event.clientX, y: event.clientY };
+      renderActiveDrag();
+    });
+    viewer.addEventListener('pointerup', function (event) {
+      if (!activeDrag || event.pointerId !== activeDrag.pointerId) return;
+      activeDrag.end = { x: event.clientX, y: event.clientY };
+      activeDrag.released = true;
+      if (typeof viewer.releasePointerCapture === 'function') {
+        try { viewer.releasePointerCapture(event.pointerId); } catch (_) { /* pointer capture already released */ }
+      }
+      finishActiveDrag();
+    });
+    viewer.addEventListener('pointercancel', function (event) {
+      if (!activeDrag || event.pointerId !== activeDrag.pointerId) return;
+      activeDrag = null;
+      restoreCommittedSelections();
+    });
+    image.addEventListener('load', function () {
+      restoreCommittedSelections();
+      if (activeDrag && activeDrag.ready) renderActiveDrag();
     });
     bridge.onDisconnected(function (failure) { controller.disconnect(failure); });
 
@@ -532,7 +669,10 @@
       resumeButton.disabled = state.mode !== 'FROZEN';
       const frame = state.currentFrame;
       if (frame) {
-        image.src = frame.pngDataUrl;
+        if (frame.frameId !== renderedFrameId) {
+          renderedFrameId = frame.frameId;
+          image.src = frame.pngDataUrl;
+        }
         image.hidden = false;
         empty.hidden = true;
         profile.textContent = frame.profile.name + ' (' + frame.profile.id + ')';
@@ -546,22 +686,8 @@
       error.textContent = state.error ? state.error.safeMessage + ' ' + state.error.recovery : '';
       templateButton.disabled = targetUnavailable || !state.currentFrame || (state.mode !== 'LIVE' && state.mode !== 'FROZEN');
       roiButton.disabled = templateButton.disabled;
-      function renderSelection(selection, overlay, value) {
-        if (!selection || !state.currentFrame) {
-          overlay.hidden = true;
-          value.textContent = '—';
-          return;
-        }
-        overlay.hidden = false;
-        overlay.style.left = (selection.x / state.currentFrame.imageSize.width * 100) + '%';
-        overlay.style.top = (selection.y / state.currentFrame.imageSize.height * 100) + '%';
-        overlay.style.width = (selection.width / state.currentFrame.imageSize.width * 100) + '%';
-        overlay.style.height = (selection.height / state.currentFrame.imageSize.height * 100) + '%';
-        value.textContent = '{ x: ' + selection.x + ', y: ' + selection.y + ', width: ' + selection.width + ', height: ' + selection.height + ' }' +
-          (selection.referenceOnly || state.referenceOnly ? '（reference-only）' : '');
-      }
-      renderSelection(state.draft.template, templateOverlay, templateValue);
-      renderSelection(state.draft.roi, roiOverlay, roiValue);
+      renderDraftSelections(state);
+      if (activeDrag && activeDrag.ready) renderActiveDrag();
       if (state.draft.preview) {
         previewImage.src = state.draft.preview.pngDataUrl;
         previewImage.hidden = false;
@@ -589,6 +715,7 @@
 
   return {
     INTERVAL_MS: INTERVAL_MS,
+    createDefaultTimers: createDefaultTimers,
     createLiveController: createLiveController,
     copyTextSafely: copyTextSafely,
     fitImageBox: fitImageBox,
@@ -596,6 +723,7 @@
     generateVisionExamples: generateVisionExamples,
     initializeRenderer: initializeRenderer,
     mapDragToRect: mapDragToRect,
+    refreshProfileOptions: refreshProfileOptions,
     safeError: safeError,
     validTemplateId: validTemplateId
   };

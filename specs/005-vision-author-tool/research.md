@@ -14,26 +14,32 @@
 - `src/ui/manager/{IpcRouter,StateBroadcaster}.js`
 - `package.json` 与现有 automation/Vision tests
 
-另核对 Electron 官方文档对 `NODE_OPTIONS` 的开发/packaged 边界；不以历史迁移文档作为事实来源。
+另使用锁定的 Electron 11.5.0 在 Windows 上实测 developer entry 的预加载时序；不以历史迁移文档作为
+事实来源。
 
-## Decision 1：开发 bootstrap 预加载同一正式 Launcher
+## Decision 1：显式 developer entry 启动同一正式 Launcher
 
-**Decision**：使用 `tools/vision-author/start.ps1` 临时设置绝对路径
-`NODE_OPTIONS=--require=<tools/vision-author/launcher-bootstrap.js>`，再执行仓库正常的 `electron .`。
-bootstrap 只在 unpackaged developer 会话中运行，并在正式 Launcher 主进程内启动 bridge。
+**Decision**：使用 `tools/vision-author/start.ps1` 运行锁定 Electron，并把仓库根极薄 shim
+`vision-author-launcher.js` 作为应用入口。shim 调用 `tools/vision-author/launcher-entry.js`；entry 在正常
+Electron main 模块阶段取得 `electron.app`，恢复与根 `package.json` 一致的应用名和 `userData`，安装
+bootstrap 后加载正式 `src/main.js`。bootstrap 只在 unpackaged developer 会话中运行，并在正式 Launcher
+主进程内启动 bridge。
 
 **Rationale**：
 
-- `electron .` 保持 `app.getAppPath()`、Flash 解析、Profile Store、Partition、single-instance lock 和
+- 根 shim 使 `app.getAppPath()` 保持仓库根；entry 在正式配置模块加载前把应用名及 `userData` 归一为
+  `naruto-online-launcher`，因此 Flash、Profile Store、Partition、single-instance lock 和
   `Launcher.gameWindows` 与普通开发启动一致。
 - `src/main.js` 不需要 Author flag、环境变量判断或 tool require，因此正式包没有专用连接入口。
-- Electron 官方环境变量文档说明 unpackaged Electron 支持大多数 `NODE_OPTIONS`；Electron 11.4.8 release
-  notes 说明 Windows packaged app 接受 `--require` 已被修复，项目 11.5.0 包含该修复。
+- Windows 实测证明 Electron 11.5.0 在 `NODE_OPTIONS --require` 阶段的 `require('electron')` 仍只是
+  `electron.exe` 路径字符串，`electron.app` 不可用；显式 entry 避开该初始化时序。
+- 根 shim 不在 electron-builder `build.files` allowlist；release verifier 还显式禁止它进入 `app.asar`。
 
 **Alternatives considered**：
 
-- `electron tools/vision-author/launcher-entry.js`：可能改变 `app.getAppPath()`，进而改变 Flash 与
-  `automation-scripts` 根，拒绝。
+- 直接执行 `electron tools/vision-author/launcher-entry.js`：会把 `app.getAppPath()` 改为工具目录，进而改变
+  Flash 与 `automation-scripts` 根，拒绝；改用仓库根 shim。
+- `NODE_OPTIONS --require`：Electron 11 实测拿不到 `electron.app`，且失败发生在正式 main 之前，拒绝。
 - 在 `src/main.js` 增加 `--vision-author`/env 分支：专用入口代码会进入 `src/**/*.js` 发布 allowlist，拒绝。
 - 事后连接普通已运行 Launcher：普通实例没有 bridge，强行注入需公开接口或调试能力，超出 V1；明确要求
   关闭后从 developer 入口重启。

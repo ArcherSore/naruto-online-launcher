@@ -2,6 +2,47 @@
 
 const helpers = require('./helpers');
 
+function fakeElement() {
+  const listeners = {};
+  return {
+    value: '',
+    textContent: '',
+    hidden: false,
+    disabled: false,
+    style: {},
+    dataset: {},
+    options: [],
+    addEventListener: function (type, listener) { listeners[type] = listener; },
+    dispatch: function (type, event) { return listeners[type](event || {}); },
+    appendChild: function (child) { this.options.push(child); },
+    remove: function (index) { this.options.splice(index, 1); },
+    getBoundingClientRect: function () { return { left: 0, top: 0, width: 960, height: 540 }; },
+    setPointerCapture: jest.fn(),
+    releasePointerCapture: jest.fn()
+  };
+}
+
+function fakeDocument() {
+  const ids = [
+    'profile-select', 'refresh-profiles', 'capture-image', 'capture-empty', 'freeze-button',
+    'resume-button', 'status-value', 'profile-value', 'image-size-value', 'content-size-value',
+    'captured-at-value', 'contract-value', 'error-panel', 'viewer', 'template-mode', 'roi-mode',
+    'template-overlay', 'roi-overlay', 'template-value', 'roi-value', 'preview-image',
+    'script-select', 'template-id', 'save-button', 'save-result', 'roi-output', 'find-output',
+    'wait-output'
+  ];
+  const elements = {};
+  ids.forEach(function (id) { elements[id] = fakeElement(); });
+  elements['profile-select'].options.push({ value: '', textContent: '选择当前 Launcher Profile' });
+  elements['script-select'].options.push({ value: '', textContent: '选择可信脚本' });
+  return {
+    elements: elements,
+    getElementById: function (id) { return elements[id]; },
+    createElement: function () { return fakeElement(); },
+    querySelectorAll: function () { return []; }
+  };
+}
+
 function result(profileId, epoch, frameId) {
   return {
     frame: {
@@ -107,6 +148,151 @@ describe('Vision Author renderer state races', () => {
     const count = bridge.capture.mock.calls.length;
     jest.advanceTimersByTime(10000);
     expect(bridge.capture).toHaveBeenCalledTimes(count);
+  });
+
+  test('refreshes Profile availability in place without duplicating options', async () => {
+    const document = fakeDocument();
+    const select = document.elements['profile-select'];
+    const bridge = {
+      listProfiles: jest.fn()
+        .mockResolvedValueOnce({ profiles: [{ id: 'p_aaaaaaaa', name: 'A', available: false }] })
+        .mockResolvedValueOnce({ profiles: [{ id: 'p_aaaaaaaa', name: 'A', available: true }] })
+    };
+    const { refreshProfileOptions } = require('../app/app');
+
+    await refreshProfileOptions(document, bridge, select);
+    expect(select.options).toHaveLength(2);
+    expect(select.options[1]).toEqual(expect.objectContaining({ value: 'p_aaaaaaaa', disabled: true }));
+
+    await refreshProfileOptions(document, bridge, select);
+    expect(select.options).toHaveLength(2);
+    expect(select.options[1]).toEqual(expect.objectContaining({ value: 'p_aaaaaaaa', disabled: false }));
+  });
+
+  test('renders the active Template rectangle during pointermove and commits only on pointerup', async () => {
+    const document = fakeDocument();
+    const bridge = {
+      listProfiles: jest.fn(async () => ({ profiles: [{ id: 'p_aaaaaaaa', name: 'A', available: true }] })),
+      listScripts: jest.fn(async () => ({ scripts: [] })),
+      capture: jest.fn(async request => result(request.profileId, request.selectionEpoch, 'frame-live')),
+      markDisplayed: jest.fn(async request => ({ displayedFrameId: request.frameId })),
+      freezeFrame: jest.fn(async request => ({ frame: { frameId: request.frameId } })),
+      releaseFrame: jest.fn(async () => ({ released: true })),
+      createPreview: jest.fn(async () => ({ preview: { previewId: 'preview-1', pngDataUrl: 'data:image/png;base64,cG5n' } })),
+      onDisconnected: jest.fn()
+    };
+    const { initializeRenderer } = require('../app/app');
+    const controller = initializeRenderer(document, bridge);
+    const profileSelect = document.elements['profile-select'];
+    profileSelect.value = 'p_aaaaaaaa';
+    profileSelect.dispatch('change');
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    document.elements['template-mode'].dispatch('click');
+    document.elements.viewer.dispatch('pointerdown', { clientX: 100, clientY: 50, pointerId: 7 });
+    await Promise.resolve();
+    await Promise.resolve();
+    document.elements.viewer.dispatch('pointermove', { clientX: 300, clientY: 200, pointerId: 7 });
+
+    const overlay = document.elements['template-overlay'];
+    expect(overlay.hidden).toBe(false);
+    expect(overlay.style).toEqual(expect.objectContaining({
+      left: '100px',
+      top: '50px',
+      width: '200px',
+      height: '150px'
+    }));
+    expect(controller.getState().draft.template).toBeUndefined();
+
+    document.elements.viewer.dispatch('pointerup', { clientX: 300, clientY: 200, pointerId: 7 });
+    expect(controller.getState().draft.template).toEqual(expect.objectContaining({
+      x: 200,
+      y: 100,
+      width: 400,
+      height: 300
+    }));
+    controller.disconnect();
+  });
+
+  test('does not restart image decoding when Live state changes without a new frame', async () => {
+    const document = fakeDocument();
+    const image = document.elements['capture-image'];
+    const sourceWrites = [];
+    let source = '';
+    Object.defineProperty(image, 'src', {
+      configurable: true,
+      get: function () { return source; },
+      set: function (value) {
+        source = value;
+        sourceWrites.push(value);
+      }
+    });
+    const secondCapture = helpers.deferred();
+    let captureCount = 0;
+    const bridge = {
+      listProfiles: jest.fn(async () => ({ profiles: [{ id: 'p_aaaaaaaa', name: 'A', available: true }] })),
+      listScripts: jest.fn(async () => ({ scripts: [] })),
+      capture: jest.fn(function (request) {
+        captureCount += 1;
+        return captureCount === 1
+          ? Promise.resolve(result(request.profileId, request.selectionEpoch, 'frame-1'))
+          : secondCapture.promise;
+      }),
+      markDisplayed: jest.fn(async request => ({ displayedFrameId: request.frameId })),
+      freezeFrame: jest.fn(),
+      releaseFrame: jest.fn(async () => ({ released: true })),
+      onDisconnected: jest.fn()
+    };
+    const { initializeRenderer } = require('../app/app');
+    const controller = initializeRenderer(document, bridge);
+    document.elements['profile-select'].value = 'p_aaaaaaaa';
+    document.elements['profile-select'].dispatch('change');
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(sourceWrites).toEqual(['data:image/png;base64,cG5n']);
+
+    controller.tick();
+    expect(controller.getState().capturePending).toBe(true);
+    expect(sourceWrites).toHaveLength(1);
+
+    secondCapture.resolve(result('p_aaaaaaaa', 1, 'frame-2'));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(sourceWrites).toHaveLength(2);
+    controller.disconnect();
+  });
+
+  test('disables Chromium background throttling for the fixed Live schedule', () => {
+    const { createAuthorWindowOptions } = require('../app/main');
+    const options = createAuthorWindowOptions();
+    expect(options.webPreferences).toEqual(expect.objectContaining({
+      backgroundThrottling: false,
+      contextIsolation: true,
+      nodeIntegration: false
+    }));
+  });
+
+  test('calls native timers with their Electron Renderer host as receiver', () => {
+    const host = {
+      setInterval: jest.fn(function () {
+        if (this !== host) throw new TypeError('Illegal invocation');
+        return 41;
+      }),
+      clearInterval: jest.fn(function () {
+        if (this !== host) throw new TypeError('Illegal invocation');
+      })
+    };
+    const { createDefaultTimers } = require('../app/app');
+    const timers = createDefaultTimers(host);
+    const callback = jest.fn();
+    expect(timers.setInterval(callback, 1000)).toBe(41);
+    expect(function () { timers.clearInterval(41); }).not.toThrow();
+    expect(host.setInterval).toHaveBeenCalledWith(callback, 1000);
+    expect(host.clearInterval).toHaveBeenCalledWith(41);
   });
 });
 
