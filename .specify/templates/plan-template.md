@@ -4,7 +4,7 @@
 
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit-plan` command; its definition describes the execution workflow.
+**Note**: This template is filled in by the `$speckit-plan` command; its definition describes the execution workflow.
 
 ## Summary
 
@@ -42,28 +42,18 @@
 
 [Gates determined based on constitution file]
 
-If the feature may require temporary access to raw page, form, URL, Cookie/Storage, identity,
-or Session data for diagnosis, the check MUST distinguish routine production observability
-from user-authorized local diagnosis and document: authorization source, purpose, exact
-read-only scope, Profile boundary, time bound, prohibited uses, redaction, and cleanup.
-
-If the feature exposes generic automation or window capabilities, the check MUST classify each
-availability prerequisite as either objective resource validity or script/page strategy. Page
-roles, flow stages, DOM semantics, and `GAME_READY`-style signals MUST NOT globally gate generic
-capture, recording, or script start unless the plan proves an independent safety necessity.
-
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
 specs/[###-feature]/
-├── plan.md              # This file (/speckit-plan command output)
-├── research.md          # Phase 0 output (/speckit-plan command)
-├── data-model.md        # Phase 1 output (/speckit-plan command)
-├── quickstart.md        # Phase 1 output (/speckit-plan command)
-├── contracts/           # Phase 1 output (/speckit-plan command)
-└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
+├── plan.md              # This file ($speckit-plan command output)
+├── research.md          # Phase 0 output ($speckit-plan command)
+├── data-model.md        # Phase 1 output ($speckit-plan command)
+├── quickstart.md        # Phase 1 output ($speckit-plan command)
+├── contracts/           # Phase 1 output ($speckit-plan command)
+└── tasks.md             # Phase 2 output ($speckit-tasks command - NOT created by $speckit-plan)
 ```
 
 ### Source Code (repository root)

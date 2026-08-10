@@ -117,7 +117,16 @@ function createAutomationBackend(options) {
     const contentSize = readContentSize(target);
     try {
       const image = await target.webContents.capturePage();
-      resolveTarget(profileId);
+      const currentTarget = resolveTarget(profileId);
+      const currentContentSize = readContentSize(currentTarget);
+      if (
+        currentTarget.window !== target.window ||
+        currentTarget.webContents !== target.webContents ||
+        currentContentSize.width !== contentSize.width ||
+        currentContentSize.height !== contentSize.height
+      ) {
+        throw new Error('capture-target-changed');
+      }
       if (!image || typeof image.toPNG !== 'function' || typeof image.getSize !== 'function') {
         throw new Error('invalid-image');
       }

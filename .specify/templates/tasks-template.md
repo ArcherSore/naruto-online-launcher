@@ -30,7 +30,7 @@ description: "Task list template for feature implementation"
   ============================================================================
   IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
 
-  The /speckit-tasks command MUST replace these with actual tasks based on:
+  The $speckit-tasks command MUST replace these with actual tasks based on:
   - User stories from spec.md (with their priorities P1, P2, P3...)
   - Feature requirements from plan.md
   - Entities from data-model.md
@@ -156,10 +156,6 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening
-- [ ] TXXX Verify generic capability availability depends only on objective resource validity and
-  page/flow readiness remains diagnostic or script-owned
-- [ ] TXXX Document any user-authorized local diagnostic session with exact read-only scope,
-  Profile/time bounds, prohibited persistence, redaction, and cleanup
 - [ ] TXXX Run quickstart.md validation
 
 ---

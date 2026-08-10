@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vision Author Tool</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="toolbar">
+      <div>
+        <p class="eyebrow">Developer only · formal Profile capture</p>
+        <h1>Vision Author Tool</h1>
+      </div>
+      <label class="profile-control">
+        <span>Profile</span>
+        <select id="profile-select">
+          <option value="">选择当前 Launcher Profile</option>
+        </select>
+      </label>
+      <button id="freeze-button" type="button" disabled>Freeze</button>
+      <button id="resume-button" class="secondary" type="button" disabled>Resume Live</button>
+    </header>
+
+    <main class="layout">
+      <section class="viewer-card" aria-label="Profile capture">
+        <div id="viewer" class="viewer">
+          <img id="capture-image" alt="所选 Profile 的正式 capture" draggable="false" hidden />
+          <div id="template-overlay" class="selection template" hidden></div>
+          <div id="roi-overlay" class="selection roi" hidden></div>
+          <p id="capture-empty">选择可用 Profile 后显示完整正式 capture。</p>
+        </div>
+        <p class="source-note">唯一来源：Launcher 正式 automation backend；固定 1000ms tick，无截图 fallback。</p>
+      </section>
+
+      <aside class="metadata-card">
+        <h2>Frame metadata</h2>
+        <dl>
+          <div><dt>状态</dt><dd id="status-value">DISCONNECTED</dd></div>
+          <div><dt>Profile</dt><dd id="profile-value">—</dd></div>
+          <div><dt>imageSize</dt><dd id="image-size-value">—</dd></div>
+          <div><dt>contentSize</dt><dd id="content-size-value">—</dd></div>
+          <div><dt>capturedAt</dt><dd id="captured-at-value">—</dd></div>
+          <div><dt>Authoring contract</dt><dd id="contract-value">—</dd></div>
+        </dl>
+        <p id="error-panel" class="error" role="status" hidden></p>
+        <section class="authoring-panel">
+          <h2>Frozen-frame selections</h2>
+          <div class="mode-buttons">
+            <button id="template-mode" type="button" disabled>Template</button>
+            <button id="roi-mode" class="secondary" type="button" disabled>ROI</button>
+          </div>
+          <h3>Template rect</h3>
+          <code id="template-value">—</code>
+          <h3>ROI rect</h3>
+          <code id="roi-value">—</code>
+          <h3>Crop preview</h3>
+          <div class="preview-box"><img id="preview-image" alt="Template crop preview" hidden /></div>
+          <h3>Target Script</h3>
+          <select id="script-select"><option value="">选择可信脚本</option></select>
+          <h3>templateId</h3>
+          <input id="template-id" type="text" maxlength="64" autocomplete="off" placeholder="battle-button" />
+          <button id="save-button" type="button" disabled>保存 Template PNG</button>
+          <p id="save-result" class="save-result" role="status"></p>
+          <h3>ROI</h3>
+          <pre id="roi-output"></pre><button class="secondary copy" data-copy="roi-output" type="button">复制 ROI</button>
+          <h3>find()</h3>
+          <pre id="find-output"></pre><button class="secondary copy" data-copy="find-output" type="button">复制 find()</button>
+          <h3>waitFor()</h3>
+          <pre id="wait-output"></pre><button class="secondary copy" data-copy="wait-output" type="button">复制 waitFor()</button>
+        </section>
+      </aside>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
