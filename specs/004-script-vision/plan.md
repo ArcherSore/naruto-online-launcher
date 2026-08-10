@@ -12,9 +12,10 @@
 模板只从 registry 已登记脚本的 `assets/vision/` 读取。
 
 坐标实现严格以当前 main 为准：截图像素中心先映射到捕获时规范 content pixel，再编码为该
-pixel 对应 normalized 单元格的中点；现有 click mapper 在执行时把它稳定还原为 content/CDP
-整数坐标。BrowserWindow DIP 不进入该链。v1 不使用 Worker、不新增依赖、不扩展 multi-scale、
-OCR、Python/OpenCV、输入或调度能力。
+pixel 对应 normalized 单元格的中点；click mapper 在执行时把它稳定还原为公开的整数
+contentPoint，backend 再映射到当前 BrowserWindow/CDP viewport。BrowserWindow DIP 不进入
+Vision 或脚本 API，只参与 backend 的末段内部换算。v1 不使用 Worker、不新增依赖、不扩展
+multi-scale、OCR、Python/OpenCV、输入或调度能力。
 
 ## Technical Context
 
@@ -150,7 +151,8 @@ registered script.run(frozen context.vision)
   → frozen rect/center/confidence
   → script passes center unchanged to automation.click()
   → backend mapper(current canonical contentSize)
-  → CDP Input.dispatchMouseEvent(content x/y)
+  → backend canonical pixel-cell midpoint → current CDP viewport
+  → CDP Input.dispatchMouseEvent(viewport x/y)
 ```
 
 跨模块副作用只有三项：runner context 新增只读 `vision`；backend/Vision 复用共享坐标 helper，
@@ -166,14 +168,16 @@ GameViewport、coordinator、Session/Partition 与 CDP 事件序列不改产品�
 2. 新增 `mapImagePointToNormalized(imagePoint,imageSize,contentSize)`：按捕获 metadata 选择
    content pixel，并用 `(pixel + 0.5) / size` 编码到单元格中点。
 3. Vision 的 `rect` 和 ROI 始终是截图像素；只有 `center` 是 normalized click point。
-   BrowserWindow DIP 不作为参数，也不从 window 读取。
+   Vision 不接收或读取 BrowserWindow DIP；只有 backend 在派发前从 window 读取当前 content DIP，
+   把公开整数 contentPoint 的 pixel 单元格中心映射为 CDP viewport 坐标。
 4. 先在 `recording.test.js` 通过正式 `addPoint()` → 已保存 normalized point → 当前
    `mapNormalizedPoint()` 链写出一个能稳定复现 1px 回退的失败测试。只有该测试在未改实现时
    确实失败，才让 `recording.js` 改用 midpoint helper 并使测试通过；若无法复现，保留现有
    recording 行为，不为代码统一而强改。
 5. 完整回归必须覆盖：正式 `1920×1080 + 100%`；`123/39` 等浮点敏感像素；最后一行/列；
-   奇偶模板中心；构造 `imageSize=3840×2160`、`contentSize=1920×1080`、BrowserWindow DIP
-   `960×540` 且 DIP 不参与；匹配后窗口合同漂移时 click 拒绝。
+   奇偶模板中心；构造 `imageSize=3840×2160`、`contentSize=1920×1080`、BrowserWindow/CDP
+   viewport `960×540`，同时断言公开 contentPoint 与内部 CDP 坐标；匹配后窗口合同漂移时
+   click 拒绝。
 
 历史 POC 不可用，因此本计划只陈述可从当前源码证明的错误类型与修正，不宣称已经定位旧公式
 或唯一根因。

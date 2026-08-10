@@ -8,8 +8,10 @@
 **Decision**：`src/app/GameViewport.js` 的规范内容/页面空间固定为 `1920×1080`；
 `src/automation/backend.js` 的 `capture()` 返回截图像素 `imageSize` 与规范页面
 `contentSize`，两者必须保持独立。`automation.click()` 只接受 `[0,1)` normalized point，
-执行时按当前有效 `contentSize` 计算整数内容坐标，再把该坐标原样送给 CDP
-`Input.dispatchMouseEvent`。BrowserWindow DIP 不参与 Vision center 或 CDP 坐标计算。
+执行时按当前有效 `contentSize` 计算公开的整数内容坐标；backend 再按当前 BrowserWindow
+content DIP 把该规范 pixel 单元格映射到 Electron 11 CDP viewport，最后调用
+`Input.dispatchMouseEvent`。BrowserWindow DIP 不参与 Vision center 或脚本 normalized 合同，
+但属于 backend 的最后一段内部映射。
 
 **Rationale**：
 
@@ -17,11 +19,13 @@
   `getAutomationContentSize()` 仅在窗口 DIP 与 zoom 合同均有效时返回 `{1920,1080}`。
 - `Launcher.getAutomationTarget()` 把该规范尺寸作为 backend target 的显式 `contentSize`。
 - `capture()` 从 NativeImage 取得真实 `imageSize`，没有要求 `imageSize === contentSize`。
-- `mapNormalizedPoint()` 明确使用
-  `floor(normalized * contentSize)`；`click()` 不再对结果应用 DIP 或截图比例。
+- `mapNormalizedPoint()` 明确使用 `floor(normalized * contentSize)`，公开 `contentPoint` 继续保持该
+  整数结果。当前 Electron 11 的 CDP Input 使用 BrowserWindow content viewport；缩放不为 1 时
+  backend 必须再按 `window.getContentSize()/contentSize` 映射规范 pixel 单元格中心。
 
-**Alternatives considered**：用 BrowserWindow `getContentSize()`、假定截图与内容尺寸相等、
-直接把 screenshot pixel 送给 CDP、沿用旧 POC 分母。它们都会混合不同坐标空间，全部拒绝。
+**Alternatives considered**：把 BrowserWindow `getContentSize()` 用作 Vision contentSize、假定截图与
+内容尺寸相等、直接把 screenshot pixel 或规范 content pixel 无条件送给 CDP、沿用旧 POC 分母。
+它们都会混合不同坐标空间，全部拒绝。
 
 ## Decision 2：用 normalized 单元格中点保证 pixel → click 可逆
 

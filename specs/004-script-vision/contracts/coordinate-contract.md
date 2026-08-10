@@ -5,10 +5,10 @@
 | Space | Source | Meaning |
 | --- | --- | --- |
 | Screenshot pixel | `capture().imageSize` | PNG/NativeImage 像素；ROI 与 rect 属于这里 |
-| Canonical content/page | `capture().contentSize` / execution target | automation 与 CDP 使用的页面坐标；正式为 1920×1080 |
+| Canonical content/page | `capture().contentSize` / execution target | 脚本、Vision 与公开 `contentPoint` 使用的规范页面坐标；正式为 1920×1080 |
 | Normalized point | `automation.click()` input | `{normalizedX,normalizedY}`，每值 finite `[0,1)` |
-| BrowserWindow DIP | `window.getContentSize()` | OS/窗口逻辑尺寸；不属于 Vision/click 输入或 CDP 坐标 |
-| CDP coordinate | `Input.dispatchMouseEvent.x/y` | 当前 backend 的整数 content/page coordinate |
+| BrowserWindow DIP / CDP viewport | `window.getContentSize()` | OS 窗口逻辑尺寸，也是当前 Electron 11 CDP Input 接收的 viewport 空间；只由 backend 内部读取 |
+| CDP coordinate | `Input.dispatchMouseEvent.x/y` | backend 从规范 content pixel 映射出的 viewport 坐标，缩放不为 1 时可以是浮点数 |
 
 数值相等不代表空间相同。实现、测试或脚本文档不得把其中任意两种无条件合并。
 
@@ -25,7 +25,16 @@ x = min(contentWidth - 1, floor(normalizedX * contentWidth))
 y = min(contentHeight - 1, floor(normalizedY * contentHeight))
 ```
 
-5. `{x,y}` 原样用于 CDP move/press/release，不再乘 screenshot/DIP 比例。
+5. `{x,y}` 仍是公开的整数 `contentPoint`。backend 再读取当前 BrowserWindow content DIP，映射到
+   CDP viewport；若两尺寸相等，沿用原有整数坐标；否则使用规范 pixel 单元格中心：
+
+```text
+cdpX = (x + 0.5) * cdpViewportWidth / contentWidth
+cdpY = (y + 0.5) * cdpViewportHeight / contentHeight
+```
+
+BrowserWindow DIP/CDP viewport 不进入 Vision 或脚本 API。这个内部末段映射抵消 `GameViewport`
+的 page zoom，使页面收到的事件仍落在规范 content pixel 内。
 
 ## Vision Encoding
 
@@ -74,13 +83,12 @@ floor((39 / 1080) * 1080) = 38
 | Case | Input | Expected |
 | --- | --- | --- |
 | fixed product | image/content `1920×1080`, 100% | Vision center 经 click/CDP 命中模板 content center |
-| float-sensitive | target content `(123,39)` | 三个 CDP event 均为 `(123,39)`，不得回退一像素 |
-| unequal sizes | image `3840×2160`, content `1920×1080` | screenshot center `(246,78)` → CDP `(123,39)` |
-| DIP sentinel | BrowserWindow DIP `960×540` alongside above | 结果不读取/使用 DIP；不据此宣称 DPI 支持 |
+| float-sensitive | target content `(123,39)` at equal viewport size | 三个 CDP event 均为 `(123,39)`，不得回退一像素 |
+| unequal image sizes | image `3840×2160`, content/CDP viewport `1920×1080` | screenshot center `(246,78)` → content/CDP `(123,39)` |
+| distinct CDP viewport | above image/content, BrowserWindow DIP `960×540` | public contentPoint `(123,39)`；CDP 三事件 `(61.75,19.75)`，页面命中同一规范 pixel；不据此宣称 DPI 支持 |
 | non-integer ratio | image `200×100`, content `101×51` | helper 量化后经 mapper 精确回到同一 content pixel |
 | boundaries | first/last pixels, odd/even template sizes | normalized 始终 `[0,1)`，rect/center 不越界 |
 | drift | target contentSize null after match | click 拒绝 `window-unavailable`，CDP 调用数为 0 |
 
 完整链测试必须经过正式 Vision API → `automation.click()` → backend mapper → CDP sendCommand，
 不能只分别测试公式。
-

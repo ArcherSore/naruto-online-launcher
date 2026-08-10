@@ -51,8 +51,9 @@ npm test -- --runInBand src/automation/__tests__/vision-coordinate-chain.test.js
 1. 固定 `1920×1080 + 100%` 合成截图中的模板 center 原样传给
    `automation.click()`，CDP move/press/release 三事件全部命中预期整数 content 坐标。
 2. 使用 `(123,39)` 等浮点敏感 content pixel，确认不会回退到 `(122,38)`。
-3. 纯逻辑构造 `imageSize=3840×2160`、`contentSize=1920×1080`、BrowserWindow DIP sentinel
-   `960×540`，确认 DIP 不参与换算，截图 `(246,78)` 映射到 content/CDP `(123,39)`。
+3. 纯逻辑构造 `imageSize=3840×2160`、`contentSize=1920×1080`、BrowserWindow/CDP viewport
+   `960×540`，确认截图 `(246,78)` 映射到公开 contentPoint `(123,39)`，CDP 三事件为
+   `(61.75,19.75)`，且页面仍命中同一规范 pixel。
 4. 非整数比例 `200×100 → 101×51`、第一/最后 pixel、奇偶模板尺寸和 ROI 贴边均可逆且
    normalized `< 1`。
 5. 匹配后 GameViewport 合同失效时 click 返回 `window-unavailable`，CDP 调用数为 0。
@@ -61,7 +62,8 @@ npm test -- --runInBand src/automation/__tests__/vision-coordinate-chain.test.js
    随后改用 helper 才通过。
    若原实现上无法复现，预期结果是 `recording.js` 没有行为改动，而不是为了共用 helper 强改。
 
-第 3 项只是防止空间混用的逻辑构造，不是 DPI/多缩放产品支持或验收扩展。
+第 3 项只是防止空间混用并保护现有 `GameViewport` 内部 page zoom 的逻辑构造，不是 DPI/多缩放
+产品支持或验收扩展。
 
 ## 4. Polling、取消、deadline 与响应性
 
@@ -101,13 +103,17 @@ npm run lint
 ## 6. Electron/CDP runtime smoke
 
 ```powershell
+.\node_modules\.bin\electron.cmd tests/runtime/cdp-viewport-coordinate-smoke.js
 .\node_modules\.bin\electron.cmd tests/runtime/cdp-background-smoke.js
 .\node_modules\.bin\electron.cmd tests/runtime/cdp-ppapi-background-smoke.js
 ```
 
-扩展后的 smoke 应从正式 registry→runner→`context.vision` 得到 center，并原样交给正式
-`automation.click()`；禁止直接从测试复制坐标到 backend。预期 Chromium 与 PPAPI/AS3 靶场均
-接收正确三事件点击，游戏窗口不抢焦点、系统鼠标不移动，既有 click 行为无退化。
+viewport smoke 不强制 device scale factor，使用当前 `GameViewport` 创建真实窗口，要求规范
+页面/截图仍为 `1920×1080`，并验证 canonical contentPoint 经 BrowserWindow/CDP viewport 映射
+后命中同一个 DOM pixel。扩展后的 background smoke 应从正式 registry→runner→`context.vision`
+得到 center，并原样交给正式 `automation.click()`；禁止直接从测试复制坐标到 backend。预期
+Chromium 与 PPAPI/AS3 靶场均接收正确三事件点击，游戏窗口不抢焦点、系统鼠标不移动，既有
+click 行为无退化。
 
 ## 7. Windows package / ASAR 验证
 
@@ -115,10 +121,11 @@ npm run lint
 npm run build:win
 $env:AUTOMATION_ASAR_PATH = (Resolve-Path 'dist/win-unpacked/resources/app.asar').Path
 npm test -- --runInBand src/automation/__tests__/package-discovery.test.js
-.\dist\win-unpacked\NarutoOnline.exe --automation-packaged-smoke
+.\node_modules\.bin\electron.cmd tests/runtime/packaged-automation-smoke.js $env:AUTOMATION_ASAR_PATH
 ```
 
-若实际 packaged smoke 仍使用独立 harness，则按实现后的正式命令替换最后一行。预期：
+最后一行使用项目固定的 Electron `11.5.0` 运行 harness，但 registry、脚本和模板均从实际
+`app.asar` 读取，不从仓库路径旁路资源。预期：
 
 - `automation-scripts/**/assets/vision/*.png` 清单与开发树一致，SHA-256 差异数为 0；
 - 从实际 ASAR 内 RegisteredScript packageRoot 加载、解码模板成功；
@@ -131,18 +138,31 @@ npm test -- --runInBand src/automation/__tests__/package-discovery.test.js
 1. 使用测试 Profile 按腾讯官方扫码、手工选服并进入游戏；不读取或记录 Cookie、票据、验证码、
    URL query 或认证页面原始数据。
 2. 确认 Windows 100% 显示缩放和启动器报告的规范 contentSize `1920×1080`。
-3. 选取一个不会消费资源、提交交易或影响账号安全的稳定 UI 目标，从对应脚本自己的
-   `assets/vision/` 模板调用 `vision.find()`。
-4. 记录非敏感的 templateId、imageSize/contentSize、rect、confidence 与测试时间；不要保存
+3. 选取一个不会消费资源、提交交易或影响账号安全的稳定 UI 目标，用外部工具把 exact-scale
+   局部模板保存到所选脚本的 `assets/vision/<template-id>.png`。
+4. 在启动器自动化面板选中该脚本，点击“Vision 框选”，在当前截图拖出 ROI；面板会自动填入
+   screenshot-pixel ROI 并按现有录点合同保存中心 normalized 坐标，模板下拉框只显示该脚本
+   自己的 PNG。
+5. 先点击“匹配”，确认绿色命中框、rect 和 confidence；再点击“匹配并点击”，目视确认正式
+   `automation.click(result.center)` 命中目标，且前台窗口和系统鼠标位置不变。
+6. 记录非敏感的 templateId、imageSize/contentSize、rect、confidence 与测试时间；不要保存
    或提交包含登录/账号信息的原始截图。
-5. 把返回 center 不作转换传给 `automation.click()`，目视确认目标中心被触发，前台窗口和系统
-   鼠标位置不变。
-6. 点击后用 `waitUntilGone()` 仅确认该视觉目标消失；另外目视确认预期业务 UI 是否出现，不能
-   把 `true` 当作业务成功证明。
-7. 分别验证 `waitFor` 后续出现、local timeout、用户停止和 run deadline；确认错误 code 与
-   terminal 后零新增 capture。
-8. 同时在 Profile A/B 做非破坏性查找，确认截图/result 不串 Profile；一个 Profile 关闭或模板
-   失败不影响另一个。
+7. 如需验证动态等待，再按 `tests/manual/README.md` 的可选命令行 harness 运行 `waitFor` 或
+   `waitUntilGone`；`waitUntilGone()` 仅确认该视觉目标消失，不能把 `true` 当作业务成功证明。
+8. 验证 `waitFor` 能观察真实目标后续出现；如方便再让两个 Profile 各执行一次 Vision，确认
+   没有串窗口。local timeout、运行 cancellation/deadline、terminal 后零 capture、heartbeat 与
+   错误分类以自动测试为准，不要求在腾讯页面重复人工验证。
+
+### 2026-08-10 人工验收记录
+
+- 用户在真实腾讯 PPAPI 游戏页面通过启动器自动化面板完成 `demo-click` 的“匹配”与
+  “匹配并点击”，并目视确认目标被正确触发。
+- 本次使用本地临时模板 ID `target`，模板尺寸 `42×50`，ROI `1355,359,61,50`，threshold
+  `0.95`；模板原图不进入提交。
+- 同一会话日志显示 registry 扫描成功且 issueCount 为 0；从会话开始到退出，未出现 Vision、
+  capture、template、CDP 或 script failure/warning。
+- UI 结果没有写日志，因此不补造 rect/confidence 数值；动态 `waitFor`/`waitUntilGone` 与双
+  Profile 真实页面场景本次未单独重复，仍以自动测试和后续按需人工验证为准。
 
 若任何步骤需要绕过腾讯登录、验证码、设备验证或风控，立即停止；这些行为不属于本 Feature。
 

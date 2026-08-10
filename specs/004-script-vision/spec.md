@@ -106,7 +106,7 @@
 
 - Vision v1 的正式产品与验收环境固定为 `1920×1080` 内容画面和 Windows 100% 显示缩放；DPI/多缩放支持不属于本 Feature。当前 main 已更新固定窗口/content-size 行为，历史 POC 点击在该更新后出现偏差；具体偏差原因和坐标转换公式 MUST 在 Plan 阶段重新读取当前 `GameViewport`、`capture()`、coordinate mapper、backend/CDP 与相关测试后确定，本 Spec 和 Clarify 不预设公式。
 - `capture()` 返回 PNG、PNG 解码图像自己的 `imageSize`、规范自动化 `contentSize` 和捕获时间。`imageSize` 描述截图像素空间，`contentSize` 描述自动化内容/页面坐标空间；合同不允许调用方假定二者始终相等。
-- `automation.click()` 的正式输入是 `{ normalizedX, normalizedY }`，两个有限值均位于 `[0,1)`。后端在动作实际执行时按当时有效的规范 `contentSize` 映射为整数内容/页面坐标，再把该坐标直接用于 CDP 鼠标事件；BrowserWindow DIP 不是该输入或最终内容坐标。
+- `automation.click()` 的正式输入是 `{ normalizedX, normalizedY }`，两个有限值均位于 `[0,1)`。后端在动作实际执行时按当时有效的规范 `contentSize` 映射为公开的整数内容/页面坐标，再在 backend 内部映射到当前 CDP viewport 后派发鼠标事件；BrowserWindow DIP 不是脚本输入，也不得与规范内容坐标混为一谈。
 - 当前正式合同要求 Vision 依据截图 metadata 与 `automation.click()` 的 normalized point 合同建立兼容结果。Vision 不得沿用或猜测历史 POC 公式；现有录点、capture 与 mapper 的具体换算关系由 Plan 基于当前真实源码和测试确认。
 
 ### Capability Availability Boundaries
