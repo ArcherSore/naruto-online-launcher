@@ -1,13 +1,45 @@
 'use strict';
 
 const crypto = require('crypto');
-const { readPngSize, createVisionCodec } = require('../../../src/automation/vision/codec');
+const { readPngSize } = require('../../../src/automation/vision/codec');
 const { validSize } = require('../../../src/automation/coordinates');
 
 const CANONICAL_SIZE = Object.freeze({ width: 1920, height: 1080 });
+const LIVE_PREVIEW_WIDTH = 960;
+const LIVE_PREVIEW_JPEG_QUALITY = 70;
 
 function sameSize(left, right) {
   return !!left && !!right && left.width === right.width && left.height === right.height;
+}
+
+function validNativeImage(image, expectedSize) {
+  if (
+    !image ||
+    typeof image.isEmpty !== 'function' ||
+    image.isEmpty() ||
+    typeof image.getSize !== 'function'
+  ) {
+    return false;
+  }
+  return !expectedSize || sameSize(image.getSize(), expectedSize);
+}
+
+function createLiveImageDataUrl(image, imageSize) {
+  if (!validNativeImage(image, imageSize)) throw frameError('frame-contract-invalid');
+  let preview = image;
+  if (imageSize.width > LIVE_PREVIEW_WIDTH && typeof image.resize === 'function') {
+    preview = image.resize({
+      width: LIVE_PREVIEW_WIDTH,
+      height: Math.round(imageSize.height * LIVE_PREVIEW_WIDTH / imageSize.width),
+      quality: 'good'
+    });
+  }
+  if (!validNativeImage(preview) || typeof preview.toJPEG !== 'function') {
+    throw frameError('frame-contract-invalid');
+  }
+  const jpeg = preview.toJPEG(LIVE_PREVIEW_JPEG_QUALITY);
+  if (!Buffer.isBuffer(jpeg) || jpeg.length === 0) throw frameError('frame-contract-invalid');
+  return 'data:image/jpeg;base64,' + jpeg.toString('base64');
 }
 
 function createCaptureFrame(capture, profile, selectionEpoch, options) {
@@ -27,17 +59,17 @@ function createCaptureFrame(capture, profile, selectionEpoch, options) {
     failures.push('content-size-not-canonical');
   }
 
-  let decoded = null;
-  if (!capture || !Buffer.isBuffer(capture.png)) {
+  let image = capture && capture.image;
+  const hasNativeImage = validNativeImage(image, capture && capture.imageSize);
+  const hasPng = !!capture && Buffer.isBuffer(capture.png);
+  if (!hasNativeImage && !hasPng) {
     failures.push('png-invalid');
-  } else {
+  } else if (hasPng) {
     try {
       const pngSize = readPngSize(capture.png);
       if (!capture.imageSize || !sameSize(pngSize, capture.imageSize)) {
         failures.push('png-image-size-mismatch');
       }
-      const codec = opts.codec || createVisionCodec();
-      decoded = codec.decodeCapture(capture);
     } catch (_) {
       if (failures.indexOf('png-invalid') === -1) failures.push('png-invalid');
     }
@@ -46,7 +78,7 @@ function createCaptureFrame(capture, profile, selectionEpoch, options) {
   const uniqueFailures = Object.freeze(Array.from(new Set(failures)));
   const contract = Object.freeze({ valid: uniqueFailures.length === 0, failures: uniqueFailures });
   const frameId = opts.frameId || 'frame-' + crypto.randomBytes(16).toString('hex');
-  const png = capture && Buffer.isBuffer(capture.png) ? Buffer.from(capture.png) : Buffer.alloc(0);
+  const png = hasPng ? Buffer.from(capture.png) : null;
   const imageSize = capture && validSize(capture.imageSize)
     ? Object.freeze({ width: capture.imageSize.width, height: capture.imageSize.height })
     : Object.freeze({ width: 0, height: 0 });
@@ -57,7 +89,9 @@ function createCaptureFrame(capture, profile, selectionEpoch, options) {
     frameId: frameId,
     profile: safeProfile,
     selectionEpoch: selectionEpoch,
-    pngDataUrl: 'data:image/png;base64,' + png.toString('base64'),
+    imageDataUrl: hasNativeImage
+      ? createLiveImageDataUrl(image, imageSize)
+      : 'data:image/png;base64,' + png.toString('base64'),
     imageSize: imageSize,
     contentSize: contentSize,
     capturedAt: capture && Number.isFinite(capture.capturedAt) ? capture.capturedAt : null,
@@ -67,20 +101,34 @@ function createCaptureFrame(capture, profile, selectionEpoch, options) {
     frameId: frameId,
     profile: safeProfile,
     selectionEpoch: selectionEpoch,
+    image: hasNativeImage ? image : null,
     png: png,
     imageSize: imageSize,
     contentSize: contentSize,
     capturedAt: publicFrame.capturedAt,
-    decoded: decoded,
     contract: contract,
     publicFrame: publicFrame
   });
 }
 
 function frozenPublicFrame(frame) {
+  let imageDataUrl = null;
+  try {
+    if (validNativeImage(frame.image, frame.imageSize)) {
+      const png = frame.image.toPNG();
+      if (!Buffer.isBuffer(png) || png.length === 0) throw new Error('invalid-png');
+      imageDataUrl = 'data:image/png;base64,' + png.toString('base64');
+    } else if (Buffer.isBuffer(frame.png)) {
+      imageDataUrl = 'data:image/png;base64,' + frame.png.toString('base64');
+    }
+  } catch (_) {
+    throw frameError('frame-contract-invalid');
+  }
+  if (!imageDataUrl) throw frameError('frame-contract-invalid');
   return Object.freeze({
     frameId: frame.frameId,
     profile: frame.profile,
+    imageDataUrl: imageDataUrl,
     imageSize: frame.imageSize || frame.publicFrame.imageSize,
     contentSize: frame.contentSize || frame.publicFrame.contentSize,
     capturedAt: frame.capturedAt === undefined ? frame.publicFrame.capturedAt : frame.capturedAt,
@@ -106,7 +154,11 @@ function validSelectionRect(rect, imageSize) {
 
 function createPreviewArtifact(frame, templateRect, options) {
   const opts = options || {};
-  if (!frame || typeof frame.frameId !== 'string' || !Buffer.isBuffer(frame.png)) {
+  if (
+    !frame ||
+    typeof frame.frameId !== 'string' ||
+    !validNativeImage(frame.image, frame.imageSize) && !Buffer.isBuffer(frame.png)
+  ) {
     throw frameError('frame-stale');
   }
   if (!validSelectionRect(templateRect, frame.imageSize)) throw frameError('selection-invalid');
@@ -114,7 +166,9 @@ function createPreviewArtifact(frame, templateRect, options) {
   let source;
   let sourceSize;
   try {
-    source = nativeImage.createFromBuffer(Buffer.from(frame.png));
+    source = validNativeImage(frame.image, frame.imageSize)
+      ? frame.image
+      : nativeImage.createFromBuffer(Buffer.from(frame.png));
     if (!source || source.isEmpty() || typeof source.crop !== 'function') throw new Error('invalid-source');
     sourceSize = source.getSize();
   } catch (_) {
@@ -193,7 +247,10 @@ function createPreviewArtifact(frame, templateRect, options) {
 
 module.exports = {
   CANONICAL_SIZE: CANONICAL_SIZE,
+  LIVE_PREVIEW_JPEG_QUALITY: LIVE_PREVIEW_JPEG_QUALITY,
+  LIVE_PREVIEW_WIDTH: LIVE_PREVIEW_WIDTH,
   createCaptureFrame: createCaptureFrame,
+  createLiveImageDataUrl: createLiveImageDataUrl,
   createPreviewArtifact: createPreviewArtifact,
   frameError: frameError,
   frozenPublicFrame: frozenPublicFrame,

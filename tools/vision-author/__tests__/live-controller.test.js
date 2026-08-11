@@ -32,7 +32,9 @@ describe('LiveController fixed schedule and Freeze', () => {
           : Promise.resolve(frame(request.profileId, request.selectionEpoch, 'frame-2'));
       }),
       markDisplayed: jest.fn(async function (request) { return { displayedFrameId: request.frameId }; }),
-      freezeFrame: jest.fn(async function (request) { return { frame: { frameId: request.frameId } }; }),
+      freezeFrame: jest.fn(async function (request) {
+        return { frame: { frameId: request.frameId, imageDataUrl: 'data:image/png;base64,bG9zc2xlc3M=' } };
+      }),
       releaseFrame: jest.fn(async function () { return { released: true }; })
     };
     const { createLiveController } = require('../app/app');
@@ -61,7 +63,9 @@ describe('LiveController fixed schedule and Freeze', () => {
         return Promise.resolve(frame(request.profileId, request.selectionEpoch, 'displayed'));
       }),
       markDisplayed: jest.fn(async function (request) { return { displayedFrameId: request.frameId }; }),
-      freezeFrame: jest.fn(async function (request) { return { frame: { frameId: request.frameId } }; }),
+      freezeFrame: jest.fn(async function (request) {
+        return { frame: { frameId: request.frameId, imageDataUrl: 'data:image/png;base64,bG9zc2xlc3M=' } };
+      }),
       releaseFrame: jest.fn(async function () { return { released: true }; })
     };
     const { createLiveController } = require('../app/app');
@@ -73,6 +77,7 @@ describe('LiveController fixed schedule and Freeze', () => {
 
     await controller.freeze();
     expect(controller.getState().mode).toBe('FROZEN');
+    expect(controller.getState().currentFrame.imageDataUrl).toBe('data:image/png;base64,bG9zc2xlc3M=');
     expect(bridge.freezeFrame).toHaveBeenCalledWith({
       frameId: 'displayed',
       profileId: 'p_aaaaaaaa',

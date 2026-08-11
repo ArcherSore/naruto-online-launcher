@@ -81,7 +81,10 @@ function createBridgeSession(options) {
     if (capturePending) throw sessionError('capture-busy');
     capturePending = true;
     try {
-      const result = await opts.backend.capture(profile.id);
+      const capture = typeof opts.backend.captureImage === 'function'
+        ? opts.backend.captureImage
+        : opts.backend.capture;
+      const result = await capture(profile.id);
       requireProfile(profile.id);
       const frame = frameFactory(result, profile, request.selectionEpoch);
       if (!frame || !frame.publicFrame || typeof frame.frameId !== 'string') {

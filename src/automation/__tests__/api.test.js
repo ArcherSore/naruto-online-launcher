@@ -25,13 +25,14 @@ function makeTarget(options) {
     })
   };
   const png = Buffer.from('png');
+  const image = {
+    toPNG: jest.fn(function () { return png; }),
+    getSize: jest.fn(function () { return { width: 200, height: 100 }; })
+  };
   const webContents = {
     isDestroyed: jest.fn(function () { return false; }),
     capturePage: jest.fn(function () {
-      return Promise.resolve({
-        toPNG: function () { return png; },
-        getSize: function () { return { width: 200, height: 100 }; }
-      });
+      return Promise.resolve(image);
     }),
     debugger: cdp
   };
@@ -48,6 +49,7 @@ function makeTarget(options) {
     webContents: webContents,
     gameReady: opts.gameReady !== false,
     cdp: cdp,
+    image: image,
     png: png,
     emitDetach: function () {
       if (listeners.detach) listeners.detach({}, 'target closed');
@@ -94,6 +96,43 @@ describe('Automation API v1 happy path', () => {
     expect(JSON.stringify(backend.getWindowState('p_aaaaaaaa'))).not.toMatch(
       /url|title|session|partition|cookie|webContents/i
     );
+  });
+
+  test('can return the captured native image without synchronously encoding PNG', async () => {
+    const target = makeTarget();
+    const backend = createAutomationBackend({
+      targetProvider: function () { return target; },
+      now: function () { return 234; }
+    });
+
+    const capture = await backend.captureImage('p_aaaaaaaa');
+
+    expect(capture).toEqual({
+      image: target.image,
+      imageSize: { width: 200, height: 100 },
+      contentSize: { width: 101, height: 51 },
+      capturedAt: 234
+    });
+    expect(target.image.toPNG).not.toHaveBeenCalled();
+  });
+
+  test('lets the developer capture provider avoid a compositor capturePage request', async () => {
+    const target = makeTarget();
+    const imageProvider = jest.fn(async function (resolvedTarget, profileId) {
+      expect(resolvedTarget).toBe(target);
+      expect(profileId).toBe('p_aaaaaaaa');
+      return target.image;
+    });
+    const backend = createAutomationBackend({
+      targetProvider: function () { return target; },
+      imageProvider: imageProvider
+    });
+
+    await expect(backend.captureImage('p_aaaaaaaa')).resolves.toEqual(
+      expect.objectContaining({ image: target.image })
+    );
+    expect(imageProvider).toHaveBeenCalledTimes(1);
+    expect(target.webContents.capturePage).not.toHaveBeenCalled();
   });
 
   test('keeps readiness diagnostic while capture and click use an available target', async () => {

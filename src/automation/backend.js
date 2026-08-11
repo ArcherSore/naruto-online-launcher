@@ -112,11 +112,13 @@ function createAutomationBackend(options) {
     });
   }
 
-  async function capture(profileId) {
+  async function captureImage(profileId) {
     const target = resolveTarget(profileId);
     const contentSize = readContentSize(target);
     try {
-      const image = await target.webContents.capturePage();
+      const image = typeof opts.imageProvider === 'function'
+        ? await opts.imageProvider(target, profileId)
+        : await target.webContents.capturePage();
       const currentTarget = resolveTarget(profileId);
       const currentContentSize = readContentSize(currentTarget);
       if (
@@ -132,13 +134,28 @@ function createAutomationBackend(options) {
       }
       const imageSize = image.getSize();
       if (!validSize(imageSize)) throw new Error('invalid-image-size');
-      const png = image.toPNG();
-      if (!Buffer.isBuffer(png)) throw new Error('invalid-png');
       return Object.freeze({
-        png: Buffer.from(png),
+        image: image,
         imageSize: Object.freeze({ width: imageSize.width, height: imageSize.height }),
         contentSize: contentSize,
         capturedAt: now()
+      });
+    } catch (error) {
+      if (error instanceof AutomationError) throw error;
+      throw new AutomationError('capture-failed');
+    }
+  }
+
+  async function capture(profileId) {
+    try {
+      const frame = await captureImage(profileId);
+      const png = frame.image.toPNG();
+      if (!Buffer.isBuffer(png)) throw new Error('invalid-png');
+      return Object.freeze({
+        png: Buffer.from(png),
+        imageSize: frame.imageSize,
+        contentSize: frame.contentSize,
+        capturedAt: frame.capturedAt
       });
     } catch (error) {
       if (error instanceof AutomationError) throw error;
@@ -243,6 +260,7 @@ function createAutomationBackend(options) {
 
   return Object.freeze({
     getWindowState: getWindowState,
+    captureImage: captureImage,
     capture: capture,
     click: click
   });

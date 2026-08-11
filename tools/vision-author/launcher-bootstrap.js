@@ -46,9 +46,13 @@ function initializeDefaultRuntime(repoRoot) {
   const { createBridgeSession } = require(path.join(repoRoot, 'tools', 'vision-author', 'bridge', 'session'));
   const { createAuthorCatalog } = require(path.join(repoRoot, 'tools', 'vision-author', 'bridge', 'catalog'));
   const { createTemplateWriter } = require(path.join(repoRoot, 'tools', 'vision-author', 'bridge', 'template-writer'));
+  const { createDesktopCaptureProvider } = require(path.join(repoRoot, 'tools', 'vision-author', 'bridge', 'desktop-capture'));
   const registry = createRegistry({ app: electron.app });
   registry.scan();
-  const backend = createAutomationBackend({ targetProvider: launcher.getAutomationTarget });
+  const backend = createAutomationBackend({
+    targetProvider: launcher.getAutomationTarget,
+    imageProvider: createDesktopCaptureProvider({ desktopCapturer: electron.desktopCapturer })
+  });
   const catalog = createAuthorCatalog({ registry: registry, repoRoot: repoRoot });
   const writer = createTemplateWriter({ catalog: catalog, repoRoot: repoRoot });
   const session = createBridgeSession({

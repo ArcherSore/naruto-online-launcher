@@ -216,7 +216,7 @@ describe('Vision Author renderer state races', () => {
     controller.disconnect();
   });
 
-  test('does not restart image decoding when Live state changes without a new frame', async () => {
+  test('only restarts image decoding for a new frame or the frozen lossless upgrade', async () => {
     const document = fakeDocument();
     const image = document.elements['capture-image'];
     const sourceWrites = [];
@@ -241,7 +241,12 @@ describe('Vision Author renderer state races', () => {
           : secondCapture.promise;
       }),
       markDisplayed: jest.fn(async request => ({ displayedFrameId: request.frameId })),
-      freezeFrame: jest.fn(),
+      freezeFrame: jest.fn(async request => ({
+        frame: {
+          frameId: request.frameId,
+          imageDataUrl: 'data:image/png;base64,bG9zc2xlc3M='
+        }
+      })),
       releaseFrame: jest.fn(async () => ({ released: true })),
       onDisconnected: jest.fn()
     };
@@ -263,6 +268,13 @@ describe('Vision Author renderer state races', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(sourceWrites).toHaveLength(2);
+
+    await controller.freeze();
+    expect(sourceWrites).toEqual([
+      'data:image/png;base64,cG5n',
+      'data:image/png;base64,cG5n',
+      'data:image/png;base64,bG9zc2xlc3M='
+    ]);
     controller.disconnect();
   });
 

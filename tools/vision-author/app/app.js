@@ -330,7 +330,13 @@
         if (!result || !result.frame || result.frame.frameId !== identity.frameId) {
           throw safeError(null, 'frame-stale');
         }
-        update({ mode: 'FROZEN', frozenFrameId: identity.frameId, referenceOnly: false, error: null });
+        update({
+          mode: 'FROZEN',
+          frozenFrameId: identity.frameId,
+          currentFrame: Object.assign({}, state.currentFrame, result.frame),
+          referenceOnly: false,
+          error: null
+        });
         return getState();
       }, function (error) {
         update({ mode: 'LIVE', error: safeError(error, 'frame-stale') });
@@ -557,6 +563,7 @@
     let selectionMode = null;
     let activeDrag = null;
     let renderedFrameId = null;
+    let renderedImageDataUrl = null;
     const controller = createLiveController({ bridge: bridge });
 
     function refreshProfiles() {
@@ -747,9 +754,11 @@
       resumeButton.disabled = state.mode !== 'FROZEN';
       const frame = state.currentFrame;
       if (frame) {
-        if (frame.frameId !== renderedFrameId) {
+        const imageDataUrl = frame.imageDataUrl || frame.pngDataUrl;
+        if (frame.frameId !== renderedFrameId || imageDataUrl !== renderedImageDataUrl) {
           renderedFrameId = frame.frameId;
-          image.src = frame.pngDataUrl;
+          renderedImageDataUrl = imageDataUrl;
+          image.src = imageDataUrl;
         }
         image.hidden = false;
         empty.hidden = true;

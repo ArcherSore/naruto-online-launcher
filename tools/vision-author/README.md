@@ -28,7 +28,7 @@
 ## V1 使用方式
 
 1. 从工具列出的当前 Profile 中选择一个可用目标；Profile 启动或关闭后点击“刷新 Profile”，无需按 F5。
-2. Live View 按固定约 `1000ms` tick capture；默认 timer adapter 保留 Electron Renderer 的原生 host receiver，忙碌 tick 跳过，不并发、不排队、不补跑，Author 窗口失焦或被遮挡时仍继续。每个新 `frameId` 只向图像元素提交一次 PNG，计数/pending 等状态变化不会重复重启同一帧解码。
+2. Live View 按固定约 `1000ms` tick capture；默认 timer adapter 保留 Electron Renderer 的原生 host receiver，忙碌 tick 跳过，不并发、不排队、不补跑，Author 窗口失焦或被遮挡时仍继续。开发工具通过 Windows 桌面窗口源按原生 HWND 抓取并精确裁掉窗口边框，不向游戏 `webContents` 周期性发送 compositor `capturePage()`；实时阶段只传输缩小的 JPEG 预览并在 Launcher 内保留同一帧原始 `nativeImage`，避免周期性全尺寸 PNG 编码、解码和 Base64。Freeze 时才把已显示帧升级为无损 PNG，模板裁剪与保存始终使用原始像素。
 3. Freeze 当前已显示帧，或在开始 Template/ROI 框选时自动 Freeze。
 4. 在同一 frozen frame 上选择 Template 与 ROI；拖动期间选择框与 screenshot-pixel 坐标实时变化，松手后提交并生成 preview。
 5. 从正式 registry catalog 选择 Target Script，输入合法 `templateId` 后保存，并复制 ROI/示例代码。

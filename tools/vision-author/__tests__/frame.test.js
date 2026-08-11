@@ -3,6 +3,41 @@
 const helpers = require('./helpers');
 
 describe('Frozen frame preview artifacts', () => {
+  test('uses a lightweight JPEG for live view and only encodes full PNG when frozen', () => {
+    const fullPng = Buffer.from('lossless-full-frame');
+    const preview = {
+      isEmpty: jest.fn(function () { return false; }),
+      getSize: jest.fn(function () { return { width: 960, height: 540 }; }),
+      toJPEG: jest.fn(function () { return Buffer.from('small-preview'); })
+    };
+    const image = {
+      isEmpty: jest.fn(function () { return false; }),
+      getSize: jest.fn(function () { return { width: 1920, height: 1080 }; }),
+      resize: jest.fn(function () { return preview; }),
+      toPNG: jest.fn(function () { return fullPng; })
+    };
+    const { createCaptureFrame, frozenPublicFrame } = require('../bridge/frame');
+    const frame = createCaptureFrame({
+      image: image,
+      imageSize: { width: 1920, height: 1080 },
+      contentSize: { width: 1920, height: 1080 },
+      capturedAt: 1
+    }, { id: 'p_aaaaaaaa', name: 'A' }, 3, { frameId: 'frame-native' });
+
+    expect(frame.publicFrame.imageDataUrl).toBe(
+      'data:image/jpeg;base64,' + Buffer.from('small-preview').toString('base64')
+    );
+    expect(image.resize).toHaveBeenCalledWith({ width: 960, height: 540, quality: 'good' });
+    expect(preview.toJPEG).toHaveBeenCalledWith(70);
+    expect(image.toPNG).not.toHaveBeenCalled();
+
+    const frozen = frozenPublicFrame(frame);
+    expect(frozen.imageDataUrl).toBe(
+      'data:image/png;base64,' + fullPng.toString('base64')
+    );
+    expect(image.toPNG).toHaveBeenCalledTimes(1);
+  });
+
   test('crops the pinned original PNG without scaling and preserves exact source pixels', () => {
     const width = 8;
     const height = 6;
